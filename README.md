@@ -12,16 +12,16 @@ Hệ thống quản lý học vụ của học viên Sau đại học" là một
 
 ## Thành viên và phân công vai trò
 
-| STT | MSSV | Họ và tên | Nhóm | Vai trò |
-|---:|---|---|---|---|
-| 3 | DPM235403 | Bùi Lê Tuấn Anh | Nhóm 02 | Frontend |
-| 7 | DPM235407 | Nguyễn Tuấn Anh | Nhóm 02 | PO |
-| 8 | DPM235408 | Trần Tuấn Anh | Nhóm 02 | Backend |
-| 24 | DPM235431 | Trần Lê Quốc Khánh | Nhóm 02 | Frontend |
-| 27 | DPM235436 | Huỳnh Hùng Kiên | Nhóm 02 | QA |
-| 38 | DPM235449 | Huỳnh Lư Anh Minh | Nhóm 02 | QA |
-| 67 | DPM235490 | Nguyễn Bảo Trọng | Nhóm 02 | Backend |
-| 71 | DPM235495 | Lâm Nguyễn Nhựt Tường | Nhóm 02 | DevOps |
+| MSSV | Họ và tên | Nhóm | Vai trò |
+|---|---|---|---|
+| DPM235403 | Bùi Lê Tuấn Anh | Nhóm 02 | Frontend |
+| DPM235407 | Nguyễn Tuấn Anh | Nhóm 02 | PO |
+| DPM235408 | Trần Tuấn Anh | Nhóm 02 | Backend |
+| DPM235431 | Trần Lê Quốc Khánh | Nhóm 02 | Frontend |
+| DPM235436 | Huỳnh Hùng Kiên | Nhóm 02 | QA |
+| DPM235449 | Huỳnh Lư Anh Minh | Nhóm 02 | QA |
+| DPM235490 | Nguyễn Bảo Trọng | Nhóm 02 | Backend |
+| DPM235495 | Lâm Nguyễn Nhựt Tường | Nhóm 02 | DevOps |
 
 ## Repository
 
