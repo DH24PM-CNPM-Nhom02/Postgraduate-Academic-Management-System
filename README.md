@@ -2,7 +2,7 @@
 
 ## Giới thiệu hệ thống
 
-Hệ thống quản lý học vụ sau đại học là nền tảng quản lý tập trung dành cho học viên Thạc sĩ và Tiến sĩ, hỗ trợ toàn bộ quá trình từ tuyển sinh, quản lý hồ sơ học viên, chương trình đào tạo, đăng ký học phần, thời khóa biểu, điểm số, học phí, thanh toán đến quản lý tiến trình đào tạo và tốt nghiệp. Hệ thống được xây dựng theo kiến trúc Microservices với NestJS, sử dụng PostgreSQL và NextJS cho giao diện, nhằm đảm bảo khả năng mở rộng, phân tách nghiệp vụ và quản lý dữ liệu hiệu quả.
+Hệ thống quản lý học vụ của học viên Sau đại học" là một nền tảng trực tuyến (Web-based) được xây dựng nhằm số hóa và liên kết toàn diện các quy trình quản lý đào tạo dành cho quy mô khoảng 300 học viên trình độ Thạc sĩ và Tiến sĩ. Hệ thống cung cấp một giải pháp đồng bộ, bao quát toàn bộ vòng đời học vụ từ khâu tuyển sinh, quản lý chương trình đào tạo, xếp thời khóa biểu, đăng ký môn học, thanh toán học phí trực tuyến, cho đến việc theo dõi sát sao tiến trình nghiên cứu (đối với Nghiên cứu sinh) và xét duyệt tốt nghiệp. Được phát triển dựa trên định hướng kiến trúc Microservices hiện đại bao gồm Backend NestJS, Frontend NextJS và hệ quản trị cơ sở dữ liệu PostgreSQL triển khai trên hạ tầng Docker, nền tảng này không chỉ giúp giảm tải đáng kể khối lượng công việc hành chính mà còn mang lại trải nghiệm tương tác trực quan, tiện lợi cho tất cả các bên tham gia bao gồm Ban đào tạo, Giảng viên và Học viên.
 
 
 
@@ -25,6 +25,6 @@ Hệ thống quản lý học vụ sau đại học là nền tảng quản lý 
 
 ## Repository
 
-- [Repository GitHub/GitLab chính của phân hệ](https://github.com/DH24PM-CNPM-Nhom02/Postgraduate-Academic-Management-System.git)
+- [Repository GitHub chính của Hệ thống](https://github.com/DH24PM-CNPM-Nhom02/Postgraduate-Academic-Management-System.git)
 
 
