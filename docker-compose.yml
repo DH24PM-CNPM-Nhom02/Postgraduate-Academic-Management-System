@@ -1,0 +1,125 @@
+services:
+  mariadb:
+    image: mariadb:10.11
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-rootpassword}
+      MARIADB_DATABASE: auth_db
+      MARIADB_USER: ${MARIADB_USER:-pams_user}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-pams_password}
+    ports:
+      - '${MARIADB_PORT:-3306}:3306'
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./backend/docker/mariadb/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - pams-network
+
+  api-gateway:
+    image: ${IMAGE_PREFIX:-pams}-backend-api-gateway:${IMAGE_TAG:-local}
+    build:
+      context: ./backend
+      args:
+        APP_NAME: api-gateway
+    environment:
+      port: 3000
+    ports:
+      - '3001:3000'
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - pams-network
+
+  auth-service:
+    image: ${IMAGE_PREFIX:-pams}-backend-auth-service:${IMAGE_TAG:-local}
+    build:
+      context: ./backend
+      args:
+        APP_NAME: auth-service
+    environment:
+      port: 3000
+      AUTH_DATABASE_URL: mysql://${MARIADB_USER:-pams_user}:${MARIADB_PASSWORD:-pams_password}@mariadb:3306/auth_db
+    ports:
+      - '3002:3000'
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - pams-network
+
+  phd-service:
+    image: ${IMAGE_PREFIX:-pams}-backend-phd-service:${IMAGE_TAG:-local}
+    build:
+      context: ./backend
+      args:
+        APP_NAME: phd-service
+    environment:
+      port: 3000
+      PHD_DATABASE_URL: mysql://${MARIADB_USER:-pams_user}:${MARIADB_PASSWORD:-pams_password}@mariadb:3306/phd_db
+    ports:
+      - '3003:3000'
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - pams-network
+
+  document-service:
+    image: ${IMAGE_PREFIX:-pams}-backend-document-service:${IMAGE_TAG:-local}
+    build:
+      context: ./backend
+      args:
+        APP_NAME: document-service
+    environment:
+      port: 3000
+      DOCUMENT_DATABASE_URL: mysql://${MARIADB_USER:-pams_user}:${MARIADB_PASSWORD:-pams_password}@mariadb:3306/document_db
+    ports:
+      - '3004:3000'
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - pams-network
+
+  notification-service:
+    image: ${IMAGE_PREFIX:-pams}-backend-notification-service:${IMAGE_TAG:-local}
+    build:
+      context: ./backend
+      args:
+        APP_NAME: notification-service
+    environment:
+      port: 3000
+      NOTIFICATION_DATABASE_URL: mysql://${MARIADB_USER:-pams_user}:${MARIADB_PASSWORD:-pams_password}@mariadb:3306/notification_db
+    ports:
+      - '3005:3000'
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - pams-network
+
+  frontend:
+    image: ${IMAGE_PREFIX:-pams}-frontend:${IMAGE_TAG:-local}
+    build:
+      context: ./frontend
+    environment:
+      NODE_ENV: production
+    ports:
+      - '3000:3000'
+    depends_on:
+      - api-gateway
+    networks:
+      - pams-network
+
+networks:
+  pams-network:
+    driver: bridge
+
+volumes:
+  mariadb_data:

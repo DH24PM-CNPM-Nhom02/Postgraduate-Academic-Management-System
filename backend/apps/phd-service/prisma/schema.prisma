@@ -5,6 +5,7 @@ generator client {
 
 datasource db {
   provider = "mysql"
+  url      = env("PHD_DATABASE_URL")
 }
 
 // -----------------------------------------------------------------------------

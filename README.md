@@ -27,4 +27,16 @@ Hệ thống quản lý học vụ của học viên Sau đại học" là một
 
 - [Repository GitHub chính của Hệ thống](https://github.com/DH24PM-CNPM-Nhom02/Postgraduate-Academic-Management-System.git)
 
+## Chạy bằng Docker Compose
 
+Yêu cầu Docker Compose v2:
+
+```bash
+docker compose up --build
+```
+
+Frontend chạy tại `http://localhost:3000`, API gateway tại `http://localhost:3001`; các service backend lần lượt dùng cổng `3002`-`3005`. MariaDB chạy tại `localhost:3306` và được đánh dấu healthy trước khi các backend service khởi động. Compose dùng thông tin đăng nhập mặc định chỉ cho môi trường phát triển; hãy đặt `MARIADB_ROOT_PASSWORD`, `MARIADB_USER` và `MARIADB_PASSWORD` trong `.env` trước khi dùng ở môi trường chia sẻ hoặc production. Các database được tạo tự động trong lần khởi tạo volume đầu tiên.
+
+Workflow GitHub Actions chạy test, build và kiểm tra kết nối/schema với MariaDB. Khi push lên `main` hoặc đẩy tag `v*`, workflow build và push image frontend cùng các backend service lên GitHub Container Registry (`ghcr.io`). Pull request chỉ chạy CI, không publish image. Repository cần bật quyền GitHub Actions ghi package để publish thành công.
+
+Để chạy các image đã publish thay vì build tại chỗ, đặt `IMAGE_PREFIX=ghcr.io/dh24pm-cnpm-nhom02/postgraduate-academic-management-system` và `IMAGE_TAG=main` (hoặc tag phát hành) trong `.env`, đăng nhập GHCR rồi chạy `docker compose pull && docker compose up -d`.

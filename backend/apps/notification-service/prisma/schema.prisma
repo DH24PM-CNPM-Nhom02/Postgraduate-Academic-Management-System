@@ -5,6 +5,7 @@ generator client {
 
 datasource db {
   provider = "mysql"
+  url      = env("NOTIFICATION_DATABASE_URL")
 }
 
 model Notification {

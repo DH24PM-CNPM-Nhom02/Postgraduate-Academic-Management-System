@@ -1,0 +1,199 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------
+  # Job 1: Backend (cần MariaDB để test và kiểm tra Prisma schema)
+  # ---------------------------------------------------------------
+  backend:
+    name: Backend - test and build
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: rootpassword
+          MARIADB_DATABASE: auth_db
+          MARIADB_USER: pams_user
+          MARIADB_PASSWORD: pams_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+          --health-start-period=30s
+
+    env:
+      AUTH_DATABASE_URL: mysql://pams_user:pams_password@127.0.0.1:3306/auth_db
+      PHD_DATABASE_URL: mysql://pams_user:pams_password@127.0.0.1:3306/phd_db
+      DOCUMENT_DATABASE_URL: mysql://pams_user:pams_password@127.0.0.1:3306/document_db
+      NOTIFICATION_DATABASE_URL: mysql://pams_user:pams_password@127.0.0.1:3306/notification_db
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Verify MariaDB health and provision service databases
+        env:
+          DATABASE_CONTAINER_ID: ${{ job.services.mariadb.id }}
+        run: |
+          docker exec "$DATABASE_CONTAINER_ID" healthcheck.sh --connect --innodb_initialized
+          docker exec "$DATABASE_CONTAINER_ID" mariadb -uroot -prootpassword -e "
+            CREATE DATABASE IF NOT EXISTS phd_db;
+            CREATE DATABASE IF NOT EXISTS document_db;
+            CREATE DATABASE IF NOT EXISTS notification_db;
+            GRANT ALL PRIVILEGES ON auth_db.* TO 'pams_user'@'%';
+            GRANT ALL PRIVILEGES ON phd_db.* TO 'pams_user'@'%';
+            GRANT ALL PRIVILEGES ON document_db.* TO 'pams_user'@'%';
+            GRANT ALL PRIVILEGES ON notification_db.* TO 'pams_user'@'%';
+            FLUSH PRIVILEGES;
+          "
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Generate Prisma clients
+        working-directory: backend
+        run: npm run prisma:generate
+
+      - name: Verify database connections and schemas
+        working-directory: backend
+        run: npm run prisma:push
+
+      - name: Run backend tests and build
+        working-directory: backend
+        run: |
+          npm test
+          npm run build
+
+  # ---------------------------------------------------------------
+  # Job 2: Frontend (không cần database, chạy song song với backend)
+  # ---------------------------------------------------------------
+  frontend:
+    name: Frontend - lint and build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint and build frontend
+        working-directory: frontend
+        run: |
+          npm run lint
+          npm run build
+
+  # ---------------------------------------------------------------
+  # Job 3: Build và đẩy Docker image (chỉ chạy khi 2 job trên đều xanh)
+  # ---------------------------------------------------------------
+  publish:
+    name: Publish ${{ matrix.image }}
+    needs: [backend, frontend]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: frontend
+            context: ./frontend
+            dockerfile: ./frontend/Dockerfile
+            build_args: ""
+
+          - image: backend-api-gateway
+            context: ./backend
+            dockerfile: ./backend/Dockerfile
+            build_args: APP_NAME=api-gateway
+
+          - image: backend-auth-service
+            context: ./backend
+            dockerfile: ./backend/Dockerfile
+            build_args: APP_NAME=auth-service
+
+          - image: backend-phd-service
+            context: ./backend
+            dockerfile: ./backend/Dockerfile
+            build_args: APP_NAME=phd-service
+
+          - image: backend-document-service
+            context: ./backend
+            dockerfile: ./backend/Dockerfile
+            build_args: APP_NAME=document-service
+
+          - image: backend-notification-service
+            context: ./backend
+            dockerfile: ./backend/Dockerfile
+            build_args: APP_NAME=notification-service
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}-${{ matrix.image }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          build-args: ${{ matrix.build_args }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Cache: lần build sau dùng lại các layer chưa đổi.
+          # scope = tên image, để mỗi image có cache riêng, không đè lên nhau.
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
