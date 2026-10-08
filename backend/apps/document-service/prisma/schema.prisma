@@ -1,0 +1,22 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Document {
+  id           String   @id @default(uuid())
+  ownerId      String   @map("owner_id")
+  documentType String   @map("document_type")
+  objectKey    String   @map("object_key")
+  mimeType     String   @map("mime_type")
+  size         BigInt
+  checksum     String
+  status       String   @default("ACTIVE")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("documents")
+}

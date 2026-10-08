@@ -1,0 +1,28 @@
+services:
+  mariadb:
+    image: mariadb:10.11
+    container_name: pams-mariadb
+    restart: unless-stopped
+    ports:
+      - '${MARIADB_PORT:-3306}:3306'
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-rootpassword}
+      MARIADB_USER: ${MARIADB_USER:-pams_user}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-pams_password}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./docker/mariadb/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pams-network
+
+networks:
+  pams-network:
+    driver: bridge
+
+volumes:
+  mariadb_data:

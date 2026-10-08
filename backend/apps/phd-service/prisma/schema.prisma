@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// -----------------------------------------------------------------------------
+// Core PhD Student Profile
+// -----------------------------------------------------------------------------
+model NghienCuuSinh {
+  id                String   @id @default(uuid())
+  mshv              String   @unique @db.VarChar(20)
+  hoTen             String   @map("ho_ten") @db.VarChar(100)
+  ngaySinh          DateTime? @map("ngay_sinh") @db.Date
+  email             String?  @db.VarChar(100)
+  soDienThoai       String?  @map("so_dien_thoai") @db.VarChar(20)
+  ngayNhapHoc       DateTime @map("ngay_nhap_hoc") @db.Date
+  trinhDoDauVao     String   @default("THAC_SI") @map("trinh_do_dau_vao") // ENUM('THAC_SI', 'DAI_HOC')
+  phuongThucDaoTao  String   @default("PHUONG_THUC_2") @map("phuong_thuc_dao_tao") // ENUM('PHUONG_THUC_1', 'PHUONG_THUC_2')
+  hanChinhQuy       DateTime @map("han_chinh_quy") @db.Date
+  hanBuocThoiHoc    DateTime @map("han_buoc_thoi_hoc") @db.Date
+  trangThai         String   @default("DANG_HOC") @map("trang_thai") // ENUM('DANG_HOC', 'DA_TOT_NGHIEP', 'GIA_HAN', 'BUOC_THOI_HOC')
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  minhChungs       MinhChungMoc[]
+  congBos          CongBoKhoaHoc[]
+  phanCongs        PhanCongHuongDan[]
+  hoiDongs         HoiDongBaoVe[]
+
+  @@map("nghien_cuu_sinh")
+}
+
+// -----------------------------------------------------------------------------
+// Milestones & Progress
+// -----------------------------------------------------------------------------
+model MocTienTrinh {
+  id                Int      @id @default(autoincrement())
+  tenMoc            String   @map("ten_moc") @db.VarChar(100)
+  thuTu             Int      @unique @map("thu_tu")
+  moTa              String?  @map("mo_ta") @db.Text
+  batBuocMinhChung  Boolean  @default(true) @map("bat_buoc_minh_chung")
+
+  minhChungs        MinhChungMoc[]
+
+  @@map("moc_tien_trinh")
+}
+
+model MinhChungMoc {
+  id              String   @id @default(uuid())
+  ncsId           String   @map("ncs_id")
+  mocId           Int      @map("moc_id")
+  diemTrungBinh   Decimal? @map("diem_trung_binh") @db.Decimal(4,2)
+  fileUrl         String?  @map("file_url") @db.VarChar(500)
+  fileSizeBytes   BigInt?  @map("file_size_bytes")
+  trangThai       String   @default("CHUA_MO_KHOA") @map("trang_thai") // ENUM
+  lyDoTuChoi      String?  @map("ly_do_tu_choi") @db.Text
+  ngayNop         DateTime? @map("ngay_nop")
+  ngayDuyet       DateTime? @map("ngay_duyet")
+  nguoiDuyetId    String?  @map("nguoi_duyet_id")
+
+  ncs             NghienCuuSinh @relation(fields: [ncsId], references: [id], onDelete: Cascade)
+  moc             MocTienTrinh  @relation(fields: [mocId], references: [id], onDelete: Restrict)
+
+  @@map("minh_chung_moc")
+}
+
+// -----------------------------------------------------------------------------
+// Publications
+// -----------------------------------------------------------------------------
+model CongBoKhoaHoc {
+  id                  String   @id @default(uuid())
+  ncsId               String   @map("ncs_id")
+  tenBaiBao           String   @map("ten_bai_bao") @db.VarChar(500)
+  tenTapChiHoiNghi    String   @map("ten_tap_chi_hoi_nghi") @db.VarChar(255)
+  issn                String?  @db.VarChar(20)
+  linkUrl             String?  @map("link_url") @db.VarChar(500)
+  filePdfUrl          String?  @map("file_pdf_url") @db.VarChar(500)
+  loaiDanhMuc         String   @map("loai_danh_muc") // ENUM
+  diemQuyDoi          Decimal  @default(0.00) @map("diem_quy_doi") @db.Decimal(3,2)
+  trangThaiDuyet      String   @default("CHO_THAM_DINH") @map("trang_thai_duyet") // ENUM
+  
+  ncs                 NghienCuuSinh @relation(fields: [ncsId], references: [id], onDelete: Cascade)
+
+  @@map("cong_bo_khoa_hoc")
+}
+
+// -----------------------------------------------------------------------------
+// Supervisors
+// -----------------------------------------------------------------------------
+model GiangVienHuongDan {
+  id                  String   @id @default(uuid())
+  hoTen               String   @map("ho_ten") @db.VarChar(100)
+  hocHamHocVi         String   @map("hoc_ham_hoc_vi") // ENUM
+  coQuanCongTac       String   @map("co_quan_cong_tac") @db.VarChar(255)
+  maxNcsChoPhep       Int      @map("max_ncs_cho_phep")
+  soNcsDangHuongDan   Decimal  @default(0.0) @map("so_ncs_dang_huong_dan") @db.Decimal(3,1)
+
+  phanCongs           PhanCongHuongDan[]
+
+  @@map("giang_vien_huong_dan")
+}
+
+model PhanCongHuongDan {
+  id              String   @id @default(uuid())
+  ncsId           String   @map("ncs_id")
+  gvhdId          String   @map("gvhd_id")
+  vaiTro          String   @default("HUONG_DAN_CHINH") @map("vai_tro") // ENUM
+  quyetDinhSo     String   @map("quyet_dinh_so") @db.VarChar(50)
+  ngayQuyetDinh   DateTime @map("ngay_quyet_dinh") @db.Date
+  trangThai       String   @default("DANG_HIEU_LUC") @map("trang_thai") // ENUM
+
+  ncs             NghienCuuSinh     @relation(fields: [ncsId], references: [id], onDelete: Cascade)
+  gvhd            GiangVienHuongDan @relation(fields: [gvhdId], references: [id], onDelete: Cascade)
+
+  @@map("phan_cong_huong_dan")
+}
+
+// -----------------------------------------------------------------------------
+// Defense
+// -----------------------------------------------------------------------------
+model HoiDongBaoVe {
+  id                      String   @id @default(uuid())
+  ncsId                   String   @map("ncs_id")
+  capHoiDong              String   @map("cap_hoi_dong") // ENUM
+  ngayBaoVe               DateTime? @map("ngay_bao_ve") @db.Date
+  ketQua                  String   @default("CHO_BAO_VE") @map("ket_qua") // ENUM
+  fileBienBanUrl          String?  @map("file_bien_ban_url") @db.VarChar(500)
+  fileLuanAnSuaDoiUrl     String?  @map("file_luan_an_sua_doi_url") @db.VarChar(500)
+
+  ncs                     NghienCuuSinh @relation(fields: [ncsId], references: [id], onDelete: Cascade)
+
+  @@map("hoi_dong_bao_ve")
+}
