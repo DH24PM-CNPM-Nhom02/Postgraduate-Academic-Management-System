@@ -9,7 +9,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env') }); // This is fo
 dotenv.config(); // This is for local .env if any
 
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../src/generated/prisma/index.js';
 import * as bcrypt from 'bcryptjs';
 import { PERMISSIONS, ROLES } from '../../../lib/contracts/src/permissions.js';
 

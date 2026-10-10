@@ -1,6 +1,7 @@
 // auth-service — Identity, RBAC, phiên đăng nhập. DB: auth_db (MySQL)
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
