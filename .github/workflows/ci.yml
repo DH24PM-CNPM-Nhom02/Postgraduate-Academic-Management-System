@@ -88,7 +88,7 @@ jobs:
       - name: Run backend tests and build
         working-directory: backend
         run: |
-          npm test:e2e
+          npm test
           npm run build
 
   # ---------------------------------------------------------------
