@@ -5,6 +5,6 @@
     "rootDir": "../..",
     "outDir": "../../dist/apps/auth-service"
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "../api-gateway/src/auth/strategies/jwt.strategy.ts", "../api-gateway/src/auth/guards/jwt-auth.guard.ts"],
   "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
 }
