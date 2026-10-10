@@ -13,7 +13,8 @@ export class CustomAuthError extends AuthError {
 
     constructor(message?: string) {
         super();
-        this.type = message;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        this.type = message as any;
     }
 }
 

@@ -28,7 +28,7 @@ export const authService = {
     } catch (error) {
       const err = error as { response?: { data?: { statusCode?: number, message?: string }, status?: number }, message?: string };
       if (err.response) {
-        const status = error.response.data?.statusCode ?? error.response.status;
+        const status = err.response.data?.statusCode ?? err.response.status;
 
         if (status === 400) {
           throw new InvalidParameters();
