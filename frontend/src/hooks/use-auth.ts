@@ -11,18 +11,37 @@ export function useAuth() {
     const [error, setError] = useState<string | null>(null);
 
     const login = useCallback(
-        async (email: string, password: string) => {
+        async (username: string, password: string) => {
             setIsSubmitting(true);
             setError(null);
             try {
                 const result = await signIn("credentials", {
-                    email,
+                    username,
                     password,
                     redirect: false, // tự điều hướng thay vì để NextAuth redirect
                 });
 
                 if (result?.error) {
-                    setError("Sai email hoặc mật khẩu");
+                    let errorMessage = "Đăng nhập thất bại. Vui lòng thử lại.";
+                    switch (result.code) {
+                        case "UNAUTHORIZED":
+                            errorMessage = "Tên đăng nhập hoặc mật khẩu không chính xác.";
+                            break;
+                        case "INACTIVE_ACCOUNT":
+                            errorMessage = "Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa.";
+                            break;
+                        case "BAD_REQUEST":
+                            errorMessage = "Thông tin đăng nhập không hợp lệ.";
+                            break;
+                        case "ACCOUNT_CONFLICT":
+                            errorMessage = "Tài khoản đang bị xung đột trạng thái.";
+                            break;
+                        default:
+                            if (result.error !== "CredentialsSignin") {
+                                errorMessage = result.error;
+                            }
+                    }
+                    setError(errorMessage);
                     return false;
                 }
 

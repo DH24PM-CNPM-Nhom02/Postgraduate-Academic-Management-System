@@ -16,7 +16,7 @@ export function LoginForm({
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     await login(
-      formData.get("email") as string,
+      formData.get("username") as string,
       formData.get("password") as string
     );
   }
@@ -41,11 +41,11 @@ export function LoginForm({
               )}
 
               <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <FieldLabel htmlFor="username">Mã số học viên</FieldLabel>
                 <Input
-                  id="email"
-                  name="email"
-                  placeholder="m@example.com"
+                  id="username"
+                  name="username"
+                  placeholder=""
                   required
                   disabled={isLoading}
                 />

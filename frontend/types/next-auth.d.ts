@@ -1,38 +1,36 @@
-import type { DefaultSession, DefaultUser } from "next-auth";
-import type { DefaultJWT } from "next-auth/jwt";
+import { DefaultSession, DefaultUser } from "next-auth";
+import { DefaultJWT } from "next-auth/jwt";
+import { UserRole } from "@/src/lib/auth/constants";
+
+export interface IUser {
+    id: string;
+    fullName: string;
+    username: string;
+    email?: string;
+    role: UserRole;
+}
 
 declare module "next-auth" {
-  /**
-   * Mở rộng kiểu User trả về từ authorize().
-   */
-  interface User extends DefaultUser {
-    accessToken: string;
-    refreshToken: string;
-    accessTokenExpires: number;
-    role: string;
-  }
+    interface Session {
+        user: IUser;
+        access_token: string;
+        access_expire: number;
+        error?: string;
+    }
 
-  /**
-   * Mở rộng kiểu Session để client (useSession) thấy được các trường tuỳ chỉnh.
-   */
-  interface Session extends DefaultSession {
-    accessToken: string;
-    error?: string;
-    user: DefaultSession["user"] & {
-      role: string;
-    };
-  }
+    interface User extends DefaultUser {
+        user: IUser;
+        access_token: string;
+        refresh_token: string;
+    }
 }
 
 declare module "next-auth/jwt" {
-  /**
-   * Mở rộng kiểu JWT token.
-   */
-  interface JWT extends DefaultJWT {
-    accessToken: string;
-    refreshToken: string;
-    accessTokenExpires: number;
-    role: string;
-    error?: string;
-  }
+    interface JWT extends DefaultJWT {
+        access_token: string;
+        refresh_token: string;
+        user: IUser;
+        access_expire: number;
+        error?: string;
+    }
 }
