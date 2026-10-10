@@ -80,11 +80,15 @@ jobs:
       - name: Verify database connections and schemas
         working-directory: backend
         run: npm run prisma:push
-
+        env:
+          AUTH_DATABASE_URL: ${{ secrets.AUTH_DATABASE_URL }}
+          PHD_DATABASE_URL: ${{ secrets.PHD_DATABASE_URL }}
+          DOCUMENT_DATABASE_URL: ${{ secrets.DOCUMENT_DATABASE_URL }}
+          NOTIFICATION_DATABASE_URL: ${{ secrets.NOTIFICATION_DATABASE_URL }}
       - name: Run backend tests and build
         working-directory: backend
         run: |
-          npm test
+          npm run test:e2e
           npm run build
 
   # ---------------------------------------------------------------

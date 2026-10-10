@@ -1,66 +1,69 @@
+// auth-service — Identity, RBAC, phiên đăng nhập. DB: auth_db (MySQL)
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "mysql"
-  url      = env("AUTH_DATABASE_URL")
 }
 
 model User {
-  id           String    @id @default(uuid())
-  username     String    @unique
-  email        String    @unique
-  passwordHash String    @map("password_hash")
-  status       String    @default("ACTIVE")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
-
-  roles        UserRole[]
-
-  @@map("users")
+  id                 String         @id @default(uuid())
+  username           String         @unique   // MSHV (NCS) hoặc mã cán bộ
+  password           String
+  fullName           String
+  email              String?        @unique
+  isActive           Boolean        @default(true)   // false = bị khóa
+  mustChangePassword Boolean        @default(true)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  deletedAt          DateTime?
+  roles              UserRole[]
+  refreshTokens      RefreshToken[]
 }
 
 model Role {
-  id   String @id @default(uuid())
-  code String @unique
-  name String
-
-  permissions RolePermission[]
-  users       UserRole[]
-
-  @@map("roles")
+  id           Int              @id @default(autoincrement())
+  name         String           @unique
+  isSystemRole Boolean          @default(false)
+  description  String?
+  permissions  RolePermission[]
+  users        UserRole[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 }
 
 model Permission {
-  id   String @id @default(uuid())
-  code String @unique
-  name String
-
-  roles RolePermission[]
-
-  @@map("permissions")
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  label       String?
+  description String?
+  roles       RolePermission[]
 }
 
 model UserRole {
-  userId String @map("user_id")
-  roleId String @map("role_id")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
-
+  userId String
+  roleId Int
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
   @@id([userId, roleId])
-  @@map("user_roles")
 }
 
 model RolePermission {
-  roleId       String @map("role_id")
-  permissionId String @map("permission_id")
-
-  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
   @@id([roleId, permissionId])
-  @@map("role_permissions")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
 }

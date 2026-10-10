@@ -5,8 +5,5 @@ import { ApiGatewayService } from './api-gateway.service.js';
 export class ApiGatewayController {
   constructor(private readonly apiGatewayService: ApiGatewayService) {}
 
-  @Get()
-  getHello(): string {
-    return this.apiGatewayService.getHello();
-  }
+  
 }

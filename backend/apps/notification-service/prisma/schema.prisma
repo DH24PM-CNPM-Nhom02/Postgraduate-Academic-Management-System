@@ -1,3 +1,4 @@
+// notification-service — thông báo in-app. DB: notification_db (PostgreSQL)
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -5,17 +6,22 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = env("NOTIFICATION_DATABASE_URL")
 }
 
 model Notification {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  title     String
-  content   String   @db.Text
-  type      String   @default("INFO")
-  isRead    Boolean  @default(false) @map("is_read")
-  createdAt DateTime @default(now()) @map("created_at")
+  id          String    @id @default(uuid())
+  /// auth-service.users.id
+  recipientId String    @map("recipient_id")
+  /// vd: phd.milestone.passed, phd.milestone.rejected
+  eventType   String    @map("event_type") @db.VarChar(100)
+  title       String    @db.VarChar(255)
+  body        String    @db.Text
+  /// Dữ liệu kèm theo (ncsId, entityId...) để FE điều hướng
+  data        Json?
+  readAt      DateTime? @map("read_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
 
+  @@index([recipientId, readAt])
+  @@index([recipientId, createdAt])
   @@map("notifications")
 }
