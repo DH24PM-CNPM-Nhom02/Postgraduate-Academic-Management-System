@@ -25,8 +25,9 @@ export const authService = {
       });
 
       return res.data;
-    } catch (error: any) {
-      if (error.response) {
+    } catch (error) {
+      const err = error as { response?: { data?: { statusCode?: number, message?: string }, status?: number }, message?: string };
+      if (err.response) {
         const status = error.response.data?.statusCode ?? error.response.status;
 
         if (status === 400) {
@@ -58,9 +59,10 @@ export const authService = {
         },
       });
       return res.data;
-    } catch (error: any) {
+    } catch (error) {
+      const err = error as { response?: { data?: { statusCode?: number, message?: string }, status?: number }, message?: string };
       throw new Error(
-        error?.response?.data?.message || "Lấy thông tin người dùng thất bại"
+        err?.response?.data?.message || "Lấy thông tin người dùng thất bại"
       );
     }
   },
@@ -75,9 +77,10 @@ export const authService = {
         refreshToken,
       });
       return res.data;
-    } catch (error: any) {
+    } catch (error) {
+      const err = error as { response?: { data?: { statusCode?: number, message?: string }, status?: number }, message?: string };
       throw new Error(
-        error?.response?.data?.message || "Refresh token thất bại"
+        err?.response?.data?.message || "Refresh token thất bại"
       );
     }
   },
@@ -92,10 +95,11 @@ export const authService = {
         refreshToken,
       });
       return res.data;
-    } catch (error: any) {
+    } catch (error) {
+      const err = error as { response?: { data?: { statusCode?: number, message?: string }, status?: number }, message?: string };
       console.error(
         "Lỗi khi gọi logout API:",
-        error?.response?.data || error.message
+        err?.response?.data || err.message
       );
       return null;
     }

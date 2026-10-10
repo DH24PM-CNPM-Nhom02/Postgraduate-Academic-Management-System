@@ -1,6 +1,6 @@
 import { auth } from "@/src/auth";
 import { NextResponse } from "next/server";
-import { ROUTE_GROUP_ROLES } from "./lib/auth/constants";
+
 
 export const config = {
     matcher: [
@@ -13,13 +13,12 @@ const PUBLIC_ROUTES = ["/login", "/forgot-password"];
 export default auth((req) => {
     const isLoggedIn = !!req.auth;
     const { pathname } = req.nextUrl;
-    const role = req.auth?.user?.role;
     
     const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/forgot-password");
     const isPublicRoute = PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
 
     // Lấy error do hàm jwt bên auth.ts ghi đè (nếu refreshToken hết hạn/lỗi)
-    const authError = (req.auth as any)?.error;
+    const authError = (req.auth)?.error;
 
     // 1. REFRESH TOKEN THẤT BẠI
     if (authError === "RefreshTokenError") {
@@ -46,13 +45,7 @@ export default auth((req) => {
     // 4. KIỂM TRA QUYỀN (RBAC) DỰA TRÊN ROLE & ROUTE_GROUP
     // Ví dụ, /student/... -> student group
     // TODO: implement strict RBAC matching
-    for (const [group, allowedRoles] of Object.entries(ROUTE_GROUP_ROLES)) {
-        // Group format: "(student)" -> "/student" route ?
-        // Tuỳ thuộc thư mục route group, Next.js loại bỏ () trong pathname,
-        // nếu folder tên là app/(student)/dashboard -> pathname là /dashboard.
-        // Bạn cần xử lý map route tương ứng. Ở mức này, bỏ qua logic phức tạp nếu 
-        // chưa set up routing chính xác, hoặc match regex pathname.
-    }
+    // Object.entries(ROUTE_GROUP_ROLES).forEach(([group, allowedRoles]) => { ... })
 
     return NextResponse.next();
 });

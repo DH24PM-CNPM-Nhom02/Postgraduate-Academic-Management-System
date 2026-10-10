@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { authService, LoginPayload } from "@/src/services/auth";
+import { authService } from "@/src/services/auth";
 import { withRefreshLock } from "@/src/lib/auth/refresh-lock";
 import { getTokenExpire } from "@/src/lib/utils/jwt";
 import { UserRole } from "./lib/auth/constants";
@@ -22,7 +22,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 // Gọi API backend để đăng nhập
                 // Lỗi (VD: sai pass, chưa active) sẽ throw Exception và được bắt ở LoginForm
                 const data = await authService.login(credentials as Record<string, string>);
-                console.log("data", data);
                 if (data && data.access_token) {
                     return {
                         id: data.user.id,
@@ -65,7 +64,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 
                 try {
                     token.access_expire = getTokenExpire(user.access_token);
-                } catch (e) {
+                } catch {
                     // Nếu decode lỗi (do token backend trả về không phải JWT chuẩn, fallback lấy từ db)
                     token.access_expire = Date.now() + 15 * 60 * 1000;
                 }
@@ -133,7 +132,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 return session;
             }
             if (token && session.user) {
-                session.user = token.user as any;
+                session.user = token.user as unknown as IUser;
             }
             session.access_token = token.access_token;
             session.access_expire = token.access_expire;

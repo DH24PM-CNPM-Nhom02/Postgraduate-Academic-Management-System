@@ -1,4 +1,4 @@
-import { DefaultSession, DefaultUser } from "next-auth";
+import { DefaultUser } from "next-auth";
 import { DefaultJWT } from "next-auth/jwt";
 import { UserRole } from "@/src/lib/auth/constants";
 
