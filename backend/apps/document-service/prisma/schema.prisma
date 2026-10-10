@@ -1,3 +1,5 @@
+// document-service — metadata file PDF (nội dung nằm ở storage S3/local)
+// DB: document_db (PostgreSQL)
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -5,19 +7,45 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = env("DOCUMENT_DATABASE_URL")
+}
+
+enum DocumentType {
+  MINH_CHUNG_MOC
+  QUYET_DINH
+  KHAC
+}
+
+enum DocumentStatus {
+  PENDING // đã tạo metadata, chưa xác nhận upload xong
+  ACTIVE
+  DELETED // xóa mềm
 }
 
 model Document {
-  id           String   @id @default(uuid())
-  ownerId      String   @map("owner_id")
-  documentType String   @map("document_type")
-  objectKey    String   @map("object_key")
-  mimeType     String   @map("mime_type")
+  id           String         @id @default(uuid())
+  /// Người upload (auth-service.users.id)
+  ownerId      String         @map("owner_id")
+  /// NCS sở hữu hồ sơ — kiểm soát truy cập (NCS chỉ xem file của mình)
+  ncsId        String?        @map("ncs_id")
+  documentType DocumentType   @map("document_type")
+  /// Thực thể gắn với file (vd MINH_CHUNG_MOC + id) — logic, không FK
+  refType      String?        @map("ref_type") @db.VarChar(50)
+  refId        String?        @map("ref_id")
+  bucket       String         @db.VarChar(100)
+  objectKey    String         @unique @map("object_key")
+  originalName String         @map("original_name") @db.VarChar(255)
+  /// Chỉ chấp nhận application/pdf
+  mimeType     String         @map("mime_type") @db.VarChar(100)
+  /// Bytes, tối đa 15 * 1024 * 1024
   size         BigInt
-  checksum     String
-  status       String   @default("ACTIVE")
-  createdAt    DateTime @default(now()) @map("created_at")
+  /// SHA-256
+  checksum     String         @db.VarChar(64)
+  status       DocumentStatus @default(PENDING)
+  createdAt    DateTime       @default(now()) @map("created_at")
+  deletedAt    DateTime?      @map("deleted_at")
 
+  @@index([ncsId, documentType])
+  @@index([refType, refId])
+  @@index([ownerId])
   @@map("documents")
 }
