@@ -132,7 +132,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 return session;
             }
             if (token && session.user) {
-                session.user = token.user as unknown as IUser;
+                session.user = token.user as unknown as IUser ;
             }
             session.access_token = token.access_token;
             session.access_expire = token.access_expire;
