@@ -25,4 +25,9 @@ GRANT ALL PRIVILEGES ON `phd_db`.* TO 'pams_user'@'%';
 GRANT ALL PRIVILEGES ON `document_db`.* TO 'pams_user'@'%';
 GRANT ALL PRIVILEGES ON `notification_db`.* TO 'pams_user'@'%';
 
+GRANT ALL PRIVILEGES ON `auth_db`.* TO 'pams_user'@'localhost';
+GRANT ALL PRIVILEGES ON `phd_db`.* TO 'pams_user'@'localhost';
+GRANT ALL PRIVILEGES ON `document_db`.* TO 'pams_user'@'localhost';
+GRANT ALL PRIVILEGES ON `notification_db`.* TO 'pams_user'@'localhost';
+
 FLUSH PRIVILEGES;
