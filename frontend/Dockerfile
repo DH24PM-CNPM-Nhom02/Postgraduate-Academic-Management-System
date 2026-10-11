@@ -1,9 +1,19 @@
-FROM node:22-alpine AS build
+FROM node:22-alpine AS dependencies
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci
+
+FROM dependencies AS dev
+
+COPY . .
+
+ENV NODE_ENV=development
+EXPOSE 3000
+CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
+
+FROM dependencies AS build
 
 COPY . .
 RUN npm run build

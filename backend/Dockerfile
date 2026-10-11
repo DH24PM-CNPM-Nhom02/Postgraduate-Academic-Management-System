@@ -31,5 +31,5 @@ COPY --from=build /app/apps/phd-service/src/generated ./dist/apps/phd-service/ap
 COPY --from=build /app/apps/document-service/src/generated ./dist/apps/document-service/apps/document-service/src/generated
 COPY --from=build /app/apps/notification-service/src/generated ./dist/apps/notification-service/apps/notification-service/src/generated
 
-EXPOSE 3000
+EXPOSE 8080 3001 3002 3003 3004
 CMD ["sh", "-c", "node dist/apps/${APP_NAME}/apps/${APP_NAME}/src/main.js"]
