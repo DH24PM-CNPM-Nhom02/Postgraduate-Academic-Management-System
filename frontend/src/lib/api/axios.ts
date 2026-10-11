@@ -8,8 +8,8 @@ export const apiClient = axios.create({
 // Trước mỗi request, tự gắn token vào header
 apiClient.interceptors.request.use(async (config) => {
     const session = await getSession();
-    if (session?.accessToken) {
-        config.headers.Authorization = `Bearer ${session.accessToken}`;
+    if (session?.access_token) {
+        config.headers.Authorization = `Bearer ${session.access_token}`;
     }
     return config;
 });

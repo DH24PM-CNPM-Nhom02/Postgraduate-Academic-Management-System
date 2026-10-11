@@ -5,6 +5,8 @@
  * Sử dụng date-fns với locale vi cho định dạng ngày giờ.
  */
 
+import { decodeJwt } from "jose";
+
 /**
  * Format ngày theo dd/MM/yyyy
  * Backend lưu UTC, frontend convert sang UTC+7.
@@ -44,3 +46,17 @@ export function formatFileSize(bytes: number): string {
 export function isValidISSN(issn: string): boolean {
   return /^\d{4}-\d{3}[\dX]$/.test(issn);
 }
+
+/**
+ * Decode JWT access token và trả về thời điểm hết hạn (milliseconds).
+ * Dùng jose library (edge-compatible, không cần secret).
+ */
+export const getTokenExpire = (accessToken: string) => {
+  const payload = decodeJwt(accessToken);
+
+  if (!payload.exp) {
+    throw new Error("Access token không có exp");
+  }
+
+  return payload.exp * 1000;
+};

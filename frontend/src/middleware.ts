@@ -1,64 +1,51 @@
-/**
- * middleware.ts — RBAC Route Protection
- *
- * Chặn route theo role decoded từ JWT.
- * Không chỉ ẩn menu — phải chặn cả URL trực tiếp.
- *
- * RBAC 6 role: NCS, GVHD, GIAO_VU, DON_VI_CHUYEN_MON, HOI_DONG, ADMIN
- */
-
+import { auth } from "@/src/auth";
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
-/**
- * Route group → allowed roles mapping
- */
-const ROUTE_GROUP_ROLES: Record<string, string[]> = {
-  "(student)": ["NCS"],
-  "(supervisor)": ["GVHD"],
-  "(academic)": ["GIAO_VU", "DON_VI_CHUYEN_MON"],
-  "(committee)": ["HOI_DONG"],
-  "(admin)": ["ADMIN"],
-};
-
-/**
- * Public routes that don't require authentication
- */
-const PUBLIC_ROUTES = ["/login", "/forgot-password"];
-
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // Allow public routes
-  if (PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
-    return NextResponse.next();
-  }
-
-  // TODO: Decode JWT from HttpOnly cookie and check role
-  // const token = request.cookies.get("access_token")?.value;
-  // if (!token) {
-  //   return NextResponse.redirect(new URL("/login", request.url));
-  // }
-
-  // TODO: Verify role against route group
-  // const userRole = decodeJWT(token).role;
-  // const routeGroup = getRouteGroup(pathname);
-  // if (routeGroup && !ROUTE_GROUP_ROLES[routeGroup]?.includes(userRole)) {
-  //   return NextResponse.redirect(new URL("/unauthorized", request.url));
-  // }
-
-  return NextResponse.next();
-}
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except:
-     * - api routes
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico
-     */
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
-  ],
+    matcher: [
+        "/((?!api/auth|_next/static|_next/image|favicon.ico|$).*)",
+    ],
 };
+
+const PUBLIC_ROUTES = ["/login", "/forgot-password"];
+
+export default auth((req) => {
+    const isLoggedIn = !!req.auth;
+    const { pathname } = req.nextUrl;
+    
+    const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/forgot-password");
+    const isPublicRoute = PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
+
+    // Lấy error do hàm jwt bên auth.ts ghi đè (nếu refreshToken hết hạn/lỗi)
+    const authError = (req.auth)?.error;
+
+    // 1. REFRESH TOKEN THẤT BẠI
+    if (authError === "RefreshTokenError") {
+        if (!isPublicRoute && !isAuthPage) {
+            return NextResponse.redirect(new URL("/login", req.nextUrl.origin));
+        }
+        return NextResponse.next();
+    }
+
+    // 2. CHƯA ĐĂNG NHẬP
+    if (!isLoggedIn) {
+        if (isAuthPage || isPublicRoute) {
+            return NextResponse.next();
+        }
+        // Protected route -> redirect to login
+        return NextResponse.redirect(new URL("/login", req.nextUrl.origin));
+    }
+
+    // 3. ĐÃ ĐĂNG NHẬP MÀ TRUY CẬP TRANG LOGIN
+    if (isAuthPage) {
+        return NextResponse.redirect(new URL("/", req.nextUrl.origin));
+    }
+
+    // 4. KIỂM TRA QUYỀN (RBAC) DỰA TRÊN ROLE & ROUTE_GROUP
+    // Ví dụ, /student/... -> student group
+    // TODO: implement strict RBAC matching
+    // Object.entries(ROUTE_GROUP_ROLES).forEach(([group, allowedRoles]) => { ... })
+
+    return NextResponse.next();
+});

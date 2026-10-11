@@ -1,3 +1,4 @@
+
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -5,134 +6,398 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url      = env("PHD_DATABASE_URL")
 }
 
-// -----------------------------------------------------------------------------
-// Core PhD Student Profile
-// -----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// ENUMS
+// ----------------------------------------------------------------------------
+enum TrinhDoDauVao {
+  THAC_SI
+  DAI_HOC
+}
+
+enum PhuongThucDaoTao {
+  PHUONG_THUC_1
+  PHUONG_THUC_2
+}
+
+enum TrangThaiHocTap {
+  DANG_HOC
+  DA_TOT_NGHIEP
+  GIA_HAN
+  BUOC_THOI_HOC
+}
+
+/// Trạng thái 1 mốc của 1 NCS.
+/// LOCKED -> UNLOCKED -> PENDING_REVIEW -> PASSED
+///                              \-> REJECTED -> (NCS nộp lại) PENDING_REVIEW
+enum TrangThaiMoc {
+  LOCKED
+  UNLOCKED
+  PENDING_REVIEW
+  REJECTED
+  PASSED
+}
+
+/// Trạng thái 1 lần nộp. Lần bị REJECTED giữ nguyên làm lịch sử.
+enum TrangThaiMinhChung {
+  PENDING_REVIEW
+  REJECTED
+  PASSED
+}
+
+enum LoaiQuyetDinh {
+  GIAO_DE_TAI
+  PHAN_CONG_GVHD
+  THANH_LAP_TIEU_BAN
+  CAN_CU_DUYET_MOC
+  CONG_NHAN_TOT_NGHIEP
+  KHAC
+}
+
+enum TrangThaiQuyetDinh {
+  HIEU_LUC
+  DEACTIVATE
+}
+
+enum HocHamHocVi {
+  GIAO_SU
+  PHO_GIAO_SU
+  TIEN_SI_KHOA_HOC
+  TIEN_SI
+}
+
+enum VaiTroHuongDan {
+  HUONG_DAN_CHINH
+  DONG_HUONG_DAN
+}
+
+enum TrangThaiPhanCong {
+  DANG_HIEU_LUC
+  DEACTIVATE
+}
+
+enum TrangThaiDeTai {
+  HIEU_LUC
+  DA_THAY_THE
+}
+
+enum LoaiDeNghiDieuChinh {
+  DOI_DE_TAI
+  DOI_GVHD
+}
+
+enum TrangThaiDeNghi {
+  CHO_DUYET
+  DA_DUYET
+  TU_CHOI
+}
+
+enum TrangThaiTotNghiep {
+  CHUA_DU_DIEU_KIEN
+  DU_DIEU_KIEN
+  DA_DUYET
+}
+
+// ----------------------------------------------------------------------------
+// 1. HỒ SƠ NCS & CĂN CỨ PHÁP LÝ
+// ----------------------------------------------------------------------------
 model NghienCuuSinh {
-  id                String   @id @default(uuid())
-  mshv              String   @unique @db.VarChar(20)
-  hoTen             String   @map("ho_ten") @db.VarChar(100)
-  ngaySinh          DateTime? @map("ngay_sinh") @db.Date
-  email             String?  @db.VarChar(100)
-  soDienThoai       String?  @map("so_dien_thoai") @db.VarChar(20)
-  ngayNhapHoc       DateTime @map("ngay_nhap_hoc") @db.Date
-  trinhDoDauVao     String   @default("THAC_SI") @map("trinh_do_dau_vao") // ENUM('THAC_SI', 'DAI_HOC')
-  phuongThucDaoTao  String   @default("PHUONG_THUC_2") @map("phuong_thuc_dao_tao") // ENUM('PHUONG_THUC_1', 'PHUONG_THUC_2')
-  hanChinhQuy       DateTime @map("han_chinh_quy") @db.Date
-  hanBuocThoiHoc    DateTime @map("han_buoc_thoi_hoc") @db.Date
-  trangThai         String   @default("DANG_HOC") @map("trang_thai") // ENUM('DANG_HOC', 'DA_TOT_NGHIEP', 'GIA_HAN', 'BUOC_THOI_HOC')
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  id               String           @id @default(uuid())
+  /// Liên kết tài khoản đăng nhập (auth-service.users.id) — logic, không FK
+  userId           String?          @unique @map("user_id")
+  mshv             String           @unique @db.VarChar(20)
+  hoTen            String           @map("ho_ten") @db.VarChar(100)
+  ngaySinh         DateTime?        @map("ngay_sinh") @db.Date
+  email            String?          @db.VarChar(100)
+  soDienThoai      String?          @map("so_dien_thoai") @db.VarChar(20)
+  ngayNhapHoc      DateTime         @map("ngay_nhap_hoc") @db.Date
+  trinhDoDauVao    TrinhDoDauVao    @default(THAC_SI) @map("trinh_do_dau_vao")
+  phuongThucDaoTao PhuongThucDaoTao @default(PHUONG_THUC_2) @map("phuong_thuc_dao_tao")
+  /// 3 năm (Thạc sĩ) / 4 năm (Đại học) từ ngày nhập học
+  hanChinhQuy      DateTime         @map("han_chinh_quy") @db.Date
+  /// 72 tháng từ ngày nhập học (FR1.6)
+  hanBuocThoiHoc   DateTime         @map("han_buoc_thoi_hoc") @db.Date
+  trangThai        TrangThaiHocTap  @default(DANG_HOC) @map("trang_thai")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
 
-  minhChungs       MinhChungMoc[]
-  congBos          CongBoKhoaHoc[]
-  phanCongs        PhanCongHuongDan[]
-  hoiDongs         HoiDongBaoVe[]
+  tienTrinhs   TienTrinhNcs[]
+  phanCongs    PhanCongHuongDan[]
+  deTais       DeTai[]
+  deNghis      DeNghiDieuChinh[]
+  quyetDinhs   QuyetDinh[]
+  xetTotNghiep XetTotNghiep?
 
+  @@index([trangThai])
+  @@index([hanChinhQuy])
+  @@index([hanBuocThoiHoc])
   @@map("nghien_cuu_sinh")
 }
 
-// -----------------------------------------------------------------------------
-// Milestones & Progress
-// -----------------------------------------------------------------------------
-model MocTienTrinh {
-  id                Int      @id @default(autoincrement())
-  tenMoc            String   @map("ten_moc") @db.VarChar(100)
-  thuTu             Int      @unique @map("thu_tu")
-  moTa              String?  @map("mo_ta") @db.Text
-  batBuocMinhChung  Boolean  @default(true) @map("bat_buoc_minh_chung")
+/// Nguồn pháp lý (FR1.5): số/ngày quyết định, biên bản làm căn cứ để duyệt.
+/// Không bao giờ xóa — vô hiệu hóa bằng trạng thái.
+model QuyetDinh {
+  id            String             @id @default(uuid())
+  ncsId         String?            @map("ncs_id")
+  loai          LoaiQuyetDinh
+  soQuyetDinh   String             @map("so_quyet_dinh") @db.VarChar(50)
+  ngayQuyetDinh DateTime           @map("ngay_quyet_dinh") @db.Date
+  /// File scan (document-service)
+  fileId        String?            @map("file_id")
+  trangThai     TrangThaiQuyetDinh @default(HIEU_LUC) @map("trang_thai")
+  ghiChu        String?            @db.Text
+  nguoiTaoId    String             @map("nguoi_tao_id")
+  createdAt     DateTime           @default(now()) @map("created_at")
 
-  minhChungs        MinhChungMoc[]
+  ncs        NghienCuuSinh?    @relation(fields: [ncsId], references: [id], onDelete: Restrict)
+  minhChungs MinhChungMoc[]
+  phanCongs  PhanCongHuongDan[]
+  deTais     DeTai[]
+  deNghis    DeNghiDieuChinh[]
+  totNghieps XetTotNghiep[]
+
+  @@unique([loai, soQuyetDinh])
+  @@index([ncsId])
+  @@map("quyet_dinh")
+}
+
+// ----------------------------------------------------------------------------
+// 2. TIẾN TRÌNH 9 MỐC (BR-08)
+// ----------------------------------------------------------------------------
+model MocTienTrinh {
+  id         Int     @id @default(autoincrement())
+  thuTu      Int     @unique @map("thu_tu")
+  tenMoc     String  @map("ten_moc") @db.VarChar(150)
+  moTa       String? @map("mo_ta") @db.Text
+  /// true cho mốc 2 (tiểu luận tổng quan), 4 (chuyên đề 1), 5 (chuyên đề 2)
+  yeuCauDiem Boolean @default(false) @map("yeu_cau_diem")
+
+  tienTrinhs TienTrinhNcs[]
 
   @@map("moc_tien_trinh")
 }
 
+/// Trạng thái từng mốc của từng NCS — nguồn sự thật cho BR-08.
+/// Tạo sẵn 9 dòng khi tạo NCS: mốc 1 = UNLOCKED, mốc 2..9 = LOCKED.
+model TienTrinhNcs {
+  id          String       @id @default(uuid())
+  ncsId       String       @map("ncs_id")
+  mocId       Int          @map("moc_id")
+  trangThai   TrangThaiMoc @default(LOCKED) @map("trang_thai")
+  openedAt    DateTime?    @map("opened_at")
+  submittedAt DateTime?    @map("submitted_at")
+  passedAt    DateTime?    @map("passed_at")
+  /// Optimistic lock: tăng mỗi lần đổi trạng thái (chống duyệt trùng/đồng thời)
+  version     Int          @default(0)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  ncs        NghienCuuSinh  @relation(fields: [ncsId], references: [id], onDelete: Restrict)
+  moc        MocTienTrinh   @relation(fields: [mocId], references: [id], onDelete: Restrict)
+  minhChungs MinhChungMoc[]
+
+  @@unique([ncsId, mocId])
+  @@index([trangThai])
+  @@map("tien_trinh_ncs")
+}
+
+/// Mỗi lần nộp = 1 dòng. Bị từ chối -> NCS nộp lại = dòng mới (lanNop + 1).
 model MinhChungMoc {
-  id              String   @id @default(uuid())
-  ncsId           String   @map("ncs_id")
-  mocId           Int      @map("moc_id")
-  diemTrungBinh   Decimal? @map("diem_trung_binh") @db.Decimal(4,2)
-  fileUrl         String?  @map("file_url") @db.VarChar(500)
-  fileSizeBytes   BigInt?  @map("file_size_bytes")
-  trangThai       String   @default("CHUA_MO_KHOA") @map("trang_thai") // ENUM
-  lyDoTuChoi      String?  @map("ly_do_tu_choi") @db.Text
-  ngayNop         DateTime? @map("ngay_nop")
-  ngayDuyet       DateTime? @map("ngay_duyet")
-  nguoiDuyetId    String?  @map("nguoi_duyet_id")
+  id            String             @id @default(uuid())
+  tienTrinhId   String             @map("tien_trinh_id")
+  lanNop        Int                @default(1) @map("lan_nop")
+  /// document-service.documents.id (PDF <= 15MB)
+  fileId        String             @map("file_id")
+  ghiChuNcs     String?            @map("ghi_chu_ncs") @db.Text
+  trangThai     TrangThaiMinhChung @default(PENDING_REVIEW) @map("trang_thai")
+  /// Trung bình các phiếu nhận xét (chỉ mốc yeuCauDiem)
+  diemTrungBinh Decimal?           @map("diem_trung_binh") @db.Decimal(4, 2)
+  lyDoTuChoi    String?            @map("ly_do_tu_choi") @db.Text
+  /// Căn cứ pháp lý Giáo vụ dựa vào khi duyệt
+  quyetDinhId   String?            @map("quyet_dinh_id")
+  nguoiDuyetId  String?            @map("nguoi_duyet_id")
+  ngayNop       DateTime           @default(now()) @map("ngay_nop")
+  ngayDuyet     DateTime?          @map("ngay_duyet")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
 
-  ncs             NghienCuuSinh @relation(fields: [ncsId], references: [id], onDelete: Cascade)
-  moc             MocTienTrinh  @relation(fields: [mocId], references: [id], onDelete: Restrict)
+  tienTrinh     TienTrinhNcs   @relation(fields: [tienTrinhId], references: [id], onDelete: Restrict)
+  quyetDinh     QuyetDinh?     @relation(fields: [quyetDinhId], references: [id], onDelete: Restrict)
+  phieuNhanXets PhieuNhanXet[]
 
+  @@unique([tienTrinhId, lanNop])
+  @@index([trangThai])
   @@map("minh_chung_moc")
 }
 
-// -----------------------------------------------------------------------------
-// Publications
-// -----------------------------------------------------------------------------
-model CongBoKhoaHoc {
-  id                  String   @id @default(uuid())
-  ncsId               String   @map("ncs_id")
-  tenBaiBao           String   @map("ten_bai_bao") @db.VarChar(500)
-  tenTapChiHoiNghi    String   @map("ten_tap_chi_hoi_nghi") @db.VarChar(255)
-  issn                String?  @db.VarChar(20)
-  linkUrl             String?  @map("link_url") @db.VarChar(500)
-  filePdfUrl          String?  @map("file_pdf_url") @db.VarChar(500)
-  loaiDanhMuc         String   @map("loai_danh_muc") // ENUM
-  diemQuyDoi          Decimal  @default(0.00) @map("diem_quy_doi") @db.Decimal(3,2)
-  trangThaiDuyet      String   @default("CHO_THAM_DINH") @map("trang_thai_duyet") // ENUM
-  
-  ncs                 NghienCuuSinh @relation(fields: [ncsId], references: [id], onDelete: Cascade)
+/// Phiếu nhận xét online. Người chấm nằm NGOÀI hệ thống; Giáo vụ nhập thay
+/// (nhapBoiId). Lưu vĩnh viễn, không sửa/xóa.
+model PhieuNhanXet {
+  id            String   @id @default(uuid())
+  minhChungId   String   @map("minh_chung_id")
+  tenNguoiCham  String   @map("ten_nguoi_cham") @db.VarChar(150)
+  donViNguoiCham String? @map("don_vi_nguoi_cham") @db.VarChar(255)
+  /// Thang 10, lẻ 1 chữ số thập phân
+  diem          Decimal  @db.Decimal(3, 1)
+  nhanXet       String?  @db.Text
+  nhapBoiId     String   @map("nhap_boi_id")
+  createdAt     DateTime @default(now()) @map("created_at")
 
-  @@map("cong_bo_khoa_hoc")
+  minhChung MinhChungMoc @relation(fields: [minhChungId], references: [id], onDelete: Restrict)
+
+  @@index([minhChungId])
+  @@map("phieu_nhan_xet")
 }
 
-// -----------------------------------------------------------------------------
-// Supervisors
-// -----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// 3. GVHD & ĐỊNH MỨC (FR3.x, BR-09)
+// ----------------------------------------------------------------------------
 model GiangVienHuongDan {
-  id                  String   @id @default(uuid())
-  hoTen               String   @map("ho_ten") @db.VarChar(100)
-  hocHamHocVi         String   @map("hoc_ham_hoc_vi") // ENUM
-  coQuanCongTac       String   @map("co_quan_cong_tac") @db.VarChar(255)
-  maxNcsChoPhep       Int      @map("max_ncs_cho_phep")
-  soNcsDangHuongDan   Decimal  @default(0.0) @map("so_ncs_dang_huong_dan") @db.Decimal(3,1)
+  id                String      @id @default(uuid())
+  /// Chỉ điền nếu GVHD có tài khoản đăng nhập
+  userId            String?     @unique @map("user_id")
+  hoTen             String      @map("ho_ten") @db.VarChar(100)
+  email             String?     @db.VarChar(100)
+  hocHamHocVi       HocHamHocVi @map("hoc_ham_hoc_vi")
+  chuyenNganh       String?     @map("chuyen_nganh") @db.VarChar(255)
+  coQuanCongTac     String      @map("co_quan_cong_tac") @db.VarChar(255)
+  /// FR3.1: lịch sử công bố 5 năm gần nhất (JSON)
+  lichSuCongBo5Nam  Json?       @map("lich_su_cong_bo_5_nam")
+  /// GS=7, PGS=5, TS=3 (BR-09)
+  maxNcsChoPhep     Int         @map("max_ncs_cho_phep")
+  /// Cache số NCS đang HD (độc lập 1.0, đồng HD 0.5), cập nhật cùng transaction
+  soNcsDangHuongDan Decimal     @default(0.0) @map("so_ncs_dang_huong_dan") @db.Decimal(3, 1)
+  /// Optimistic lock chống 2 request cùng vượt định mức
+  version           Int         @default(0)
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
 
-  phanCongs           PhanCongHuongDan[]
+  phanCongs PhanCongHuongDan[]
+  deNghis   DeNghiDieuChinh[]  @relation("DeNghiGvhdMoi")
 
   @@map("giang_vien_huong_dan")
 }
 
 model PhanCongHuongDan {
-  id              String   @id @default(uuid())
-  ncsId           String   @map("ncs_id")
-  gvhdId          String   @map("gvhd_id")
-  vaiTro          String   @default("HUONG_DAN_CHINH") @map("vai_tro") // ENUM
-  quyetDinhSo     String   @map("quyet_dinh_so") @db.VarChar(50)
-  ngayQuyetDinh   DateTime @map("ngay_quyet_dinh") @db.Date
-  trangThai       String   @default("DANG_HIEU_LUC") @map("trang_thai") // ENUM
+  id          String            @id @default(uuid())
+  ncsId       String            @map("ncs_id")
+  gvhdId      String            @map("gvhd_id")
+  vaiTro      VaiTroHuongDan    @default(HUONG_DAN_CHINH) @map("vai_tro")
+  /// 1.0 = độc lập, 0.5 = đồng hướng dẫn
+  trongSo     Decimal           @default(1.0) @map("trong_so") @db.Decimal(2, 1)
+  quyetDinhId String            @map("quyet_dinh_id")
+  trangThai   TrangThaiPhanCong @default(DANG_HIEU_LUC) @map("trang_thai")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
 
-  ncs             NghienCuuSinh     @relation(fields: [ncsId], references: [id], onDelete: Cascade)
-  gvhd            GiangVienHuongDan @relation(fields: [gvhdId], references: [id], onDelete: Cascade)
+  ncs       NghienCuuSinh     @relation(fields: [ncsId], references: [id], onDelete: Restrict)
+  gvhd      GiangVienHuongDan @relation(fields: [gvhdId], references: [id], onDelete: Restrict)
+  quyetDinh QuyetDinh         @relation(fields: [quyetDinhId], references: [id], onDelete: Restrict)
+  deNghis   DeNghiDieuChinh[] @relation("DeNghiPhanCongCu")
 
+  @@index([ncsId, trangThai])
+  @@index([gvhdId, trangThai])
   @@map("phan_cong_huong_dan")
 }
 
-// -----------------------------------------------------------------------------
-// Defense
-// -----------------------------------------------------------------------------
-model HoiDongBaoVe {
-  id                      String   @id @default(uuid())
-  ncsId                   String   @map("ncs_id")
-  capHoiDong              String   @map("cap_hoi_dong") // ENUM
-  ngayBaoVe               DateTime? @map("ngay_bao_ve") @db.Date
-  ketQua                  String   @default("CHO_BAO_VE") @map("ket_qua") // ENUM
-  fileBienBanUrl          String?  @map("file_bien_ban_url") @db.VarChar(500)
-  fileLuanAnSuaDoiUrl     String?  @map("file_luan_an_sua_doi_url") @db.VarChar(500)
+// ----------------------------------------------------------------------------
+// 4. ĐỀ TÀI & ĐỀ NGHỊ THAY ĐỔI (UC-PHD-06/07)
+// ----------------------------------------------------------------------------
+model DeTai {
+  id          String         @id @default(uuid())
+  ncsId       String         @map("ncs_id")
+  tenDeTai    String         @map("ten_de_tai") @db.VarChar(500)
+  trangThai   TrangThaiDeTai @default(HIEU_LUC) @map("trang_thai")
+  quyetDinhId String?        @map("quyet_dinh_id")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
 
-  ncs                     NghienCuuSinh @relation(fields: [ncsId], references: [id], onDelete: Cascade)
+  ncs       NghienCuuSinh @relation(fields: [ncsId], references: [id], onDelete: Restrict)
+  quyetDinh QuyetDinh?    @relation(fields: [quyetDinhId], references: [id], onDelete: Restrict)
 
-  @@map("hoi_dong_bao_ve")
+  @@index([ncsId, trangThai])
+  @@map("de_tai")
+}
+
+/// Duyệt DOI_DE_TAI : đóng đề tài cũ (DA_THAY_THE) + tạo đề tài mới.
+/// Duyệt DOI_GVHD   : đóng phân công cũ + tạo phân công mới (kiểm định mức)
+///                    + lưu quyết định + audit — trong 1 transaction.
+model DeNghiDieuChinh {
+  id            String              @id @default(uuid())
+  ncsId         String              @map("ncs_id")
+  loai          LoaiDeNghiDieuChinh
+  lyDo          String              @map("ly_do") @db.Text
+  /// DOI_DE_TAI
+  tenDeTaiMoi   String?             @map("ten_de_tai_moi") @db.VarChar(500)
+  /// DOI_GVHD: phân công bị thay và GVHD mới
+  phanCongCuId  String?             @map("phan_cong_cu_id")
+  gvhdMoiId     String?             @map("gvhd_moi_id")
+  nguoiDeNghiId String              @map("nguoi_de_nghi_id")
+  trangThai     TrangThaiDeNghi     @default(CHO_DUYET) @map("trang_thai")
+  lyDoTuChoi    String?             @map("ly_do_tu_choi") @db.Text
+  nguoiDuyetId  String?             @map("nguoi_duyet_id")
+  ngayDuyet     DateTime?           @map("ngay_duyet")
+  /// Quyết định mới sau khi duyệt
+  quyetDinhId   String?             @map("quyet_dinh_id")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  ncs        NghienCuuSinh      @relation(fields: [ncsId], references: [id], onDelete: Restrict)
+  quyetDinh  QuyetDinh?         @relation(fields: [quyetDinhId], references: [id], onDelete: Restrict)
+  phanCongCu PhanCongHuongDan?  @relation("DeNghiPhanCongCu", fields: [phanCongCuId], references: [id], onDelete: Restrict)
+  gvhdMoi    GiangVienHuongDan? @relation("DeNghiGvhdMoi", fields: [gvhdMoiId], references: [id], onDelete: Restrict)
+
+  @@index([ncsId, trangThai])
+  @@map("de_nghi_dieu_chinh")
+}
+
+// ----------------------------------------------------------------------------
+// 5. XÉT TỐT NGHIỆP TỰ ĐỘNG (UC-PHD-12)
+// ----------------------------------------------------------------------------
+/// da9Moc tính từ tien_trinh_ncs. Ngoại ngữ/công nợ lấy từ phân hệ khác hoặc
+/// mock (nguonDuLieu) — lưu snapshot lúc kiểm tra.
+model XetTotNghiep {
+  id             String             @id @default(uuid())
+  ncsId          String             @unique @map("ncs_id")
+  da9Moc         Boolean            @default(false) @map("da_9_moc")
+  datNgoaiNgu    Boolean            @default(false) @map("dat_ngoai_ngu")
+  khongConCongNo Boolean            @default(false) @map("khong_con_cong_no")
+  /// MOCK | API — nguồn dữ liệu ngoại ngữ/công nợ
+  nguonDuLieu    String?            @map("nguon_du_lieu") @db.VarChar(20)
+  kiemTraLuc     DateTime?          @map("kiem_tra_luc")
+  trangThai      TrangThaiTotNghiep @default(CHUA_DU_DIEU_KIEN) @map("trang_thai")
+  nguoiDuyetId   String?            @map("nguoi_duyet_id")
+  ngayDuyet      DateTime?          @map("ngay_duyet")
+  quyetDinhId    String?            @map("quyet_dinh_id")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  ncs       NghienCuuSinh @relation(fields: [ncsId], references: [id], onDelete: Restrict)
+  quyetDinh QuyetDinh?    @relation(fields: [quyetDinhId], references: [id], onDelete: Restrict)
+
+  @@map("xet_tot_nghiep")
+}
+
+// ----------------------------------------------------------------------------
+// 6. AUDIT TRAIL (SRS 4.2) — append-only, ghi cùng transaction nghiệp vụ
+// ----------------------------------------------------------------------------
+model AuditLog {
+  id            String   @id @default(uuid())
+  actorId       String   @map("actor_id")
+  action        String   @db.VarChar(100)
+  entityType    String   @map("entity_type") @db.VarChar(100)
+  entityId      String   @map("entity_id")
+  ncsId         String?  @map("ncs_id")
+  oldValue      Json?    @map("old_value")
+  newValue      Json?    @map("new_value")
+  clientIp      String?  @map("client_ip") @db.VarChar(45)
+  correlationId String?  @map("correlation_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([ncsId])
+  @@index([createdAt])
+  @@map("audit_log")
 }

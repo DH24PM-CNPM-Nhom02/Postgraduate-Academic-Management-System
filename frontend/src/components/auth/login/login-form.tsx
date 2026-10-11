@@ -1,7 +1,8 @@
 'use client'
+import Image from "next/image"
 import { cn } from "cn"
 import { Card, CardContent } from "../../ui/card"
-import { Field, FieldDescription, FieldGroup, FieldLabel, FieldSeparator } from "../../ui/field"
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "../../ui/field"
 import { Input } from "../../ui/input"
 import { Button } from "../../ui/button"
 import { useAuth } from "@/src/hooks/use-auth";
@@ -16,7 +17,7 @@ export function LoginForm({
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     await login(
-      formData.get("email") as string,
+      formData.get("username") as string,
       formData.get("password") as string
     );
   }
@@ -41,11 +42,11 @@ export function LoginForm({
               )}
 
               <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <FieldLabel htmlFor="username">Mã số học viên</FieldLabel>
                 <Input
-                  id="email"
-                  name="email"
-                  placeholder="m@example.com"
+                  id="username"
+                  name="username"
+                  placeholder=""
                   required
                   disabled={isLoading}
                 />
@@ -76,10 +77,11 @@ export function LoginForm({
             </FieldGroup>
           </form>
           <div className="relative hidden bg-muted md:block">
-            <img
+            <Image
               src="/placeholder.svg"
               alt="Image"
-              className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+              fill
+              className="absolute inset-0 object-cover dark:brightness-[0.2] dark:grayscale"
             />
           </div>
         </CardContent>

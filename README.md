@@ -27,16 +27,30 @@ Hệ thống quản lý học vụ của học viên Sau đại học" là một
 
 - [Repository GitHub chính của Hệ thống](https://github.com/DH24PM-CNPM-Nhom02/Postgraduate-Academic-Management-System.git)
 
-## Chạy bằng Docker Compose
+## Chạy FE và BE bằng Compose riêng khi phát triển
 
-Yêu cầu Docker Compose v2:
+Mở hai terminal tại thư mục gốc repository. Chạy backend trước:
 
 ```bash
-docker compose up --build
+docker compose -f compose.dev-be.yml up --build
 ```
 
-Frontend chạy tại `http://localhost:3000`, API gateway tại `http://localhost:3001`; các service backend lần lượt dùng cổng `3002`-`3005`. MariaDB chạy tại `localhost:3306` và được đánh dấu healthy trước khi các backend service khởi động. Compose dùng thông tin đăng nhập mặc định chỉ cho môi trường phát triển; hãy đặt `MARIADB_ROOT_PASSWORD`, `MARIADB_USER` và `MARIADB_PASSWORD` trong `.env` trước khi dùng ở môi trường chia sẻ hoặc production. Các database được tạo tự động trong lần khởi tạo volume đầu tiên.
+Sau đó chạy frontend:
+
+```bash
+docker compose -f compose.dev-fe.yml up --build
+```
+
+Frontend chạy tại `http://localhost:3000`, gọi API qua gateway tại `http://localhost:3001/api/v1`. MariaDB được publish ở `localhost:3306`; các microservice backend chỉ giao tiếp nội bộ trong Compose network, không publish port riêng ra host. Các mật khẩu mặc định trong Compose chỉ dành cho máy phát triển cá nhân; có thể đặt `MARIADB_ROOT_PASSWORD`, `MARIADB_PASSWORD`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `MARIADB_PORT`, `API_GATEWAY_HOST_PORT` và `FRONTEND_PORT` trong file `.env` để ghi đè cấu hình local.
+
+## Chạy riêng MariaDB
+
+Nếu chỉ cần database để chạy ứng dụng trực tiếp trên máy:
+
+```bash
+docker compose -f backend/docker-compose.yml up -d
+```
+
+Compose này chỉ khởi động MariaDB, không khởi động frontend hoặc backend. Các database được tạo tự động trong lần khởi tạo volume đầu tiên.
 
 Workflow GitHub Actions chạy test, build và kiểm tra kết nối/schema với MariaDB. Khi push lên `main` hoặc đẩy tag `v*`, workflow build và push image frontend cùng các backend service lên GitHub Container Registry (`ghcr.io`). Pull request chỉ chạy CI, không publish image. Repository cần bật quyền GitHub Actions ghi package để publish thành công.
-
-Để chạy các image đã publish thay vì build tại chỗ, đặt `IMAGE_PREFIX=ghcr.io/dh24pm-cnpm-nhom02/postgraduate-academic-management-system` và `IMAGE_TAG=main` (hoặc tag phát hành) trong `.env`, đăng nhập GHCR rồi chạy `docker compose pull && docker compose up -d`.
