@@ -1,0 +1,165 @@
+# DEV: chạy local, frontend và backend đều có hot reload.
+# Chạy: docker compose -f docker-compose.dev.yml up --build
+# (hoặc đặt COMPOSE_FILE=docker-compose.dev.yml trong .env rồi chạy `docker compose up --build`)
+
+x-jwt-env: &jwt-env
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+  JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+  JWT_REFRESH_EXPIRES: ${JWT_REFRESH_EXPIRES}
+
+# config build backend, target dev stage
+# khong can chay `npm i` trong container, node_modules da co san trong image.
+# cung khong can pull image tu dockerhub, vi build tu local source code.
+x-backend-build: &backend-build
+  context: ./backend
+  target: dev
+
+# Chỉ mount source. node_modules nằm trong image nên `npm i` chỉ cần build lại image.
+x-backend-src: &backend-src
+  - ./backend/apps:/app/apps
+  - ./backend/lib:/app/lib
+
+services:
+  mariadb:
+    image: mariadb:10.11
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_USER: pams_user
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+    ports:
+      - "${MARIADB_PORT}:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./backend/docker/mariadb/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - pams-network
+
+  api-gateway:
+    build:
+      <<: *backend-build
+      args:
+        APP_NAME: api-gateway
+    volumes: *backend-src
+    environment:
+      <<: *jwt-env
+      API_GATEWAY_PORT: 8080
+      AUTH_SERVICE_HOST: auth-service
+      AUTH_SERVICE_PORT: 3001
+      DOCUMENT_SERVICE_HOST: document-service
+      DOCUMENT_SERVICE_PORT: 3002
+      NOTIFICATION_SERVICE_HOST: notification-service
+      NOTIFICATION_SERVICE_PORT: 3003
+      PHD_SERVICE_HOST: phd-service
+      PHD_SERVICE_PORT: 3004
+      FRONTEND_ORIGIN: http://localhost:${FRONTEND_PORT}
+    ports:
+      - "${API_GATEWAY_HOST_PORT}:8080"
+    depends_on:
+      - auth-service
+      - document-service
+      - notification-service
+      - phd-service
+    networks:
+      - pams-network
+
+  auth-service:
+    build:
+      <<: *backend-build
+      args:
+        APP_NAME: auth-service
+    volumes: *backend-src
+    environment:
+      <<: *jwt-env
+      AUTH_SERVICE_HOST: 0.0.0.0
+      AUTH_SERVICE_PORT: 3001
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
+      AUTH_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/auth_db
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - pams-network
+
+  document-service:
+    build:
+      <<: *backend-build
+      args:
+        APP_NAME: document-service
+    volumes: *backend-src
+    environment:
+      DOCUMENT_SERVICE_HOST: 0.0.0.0
+      DOCUMENT_SERVICE_PORT: 3002
+      DOCUMENT_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/document_db
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - pams-network
+
+  notification-service:
+    build:
+      <<: *backend-build
+      args:
+        APP_NAME: notification-service
+    volumes: *backend-src
+    environment:
+      NOTIFICATION_SERVICE_HOST: 0.0.0.0
+      NOTIFICATION_SERVICE_PORT: 3003
+      NOTIFICATION_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/notification_db
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - pams-network
+
+  phd-service:
+    build:
+      <<: *backend-build
+      args:
+        APP_NAME: phd-service
+    volumes: *backend-src
+    environment:
+      PHD_SERVICE_HOST: 0.0.0.0
+      PHD_SERVICE_PORT: 3004
+      PHD_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/phd_db
+      AUTH_SERVICE_HOST: auth-service
+      AUTH_SERVICE_PORT: 3001
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    networks:
+      - pams-network
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:${API_GATEWAY_HOST_PORT}/api/v1
+      AUTH_SECRET: ${AUTH_SECRET}
+    ports:
+      - "${FRONTEND_PORT}:3000"
+    volumes:
+      - ./frontend:/app
+      # volume ẩn danh: giữ node_modules/.next của container, không bị thư mục host đè.
+      # Sau khi đổi package.json: docker compose up -d --build -V frontend
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - pams-network
+
+networks:
+  pams-network:
+    driver: bridge
+
+volumes:
+  mariadb_data:
