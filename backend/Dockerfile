@@ -1,5 +1,26 @@
 # syntax=docker/dockerfile:1
 
+# ---- DEV: dùng cho docker compose dev, chạy Nest watch + Prisma db push/generate ----
+FROM node:22-alpine AS dev
+
+WORKDIR /app
+
+RUN apk add --no-cache openssl
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+RUN chmod +x ./docker/dev-start.sh
+
+ARG APP_NAME=api-gateway
+ENV APP_NAME=${APP_NAME}
+ENV NODE_ENV=development
+
+EXPOSE 8080 3001 3002 3003 3004
+
+CMD ["sh", "-c", "./docker/dev-start.sh"]
+
 # ---- BUILD: đủ dependencies, generate Prisma Client, build Nest ----
 FROM node:22-alpine AS build
 

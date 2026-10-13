@@ -7,8 +7,13 @@ x-jwt-env: &jwt-env
 x-backend-env: &backend-env
   NODE_ENV: production
 
+# Build test backend images from this checkout instead of pulling a possibly stale SHA tag.
 x-db-init: &db-init
   image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-db-init:${IMAGE_TAG:?Missing IMAGE_TAG}
+  build:
+    context: ./backend
+    target: db-init
+  pull_policy: build
   restart: "no"
   depends_on:
     mariadb:
@@ -82,6 +87,12 @@ services:
   # ==========================================
   auth-service:
     image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-auth-service:${IMAGE_TAG:?Missing IMAGE_TAG}
+    build:
+      context: ./backend
+      target: runtime
+      args:
+        APP_NAME: auth-service
+    pull_policy: build
     restart: unless-stopped
     environment:
       <<: [*backend-env, *jwt-env]
@@ -97,6 +108,12 @@ services:
 
   document-service:
     image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-document-service:${IMAGE_TAG:?Missing IMAGE_TAG}
+    build:
+      context: ./backend
+      target: runtime
+      args:
+        APP_NAME: document-service
+    pull_policy: build
     restart: unless-stopped
     environment:
       <<: *backend-env
@@ -111,6 +128,12 @@ services:
 
   notification-service:
     image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-notification-service:${IMAGE_TAG:?Missing IMAGE_TAG}
+    build:
+      context: ./backend
+      target: runtime
+      args:
+        APP_NAME: notification-service
+    pull_policy: build
     restart: unless-stopped
     environment:
       <<: *backend-env
@@ -125,6 +148,12 @@ services:
 
   phd-service:
     image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-phd-service:${IMAGE_TAG:?Missing IMAGE_TAG}
+    build:
+      context: ./backend
+      target: runtime
+      args:
+        APP_NAME: phd-service
+    pull_policy: build
     restart: unless-stopped
     environment:
       <<: [*backend-env, *jwt-env]
@@ -146,6 +175,12 @@ services:
   # ==========================================
   api-gateway:
     image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-api-gateway:${IMAGE_TAG:?Missing IMAGE_TAG}
+    build:
+      context: ./backend
+      target: runtime
+      args:
+        APP_NAME: api-gateway
+    pull_policy: build
     restart: unless-stopped
     environment:
       <<: [*backend-env, *jwt-env]
