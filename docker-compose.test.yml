@@ -1,0 +1,203 @@
+x-jwt-env: &jwt-env
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Missing JWT_ACCESS_SECRET}
+  JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES:-15m}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Missing JWT_REFRESH_SECRET}
+  JWT_REFRESH_EXPIRES: ${JWT_REFRESH_EXPIRES:-7d}
+
+x-backend-env: &backend-env
+  NODE_ENV: production
+
+x-db-init: &db-init
+  image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-db-init:${IMAGE_TAG:?Missing IMAGE_TAG}
+  restart: "no"
+  depends_on:
+    mariadb:
+      condition: service_healthy
+  networks:
+    - pams-network
+
+services:
+  # ==========================================
+  # DATABASE
+  # ==========================================
+  mariadb:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?Missing MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: auth_db
+      MARIADB_USER: pams_user
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:?Missing MARIADB_PASSWORD}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./backend/docker/mariadb/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    networks:
+      - pams-network
+
+  # ==========================================
+  # DATABASE INITIALIZATION
+  # db push syncs schema; auth also seeds data.
+  # ==========================================
+  auth-init:
+    <<: *db-init
+    working_dir: /app/apps/auth-service
+    environment:
+      AUTH_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/auth_db
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?Missing SEED_ADMIN_PASSWORD}
+    command: >-
+      sh -c "npx prisma db push --config prisma.config.ts &&
+      npx prisma db seed --config prisma.config.ts"
+
+  document-init:
+    <<: *db-init
+    working_dir: /app/apps/document-service
+    environment:
+      DOCUMENT_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/document_db
+    command: npx prisma db push --config prisma.config.ts
+
+  notification-init:
+    <<: *db-init
+    working_dir: /app/apps/notification-service
+    environment:
+      NOTIFICATION_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/notification_db
+    command: npx prisma db push --config prisma.config.ts
+
+  phd-init:
+    <<: *db-init
+    working_dir: /app/apps/phd-service
+    environment:
+      PHD_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/phd_db
+    command: npx prisma db push --config prisma.config.ts
+    image: ${IMAGE_PREFIX}-backend-db-init:${IMAGE_TAG}
+
+  # Giữ nguyên environment và depends_on hiện tại
+  # ==========================================
+  # BACKEND SERVICES
+  # ==========================================
+  auth-service:
+    image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-auth-service:${IMAGE_TAG:?Missing IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      <<: [*backend-env, *jwt-env]
+      AUTH_SERVICE_HOST: 0.0.0.0
+      AUTH_SERVICE_PORT: 3001
+      AUTH_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/auth_db
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?Missing SEED_ADMIN_PASSWORD}
+    depends_on:
+      auth-init:
+        condition: service_completed_successfully
+    networks:
+      - pams-network
+
+  document-service:
+    image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-document-service:${IMAGE_TAG:?Missing IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+      DOCUMENT_SERVICE_HOST: 0.0.0.0
+      DOCUMENT_SERVICE_PORT: 3002
+      DOCUMENT_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/document_db
+    depends_on:
+      document-init:
+        condition: service_completed_successfully
+    networks:
+      - pams-network
+
+  notification-service:
+    image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-notification-service:${IMAGE_TAG:?Missing IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      <<: *backend-env
+      NOTIFICATION_SERVICE_HOST: 0.0.0.0
+      NOTIFICATION_SERVICE_PORT: 3003
+      NOTIFICATION_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/notification_db
+    depends_on:
+      notification-init:
+        condition: service_completed_successfully
+    networks:
+      - pams-network
+
+  phd-service:
+    image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-phd-service:${IMAGE_TAG:?Missing IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      <<: [*backend-env, *jwt-env]
+      PHD_SERVICE_HOST: 0.0.0.0
+      PHD_SERVICE_PORT: 3004
+      PHD_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/phd_db
+      AUTH_SERVICE_HOST: auth-service
+      AUTH_SERVICE_PORT: 3001
+    depends_on:
+      phd-init:
+        condition: service_completed_successfully
+      auth-service:
+        condition: service_started
+    networks:
+      - pams-network
+
+  # ==========================================
+  # API GATEWAY
+  # ==========================================
+  api-gateway:
+    image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-api-gateway:${IMAGE_TAG:?Missing IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      <<: [*backend-env, *jwt-env]
+      API_GATEWAY_PORT: 8080
+      AUTH_SERVICE_HOST: auth-service
+      AUTH_SERVICE_PORT: 3001
+      DOCUMENT_SERVICE_HOST: document-service
+      DOCUMENT_SERVICE_PORT: 3002
+      NOTIFICATION_SERVICE_HOST: notification-service
+      NOTIFICATION_SERVICE_PORT: 3003
+      PHD_SERVICE_HOST: phd-service
+      PHD_SERVICE_PORT: 3004
+      FRONTEND_ORIGIN: http://localhost:${FRONTEND_PORT:-3000}
+    ports:
+      - "${API_GATEWAY_HOST_PORT:-8080}:8080"
+    depends_on:
+      auth-service:
+        condition: service_started
+      document-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+      phd-service:
+        condition: service_started
+    networks:
+      - pams-network
+
+  # ==========================================
+  # FRONTEND
+  # ==========================================
+  frontend:
+    image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-frontend:${IMAGE_TAG:?Missing IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      AUTH_TRUST_HOST: "true"
+      AUTH_URL: http://localhost:${FRONTEND_PORT:-3000}
+      NEXTAUTH_URL: http://localhost:${FRONTEND_PORT:-3000}
+      AUTH_SECRET: ${AUTH_SECRET:?Missing AUTH_SECRET}
+      API_INTERNAL_URL: http://api-gateway:8080/api/v1
+      NEXT_PUBLIC_API_URL: http://localhost:${API_GATEWAY_HOST_PORT:-8080}/api/v1
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      api-gateway:
+        condition: service_started
+    networks:
+      - pams-network
+
+networks:
+  pams-network:
+    driver: bridge
+
+volumes:
+  mariadb_data:
