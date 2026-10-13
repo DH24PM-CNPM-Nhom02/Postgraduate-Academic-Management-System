@@ -1,9 +1,22 @@
-FROM node:22-alpine AS build
+# ---- Cài thư viện (dùng chung cho dev và build) ----
+FROM node:22-alpine AS deps
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci
+
+# ---- DEV: compose dev dùng stage này (target: dev) ----
+FROM deps AS dev
+
+COPY . .
+
+ARG APP_NAME=api-gateway
+ENV APP_NAME=${APP_NAME} NODE_ENV=development
+CMD ["sh", "docker/dev-start.sh"]
+
+# ---- BUILD ----
+FROM deps AS build
 
 COPY . .
 
@@ -15,6 +28,7 @@ RUN AUTH_DATABASE_URL=mysql://pams_user:pams_password@mariadb:3306/auth_db \
     npm run prisma:generate \
     && npm run build -- "${APP_NAME}" --builder tsc
 
+# ---- RUNTIME: PHẢI là stage cuối, vì CI build không chỉ định target ----
 FROM node:22-alpine AS runtime
 
 WORKDIR /app
