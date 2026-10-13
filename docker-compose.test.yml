@@ -7,6 +7,15 @@ x-jwt-env: &jwt-env
 x-backend-env: &backend-env
   NODE_ENV: production
 
+x-db-init: &db-init
+  image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-db-init:${IMAGE_TAG:?Missing IMAGE_TAG}
+  restart: "no"
+  depends_on:
+    mariadb:
+      condition: service_healthy
+  networks:
+    - pams-network
+
 services:
   # ==========================================
   # DATABASE
@@ -36,31 +45,36 @@ services:
   # db push syncs schema; auth also seeds data.
   # ==========================================
   auth-init:
-    image: ${IMAGE_PREFIX}-backend-db-init:${IMAGE_TAG}
+    <<: *db-init
     working_dir: /app/apps/auth-service
-    command:
-      - sh
-      - -c
-      - npx prisma db push --config prisma.config.ts &&
-        npx prisma db seed --config prisma.config.ts
-    # Giữ nguyên environment và depends_on hiện tại
+    environment:
+      AUTH_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/auth_db
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?Missing SEED_ADMIN_PASSWORD}
+    command: >-
+      sh -c "npx prisma db push --config prisma.config.ts &&
+      npx prisma db seed --config prisma.config.ts"
 
   document-init:
-    image: ${IMAGE_PREFIX}-backend-db-init:${IMAGE_TAG}
+    <<: *db-init
     working_dir: /app/apps/document-service
+    environment:
+      DOCUMENT_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/document_db
     command: npx prisma db push --config prisma.config.ts
-    # Giữ nguyên environment và depends_on hiện tại
 
   notification-init:
-    image: ${IMAGE_PREFIX}-backend-db-init:${IMAGE_TAG}
+    <<: *db-init
     working_dir: /app/apps/notification-service
+    environment:
+      NOTIFICATION_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/notification_db
     command: npx prisma db push --config prisma.config.ts
-    # Giữ nguyên environment và depends_on hiện tại
 
   phd-init:
-    image: ${IMAGE_PREFIX}-backend-db-init:${IMAGE_TAG}
+    <<: *db-init
     working_dir: /app/apps/phd-service
+    environment:
+      PHD_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/phd_db
     command: npx prisma db push --config prisma.config.ts
+    image: ${IMAGE_PREFIX}-backend-db-init:${IMAGE_TAG}
 
   # Giữ nguyên environment và depends_on hiện tại
   # ==========================================
