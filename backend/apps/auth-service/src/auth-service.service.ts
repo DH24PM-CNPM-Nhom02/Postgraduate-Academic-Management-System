@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from './prisma/prisma.service.js';
 import { ChangePasswordDto, CreateUsersDto, LoginDto } from './dto/auth.dto.js';
 import type { StringValue } from 'ms';
+import { ROLES } from '../../../lib/contracts/src/permissions.js';
 type TokenPair = { access_token: string; refresh_token: string };
 
 const WITH_ROLES = { roles: { include: { role: true } } } as const;
@@ -80,8 +81,8 @@ export class AuthService {
   }
 
   private async rotate(tokenHash: string, userId: string): Promise<TokenPair> {
-    const stored = await this.prisma.refreshToken.findUnique({ 
-      where: { tokenHash } 
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash }
     });
     if (!stored || stored.userId !== userId || stored.expiresAt < new Date()) {
       throw unauthorized('Refresh token không hợp lệ hoặc đã hết hạn');
@@ -105,9 +106,9 @@ export class AuthService {
     const tokens = this.generateTokenPair(user);
     const { exp } = this.jwt.decode(tokens.refresh_token) as { exp: number };
     await this.prisma.$transaction([
-      this.prisma.refreshToken.update({ 
-        where: { id: stored.id }, 
-        data: { revokedAt: new Date() } 
+      this.prisma.refreshToken.update({
+        where: { id: stored.id },
+        data: { revokedAt: new Date() }
       }),
       this.prisma.refreshToken.create({
         data: {
@@ -180,6 +181,12 @@ export class AuthService {
     //validate duplicate data in payload
     const usernames = dto.users.map((u) => u.username);
 
+    //vd: usernames = ['a','b','a','c']
+    //filter((u, i) => usernames.indexOf(u) !== i)
+    //khi i = 0, usernames.indexOf('a') = 0, vì 0 == 0 nên 'a' không bị lọc
+    //khi i = 1, usernames.indexOf('b') = 1, vì 1 == 1 nên 'b' không bị lọc
+    //khi i = 2, usernames.indexOf('a') = 0, vì 0 != 2 nên 'a' bị lọc
+    //khi i = 3, usernames.indexOf('c') = 3, vì 3 == 3 nên 'c' không bị lọc
     const dupInPayload = usernames.filter((u, i) => usernames.indexOf(u) !== i);
     if (dupInPayload.length) {
       throw new RpcException({
@@ -198,9 +205,14 @@ export class AuthService {
         message: `Mã số đã tồn tại: ${existing.map((e) => e.username).join(', ')}`,
       });
     }
+
+    //check email trùng trong danh sách hoặc đã tồn tại 
+    await this.assertEmailsAvailable(dto.users);
+
     const prepared = await Promise.all(
       dto.users.map(async (u) => {
-        const plain = u.password ?? randomBytes(6).toString('base64url');
+        const plain =
+          u.password ?? (u.role === ROLES.NCS ? u.username : randomBytes(6).toString('base64url'));
         return { u, plain, hash: await bcrypt.hash(plain, 10) };
       }),
     );
@@ -211,7 +223,7 @@ export class AuthService {
             data: {
               username: u.username,
               fullName: u.fullName,
-              email: u.email,
+              email: this.normalizeEmail(u.email),
               password: hash,
               roles: { create: { role: { connect: { name: u.role } } } },
             },
@@ -225,6 +237,52 @@ export class AuthService {
     }
     // Trả mật khẩu khởi tạo MỘT LẦN để Giáo vụ phát cho người dùng
     return prepared.map(({ u, plain }) => ({ username: u.username, initialPassword: plain }));
+  }
+
+  // ---------- Find user list ----------
+  async findUsers(usernames: string[]) {
+    const users = await this.prisma.user.findMany({
+      where: {
+        username: {
+          in: usernames
+        },
+        deletedAt: null
+      },
+      include: WITH_ROLES,
+    });
+    return users.map((u) => ({
+      id: u.id,
+      username: u.username,
+      fullName: u.fullName,
+      isActive: u.isActive,
+      roles: u.roles.map((r) => r.role.name),
+    }));
+  }
+  // ---------- Set active  ----------
+  async setActive(userId: string, isActive: boolean) {
+    const user = await this.prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
+    if (!user) throw new RpcException({ statusCode: 404, message: 'Không tìm thấy tài khoản' });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: userId }, data: { isActive } });
+      if (!isActive) {
+        // khóa thì thu hồi mọi phiên để refresh không dùng lại được
+        await tx.refreshToken.updateMany({
+          where: { userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      }
+    });
+    return { id: userId, isActive };
+  }
+
+  //Tìm chủ sở hữu email
+  async findEmailOwners(emails: string[]) {
+    if (emails.length === 0) return [];
+    const users = await this.prisma.user.findMany({
+      where: { email: { in: emails } },
+      select: { email: true, username: true },
+    });
+    return users.map((u) => ({ email: u.email as string, username: u.username }));
   }
 
   // ---------- Helpers ----------
@@ -258,5 +316,75 @@ export class AuthService {
     return [...new Set<string>(
       user.roles.flatMap((r: any) => r.role.permissions.map((p: any) => p.permission.name)),
     )];
+  }
+
+  // Chuẩn hóa email: bỏ khoảng trắng, chữ thường. Rỗng thì coi như không có email.
+  private normalizeEmail(email?: string): string | undefined {
+    const cleaned = email?.trim().toLowerCase();
+    return cleaned ? cleaned : undefined;
+  }
+
+  // Kiểm tra email của danh sách tài khoản sắp tạo:
+  //  - định dạng email hợp lệ
+  //  - không được nhập 2 lần trong cùng danh sách
+  //  - không được trùng với tài khoản đã có trong DB
+  private async assertEmailsAvailable(users: { username: string; email?: string }[]) {
+    // 1. Kiểm tra định dạng email
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const invalidFormat: string[] = [];
+    for (const user of users) {
+      const email = user.email?.trim();
+      if (email && !EMAIL_REGEX.test(email)) {
+        invalidFormat.push(`${email} (tài khoản: ${user.username})`);
+      }
+    }
+    if (invalidFormat.length > 0) {
+      throw new RpcException({
+        statusCode: 400,
+        message: `Email không đúng định dạng: ${invalidFormat.join(', ')}`,
+      });
+    }
+
+    // gom các email có nhập khi tạo 
+    const emails: string[] = [];
+    for (const user of users) {
+      const email = this.normalizeEmail(user.email);
+      if (email) emails.push(email);
+    }
+    if (emails.length === 0) return; // không nhập email thì khỏi kiểm
+
+    // tìm email bị nhập 2 lần trong danh sách
+    const seen = new Set<string>();
+    const repeated = new Set<string>();
+    for (const email of emails) {
+      if (seen.has(email)) repeated.add(email);
+      seen.add(email);
+    }
+    if (repeated.size > 0) {
+      throw new RpcException({
+        statusCode: 400,
+        message: `Email bị lặp trong danh sách: ${[...repeated].join(', ')}`,
+      });
+    }
+
+    // Tìm email đã có trong DB
+    const taken = await this.prisma.user.findMany({
+      where: {
+        email: {
+          in: emails
+        }
+      },
+      select: {
+        email: true,
+        username: true
+      },
+    });
+    if (taken.length > 0) {
+      const names = taken.map((t) => `${t.email} (${t.username})`);
+      throw new RpcException({
+        statusCode: 409,
+        message: `Email đã được dùng: ${names.join(', ')}`,
+      });
+    }
   }
 }

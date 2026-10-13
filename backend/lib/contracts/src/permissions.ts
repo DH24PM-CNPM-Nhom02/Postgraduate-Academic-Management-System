@@ -16,6 +16,10 @@ export const PERMISSIONS = {
     THESIS_CHANGE_CREATE: 'thesis_change.create',
     THESIS_CHANGE_APPROVE: 'thesis_change.approve',
     GRADUATION_CHECK: 'graduation.check',
+
+    NCS_READ: 'ncs.read',
+    NCS_CREATE: 'ncs.create',
+    NCS_UPDATE: 'ncs.update',
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
