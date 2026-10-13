@@ -7,6 +7,7 @@ import { ROLES } from '../../../../lib/contracts/src/permissions.js';
 import type { CreateNcsItemDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TrangThaiMoc } from '../generated/prisma/index.js';
+import { chuanHoaChuoi } from '../helpers/validateData.util.js';
 
 type AuthUser = {
   id: string;
@@ -40,20 +41,7 @@ function congThang(ngay: Date, soThang: number): Date {
   return new Date(Date.UTC(nam, thang, ngayKetQua));
 }
 
-/**
- * Chuẩn hóa chữ để so sánh mã/tên:
- * - không phân biệt chữ hoa và chữ thường
- * - bỏ dấu tiếng Việt
- * - bỏ khoảng trắng ở đầu và cuối
- */
-function chuanHoaChuoi(chuoi: string): string {
-  return chuoi
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .trim();
-}
+
 
 /**
  * Tìm một giá trị trong danh sách đã chuẩn hóa.

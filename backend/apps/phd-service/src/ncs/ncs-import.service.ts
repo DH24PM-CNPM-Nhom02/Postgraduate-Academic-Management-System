@@ -10,6 +10,7 @@ import {
 } from '../../../../lib/contracts/src/dto/ncs.dto.js';
 import { ROLES } from '../../../../lib/contracts/src/permissions.js';
 import { NcsService, timTrongDanhSach } from './ncs.service.js';
+import { isRealDate, validateEmail, validatePhoneNumber } from '../helpers/validateData.util.js';
 
 const MAX_ROWS = 200;
 
@@ -21,12 +22,7 @@ type RowResult = {
   errors: string[];
 };
 
-// "2026-02-31" khớp định dạng nhưng không phải ngày thật, nên phải kiểm tra thêm
-function isRealDate(s: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
-  const d = new Date(s);
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
-}
+
 
 // Email dạng chuẩn để so sánh: bỏ khoảng trắng, chữ thường ('' nếu không có)
 function emailOf(row: ImportNcsRow): string {
@@ -47,8 +43,8 @@ function validateRow(r: ImportNcsRow): string[] {
   else if (!isRealDate(r.ngayNhapHoc)) errors.push('Ngày nhập học không hợp lệ (dùng dd/mm/yyyy)');
 
   if (r.ngaySinh && !isRealDate(r.ngaySinh)) errors.push('Ngày sinh không hợp lệ (dùng dd/mm/yyyy)');
-  if (r.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email.trim())) errors.push('Email không hợp lệ');
-  if (r.soDienThoai && r.soDienThoai.trim().length > 20) errors.push('Số điện thoại dài quá 20 ký tự');
+  if (r.email && !validateEmail(r.email.trim())) errors.push('Email không hợp lệ');
+  if (r.soDienThoai && !validatePhoneNumber(r.soDienThoai.trim())) errors.push('Số điện thoại không hợp lệ');
 
   if (r.gioiTinh && !(GIOI_TINH as readonly string[]).includes(r.gioiTinh)) errors.push('Giới tính chỉ nhận: Nam hoặc Nữ');
   if (r.cccd && !CCCD_PATTERN.test(r.cccd.trim())) errors.push('CCCD phải là 12 chữ số ');
