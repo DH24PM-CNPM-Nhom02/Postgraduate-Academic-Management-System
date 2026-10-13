@@ -24,9 +24,10 @@ RUN for svc in auth-service phd-service document-service notification-service; d
        npx prisma generate --config prisma.config.ts); \
     done
 
-# Build toàn bộ app ra /app/dist
-# CHỈNH thành đúng lệnh build cũ của repo nếu khác, để giữ layout dist/apps/<app>/apps/<app>/src/main.js
-RUN npm run build
+# Build đủ 5 app, mỗi app ra dist/apps/<app>/main.js
+RUN for app in api-gateway auth-service phd-service document-service notification-service; do \
+      npx nest build "$app"; \
+    done
 
 
 # ---- DATABASE INIT: Prisma CLI + source schema/config + seed ----
@@ -36,9 +37,7 @@ ENV NODE_ENV=production
 
 # Stage build đã có source code, node_modules đầy đủ và Prisma CLI.
 # Giữ nguyên dependencies để chạy được Prisma và tsx khi seed.
-# Compose ghi đè working_dir và command, ví dụ (auth-init):
-#   working_dir: /app/apps/auth-service
-#   command: sh -c "npx prisma db push --config prisma.config.ts && npx prisma db seed --config prisma.config.ts"
+# Compose ghi đè working_dir và command.
 CMD ["sh", "-c", "npx prisma --version"]
 
 
@@ -58,12 +57,6 @@ ENV APP_NAME=${APP_NAME}
 
 COPY --from=build /app/dist ./dist
 
-# Prisma Client đã generate ở stage build
-COPY --from=build /app/apps/auth-service/src/generated ./dist/apps/auth-service/apps/auth-service/src/generated
-COPY --from=build /app/apps/phd-service/src/generated ./dist/apps/phd-service/apps/phd-service/src/generated
-COPY --from=build /app/apps/document-service/src/generated ./dist/apps/document-service/apps/document-service/src/generated
-COPY --from=build /app/apps/notification-service/src/generated ./dist/apps/notification-service/apps/notification-service/src/generated
-
 EXPOSE 8080 3001 3002 3003 3004
 
-CMD ["sh", "-c", "node dist/apps/${APP_NAME}/apps/${APP_NAME}/src/main.js"]
+CMD ["sh", "-c", "node dist/apps/${APP_NAME}/main.js"]
