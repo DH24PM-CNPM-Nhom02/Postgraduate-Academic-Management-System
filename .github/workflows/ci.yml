@@ -164,6 +164,11 @@ jobs:
             dockerfile: ./backend/Dockerfile
             build_args: APP_NAME=notification-service
 
+          - image: backend-db-init
+            context: ./backend
+            dockerfile: ./backend/Dockerfile
+            target: db-init
+            build_args: ""
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -193,6 +198,7 @@ jobs:
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }} # thêm dòng này (entry không có target thì rỗng, dùng stage cuối)
           build-args: ${{ matrix.build_args }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
