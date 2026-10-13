@@ -5,31 +5,31 @@ import { ChangePasswordDto, CreateUsersDto, LoginDto, RefreshDto } from './dto/a
 
 @Controller()
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(private readonly auth: AuthService) { }
 
   @MessagePattern({ cmd: 'auth.login' })
-  login(@Payload() dto: LoginDto) { 
-    return this.auth.login(dto); 
+  login(@Payload() dto: LoginDto) {
+    return this.auth.login(dto);
   }
 
   @MessagePattern({ cmd: 'auth.refresh' })
-  refresh(@Payload() dto: RefreshDto) { 
-    return this.auth.refresh(dto.refreshToken); 
+  refresh(@Payload() dto: RefreshDto) {
+    return this.auth.refresh(dto.refreshToken);
   }
 
   @MessagePattern({ cmd: 'auth.logout' })
-  logout(@Payload() dto: Partial<RefreshDto>) { 
-    return this.auth.logout(dto.refreshToken); 
+  logout(@Payload() dto: Partial<RefreshDto>) {
+    return this.auth.logout(dto.refreshToken);
   }
 
   @MessagePattern({ cmd: 'auth.me' })
-  me(@Payload() d: { userId: string }) { 
-    return this.auth.getMe(d.userId); 
+  me(@Payload() d: { userId: string }) {
+    return this.auth.getMe(d.userId);
   }
 
   @MessagePattern({ cmd: 'auth.permissions' })
-  permissions(@Payload() d: { userId: string }) { 
-    return this.auth.getPermissions(d.userId); 
+  permissions(@Payload() d: { userId: string }) {
+    return this.auth.getPermissions(d.userId);
   }
 
   @MessagePattern({ cmd: 'auth.change-password' })
@@ -39,7 +39,22 @@ export class AuthController {
   }
 
   @MessagePattern({ cmd: 'auth.create-users' })
-  createUsers(@Payload() dto: CreateUsersDto) { 
-    return this.auth.createUsers(dto); 
+  createUsers(@Payload() dto: CreateUsersDto) {
+    return this.auth.createUsers(dto);
+  }
+
+  @MessagePattern({ cmd: 'auth.find-users' })
+  findUsers(@Payload() d: { usernames: string[] }) {
+    return this.auth.findUsers(d.usernames);
+  }
+
+  @MessagePattern({ cmd: 'auth.set-active' })
+  setActive(@Payload() d: { userId: string; isActive: boolean }) {
+    return this.auth.setActive(d.userId, d.isActive);
+  }
+
+  @MessagePattern({ cmd: 'auth.find-emails' })
+  findEmails(@Payload() d: { emails: string[] }) {
+    return this.auth.findEmailOwners(d.emails);
   }
 }

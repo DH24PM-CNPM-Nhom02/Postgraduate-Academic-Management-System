@@ -10,6 +10,6 @@ export class RpcToHttpFilter implements ExceptionFilter {
     if (String(ex?.message).includes('ECONNREFUSED')) {
       return res.status(503).json({ statusCode: 503, message: 'Service không khả dụng' });
     }
-    return res.status(500).json({ statusCode: 500, message: 'Lỗi hệ thống' });
+    return res.status(500).json({ statusCode: 500, message: ex });
   }
 }
