@@ -7,6 +7,8 @@ import { UserRole } from "./lib/auth/constants";
 import { IUser } from "@/types/next-auth";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+    trustHost: true,
+    secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
     session: { strategy: "jwt" },
     providers: [
         CredentialsProvider({

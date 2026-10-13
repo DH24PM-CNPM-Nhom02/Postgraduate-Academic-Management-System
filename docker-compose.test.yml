@@ -1,0 +1,138 @@
+x-jwt-env: &jwt-env
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+  JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+  JWT_REFRESH_EXPIRES: ${JWT_REFRESH_EXPIRES}
+
+services:
+  mariadb:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_USER: pams_user
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./backend/docker/mariadb/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - pams-network
+
+  api-gateway:
+    image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-api-gateway:${IMAGE_TAG:?Missing IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      <<: *jwt-env
+      API_GATEWAY_PORT: 8080
+      AUTH_SERVICE_HOST: auth-service
+      AUTH_SERVICE_PORT: 3001
+      DOCUMENT_SERVICE_HOST: document-service
+      DOCUMENT_SERVICE_PORT: 3002
+      NOTIFICATION_SERVICE_HOST: notification-service
+      NOTIFICATION_SERVICE_PORT: 3003
+      PHD_SERVICE_HOST: phd-service
+      PHD_SERVICE_PORT: 3004
+      FRONTEND_ORIGIN: http://localhost:${FRONTEND_PORT}
+    ports:
+      - "${API_GATEWAY_HOST_PORT}:8080"
+    depends_on:
+      auth-service:
+        condition: service_started
+      document-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+      phd-service:
+        condition: service_started
+    networks:
+      - pams-network
+
+  auth-service:
+    image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-auth-service:${IMAGE_TAG:?Missing IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      <<: *jwt-env
+      AUTH_SERVICE_HOST: 0.0.0.0
+      AUTH_SERVICE_PORT: 3001
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
+      AUTH_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/auth_db
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - pams-network
+
+  document-service:
+    image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-document-service:${IMAGE_TAG:?Missing IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      DOCUMENT_SERVICE_HOST: 0.0.0.0
+      DOCUMENT_SERVICE_PORT: 3002
+      DOCUMENT_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/document_db
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - pams-network
+
+  notification-service:
+    image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-notification-service:${IMAGE_TAG:?Missing IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      NOTIFICATION_SERVICE_HOST: 0.0.0.0
+      NOTIFICATION_SERVICE_PORT: 3003
+      NOTIFICATION_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/notification_db
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - pams-network
+
+  phd-service:
+    image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-backend-phd-service:${IMAGE_TAG:?Missing IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      PHD_SERVICE_HOST: 0.0.0.0
+      PHD_SERVICE_PORT: 3004
+      PHD_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/phd_db
+      AUTH_SERVICE_HOST: auth-service
+      AUTH_SERVICE_PORT: 3001
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    networks:
+      - pams-network
+
+  frontend:
+    image: ${IMAGE_PREFIX:?Missing IMAGE_PREFIX}-frontend:${IMAGE_TAG:?Missing IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      AUTH_TRUST_HOST: true
+      AUTH_URL: http://localhost:${FRONTEND_PORT}
+      NEXTAUTH_URL: http://localhost:${FRONTEND_PORT}
+      AUTH_SECRET: ${AUTH_SECRET}
+      API_INTERNAL_URL: http://api-gateway:${API_GATEWAY_HOST_PORT}/api/v1
+      NEXT_PUBLIC_API_URL: http://localhost:${API_GATEWAY_HOST_PORT}/api/v1
+
+    ports:
+      - "${FRONTEND_PORT}:3000"
+    networks:
+      - pams-network
+    depends_on:
+      api-gateway:
+        condition: service_started
+
+networks:
+  pams-network:
+    driver: bridge
+
+volumes:
+  mariadb_data:
