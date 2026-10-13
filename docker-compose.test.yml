@@ -116,6 +116,8 @@ services:
     restart: unless-stopped
     environment:
       AUTH_TRUST_HOST: true
+      AUTH_URL: http://localhost:${FRONTEND_PORT}
+      NEXTAUTH_URL: http://localhost:${FRONTEND_PORT}
       AUTH_SECRET: ${AUTH_SECRET}
       API_INTERNAL_URL: http://api-gateway:${API_GATEWAY_HOST_PORT}/api/v1
       NEXT_PUBLIC_API_URL: http://localhost:${API_GATEWAY_HOST_PORT}/api/v1
