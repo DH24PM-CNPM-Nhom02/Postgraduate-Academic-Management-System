@@ -364,12 +364,9 @@ model GiangVienHuongDan {
   chuyenNganh       String?     @map("chuyen_nganh") @db.VarChar(255)
   /// Nước cấp bằng tiến sĩ (ten_qg)
   quocGiaTotNghiep  String?     @map("quoc_gia_tot_nghiep") @db.VarChar(50)
-  coQuanCongTac     String      @map("co_quan_cong_tac") @db.VarChar(255)
   /// Đơn vị công tác đã chuẩn hóa.
   donViId           String?     @map("don_vi_id")
-  /// Bộ môn / Khoa công tác (t_dvi / dvi.ten) — chỉ có với GVHD trong trường
-  boMon             String?     @map("bo_mon") @db.VarChar(255)
-  khoa              String?     @db.VarChar(255)
+  
   /// FR3.1: lịch sử công bố 5 năm gần nhất (JSON)
   lichSuCongBo5Nam  Json?       @map("lich_su_cong_bo_5_nam")
   /// GS=7, PGS=5, TS=3 (BR-09)

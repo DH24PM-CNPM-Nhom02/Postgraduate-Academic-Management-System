@@ -5,6 +5,6 @@
     "rootDir": "../..",
     "outDir": "../../dist/apps/phd-service"
   },
-  "include": ["src/**/*", "../api-gateway/src/ncs/ncs-excel.ts"],
+  "include": ["src/**/*", "../api-gateway/src/ncs/ncs-excel.ts", "../../lib/contracts/src/**/*"],
   "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
 }

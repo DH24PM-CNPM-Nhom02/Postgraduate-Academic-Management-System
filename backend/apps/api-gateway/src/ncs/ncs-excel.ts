@@ -24,7 +24,7 @@ const COLUMNS = [
 const REQUIRED_KEYS = ['mshv', 'hoTen', 'ngayNhapHoc'];
 
 // Bỏ dấu + chữ thường để so sánh chữ do người dùng gõ
-const plain = (s: string) =>
+export const plain = (s: string) =>
   s.toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') //xóa dấu tiếng Việt 
@@ -38,7 +38,7 @@ function normalizeDate(s: string): string {
 }
 
 // Đổi giá trị một ô về chuỗi. Ô Excel có nhiều kiểu: chuỗi, số, ngày, công thức, rich text...
-function cellText(v: ExcelJS.CellValue, isDate = false): string {
+export function cellText(v: ExcelJS.CellValue, isDate = false): string {
   if (v === null || v === undefined) return '';
   if (v instanceof Date) return v.toISOString().slice(0, 10);
   if (typeof v === 'number') {
@@ -72,7 +72,7 @@ function mapMethod(s: string): string {
   return s;
 }
 
-function mapGender(s: string): string {
+export function mapGender(s: string): string {
   const k = plain(s);
   if (!k) return '';
   if (['nam', 'm', 'male'].includes(k)) return 'NAM';

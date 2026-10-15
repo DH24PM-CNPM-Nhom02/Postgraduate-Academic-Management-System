@@ -5,10 +5,11 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { NcsModule } from './ncs/ncs.module.js';
+import { SupervisorModule } from './supervisor/supervisor.module.js';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, NcsModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, NcsModule, SupervisorModule],
   // controllers: [PhdServiceController],
   // providers: [PhdServiceService],
 })
-export class PhdServiceModule {}
+export class PhdServiceModule { }
