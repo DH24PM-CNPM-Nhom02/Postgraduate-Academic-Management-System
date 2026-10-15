@@ -25,6 +25,7 @@ GRANT ALL PRIVILEGES ON `phd_db`.* TO 'pams_user'@'%';
 GRANT ALL PRIVILEGES ON `document_db`.* TO 'pams_user'@'%';
 GRANT ALL PRIVILEGES ON `notification_db`.* TO 'pams_user'@'%';
 
+CREATE USER IF NOT EXISTS 'pams_user'@'localhost' IDENTIFIED BY 'password';
 GRANT ALL PRIVILEGES ON `auth_db`.* TO 'pams_user'@'localhost';
 GRANT ALL PRIVILEGES ON `phd_db`.* TO 'pams_user'@'localhost';
 GRANT ALL PRIVILEGES ON `document_db`.* TO 'pams_user'@'localhost';
