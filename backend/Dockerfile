@@ -11,7 +11,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN chmod +x ./docker/dev-start.sh
+RUN sed -i 's/\r$//' ./docker/dev-start.sh && chmod +x ./docker/dev-start.sh
 
 ARG APP_NAME=api-gateway
 ENV APP_NAME=${APP_NAME}
