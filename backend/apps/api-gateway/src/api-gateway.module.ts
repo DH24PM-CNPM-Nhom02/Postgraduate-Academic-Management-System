@@ -7,11 +7,13 @@ import { ConfigModule } from '@nestjs/config';
 
 import { AuthModule } from './auth/auth.module.js';
 import {NcsModule} from './ncs/ncs.module.js'
+import {GvhdModule} from './gvhd/gvhd.module.js'
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     AuthModule,
     NcsModule,
+    GvhdModule,
     ClientsModule.register([
       {
         name: 'AUTH_SERVICE',

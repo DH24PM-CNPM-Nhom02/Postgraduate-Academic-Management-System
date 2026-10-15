@@ -20,6 +20,9 @@ export const PERMISSIONS = {
     NCS_READ: 'ncs.read',
     NCS_CREATE: 'ncs.create',
     NCS_UPDATE: 'ncs.update',
+
+    GVHD_READ: 'gvhd.read',
+    GVHD_CREATE: 'gvhd.create',
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
