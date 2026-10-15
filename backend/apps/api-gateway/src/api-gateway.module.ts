@@ -6,12 +6,19 @@ import { ApiGatewayService } from './api-gateway.service.js';
 import { ConfigModule } from '@nestjs/config';
 
 import { AuthModule } from './auth/auth.module.js';
-import {NcsModule} from './ncs/ncs.module.js'
+import { NcsModule } from './ncs/ncs.module.js';
+import { EvaluationModule } from './evaluation/evaluation.module.js';
+import { SupervisorModule } from './supervisor/supervisor.module.js';
+import { ChangeRequestModule } from './change-request/change-request.module.js';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     AuthModule,
     NcsModule,
+    EvaluationModule,
+    SupervisorModule,
+    ChangeRequestModule,
     ClientsModule.register([
       {
         name: 'AUTH_SERVICE',

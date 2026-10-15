@@ -9,8 +9,8 @@ import { JwtStrategy } from './strategies/jwt.strategy.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { AuthController } from './auth.controller.js';
 import { PermissionGuard } from './guards/permission.guard.js';
+import { RolesGuard } from './guards/roles.guard.js';
 import { PermissionsService } from './services/permissions.service.js';
-
 
 @Module({
   imports: [
@@ -33,8 +33,9 @@ import { PermissionsService } from './services/permissions.service.js';
   providers: [
     JwtStrategy,
     PermissionsService,
-    { provide: APP_GUARD, useClass: JwtAuthGuard },    // 1. xác thực
-    { provide: APP_GUARD, useClass: PermissionGuard }, // 2. phân quyền
+    { provide: APP_GUARD, useClass: JwtAuthGuard },    // 1. xác thực JWT
+    { provide: APP_GUARD, useClass: PermissionGuard }, // 2. phân quyền Permission
+    { provide: APP_GUARD, useClass: RolesGuard },      // 3. phân quyền Role (@Roles)
   ],
 })
 export class AuthModule {}
