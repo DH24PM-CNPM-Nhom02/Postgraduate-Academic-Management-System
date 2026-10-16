@@ -163,7 +163,7 @@ export function DocumentPreviewModal({
             {/* Document Title */}
             <div className="my-8 text-center space-y-3">
               <h1 className="text-lg font-black uppercase text-slate-900 leading-snug">
-                BÁO CÁO TIẾN ĐỘ & NỘI DUNG CHUYÊN ĐỀ TIẾN SĨ 01
+                BÁO CÁO TIẾN ĐỘ &amp; NỘI DUNG CHUYÊN ĐỀ TIẾN SĨ 01
               </h1>
               <p className="text-sm font-semibold text-slate-700 italic">
                 “Nghiên cứu ứng dụng IoT và Trí tuệ nhân tạo trong quan trắc, dự báo chất lượng môi trường nước nông nghiệp thâm canh”
@@ -247,7 +247,7 @@ export function DocumentPreviewModal({
         <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-5 py-3 text-xs text-slate-600">
           <div className="flex items-center gap-2">
             <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Tài liệu đã được lưu trữ an toàn tại máy chủ Văn bằng & Đào tạo Sau Đại học AGU.</span>
+            <span>Tài liệu đã được lưu trữ an toàn tại máy chủ Văn bằng &amp; Đào tạo Sau Đại học AGU.</span>
           </div>
           <button
             onClick={onClose}

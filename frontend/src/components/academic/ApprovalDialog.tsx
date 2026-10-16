@@ -37,7 +37,7 @@ export function ApprovalDialog({
   studentName = "Nguyễn Văn An",
   studentCode = "NCS230104",
   milestoneName = "Mốc 3: Báo cáo chuyên đề 1",
-  currentStep = "gvhd_confirm",
+  currentStep = "academic_review",
 }: ApprovalDialogProps) {
   const [decision, setDecision] = useState<ApprovalDecision>("approve");
   const [notes, setNotes] = useState("");
@@ -140,7 +140,7 @@ export function ApprovalDialog({
               >
                 3
               </span>
-              <span>3. Giáo vụ/ĐVCM duyệt</span>
+              <span>3. Giáo vụ phê duyệt</span>
             </div>
           </div>
         </div>
@@ -162,7 +162,7 @@ export function ApprovalDialog({
             {/* Decision selector */}
             <div className="space-y-2">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                Kết quả đánh giá chuyên môn <span className="text-rose-500">*</span>
+                Kết quả thẩm định học vụ <span className="text-rose-500">*</span>
               </label>
 
               <div className="grid grid-cols-3 gap-3">
@@ -183,9 +183,9 @@ export function ApprovalDialog({
                     className="sr-only"
                   />
                   <CheckCircle2 className="size-6 text-emerald-600 mb-1" />
-                  <span className="text-xs font-bold">Xác nhận Đạt</span>
+                  <span className="text-xs font-bold">Phê duyệt Đạt</span>
                   <span className="text-[10px] text-slate-500 mt-0.5">
-                    Đủ điều kiện chuyển bước
+                    Chuyển mốc đào tạo tiếp theo
                   </span>
                 </label>
 
@@ -208,7 +208,7 @@ export function ApprovalDialog({
                   <AlertTriangle className="size-6 text-amber-600 mb-1" />
                   <span className="text-xs font-bold">Yêu cầu bổ sung</span>
                   <span className="text-[10px] text-slate-500 mt-0.5">
-                    Cần sửa đổi nộp lại
+                    Học viên nộp lại minh chứng
                   </span>
                 </label>
 
@@ -231,7 +231,7 @@ export function ApprovalDialog({
                   <XCircle className="size-6 text-rose-600 mb-1" />
                   <span className="text-xs font-bold">Không duyệt</span>
                   <span className="text-[10px] text-slate-500 mt-0.5">
-                    Từ chối minh chứng
+                    Từ chối hồ sơ minh chứng
                   </span>
                 </label>
               </div>
@@ -257,10 +257,10 @@ export function ApprovalDialog({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Người xác nhận:
+                  Cán bộ thẩm định:
                 </label>
                 <div className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700">
-                  TS. Bùi Lê Tuấn Anh (Cán bộ GVHD)
+                  ThS. Nguyễn Thị Kim Loan (Giáo vụ SĐH)
                 </div>
               </div>
             </div>
@@ -268,7 +268,7 @@ export function ApprovalDialog({
             {/* Comments / Notes */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                Ý kiến nhận xét & Hướng dẫn chỉnh sửa:
+                Ý kiến nhận xét &amp; Hướng dẫn hoàn thiện:
                 {(decision === "reject" || decision === "revise") && (
                   <span className="text-rose-500 font-bold ml-1">* (Bắt buộc)</span>
                 )}
@@ -319,7 +319,7 @@ export function ApprovalDialog({
                 className="inline-flex items-center gap-1.5 rounded-lg bg-[#164E9B] px-5 py-2 text-xs font-bold text-white hover:bg-[#113E7D] transition-colors shadow-xs"
               >
                 <CheckCircle2 className="size-4" />
-                <span>Tiếp tục & Xác nhận</span>
+                <span>Tiếp tục &amp; Xác nhận</span>
               </button>
             </div>
           </form>
@@ -336,7 +336,7 @@ export function ApprovalDialog({
                   Bạn đang ghi nhận kết quả:{" "}
                   <strong className="uppercase">
                     {decision === "approve"
-                      ? "Xác nhận Đạt"
+                      ? "Phê duyệt Đạt"
                       : decision === "revise"
                       ? "Yêu cầu bổ sung"
                       : "Không duyệt"}
@@ -380,7 +380,7 @@ export function ApprovalDialog({
                 className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-5 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition-colors shadow-xs"
               >
                 <CheckCircle2 className="size-4" />
-                <span>Hoàn tất & Ký duyệt</span>
+                <span>Hoàn tất &amp; Ký duyệt</span>
               </button>
             </div>
           </div>

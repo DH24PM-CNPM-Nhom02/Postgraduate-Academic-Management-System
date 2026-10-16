@@ -83,7 +83,7 @@ export function TopicChangeModal({
             <div className="flex items-center gap-2">
               <Building className="size-4 text-[#164E9B]" />
               <div>
-                <span className="text-slate-500 block">Chuyên ngành & Khóa:</span>
+                <span className="text-slate-500 block">Chuyên ngành &amp; Khóa:</span>
                 <span className="font-semibold text-slate-900">{data.department} ({data.cohort})</span>
               </div>
             </div>
@@ -141,7 +141,7 @@ export function TopicChangeModal({
           {/* Scientific Rationale from Student */}
           <div className="rounded-xl border border-slate-200 p-4 bg-white space-y-2">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-              Lý do & Căn cứ đề nghị điều chỉnh
+              Lý do &amp; Căn cứ đề nghị điều chỉnh
             </h4>
             <p className="text-xs text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-100">
               {data.reason}
@@ -236,7 +236,7 @@ export function TopicChangeModal({
                   className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-5 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition-colors shadow-xs"
                 >
                   <CheckCircle2 className="size-4" />
-                  <span>Chấp thuận & Cập nhật Quyết định</span>
+                  <span>Chấp thuận &amp; Cập nhật Quyết định</span>
                 </button>
               </>
             )}
