@@ -6,10 +6,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
-  HelpCircle,
   ShieldAlert,
   ArrowRight,
-  Clock,
   History,
   FileText,
 } from "lucide-react";

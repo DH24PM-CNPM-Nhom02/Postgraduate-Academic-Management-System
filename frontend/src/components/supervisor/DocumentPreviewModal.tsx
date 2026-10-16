@@ -10,8 +10,6 @@ import {
   ChevronRight,
   ShieldCheck,
   FileText,
-  Printer,
-  ExternalLink,
 } from "lucide-react";
 
 export interface DocumentPreviewModalProps {

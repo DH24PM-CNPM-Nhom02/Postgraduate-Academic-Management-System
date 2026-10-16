@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   Users,
@@ -9,29 +8,16 @@ import {
   FileEdit,
   Gauge,
   Search,
-  Filter,
   CheckCircle2,
-  AlertTriangle,
   Clock,
   ArrowRight,
   Eye,
   Download,
   Calendar,
-  Building,
-  GraduationCap,
-  Sparkles,
   ChevronRight,
   RefreshCw,
   FileText,
-  ShieldCheck,
-  Send,
-  HelpCircle,
-  Award,
-  BookOpen,
-  XCircle,
-  FileSpreadsheet,
   Layers,
-  ChevronDown,
   LayoutDashboard,
   UserCheck,
   ClipboardList,
@@ -244,6 +230,7 @@ const MOCK_EVIDENCES = [
     badgeColor: "bg-blue-100 text-[#164E9B] border-blue-200",
   },
 ];
+export type EvidenceItem = (typeof MOCK_EVIDENCES)[number];
 
 // Mock Topic Change Requests Dataset
 const MOCK_TOPIC_CHANGES: TopicChangeItem[] = [
@@ -339,9 +326,14 @@ function SupervisorDashboardContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab") || "dashboard";
   const [activeTab, setActiveTab] = useState<string>(tabParam);
+  const [prevTabParam, setPrevTabParam] = useState<string>(tabParam);
+
+  if (tabParam !== prevTabParam) {
+    setPrevTabParam(tabParam);
+    setActiveTab(tabParam);
+  }
 
   // Search & Filter States
-  const [globalSearchText, setGlobalSearchText] = useState("");
   const [studentSearchText, setStudentSearchText] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -349,10 +341,10 @@ function SupervisorDashboardContent() {
 
   // Interactive Modals State
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
-  const [previewData, setPreviewData] = useState<any>(null);
+  const [previewData, setPreviewData] = useState<EvidenceItem | null>(null);
 
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
-  const [approvalData, setApprovalData] = useState<any>(null);
+  const [approvalData, setApprovalData] = useState<EvidenceItem | null>(null);
 
   const [topicModalOpen, setTopicModalOpen] = useState(false);
   const [selectedTopicChange, setSelectedTopicChange] = useState<TopicChangeItem | null>(null);
@@ -371,13 +363,6 @@ function SupervisorDashboardContent() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4500);
   };
-
-  // Switch tab when URL param changes
-  React.useEffect(() => {
-    if (tabParam && tabParam !== activeTab) {
-      setActiveTab(tabParam);
-    }
-  }, [tabParam]);
 
   // Filtered Students List
   const filteredStudents = useMemo(() => {
@@ -1589,7 +1574,7 @@ function SupervisorDashboardContent() {
         studentName={approvalData?.studentName}
         studentCode={approvalData?.studentCode}
         milestoneName={approvalData?.milestone}
-        currentStep={approvalData?.step}
+        currentStep={approvalData?.step as "gvhd_confirm" | "academic_review" | undefined}
       />
 
       {/* MODAL 3: TOPIC CHANGE COMPARISON MODAL */}

@@ -31,7 +31,7 @@ export default function SupervisorLayout({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const handleSelectSearchResult = (item: any) => {
+  const handleSelectSearchResult = (item: { payload?: { tab?: string } }) => {
     if (item.payload?.tab) {
       router.push(`/supervisor?tab=${item.payload.tab}`);
     }

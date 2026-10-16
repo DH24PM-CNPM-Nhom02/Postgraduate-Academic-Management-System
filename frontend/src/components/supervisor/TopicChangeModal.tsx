@@ -4,11 +4,7 @@ import React, { useState } from "react";
 import {
   X,
   FileEdit,
-  ArrowRight,
   CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  HelpCircle,
   User,
   Calendar,
   Building,

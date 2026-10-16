@@ -10,13 +10,11 @@ import {
   User,
   Shield,
   ChevronDown,
-  GraduationCap,
   Sparkles,
   FileCheck2,
   Check,
   Clock,
   FileEdit,
-  ExternalLink,
   HelpCircle,
 } from "lucide-react";
 import { useAuth } from "@/src/hooks/use-auth";
@@ -26,8 +24,7 @@ import { HoverLogo } from "./HoverLogo";
 export interface SupervisorHeaderProps {
   onToggleSidebar?: () => void;
   onOpenSearch?: () => void;
-  unreadNotificationsCount?: number;
-  onSelectNotification?: (item: any) => void;
+  onSelectNotification?: (item: { id: string; title: string; message: string; time: string; unread: boolean; type: string }) => void;
 }
 
 const MOCK_NOTIFICATIONS = [
@@ -68,14 +65,12 @@ const MOCK_NOTIFICATIONS = [
 export function SupervisorHeader({
   onToggleSidebar,
   onOpenSearch,
-  unreadNotificationsCount = 3,
   onSelectNotification,
 }: SupervisorHeaderProps) {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
-  const [notifFilter, setNotifFilter] = useState<"all" | "unread">("all");
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 

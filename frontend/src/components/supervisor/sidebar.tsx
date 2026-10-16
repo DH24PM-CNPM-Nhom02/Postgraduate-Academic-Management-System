@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -19,12 +19,7 @@ import {
   ChevronRight,
   X,
   Gauge,
-  GraduationCap,
-  Shield,
-  LogOut,
-  Info,
 } from "lucide-react";
-import { useAuth } from "@/src/hooks/use-auth";
 import { HoverLogo } from "./HoverLogo";
 
 export interface SupervisorSidebarProps {
@@ -149,10 +144,8 @@ export function SupervisorSidebar({
   activeTab = "dashboard",
   onTabChange,
 }: SupervisorSidebarProps) {
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentUrlTab = searchParams.get("tab") || "dashboard";
-  const { user, logout } = useAuth();
 
   const currentTab = activeTab || currentUrlTab;
 

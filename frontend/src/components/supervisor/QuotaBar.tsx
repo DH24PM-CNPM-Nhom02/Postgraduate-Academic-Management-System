@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Users, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Users, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export interface QuotaBarProps {
   used?: number;

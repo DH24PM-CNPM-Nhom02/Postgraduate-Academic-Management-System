@@ -5,14 +5,11 @@ import {
   X,
   User,
   GraduationCap,
-  Calendar,
   FileCheck,
   Award,
-  BookOpen,
   Clock,
   CheckCircle2,
   AlertCircle,
-  ExternalLink,
   ShieldAlert,
 } from "lucide-react";
 
@@ -204,7 +201,6 @@ export function StudentDetailModal({
               {MILESTONES_LIST.map((m) => {
                 const isPassed = m.index < student.currentMilestoneIndex;
                 const isCurrent = m.index === student.currentMilestoneIndex;
-                const isLocked = m.index > student.currentMilestoneIndex;
 
                 return (
                   <div
