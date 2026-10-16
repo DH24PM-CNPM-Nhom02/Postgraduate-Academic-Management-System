@@ -3,7 +3,7 @@
 import { useState } from "react";
 import localFont from "next/font/local";
 import { LoginForm, HoverLogo } from "@/src/components/auth/login/login-form";
-import { Home, HelpCircle, PhoneCall, ShieldCheck } from "lucide-react";
+import { Home, HelpCircle, PhoneCall } from "lucide-react";
 import Link from "next/link";
 
 const plusJakartaSans = localFont({
@@ -86,13 +86,7 @@ export default function LoginPage() {
 
       {/* 4. FOOTER: Cố định chân trang, tất cả các mục nằm trên 1 hàng ngang duy nhất */}
       <footer className="sticky bottom-0 z-40 shrink-0 w-full border-t border-[#D0D5DD] bg-white py-2.5 px-3 sm:px-6 shadow-[0_-1px_2px_rgba(16,24,40,0.02)]">
-        <div className="mx-auto flex max-w-7xl flex-row items-center justify-between gap-4">
-          {/* Security note - hiển thị trên màn hình lớn */}
-          <div className="hidden lg:flex items-center gap-2 text-xs font-normal text-[#667085] shrink-0">
-            <ShieldCheck className="h-4 w-4 shrink-0 text-[#155EEF]" />
-            <span>Hệ thống bảo mật xác thực chuyên biệt cho Sau đại học</span>
-          </div>
-
+        <div className="mx-auto flex max-w-7xl flex-row items-center justify-center sm:justify-end gap-4">
           {/* Các mục hỗ trợ, chính sách, liên hệ, copyright luôn nằm trên 1 HÀNG NGANG KHÔNG CHỒNG NHAU */}
           <div className="flex flex-row items-center justify-center lg:justify-end gap-x-2 sm:gap-x-3.5 text-[11px] sm:text-xs text-[#475467] w-full lg:w-auto">
             <Link href="#support" className="font-semibold transition-colors hover:text-[#155EEF] shrink-0 whitespace-nowrap">

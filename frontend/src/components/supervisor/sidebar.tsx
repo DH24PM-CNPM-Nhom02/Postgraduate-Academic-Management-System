@@ -1,44 +1,238 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
+  LayoutDashboard,
   Users,
-  FileCheck,
-  Gauge,
   UserCheck,
+  FileCheck2,
+  FileEdit,
+  ClipboardList,
+  CalendarDays,
+  FileSpreadsheet,
+  Award,
+  BookOpen,
+  HelpCircle,
+  ChevronLeft,
+  ChevronRight,
   X,
-  User,
+  Gauge,
+  GraduationCap,
+  Shield,
+  LogOut,
   Info,
 } from "lucide-react";
 import { useAuth } from "@/src/hooks/use-auth";
+import { HoverLogo } from "./HoverLogo";
 
-interface SupervisorSidebarProps {
+export interface SupervisorSidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+  activeTab?: string;
+  onTabChange?: (tabKey: string) => void;
 }
 
-const navItems = [
+export interface NavItemDef {
+  id: string;
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: number | string;
+  badgeColor?: string;
+  group: "main" | "academic" | "support";
+  href?: string;
+}
+
+export const SUPERVISOR_NAV_ITEMS: NavItemDef[] = [
+  // Nhóm chức năng chính
   {
-    title: "Danh sách NCS",
-    href: "/students",
+    id: "dashboard",
+    title: "Tổng quan (Dashboard)",
+    icon: LayoutDashboard,
+    group: "main",
+    href: "/supervisor",
+  },
+  {
+    id: "students",
+    title: "Quản lý NCS",
     icon: Users,
+    group: "main",
+    badge: "18",
+    badgeColor: "bg-blue-100 text-[#164E9B]",
+    href: "/supervisor?tab=students",
   },
   {
-    title: "Báo cáo định kỳ",
-    href: "/progress-reports",
-    icon: FileCheck,
+    id: "supervisors",
+    title: "Quản lý GVHD & Hạn ngạch",
+    icon: UserCheck,
+    group: "main",
+    badge: "2.5/3",
+    badgeColor: "bg-emerald-100 text-emerald-800",
+    href: "/supervisor?tab=supervisors",
   },
   {
-    title: "Định mức hướng dẫn",
-    href: "/quota",
-    icon: Gauge,
+    id: "evidence",
+    title: "Duyệt minh chứng học viên",
+    icon: FileCheck2,
+    group: "main",
+    badge: 5,
+    badgeColor: "bg-amber-500 text-white font-bold animate-pulse",
+    href: "/supervisor?tab=evidence",
+  },
+  {
+    id: "topic-changes",
+    title: "Duyệt đề nghị đổi đề tài",
+    icon: FileEdit,
+    group: "main",
+    badge: 2,
+    badgeColor: "bg-rose-500 text-white font-bold",
+    href: "/supervisor?tab=topic-changes",
+  },
+
+  // Nhóm nghiệp vụ học vụ
+  {
+    id: "procedures",
+    title: "Thủ tục học vụ",
+    icon: ClipboardList,
+    group: "academic",
+    href: "/supervisor?tab=procedures",
+  },
+  {
+    id: "calendar",
+    title: "Lịch học vụ & Thông báo",
+    icon: CalendarDays,
+    group: "academic",
+    badge: "Mới",
+    badgeColor: "bg-indigo-100 text-indigo-700",
+    href: "/supervisor?tab=calendar",
+  },
+  {
+    id: "forms",
+    title: "Biểu mẫu & Đơn từ",
+    icon: FileSpreadsheet,
+    group: "academic",
+    href: "/supervisor?tab=forms",
+  },
+  {
+    id: "results",
+    title: "Kết quả học tập & Tiến độ",
+    icon: Award,
+    group: "academic",
+    href: "/supervisor?tab=results",
+  },
+
+  // Nhóm trợ giúp & văn bản
+  {
+    id: "regulations",
+    title: "Quy chế & Quy định",
+    icon: BookOpen,
+    group: "support",
+    href: "/supervisor?tab=regulations",
+  },
+  {
+    id: "faq",
+    title: "Hỏi đáp & Liên hệ",
+    icon: HelpCircle,
+    group: "support",
+    href: "/supervisor?tab=faq",
   },
 ];
 
-export function SupervisorSidebar({ isOpen, onClose }: SupervisorSidebarProps) {
+export function SupervisorSidebar({
+  isOpen = false,
+  onClose,
+  isCollapsed = false,
+  onToggleCollapse,
+  activeTab = "dashboard",
+  onTabChange,
+}: SupervisorSidebarProps) {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const currentUrlTab = searchParams.get("tab") || "dashboard";
+  const { user, logout } = useAuth();
+
+  const currentTab = activeTab || currentUrlTab;
+
+  const handleNavClick = (item: NavItemDef) => {
+    if (onTabChange) {
+      onTabChange(item.id);
+    }
+    if (onClose) {
+      onClose();
+    }
+  };
+
+  const renderGroup = (
+    groupKey: "main" | "academic" | "support",
+    groupLabel: string
+  ) => {
+    const items = SUPERVISOR_NAV_ITEMS.filter((i) => i.group === groupKey);
+
+    return (
+      <div className="space-y-1">
+        {!isCollapsed && (
+          <div className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            {groupLabel}
+          </div>
+        )}
+        {items.map((item) => {
+          const isActive = currentTab === item.id;
+          const Icon = item.icon;
+
+          return (
+            <Link
+              key={item.id}
+              href={item.href || `/supervisor?tab=${item.id}`}
+              onClick={() => handleNavClick(item)}
+              title={isCollapsed ? item.title : undefined}
+              className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${
+                isActive
+                  ? "bg-[#164E9B] text-white shadow-xs font-bold"
+                  : "text-slate-700 hover:bg-slate-100/90 hover:text-[#164E9B]"
+              } ${isCollapsed ? "justify-center px-2" : ""}`}
+            >
+              <Icon
+                className={`size-4.5 shrink-0 transition-colors ${
+                  isActive
+                    ? "text-white"
+                    : "text-slate-500 group-hover:text-[#164E9B]"
+                }`}
+              />
+
+              {!isCollapsed && (
+                <span className="truncate flex-1 text-left">{item.title}</span>
+              )}
+
+              {/* Badges */}
+              {item.badge !== undefined && (
+                <span
+                  className={`flex items-center justify-center rounded-full px-1.5 py-0.2 text-[10px] ${
+                    item.badgeColor || "bg-slate-100 text-slate-700"
+                  } ${
+                    isCollapsed
+                      ? "absolute -top-1 -right-1 size-4 p-0 text-[9px]"
+                      : "ml-auto"
+                  }`}
+                >
+                  {item.badge}
+                </span>
+              )}
+
+              {/* Tooltip for collapsed mode */}
+              {isCollapsed && (
+                <div className="pointer-events-none absolute left-full ml-2 hidden whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1 text-xs font-medium text-white shadow-md group-hover:block z-50">
+                  {item.title}
+                </div>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -46,103 +240,120 @@ export function SupervisorSidebar({ isOpen, onClose }: SupervisorSidebarProps) {
       {isOpen && (
         <div
           onClick={onClose}
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs lg:hidden transition-opacity"
           aria-hidden="true"
         />
       )}
 
       {/* Sidebar container */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex w-72 flex-col border-r border-border bg-card transition-transform duration-300 ease-in-out lg:static lg:z-auto lg:w-64 lg:translate-x-0 ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-in-out lg:static lg:z-auto ${
+          isCollapsed ? "w-20" : "w-64"
+        } ${
+          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         {/* Brand Header */}
-        <div className="flex h-16 items-center justify-between border-b border-border px-5">
-          <Link href="/students" className="flex items-center gap-2.5">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-xs">
-              <UserCheck className="size-5" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-bold text-foreground">AGU Sau Đại Học</span>
-              <span className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400">
-                Cổng Giảng viên HD
-              </span>
-            </div>
+        <div className="flex h-16 items-center justify-between border-b border-slate-200 px-4 bg-white">
+          <Link
+            href="/supervisor"
+            className={`flex items-center gap-2.5 ${
+              isCollapsed ? "justify-center w-full" : ""
+            }`}
+          >
+            <HoverLogo sizeClass="size-9" />
+
+            {!isCollapsed && (
+              <div className="flex flex-col min-w-0">
+                <span className="truncate text-xs font-black tracking-tight text-[#0F2744] uppercase">
+                  AGU Sau Đại Học
+                </span>
+                <span className="truncate text-[10px] font-semibold text-[#164E9B]">
+                  Giảng viên HD & Giáo vụ
+                </span>
+              </div>
+            )}
           </Link>
+
+          {/* Mobile close button */}
           {onClose && (
             <button
               onClick={onClose}
-              className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
+              className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden"
               aria-label="Đóng thanh điều hướng"
             >
               <X className="size-5" />
             </button>
           )}
+
+          {/* Desktop collapse toggle button */}
+          {onToggleCollapse && (
+            <button
+              onClick={onToggleCollapse}
+              className="hidden lg:flex rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+              title={isCollapsed ? "Mở rộng menu" : "Thu gọn menu"}
+            >
+              {isCollapsed ? (
+                <ChevronRight className="size-4" />
+              ) : (
+                <ChevronLeft className="size-4" />
+              )}
+            </button>
+          )}
         </div>
 
-        {/* Navigation links */}
-        <div className="flex-1 overflow-y-auto px-3 py-4">
-          <div className="px-3 pb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-            Quản lý Nghiên cứu sinh
-          </div>
-          <nav className="space-y-1">
-            {navItems.map((item) => {
-              const isActive =
-                pathname === item.href ||
-                (item.href !== "/students" && pathname.startsWith(item.href));
-              const Icon = item.icon;
+        {/* Scrollable Navigation items */}
+        <div className="flex-1 overflow-y-auto px-2.5 py-3 space-y-3 custom-scrollbar">
+          {renderGroup("main", "Chức năng chính")}
+          <div className="my-2 border-t border-slate-100" />
+          {renderGroup("academic", "Nghiệp vụ học vụ")}
+          <div className="my-2 border-t border-slate-100" />
+          {renderGroup("support", "Văn bản & Trợ giúp")}
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onClose}
-                  className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
-                    isActive
-                      ? "bg-indigo-50 text-indigo-700 shadow-2xs dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  <Icon
-                    className={`size-4.5 transition-colors ${
-                      isActive
-                        ? "text-indigo-600 dark:text-indigo-400"
-                        : "text-muted-foreground group-hover:text-foreground"
-                    }`}
-                  />
-                  <span>{item.title}</span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Supervisor quota indicator card */}
-          <div className="mt-6 rounded-xl border border-indigo-100 bg-indigo-50/50 p-3.5 dark:border-indigo-900/50 dark:bg-indigo-950/30">
-            <div className="flex items-center gap-2 text-xs font-semibold text-indigo-800 dark:text-indigo-300">
-              <Info className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
-              <span>Định mức hướng dẫn</span>
+          {/* Supervisor quota indicator widget (visible when expanded) */}
+          {!isCollapsed && (
+            <div className="mt-4 rounded-xl border border-blue-100 bg-[#F0F5FA] p-3 text-xs">
+              <div className="flex items-center justify-between text-[11px] font-bold text-[#164E9B]">
+                <span className="flex items-center gap-1">
+                  <Gauge className="size-3.5" />
+                  <span>Hạn ngạch cá nhân:</span>
+                </span>
+                <span className="font-extrabold">2.5 / 3.0</span>
+              </div>
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                <div
+                  className="h-full rounded-full bg-[#164E9B]"
+                  style={{ width: "83.3%" }}
+                />
+              </div>
+              <p className="mt-1.5 text-[10px] text-slate-500 leading-tight">
+                QĐ ĐHQG: Còn <strong>0.5</strong> chỉ tiêu có thể nhận thêm.
+              </p>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-              Theo quy định ĐHQG-HCM, mỗi GVHD chính phụ trách tối đa 3-5 NCS tại cùng một thời điểm.
-            </p>
-          </div>
+          )}
         </div>
 
-        {/* User Mini Card at Bottom */}
-        <div className="border-t border-border p-3">
-          <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-2.5">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs dark:bg-indigo-900 dark:text-indigo-200">
-              {user?.fullName ? user.fullName.charAt(0).toUpperCase() : <User className="size-4" />}
+        {/* Bottom Profile / Quick Role status */}
+        <div className="border-t border-slate-200 p-2.5 bg-slate-50/60">
+          <div
+            className={`flex items-center gap-2.5 rounded-xl bg-white p-2 border border-slate-200 ${
+              isCollapsed ? "justify-center p-1.5" : ""
+            }`}
+          >
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#164E9B] text-white font-bold text-xs shadow-2xs">
+              TA
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-foreground">
-                {user?.fullName || "Giảng viên HD"}
-              </p>
-              <p className="truncate text-[11px] text-muted-foreground">
-                {user?.username ? `Mã CB: ${user.username}` : "Cán bộ Hướng dẫn"}
-              </p>
-            </div>
+
+            {!isCollapsed && (
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-bold text-slate-900">
+                  TS. Bùi Lê Tuấn Anh
+                </p>
+                <p className="truncate text-[10px] text-slate-500">
+                  Mã CB: CB-2018-042
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </aside>

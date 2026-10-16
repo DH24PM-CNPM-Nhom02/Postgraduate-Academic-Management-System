@@ -8,7 +8,7 @@ export const config = {
     ],
 };
 
-const PUBLIC_ROUTES = ["/login", "/forgot-password"];
+const PUBLIC_ROUTES = ["/login", "/forgot-password", "/supervisor", "/students", "/quota", "/progress-reports"];
 
 export default auth((req) => {
     const isLoggedIn = !!req.auth;
