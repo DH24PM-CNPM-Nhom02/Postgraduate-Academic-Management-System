@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, ShieldCheck, Users, FileCheck2, Gauge, GraduationCap } from "lucide-react";
+import { ArrowRight, ShieldCheck, Users, FileCheck2, Gauge } from "lucide-react";
 import { HoverLogo } from "@/src/components/academic";
 
 export default function Home() {

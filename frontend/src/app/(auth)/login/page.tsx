@@ -9,11 +9,11 @@ import Link from "next/link";
 const plusJakartaSans = localFont({
   src: [
     {
-      path: "../../../../fonts/PlusJakartaSans-VariableFont_wght.ttf",
+      path: "../../../../public/fonts/PlusJakartaSans-VariableFont_wght.ttf",
       style: "normal",
     },
     {
-      path: "../../../../fonts/PlusJakartaSans-Italic-VariableFont_wght.ttf",
+      path: "../../../../public/fonts/PlusJakartaSans-Italic-VariableFont_wght.ttf",
       style: "italic",
     },
   ],

@@ -11,19 +11,16 @@ import {
   FileCheck,
   Check,
   Trash2,
-  AlertCircle,
   Sparkles,
   Info,
-  ShieldCheck,
   RefreshCw,
-  FileText,
   HelpCircle,
 } from "lucide-react";
 import { Input } from "@/src/components/ui/input";
 import { Label } from "@/src/components/ui/label";
-import { MOCK_STUDENTS, MOCK_SUPERVISORS } from "./mockData";
 import { StudentDossier } from "./StudentDetailModal";
 import { SupervisorQuotaRecord } from "./mockData";
+import { studentImportSchema, supervisorImportSchema } from "@/src/lib/schemas";
 
 export type EntityImportType = "student" | "supervisor";
 
@@ -35,12 +32,27 @@ export interface ValidationErrorItem {
   hint: string;
 }
 
-export interface ExcelImportModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  entityType: EntityImportType;
-  onSuccess?: (importedItems: any[]) => void;
-}
+export type ImportedEntityItem = StudentDossier | SupervisorQuotaRecord;
+
+export type ExcelImportModalProps =
+  | {
+      isOpen: boolean;
+      onClose: () => void;
+      entityType: "student";
+      onSuccess?: (importedItems: StudentDossier[]) => void;
+    }
+  | {
+      isOpen: boolean;
+      onClose: () => void;
+      entityType: "supervisor";
+      onSuccess?: (importedItems: SupervisorQuotaRecord[]) => void;
+    }
+  | {
+      isOpen: boolean;
+      onClose: () => void;
+      entityType: EntityImportType;
+      onSuccess?: (importedItems: ImportedEntityItem[]) => void;
+    };
 
 export function ExcelImportModal({
   isOpen,
@@ -60,7 +72,7 @@ export function ExcelImportModal({
   // Validation State: idle -> validating -> valid | error
   const [validationStatus, setValidationStatus] = useState<"idle" | "validating" | "valid" | "error">("idle");
   const [errorsList, setErrorsList] = useState<ValidationErrorItem[]>([]);
-  const [parsedData, setParsedData] = useState<any[]>([]);
+  const [parsedData, setParsedData] = useState<ImportedEntityItem[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
 
   if (!isOpen) return null;
@@ -287,9 +299,9 @@ export function ExcelImportModal({
         return;
       }
 
-      // SCENARIO 2: Valid data
+      // SCENARIO 2: Valid data validated via Zod schema
       if (isStudent) {
-        const validStudents: Partial<StudentDossier>[] = [
+        const rawStudents: StudentDossier[] = [
           {
             id: `std-imp-${Date.now()}-1`,
             name: "Hoàng Minh Đức",
@@ -304,7 +316,7 @@ export function ExcelImportModal({
             publicationPoints: 0.0,
             status: "active",
             email: "duc.ncs24@agu.edu.vn",
-            phone: "0912 345 678",
+            phone: "0912345678",
           },
           {
             id: `std-imp-${Date.now()}-2`,
@@ -320,7 +332,7 @@ export function ExcelImportModal({
             publicationPoints: 0.0,
             status: "active",
             email: "thao.ncs24@agu.edu.vn",
-            phone: "0987 654 321",
+            phone: "0987654321",
           },
           {
             id: `std-imp-${Date.now()}-3`,
@@ -336,12 +348,43 @@ export function ExcelImportModal({
             publicationPoints: 0.0,
             status: "active",
             email: "bao.ncs24@agu.edu.vn",
-            phone: "0903 112 233",
+            phone: "0903112233",
           },
         ];
-        setParsedData(validStudents);
+
+        // Zod validation check
+        const validatedStudents: StudentDossier[] = [];
+        const detectedErrors: ValidationErrorItem[] = [];
+
+        rawStudents.forEach((student, idx) => {
+          const parseResult = studentImportSchema.safeParse(student);
+          if (parseResult.success) {
+            validatedStudents.push(parseResult.data as StudentDossier);
+          } else {
+            parseResult.error.issues.forEach((issue) => {
+              const propKey = String(issue.path[0] ?? "");
+              const propVal = propKey ? (student as unknown as Record<string, unknown>)[propKey] : "";
+              detectedErrors.push({
+                row: idx + 2,
+                field: propKey || "Dữ liệu",
+                value: String(propVal ?? ""),
+                message: issue.message,
+                hint: "Kiểm tra và chuẩn hóa dữ liệu theo định dạng quy định.",
+              });
+            });
+          }
+        });
+
+        if (detectedErrors.length > 0) {
+          setErrorsList(detectedErrors);
+          setParsedData([]);
+          setValidationStatus("error");
+          return;
+        }
+
+        setParsedData(validatedStudents);
       } else {
-        const validSupervisors: Partial<SupervisorQuotaRecord>[] = [
+        const rawSupervisors: SupervisorQuotaRecord[] = [
           {
             id: `gv-imp-${Date.now()}-1`,
             name: "TS. Vũ Đức Anh",
@@ -388,7 +431,38 @@ export function ExcelImportModal({
             assignedStudents: ["1 NCS Độc lập"],
           },
         ];
-        setParsedData(validSupervisors);
+
+        // Zod validation check
+        const validatedSupervisors: SupervisorQuotaRecord[] = [];
+        const detectedErrors: ValidationErrorItem[] = [];
+
+        rawSupervisors.forEach((sup, idx) => {
+          const parseResult = supervisorImportSchema.safeParse(sup);
+          if (parseResult.success) {
+            validatedSupervisors.push(parseResult.data as SupervisorQuotaRecord);
+          } else {
+            parseResult.error.issues.forEach((issue) => {
+              const propKey = String(issue.path[0] ?? "");
+              const propVal = propKey ? (sup as unknown as Record<string, unknown>)[propKey] : "";
+              detectedErrors.push({
+                row: idx + 2,
+                field: propKey || "Dữ liệu",
+                value: String(propVal ?? ""),
+                message: issue.message,
+                hint: "Kiểm tra và chuẩn hóa dữ liệu theo Quy chế BR-09.",
+              });
+            });
+          }
+        });
+
+        if (detectedErrors.length > 0) {
+          setErrorsList(detectedErrors);
+          setParsedData([]);
+          setValidationStatus("error");
+          return;
+        }
+
+        setParsedData(validatedSupervisors);
       }
 
       setErrorsList([]);
@@ -401,7 +475,13 @@ export function ExcelImportModal({
     if (validationStatus !== "valid" || parsedData.length === 0) return;
 
     if (onSuccess) {
-      onSuccess(parsedData);
+      if (isStudent) {
+        const studentItems = parsedData as StudentDossier[];
+        (onSuccess as (items: StudentDossier[]) => void)(studentItems);
+      } else {
+        const supervisorItems = parsedData as SupervisorQuotaRecord[];
+        (onSuccess as (items: SupervisorQuotaRecord[]) => void)(supervisorItems);
+      }
     }
     handleClose();
   };
@@ -851,18 +931,18 @@ export function ExcelImportModal({
                               {isStudent ? (
                                 <div>
                                   <span className="font-bold text-slate-800">
-                                    {item.supervisorMain}
+                                    {(item as StudentDossier).supervisorMain}
                                   </span>{" "}
-                                  - <span className="italic text-slate-600 truncate">{item.thesisTopic}</span>
+                                  - <span className="italic text-slate-600 truncate">{(item as StudentDossier).thesisTopic}</span>
                                 </div>
                               ) : (
                                 <div>
                                   <span className="font-bold text-slate-800">
-                                    {item.degree}
+                                    {(item as SupervisorQuotaRecord).degree}
                                   </span>{" "}
                                   • Định mức tối đa:{" "}
                                   <span className="font-bold text-emerald-700">
-                                    {item.maxQuota} NCS
+                                    {(item as SupervisorQuotaRecord).maxQuota} NCS
                                   </span>
                                 </div>
                               )}

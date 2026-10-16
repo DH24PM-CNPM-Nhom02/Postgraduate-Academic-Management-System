@@ -10,7 +10,12 @@ export { DocumentPreviewModal } from "./DocumentPreviewModal";
 export { ApprovalDialog } from "./ApprovalDialog";
 export { TopicChangeModal, type TopicChangeItem } from "./TopicChangeModal";
 export { StudentDetailModal, type StudentDossier } from "./StudentDetailModal";
-export { ExcelImportModal, type EntityImportType } from "./ExcelImportModal";
+export {
+  ExcelImportModal,
+  type EntityImportType,
+  type ExcelImportModalProps,
+  type ImportedEntityItem,
+} from "./ExcelImportModal";
 export { GlobalSearchModal } from "./GlobalSearchModal";
 export { HoverLogo } from "./HoverLogo";
 export * from "./mockData";

@@ -2,9 +2,8 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import logo1 from "@/image/logo 1.png";
-import logo2 from "@/image/logo 2.png";
-
+import logo1 from "@/public/image/logo 1.png";
+import logo2 from "@/public/image/logo 2.png";
 export interface HoverLogoProps {
   sizeClass?: string;
   className?: string;

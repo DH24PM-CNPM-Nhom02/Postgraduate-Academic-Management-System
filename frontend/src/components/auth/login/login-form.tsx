@@ -5,9 +5,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/src/hooks/use-auth';
 import { User, Lock, Eye, EyeOff, Loader2, ArrowRight, AlertCircle } from 'lucide-react';
-import truongDHAGImg from '@/image/TruongDHAG.webp';
-import logo1 from '@/image/logo 1.png';
-import logo2 from '@/image/logo 2.png';
+import truongDHAGImg from '@/public/image/TruongDHAG.webp';
+import logo1 from '@/public/image/logo 1.png';
+import logo2 from '@/public/image/logo 2.png';
 
 /**
  * Reusable HoverLogo component:
