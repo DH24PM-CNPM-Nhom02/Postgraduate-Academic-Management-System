@@ -5,7 +5,6 @@ import {
   Search,
   X,
   User,
-  Users,
   FileText,
   BookOpen,
   ArrowRight,
@@ -17,7 +16,7 @@ export interface SearchResultItem {
   title: string;
   subtitle: string;
   actionText?: string;
-  payload?: any;
+  payload?: { tab?: string; studentCode?: string };
 }
 
 export interface GlobalSearchModalProps {

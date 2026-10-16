@@ -1,5 +1,3 @@
-import { redirect } from "next/navigation";
-
 export default function SupervisorQuotaPage() {
-  redirect("/supervisor?tab=supervisors");
+  return <div className="min-h-screen bg-white" />;
 }

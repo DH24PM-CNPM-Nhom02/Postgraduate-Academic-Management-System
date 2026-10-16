@@ -1,5 +1,3 @@
-import { redirect } from "next/navigation";
-
 export default function SupervisorStudentsPage() {
-  redirect("/supervisor?tab=students");
+  return <div className="min-h-screen bg-white" />;
 }
