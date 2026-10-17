@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Header, Inject, Param, Post, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Header, Inject, Param, Patch, Post, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
@@ -6,7 +6,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator.js';
 import { PHD_SERVICE } from '../common/constants/service.js';
 import type { AuthUser } from '../common/interface/auth-user.interface.js';
-import { CreateNcsBatchDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
+import { CreateNcsBatchDto, UpdateNcsDto, UpdateNcsStatusDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
 import { buildNcsTemplate, parseNcsExcel } from './ncs-excel.js';
 
@@ -87,5 +87,18 @@ export class NcsController {
   @RequirePermissions(PERMISSIONS.NCS_READ)
   detail(@Param('id') id: string) {
     return this.send('phd.ncs.get', { id });
+  }
+
+  //update ncs
+  @Patch(':id')
+  @RequirePermissions(PERMISSIONS.NCS_UPDATE)
+  update(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() body: UpdateNcsDto) {
+    return this.send('phd.ncs.update', { actorId: u.id, id, duLieu: body });
+  }
+
+  @Patch(':id/status')
+  @RequirePermissions(PERMISSIONS.NCS_UPDATE)
+  updateStatus(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() body: UpdateNcsStatusDto) {
+    return this.send('phd.ncs.update-status', { actorId: u.id, id, duLieu: body });
   }
 }

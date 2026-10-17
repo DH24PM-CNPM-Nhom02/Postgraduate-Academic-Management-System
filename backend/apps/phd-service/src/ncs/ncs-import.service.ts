@@ -66,15 +66,15 @@ function validateRow(r: ImportNcsRow): string[] {
 function toItem(r: ImportNcsRow): CreateNcsItemDto {
   return {
     mshv: r.mshv.trim(),
-    hoTen: r.hoTen?.trim() || undefined,
-    ngaySinh: r.ngaySinh || undefined,
+    hoTen: r.hoTen?.trim(),
+    ngaySinh: r.ngaySinh,
     gioiTinh: (r.gioiTinh || undefined) as CreateNcsItemDto['gioiTinh'],
-    cccd: r.cccd?.trim() || undefined,
-    email: r.email?.trim() || undefined,
-    soDienThoai: r.soDienThoai?.trim() || undefined,
-    nganh: r.nganh?.trim() || undefined,
-    khoaHoc: r.khoaHoc?.trim() || undefined,
-    lop: r.lop?.trim() || undefined,
+    cccd: r.cccd?.trim(),
+    email: r.email?.trim(),
+    soDienThoai: r.soDienThoai?.trim(),
+    nganh: r.nganh?.trim(),
+    khoaHoc: r.khoaHoc?.trim(),
+    lop: r.lop?.trim(),
     ngayNhapHoc: r.ngayNhapHoc!, // validateRow đã bắt buộc có
     trinhDoDauVao: (r.trinhDoDauVao || undefined) as CreateNcsItemDto['trinhDoDauVao'],
     phuongThucDaoTao: (r.phuongThucDaoTao || undefined) as CreateNcsItemDto['phuongThucDaoTao'],
