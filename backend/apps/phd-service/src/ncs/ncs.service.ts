@@ -4,11 +4,11 @@ import { randomUUID } from 'crypto';
 import { firstValueFrom, timeout, catchError, throwError } from 'rxjs';
 
 import { ROLES } from '../../../../lib/contracts/src/permissions.js';
-import type { CreateNcsItemDto, UpdateNcsDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
+import { CCCD_PATTERN, type CreateNcsItemDto, type UpdateNcsDto, type UpdateNcsStatusDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { TrangThaiMoc } from '../generated/prisma/index.js';
-import { chuanHoaChuoi } from '../helpers/validateData.util.js';
-import type { Prisma } from '../generated/prisma/index.js';
+import { TrangThaiHocTap, TrangThaiMoc } from '../generated/prisma/index.js';
+import { chuanHoaChuoi, validateEmail, validatePhoneNumber } from '../helpers/validateData.util.js';
+import { Prisma } from '../generated/prisma/index.js';
 type AuthUser = {
   id: string;
   username: string;
@@ -642,9 +642,237 @@ export class NcsService {
   }
 
 
+  // Update NCS status
+  async updateStatus(actorId: string, ncsId: string, data: UpdateNcsStatusDto) {
+    const allowedStatuses = ['DANG_HOC', 'BAO_LUU', 'NGUNG_HOC'];
+    if (!data || !allowedStatuses.includes(data.trangThai) || !data.ngayChuyenTrangThai) {
+      throw new RpcException({ statusCode: 400, message: 'Trạng thái hoặc ngày hiệu lực không hợp lệ' });
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(data.ngayChuyenTrangThai)) {
+      throw new RpcException({ statusCode: 400, message: 'Ngày hiệu lực phải theo định dạng YYYY-MM-DD' });
+    }
+    const effectiveDate = new Date(`${data.ngayChuyenTrangThai}T00:00:00.000Z`);
+    if (Number.isNaN(effectiveDate.getTime()) || effectiveDate.toISOString().slice(0, 10) !== data.ngayChuyenTrangThai) {
+      throw new RpcException({ statusCode: 400, message: 'Ngày hiệu lực không hợp lệ' });
+    }
+    if (data.lyDoChuyenTrangThai !== undefined && (typeof data.lyDoChuyenTrangThai !== 'string' || data.lyDoChuyenTrangThai.length > 5000)) {
+      throw new RpcException({ statusCode: 400, message: 'Lý do chuyển trạng thái không hợp lệ' });
+    }
+
+    const reason = data.lyDoChuyenTrangThai?.trim() || null;
+    const profile = await this.prisma.nghienCuuSinh.findUnique({
+      where: { id: ncsId },
+      select: { id: true, userId: true, trangThai: true, ngayChuyenTrangThai: true, lyDoChuyenTrangThai: true },
+    });
+    if (!profile) throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ NCS' });
+
+    const accountActiveBefore = !['BAO_LUU', 'NGUNG_HOC'].includes(profile.trangThai);
+    const accountActiveAfter = data.trangThai === 'DANG_HOC';
+    const statusChanged = profile.trangThai !== data.trangThai;
+    const oldEffectiveDate = profile.ngayChuyenTrangThai?.toISOString().slice(0, 10) ?? null;
+    const newEffectiveDate = effectiveDate.toISOString().slice(0, 10);
+    const oldReason = profile.lyDoChuyenTrangThai;
+    if (!statusChanged && oldEffectiveDate === newEffectiveDate && oldReason === reason) {
+      throw new RpcException({ statusCode: 400, message: 'Trạng thái và thông tin hiệu lực không thay đổi' });
+    }
+
+    const accountNeedsUpdate = Boolean(profile.userId) && accountActiveBefore !== accountActiveAfter;
+    if (accountNeedsUpdate && profile.userId) {
+      await this.callAuth<{ id: string; isActive: boolean }>('auth.set-active', {
+        userId: profile.userId,
+        isActive: accountActiveAfter,
+      });
+    }
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const current = await tx.nghienCuuSinh.findUnique({
+          where: { id: ncsId },
+          select: { id: true, trangThai: true, ngayChuyenTrangThai: true, lyDoChuyenTrangThai: true },
+        });
+        if (!current) throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ NCS' });
+        if (current.trangThai !== profile.trangThai ||
+          (current.ngayChuyenTrangThai?.toISOString().slice(0, 10) ?? null) !== oldEffectiveDate ||
+          current.lyDoChuyenTrangThai !== oldReason) {
+          throw new RpcException({ statusCode: 409, message: 'Trạng thái NCS vừa được cập nhật ở request khác, vui lòng thử lại' });
+        }
+
+        const oldValue = {
+          trangThai: current.trangThai,
+          ngayChuyenTrangThai: current.ngayChuyenTrangThai?.toISOString().slice(0, 10) ?? null,
+          lyDoChuyenTrangThai: current.lyDoChuyenTrangThai,
+        };
+        const newValue = {
+          trangThai: data.trangThai,
+          ngayChuyenTrangThai: newEffectiveDate,
+          lyDoChuyenTrangThai: reason,
+        };
+        const updated = await tx.nghienCuuSinh.update({
+          where: { id: ncsId },
+          data: {
+            trangThai: data.trangThai as TrangThaiHocTap,
+            ngayChuyenTrangThai: effectiveDate,
+            lyDoChuyenTrangThai: reason,
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            actorId,
+            action: 'NCS_STATUS_UPDATE',
+            entityType: 'NghienCuuSinh',
+            entityId: ncsId,
+            ncsId,
+            oldValue,
+            newValue,
+          },
+        });
+        return updated;
+      });
+    } catch (error) {
+      if (accountNeedsUpdate && profile.userId) {
+        try {
+          await this.callAuth('auth.set-active', { userId: profile.userId, isActive: accountActiveBefore });
+        } catch {
+          throw new RpcException({ statusCode: 502, message: 'Không cập nhật được trạng thái NCS và không thể khôi phục trạng thái tài khoản' });
+        }
+      }
+      throw error;
+    }
+  }
 
   // ==========Update NCS==============
   async updateNcs(actorId: string, ncsId: string, data: UpdateNcsDto) {
-    // TODO: Implement update NCS
+    const allowedFields = new Set([
+      'hoTen', 'ngaySinh', 'gioiTinh', 'cccd', 'email',
+      'soDienThoai', 'nganh', 'khoaHoc', 'lop',
+    ]);
+    if (!data || typeof data !== 'object' || Object.keys(data).length === 0) {
+      throw new RpcException({ statusCode: 400, message: 'Không có thông tin nào để sửa' });
+    }
+    const unknownFields = Object.keys(data).filter((field) => !allowedFields.has(field));
+    if (unknownFields.length) {
+      throw new RpcException({ statusCode: 400, message: `Trường không được hỗ trợ: ${unknownFields.join(', ')}` });
+    }
+
+    const input: UpdateNcsDto = { ...data };
+    for (const [field, value] of Object.entries(input)) {
+      if (value === null || value === undefined) {
+        throw new RpcException({ statusCode: 400, message: `Trường ${field} không được để trống` });
+      }
+      if (typeof value === 'string') {
+        const normalized = value.trim();
+        if (!normalized) throw new RpcException({ statusCode: 400, message: `Trường ${field} không được để trống` });
+        (input as Record<string, unknown>)[field] = normalized;
+      }
+    }
+
+    try {
+      const ketQua = await this.prisma.$transaction(async (tx) => {
+        const hoSoCu = await tx.nghienCuuSinh.findUnique({ where: { id: ncsId } });
+        if (!hoSoCu) {
+          throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ NCS' });
+        }
+
+        const duLieuCapNhat: Prisma.NghienCuuSinhUncheckedUpdateInput = {};
+        const oldValue: Record<string, unknown> = {};
+        const newValue: Record<string, unknown> = {};
+        const setChange = (auditField: string, dbField: string, old: unknown, value: unknown) => {
+          if (old === value) return false;
+          oldValue[auditField] = old;
+          newValue[auditField] = value;
+          (duLieuCapNhat as Record<string, unknown>)[dbField] = value;
+          return true;
+        };
+
+        if (input.hoTen !== undefined) setChange('hoTen', 'hoTen', hoSoCu.hoTen, input.hoTen);
+        if (input.ngaySinh !== undefined) {
+          if (Number.isNaN(Date.parse(input.ngaySinh))) throw new RpcException({ statusCode: 400, message: 'Ngày sinh không hợp lệ' });
+          const date = new Date(input.ngaySinh);
+          if (date.toISOString().slice(0, 10) !== input.ngaySinh.slice(0, 10)) throw new RpcException({ statusCode: 400, message: 'Ngày sinh không hợp lệ' });
+          const old = hoSoCu.ngaySinh?.toISOString().slice(0, 10) ?? null;
+          if (old !== date.toISOString().slice(0, 10)) {
+            oldValue.ngaySinh = old;
+            newValue.ngaySinh = date.toISOString().slice(0, 10);
+            duLieuCapNhat.ngaySinh = date;
+          }
+        }
+        if (input.gioiTinh !== undefined) {
+          if (!['NAM', 'NU'].includes(input.gioiTinh)) throw new RpcException({ statusCode: 400, message: 'Giới tính không hợp lệ' });
+          setChange('gioiTinh', 'gioiTinh', hoSoCu.gioiTinh, input.gioiTinh);
+        }
+        if (input.cccd !== undefined) {
+          if (!CCCD_PATTERN.test(input.cccd)) throw new RpcException({ statusCode: 400, message: 'CCCD phải là 12 chữ số (hoặc 9 chữ số với CMND cũ)' });
+          setChange('cccd', 'cccd', hoSoCu.cccd, input.cccd);
+        }
+        if (input.soDienThoai !== undefined) {
+          if (!validatePhoneNumber(input.soDienThoai)) throw new RpcException({ statusCode: 400, message: 'Số điện thoại không hợp lệ' });
+          setChange('soDienThoai', 'soDienThoai', hoSoCu.soDienThoai, input.soDienThoai);
+        }
+        if (input.email !== undefined) {
+          if (!validateEmail(input.email)) {
+            throw new RpcException({ statusCode: 400, message: 'Email không hợp lệ' });
+          }
+          else if(input.email.length > 100){
+            throw new RpcException({ statusCode: 400, message: 'Email dài quá 100 ký tự' });
+          }
+          setChange('email', 'email', hoSoCu.email, input.email);
+        }
+        if (input.nganh !== undefined) {
+          if (input.nganh.length > 150) throw new RpcException({ statusCode: 400, message: 'Tên ngành dài quá 150 ký tự' });
+          const nganh = await tx.nganhDaoTao.findFirst({
+            where: { OR: [{ maNganh: input.nganh }, { tenNganh: input.nganh }] },
+            select: { id: true, maNganh: true, tenNganh: true },
+          });
+          if (!nganh) throw new RpcException({ statusCode: 400, message: `Không tìm thấy ngành "${input.nganh}" trong danh mục` });
+          if (hoSoCu.nganhId !== nganh.id) {
+            oldValue.nganh = hoSoCu.nganhId;
+            newValue.nganh = { id: nganh.id, maNganh: nganh.maNganh, tenNganh: nganh.tenNganh };
+            duLieuCapNhat.nganhId = nganh.id;
+          }
+        }
+        if (input.khoaHoc !== undefined) {
+          const khoa = await tx.khoaHocNcs.findFirst({ where: { maKhoaHoc: input.khoaHoc }, select: { id: true, maKhoaHoc: true } });
+          if (!khoa) throw new RpcException({ statusCode: 400, message: `Không tìm thấy khóa "${input.khoaHoc}" trong danh mục (khóa phải có sẵn)` });
+          if (hoSoCu.khoaHoc !== khoa.maKhoaHoc || hoSoCu.khoaHocId !== khoa.id) {
+            oldValue.khoaHoc = hoSoCu.khoaHoc;
+            newValue.khoaHoc = khoa.maKhoaHoc;
+            duLieuCapNhat.khoaHoc = khoa.maKhoaHoc;
+            duLieuCapNhat.khoaHocId = khoa.id;
+          }
+        }
+        if (input.lop !== undefined) setChange('lop', 'lop', hoSoCu.lop, input.lop);
+
+        if (Object.keys(duLieuCapNhat).length === 0) {
+          throw new RpcException({ statusCode: 400, message: 'Không có thay đổi nào để cập nhật' });
+        }
+
+        const updated = await tx.nghienCuuSinh.update({ where: { id: ncsId }, data: duLieuCapNhat });
+        await tx.auditLog.create({
+          data: {
+            actorId,
+            action: 'NCS_UPDATE',
+            entityType: 'NghienCuuSinh',
+            entityId: ncsId,
+            ncsId,
+            oldValue: JSON.parse(JSON.stringify(oldValue)),
+            newValue: JSON.parse(JSON.stringify(newValue)),
+          },
+        });
+        return updated;
+      });
+      return ketQua;
+    } catch (error: unknown) {
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') {
+        const target = 'meta' in error && typeof error.meta === 'object' && error.meta !== null && 'target' in error.meta
+          ? String(error.meta.target)
+          : '';
+        if (target.includes('cccd')) throw new RpcException({ statusCode: 409, message: 'CCCD đã được dùng bởi hồ sơ khác' });
+        if (target.includes('so_dien_thoai') || target.includes('soDienThoai')) {
+          throw new RpcException({ statusCode: 409, message: 'Số điện thoại đã được dùng bởi hồ sơ khác' });
+        }
+        throw new RpcException({ statusCode: 409, message: 'Dữ liệu vi phạm ràng buộc duy nhất' });
+      }
+      throw error;
+    }
   }
 }
