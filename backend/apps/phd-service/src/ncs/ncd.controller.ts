@@ -23,4 +23,14 @@ export class NcsController {
   confirm(@Payload() d: { actorId: string; rows: ImportNcsRow[] }) {
     return this.ncsImport.confirm(d.actorId, d.rows);
   }
+
+  @MessagePattern({ cmd: 'phd.ncs.list' })
+  list() {
+    return this.ncs.getAllNcs();
+  }
+
+  @MessagePattern({ cmd: 'phd.ncs.get' })
+  getDetailNcs(@Payload() d: { id?: string; userId?: string }) {
+    return this.ncs.getDetailNcs(d);
+  }
 }
