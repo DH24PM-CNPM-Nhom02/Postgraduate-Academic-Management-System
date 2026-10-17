@@ -4,10 +4,10 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/src/hooks/use-auth';
-import { User, Lock, Eye, EyeOff, Loader2, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
-import truongDHAGImg from '@/image/TruongDHAG.webp';
-import logo1 from '@/image/logo 1.png';
-import logo2 from '@/image/logo 2.png';
+import { User, Lock, Eye, EyeOff, Loader2, ArrowRight, AlertCircle } from 'lucide-react';
+import truongDHAGImg from '@/public/image/TruongDHAG.webp';
+import logo1 from '@/public/image/logo 1.png';
+import logo2 from '@/public/image/logo 2.png';
 
 /**
  * Reusable HoverLogo component:
@@ -260,14 +260,6 @@ export function LoginForm() {
               </div>
             </form>
           </div>
-
-          {/* Academic Trust & Security Note */}
-          <div className="mt-3.5 sm:mt-4 border-t border-gray-100 pt-2.5 text-center">
-            <p className="flex items-center justify-center gap-1.5 text-[11px] sm:text-xs font-medium text-[#667085]">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Hệ thống bảo mật xác thực chuyên biệt cho Sau đại học</span>
-            </p>
-          </div>
         </div>
 
         {/* Right Column: TruongDHAG Image & Academic Highlight (lg:col-span-5) */}
@@ -285,10 +277,9 @@ export function LoginForm() {
           {/* Subtle gradient overlay for contrast */}
           <div className="absolute inset-0 bg-gradient-to-t from-[#0B1A30]/95 via-[#0B1A30]/35 to-black/20 pointer-events-none" />
 
-          {/* Top Tag inside Image with Interactive Logo */}
+          {/* Top Tag inside Image */}
           <div className="relative z-10 flex justify-end">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/15 px-3 py-1 text-xs font-semibold text-white shadow-sm backdrop-blur-md transition-all hover:bg-white/30 cursor-pointer">
-              <HoverLogo sizeClass="h-4 w-4" />
+            <div className="inline-flex items-center rounded-full border border-white/20 bg-white/15 px-3 py-1 text-xs font-semibold text-white shadow-sm backdrop-blur-md transition-all hover:bg-white/30 cursor-pointer">
               <span>AGU • ĐHQG-HCM</span>
             </div>
           </div>

@@ -1,13 +1,10 @@
 /**
  * lib/schemas — Zod validation schemas
  *
- * Dùng chung với backend nếu monorepo.
- * Dùng với react-hook-form cho client-side validation.
+ * Tách riêng schema theo từng phân hệ:
+ * - student.ts: Nghiên cứu sinh (Student Dossier & Excel/CSV import)
+ * - supervisor.ts: Giảng viên hướng dẫn (Supervisor Quota & Excel/CSV import)
  */
 
-// TODO: Add Zod schemas khi có đầy đủ API spec
-// Ví dụ:
-// export const loginSchema = z.object({
-//   email: z.string().email(),
-//   password: z.string().min(8),
-// });
+export * from "./student";
+export * from "./supervisor";
