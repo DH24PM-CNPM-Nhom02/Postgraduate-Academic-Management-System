@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useSyncExternalStore } from 'react';
 import {
   Sparkles,
   ChevronDown,
@@ -14,9 +14,54 @@ import {
 } from 'lucide-react';
 import {
   MockAccount,
-  getMockAccounts,
+  INITIAL_MOCK_ACCOUNTS,
   resetMockAccounts,
 } from '@/src/lib/mock-accounts';
+
+const STORAGE_KEY = 'agu_mock_accounts_v1';
+
+let cachedRaw: string | null = null;
+let cachedAccounts: MockAccount[] = INITIAL_MOCK_ACCOUNTS;
+
+function getSnapshot(): MockAccount[] {
+  if (typeof window === 'undefined') {
+    return INITIAL_MOCK_ACCOUNTS;
+  }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw !== cachedRaw) {
+      cachedRaw = raw;
+      cachedAccounts = raw ? JSON.parse(raw) : INITIAL_MOCK_ACCOUNTS;
+    }
+  } catch {
+    return INITIAL_MOCK_ACCOUNTS;
+  }
+  return cachedAccounts;
+}
+
+function getServerSnapshot(): MockAccount[] {
+  return INITIAL_MOCK_ACCOUNTS;
+}
+
+const listeners = new Set<() => void>();
+
+function notify() {
+  listeners.forEach((listener) => listener());
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('agu_mock_accounts_changed'));
+  }
+}
+
+function subscribe(callback: () => void) {
+  listeners.add(callback);
+  window.addEventListener('storage', callback);
+  window.addEventListener('agu_mock_accounts_changed', callback);
+  return () => {
+    listeners.delete(callback);
+    window.removeEventListener('storage', callback);
+    window.removeEventListener('agu_mock_accounts_changed', callback);
+  };
+}
 
 interface MockAccountSwitcherProps {
   onSelectAccount: (username: string, password: string) => void;
@@ -28,21 +73,19 @@ export function MockAccountSwitcher({
   refreshTrigger = 0,
 }: MockAccountSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [accounts, setAccounts] = useState<MockAccount[]>([]);
+  const accounts = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  const loadAccounts = () => {
-    setAccounts(getMockAccounts());
-  };
-
   useEffect(() => {
-    loadAccounts();
+    if (refreshTrigger > 0) {
+      notify();
+    }
   }, [refreshTrigger]);
 
   const handleReset = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const res = resetMockAccounts();
-    setAccounts([...res]);
+    resetMockAccounts();
+    notify();
   };
 
   const handleCopy = (text: string, key: string, e: React.MouseEvent) => {
