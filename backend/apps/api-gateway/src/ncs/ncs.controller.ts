@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Header, Inject, Post, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Header, Inject, Param, Post, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
@@ -23,7 +23,7 @@ const uploadOptions = {
 };
 @Controller('ncs')
 export class NcsController {
-  constructor(@Inject(PHD_SERVICE) private phd: ClientProxy) {}
+  constructor(@Inject(PHD_SERVICE) private phd: ClientProxy) { }
 
   private send<T>(cmd: string, payload: unknown, ms = 5000) {
     return firstValueFrom(this.phd.send<T>({ cmd }, payload).pipe(timeout(ms)));
@@ -67,5 +67,25 @@ export class NcsController {
   async importConfirm(@CurrentUser() u: AuthUser, @UploadedFile() file?: Express.Multer.File) {
     const rows = await parseNcsExcel(this.requireFile(file));
     return this.send('phd.ncs.import-confirm', { actorId: u.id, rows }, 60000);
+  }
+
+
+  // List NCS (có thể có filter, phân trang sau) vì FE sử dụng tanstack table nên khỏi pagi và fil 
+  @Get()
+  @RequirePermissions(PERMISSIONS.NCS_READ)
+  list() {
+    return this.send('phd.ncs.list', {});
+  }
+
+  @Get('me')
+  me(@CurrentUser() u: AuthUser) {
+    return this.send('phd.ncs.get', { userId: u.id });
+  }
+
+  // Chi tiết một NCS (Giáo vụ xem)
+  @Get(':id')
+  @RequirePermissions(PERMISSIONS.NCS_READ)
+  detail(@Param('id') id: string) {
+    return this.send('phd.ncs.get', { id });
   }
 }

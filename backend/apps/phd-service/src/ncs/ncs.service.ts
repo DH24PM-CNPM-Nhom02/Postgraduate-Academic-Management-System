@@ -4,11 +4,11 @@ import { randomUUID } from 'crypto';
 import { firstValueFrom, timeout, catchError, throwError } from 'rxjs';
 
 import { ROLES } from '../../../../lib/contracts/src/permissions.js';
-import type { CreateNcsItemDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
+import type { CreateNcsItemDto, UpdateNcsDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TrangThaiMoc } from '../generated/prisma/index.js';
 import { chuanHoaChuoi } from '../helpers/validateData.util.js';
-
+import type { Prisma } from '../generated/prisma/index.js';
 type AuthUser = {
   id: string;
   username: string;
@@ -581,5 +581,70 @@ export class NcsService {
 
       throw error;
     }
+  }
+
+  // ==========Get All NCS============
+  async getAllNcs() {
+    return await this.prisma.nghienCuuSinh.findMany({
+      orderBy: { mshv: 'asc' },
+      select: {
+        id: true,
+        mshv: true,
+        hoTen: true,
+        lop: true,
+        trangThai: true,
+        ngayNhapHoc: true,
+        hanChinhQuy: true,
+        hanGiaHan: true,
+        hanBuocThoiHoc: true,
+        khoaHocNcs: { select: { maKhoaHoc: true } },
+        nganh: { select: { maNganh: true, tenNganh: true } },
+      },
+    });
+  }
+
+  /**
+   * Chi tiết một hồ sơ NCS (kèm ngành, khóa và 9 mốc tiến trình theo thứ tự).
+   * Dùng cho 2 trường hợp:
+   * - Giáo vụ xem NCS bất kỳ: truyền { id }
+   * - NCS xem hồ sơ của chính mình: truyền { userId } (lấy từ token, không lấy từ client)
+   */
+  async getDetailNcs(boLoc: { id?: string; userId?: string }) {
+    const dieuKien: Prisma.NghienCuuSinhWhereInput = {};
+    if (boLoc.id) {
+      dieuKien.id = boLoc.id;
+    } else if (boLoc.userId) {
+      dieuKien.userId = boLoc.userId;
+    } else {
+      throw new RpcException({ statusCode: 400, message: 'Thiếu id hoặc userId' });
+    }
+
+    const hoSo = await this.prisma.nghienCuuSinh.findFirst({
+      where: dieuKien,
+      include: {
+        nganh: true,
+        khoaHocNcs: true,
+        tienTrinhs: {
+          include: { moc: true },
+          orderBy: { moc: { thuTu: 'asc' } },
+        },
+      },
+    });
+
+    if (!hoSo) {
+      throw new RpcException({
+        statusCode: 404,
+        message: boLoc.id ? 'Không tìm thấy hồ sơ NCS' : 'Bạn chưa có hồ sơ NCS',
+      });
+    }
+
+    return hoSo;
+  }
+
+
+
+  // ==========Update NCS==============
+  async updateNcs(actorId: string, ncsId: string, data: UpdateNcsDto) {
+    // TODO: Implement update NCS
   }
 }

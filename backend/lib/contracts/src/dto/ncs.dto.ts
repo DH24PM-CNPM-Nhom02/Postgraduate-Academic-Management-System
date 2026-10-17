@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { ArrayMinSize, ArrayMaxSize, IsDateString, IsEmail, IsIn, IsOptional, IsString, Length, Matches, ValidateNested } from 'class-validator';
-
+import { PartialType } from '@nestjs/mapped-types';
 export const TRINH_DO_DAU_VAO = ['THAC_SI', 'DAI_HOC'] as const;
 export const PHUONG_THUC_DAO_TAO = ['PHUONG_THUC_1', 'PHUONG_THUC_2'] as const;
 export const GIOI_TINH = ['NAM', 'NU'] as const;
@@ -68,6 +68,11 @@ export class CreateNcsItemDto {
   @IsIn(PHUONG_THUC_DAO_TAO)
   phuongThucDaoTao?: (typeof PHUONG_THUC_DAO_TAO)[number];
 }
+
+export class UpdateNcsDto extends PartialType(CreateNcsItemDto) {
+  
+}
+  
 
 export class CreateNcsBatchDto {
   @ValidateNested({ each: true })
