@@ -418,7 +418,7 @@ export class SupervisorService {
 
     const profile = await this.prisma.giangVienHuongDan.findUnique({
       where: { id },
-      select: { id: true, trangThai: true },
+      select: { id: true, userId: true, trangThai: true },
     });
     if (!profile) {
       throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ GVHD' });
@@ -427,37 +427,62 @@ export class SupervisorService {
       throw new RpcException({ statusCode: 400, message: 'Trạng thái GVHD không thay đổi' });
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      const current = await tx.giangVienHuongDan.findUnique({
-        where: { id },
-        select: { id: true, trangThai: true },
+    const hasLinkedAccount = Boolean(profile.userId);
+    if (hasLinkedAccount) {
+      await this.callAuth('auth.set-active', {
+        userId: profile.userId,
+        isActive: data.trangThai,
       });
-      if (!current) {
-        throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ GVHD' });
-      }
-      if (current.trangThai !== profile.trangThai) {
-        throw new RpcException({
-          statusCode: 409,
-          message: 'Trạng thái GVHD vừa được cập nhật ở request khác, vui lòng thử lại',
-        });
-      }
+    }
 
-      const updated = await tx.giangVienHuongDan.update({
-        where: { id },
-        data: { trangThai: data.trangThai },
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const current = await tx.giangVienHuongDan.findUnique({
+          where: { id },
+          select: { id: true, trangThai: true },
+        });
+        if (!current) {
+          throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ GVHD' });
+        }
+        if (current.trangThai !== profile.trangThai) {
+          throw new RpcException({
+            statusCode: 409,
+            message: 'Trạng thái GVHD vừa được cập nhật ở request khác, vui lòng thử lại',
+          });
+        }
+
+        const updated = await tx.giangVienHuongDan.update({
+          where: { id },
+          data: { trangThai: data.trangThai },
+        });
+        await tx.auditLog.create({
+          data: {
+            actorId,
+            action: 'GVHD_STATUS_UPDATE',
+            entityType: 'GiangVienHuongDan',
+            entityId: id,
+            oldValue: { trangThai: current.trangThai },
+            newValue: { trangThai: data.trangThai },
+          },
+        });
+        return updated;
       });
-      await tx.auditLog.create({
-        data: {
-          actorId,
-          action: 'GVHD_STATUS_UPDATE',
-          entityType: 'GiangVienHuongDan',
-          entityId: id,
-          oldValue: { trangThai: current.trangThai },
-          newValue: { trangThai: data.trangThai },
-        },
-      });
-      return updated;
-    });
+    } catch (error) {
+      if (hasLinkedAccount && profile.userId) {
+        try {
+          await this.callAuth('auth.set-active', {
+            userId: profile.userId,
+            isActive: profile.trangThai,
+          });
+        } catch {
+          throw new RpcException({
+            statusCode: 502,
+            message: 'Không cập nhật được trạng thái GVHD và không thể khôi phục trạng thái tài khoản',
+          });
+        }
+      }
+      throw error;
+    }
   }
 
   //update gvhd
