@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Header, Inject, Post, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Header, Inject, Param, Patch, Post, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
@@ -6,7 +6,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator.js';
 import { PHD_SERVICE } from '../common/constants/service.js';
 import type { AuthUser } from '../common/interface/auth-user.interface.js';
-import { CreateGvhdBatchDto } from '../../../../lib/contracts/src/dto/gvhd.dto.js';
+import { CreateGvhdBatchDto, UpdateGvhdDto, UpdateGvhdStatusDto } from '../../../../lib/contracts/src/dto/gvhd.dto.js';
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
 import { buildGvhdTemplate, parseGvhdExcel } from './gvhd-excel.js';
 
@@ -24,7 +24,7 @@ const uploadOptions = {
 
 @Controller('gvhd')
 export class GvhdController {
-  constructor(@Inject(PHD_SERVICE) private phd: ClientProxy) {}
+  constructor(@Inject(PHD_SERVICE) private phd: ClientProxy) { }
 
   private send<T>(cmd: string, payload: unknown, ms = 5000) {
     return firstValueFrom(this.phd.send<T>({ cmd }, payload).pipe(timeout(ms)));
@@ -68,5 +68,43 @@ export class GvhdController {
   async importConfirm(@CurrentUser() u: AuthUser, @UploadedFile() file?: Express.Multer.File) {
     const rows = await parseGvhdExcel(this.requireFile(file));
     return this.send('phd.gvhd.import-confirm', { actorId: u.id, rows }, 60000);
+  }
+
+  @Get()
+  @RequirePermissions(PERMISSIONS.GVHD_READ)
+  list() {
+    return this.send('phd.gvhd.list', {});
+  }
+
+  @Get('me')
+  me(@CurrentUser() u: AuthUser) {
+    return this.send('phd.gvhd.get', { userId: u.id });
+  }
+
+  // Chi tiết một GVHD (Giáo vụ xem)
+  @Get(':id')
+  @RequirePermissions(PERMISSIONS.GVHD_READ)
+  detail(@Param('id') id: string) {
+    return this.send('phd.gvhd.get', { id });
+  }
+
+  @Patch(':id/status')
+  @RequirePermissions(PERMISSIONS.GVHD_UPDATE)
+  updateStatus(
+    @CurrentUser() u: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateGvhdStatusDto,
+  ) {
+    return this.send('phd.gvhd.update-status', { actorId: u.id, id, data: dto });
+  }
+
+  @Patch(':id')
+  @RequirePermissions(PERMISSIONS.GVHD_UPDATE)
+  update(
+    @CurrentUser() u: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateGvhdDto,
+  ) {
+    return this.send('phd.gvhd.update', { actorId: u.id, id, data: dto });
   }
 }

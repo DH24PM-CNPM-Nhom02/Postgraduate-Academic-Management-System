@@ -180,13 +180,13 @@ model NghienCuuSinh {
 /// Khóa chỉ có mã theo sổ của trường (NCS01, CH12...) nên không lưu tên riêng;
 /// cần ghi chú gì thì dùng ghiChu.
 model KhoaHocNcs {
-  id             String   @id @default(uuid())
-  maKhoaHoc      String   @unique @map("ma_khoa_hoc") @db.VarChar(20)
+  id           String   @id @default(uuid())
+  maKhoaHoc    String   @unique @map("ma_khoa_hoc") @db.VarChar(20)
   /// Năm tuyển sinh, để hiển thị cho dễ hiểu khi mã chỉ là NCS01
-  namTuyenSinh   Int?     @map("nam_tuyen_sinh")
-  ghiChu         String?  @db.Text
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  namTuyenSinh Int?     @map("nam_tuyen_sinh")
+  ghiChu       String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   ncss NghienCuuSinh[]
 
@@ -349,34 +349,35 @@ model PhieuNhanXet {
 // 3. GVHD & ĐỊNH MỨC (FR3.x, BR-09)
 // ----------------------------------------------------------------------------
 model GiangVienHuongDan {
-  id                String      @id @default(uuid())
+  id               String      @id @default(uuid())
   /// Chỉ điền nếu GVHD có tài khoản đăng nhập
-  userId            String?     @unique @map("user_id")
+  userId           String?     @unique @map("user_id")
   /// Số hiệu công chức (shcc) của giảng viên trong trường; null với GVHD ngoài trường.
   /// Khóa nghiệp vụ để import/upsert từ sheet GIANGVIEN.
-  maGv              String?     @unique @map("ma_gv") @db.VarChar(20)
-  hoTen             String      @map("ho_ten") @db.VarChar(100)
-  gioiTinh          GioiTinh?   @map("gioi_tinh")
-  ngaySinh          DateTime?   @map("ngay_sinh") @db.Date
-  email             String?     @db.VarChar(100)
-  hocHamHocVi       HocHamHocVi @map("hoc_ham_hoc_vi")
+  maGv             String?     @unique @map("ma_gv") @db.VarChar(20)
+  hoTen            String      @map("ho_ten") @db.VarChar(100)
+  gioiTinh         GioiTinh?   @map("gioi_tinh")
+  ngaySinh         DateTime?   @map("ngay_sinh") @db.Date
+  email            String?     @db.VarChar(100)
+  hocHamHocVi      HocHamHocVi @map("hoc_ham_hoc_vi")
   /// Ngành/chuyên ngành đào tạo tiến sĩ của GVHD (t_cmdtao)
-  chuyenNganh       String?     @map("chuyen_nganh") @db.VarChar(255)
+  chuyenNganh      String?     @map("chuyen_nganh") @db.VarChar(255)
   /// Nước cấp bằng tiến sĩ (ten_qg)
-  quocGiaTotNghiep  String?     @map("quoc_gia_tot_nghiep") @db.VarChar(50)
+  quocGiaTotNghiep String?     @map("quoc_gia_tot_nghiep") @db.VarChar(50)
   /// Đơn vị công tác đã chuẩn hóa.
-  donViId           String?     @map("don_vi_id")
-  
+  donViId          String?     @map("don_vi_id")
+
   /// FR3.1: lịch sử công bố 5 năm gần nhất (JSON)
-  lichSuCongBo5Nam  Json?       @map("lich_su_cong_bo_5_nam")
+  lichSuCongBo5Nam  Json?    @map("lich_su_cong_bo_5_nam")
   /// GS=7, PGS=5, TS=3 (BR-09)
-  maxNcsChoPhep     Int         @map("max_ncs_cho_phep")
+  maxNcsChoPhep     Int      @map("max_ncs_cho_phep")
   /// Cache số NCS đang HD (độc lập 1.0, đồng HD 0.5
-  soNcsDangHuongDan Decimal     @default(0.0) @map("so_ncs_dang_huong_dan") @db.Decimal(3, 1)
+  soNcsDangHuongDan Decimal  @default(0.0) @map("so_ncs_dang_huong_dan") @db.Decimal(3, 1)
+  trangThai         Boolean  @default(true) @map("trang_thai")
   /// Optimistic lock chống 2 request cùng vượt định mức
-  version           Int         @default(0)
-  createdAt         DateTime    @default(now()) @map("created_at")
-  updatedAt         DateTime    @updatedAt @map("updated_at")
+  version           Int      @default(0)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
   phanCongs PhanCongHuongDan[]
   deNghis   DeNghiDieuChinh[]  @relation("DeNghiGvhdMoi")
