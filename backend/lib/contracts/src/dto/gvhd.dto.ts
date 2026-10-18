@@ -68,6 +68,54 @@ export class CreateGvhdBatchDto {
   items: CreateGvhdItemDto[];
 }
 
+export class UpdateGvhdStatusDto {
+  @IsIn([true, false])
+  trangThai!: boolean;
+}
+
+export class UpdateGvhdDto {
+
+  @IsString()
+  @Length(1, 100)
+  @IsOptional()
+  hoTen?: string;
+
+  @IsOptional()
+  @IsDateString()
+  ngaySinh?: string;
+
+  @IsOptional()
+  @IsIn(GIOI_TINH)
+  gioiTinh?: (typeof GIOI_TINH)[number];
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsIn(HOC_HAM_HOC_VI)
+  hocHamHocVi?: (typeof HOC_HAM_HOC_VI)[number];
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 255)
+  chuyenNganh?: string;
+
+  // ID đơn vị được chọn từ danh sách đơn vị
+  @IsOptional()
+  @IsString()
+  @Length(1, 36)
+  donVi?: string;
+
+  // Nước cấp bằng tiến sĩ (ten_qg)
+  @IsOptional()
+  @IsString()
+  @Length(1, 50)
+  quocGiaTotNghiep?: string;
+}
+
+
+
 // Một dòng đọc từ file Excel (mọi ô đều là chuỗi; `row` là số dòng trong file để báo lỗi)
 export type ImportGvhdRow = {
   row: number;
