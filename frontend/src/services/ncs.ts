@@ -5,8 +5,8 @@ export const NcsService = {
     try {
       const response = await apiClient.get("/ncs");
       return response.data;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw new Error((error as Error).message);
     }
   },
 };
