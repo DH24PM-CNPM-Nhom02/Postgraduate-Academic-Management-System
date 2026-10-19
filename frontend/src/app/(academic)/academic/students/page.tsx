@@ -379,68 +379,94 @@ export default function AcademicStudentsManagementPage() {
                   </td>
                 </tr>
               ) : (
-                students?.map((std: any) => (
+                students?.map((std: unknown) => (
                   <tr
-                    key={std.id}
+                    key={(std as { id: string }).id}
                     className="hover:bg-blue-50/40 transition-colors"
                   >
                     <td className="py-3.5 px-3.5">
                       <span className="font-bold text-slate-900 block text-xs">
-                        {std.hoTen}
+                        {(std as { hoTen: string }).hoTen}
                       </span>
                       <span className="text-[11px] font-mono text-slate-500 font-medium">
-                        {std.mshv}
+                        {(std as { mshv: string }).mshv}
                       </span>
                     </td>
                     <td className="py-3.5 px-3">
                       <span className="font-semibold text-slate-800 block">
-                        {std.nganh?.tenNganh}
+                        {
+                          (std as { nganh: { tenNganh: string } }).nganh
+                            ?.tenNganh
+                        }
                       </span>
                       <span className="text-[11px] text-slate-500">
-                        {std.khoaHocNcs?.maKhoaHoc}
+                        {
+                          (std as { khoaHocNcs: { maKhoaHoc: string } })
+                            .khoaHocNcs?.maKhoaHoc
+                        }
                       </span>
                     </td>
                     <td className="py-3.5 px-3 max-w-sm">
                       <p className="line-clamp-2 text-slate-700 italic">
-                        “{std.thesisTopic}”
+                        “{(std as { thesisTopic: string }).thesisTopic}”
                       </p>
                       <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 mt-1">
                         <span>
-                          GVHD chính: <strong>{std.supervisorMain}</strong>
+                          GVHD chính:{" "}
+                          <strong>
+                            {(std as { supervisorMain: string }).supervisorMain}
+                          </strong>
                         </span>
-                        {std.supervisorCo && (
+                        {(std as { supervisorCo: string }).supervisorCo && (
                           <span>
-                            • Đồng HD: <strong>{std.supervisorCo}</strong>
+                            • Đồng HD:{" "}
+                            <strong>
+                              {(std as { supervisorCo: string }).supervisorCo}
+                            </strong>
                           </span>
                         )}
                       </div>
                     </td>
                     <td className="py-3.5 px-3">
                       <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-[#164E9B] px-2.5 py-0.5 text-[11px] font-bold">
-                        Mốc {std.currentMilestoneIndex} / 9
+                        Mốc{" "}
+                        {
+                          (std as { currentMilestoneIndex: number })
+                            .currentMilestoneIndex
+                        }{" "}
+                        / 9
                       </span>
                     </td>
                     <td className="py-3.5 px-3">
-                      {std.remainingMonths > 12 ? (
+                      {(std as { remainingMonths: number }).remainingMonths >
+                      12 ? (
                         <span className="rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
-                          {std.remainingMonths} tháng
+                          {(std as { remainingMonths: number }).remainingMonths}{" "}
+                          tháng
                         </span>
-                      ) : std.remainingMonths > 3 ? (
+                      ) : (std as { remainingMonths: number }).remainingMonths >
+                        3 ? (
                         <span className="rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold">
-                          {std.remainingMonths} tháng (Cảnh báo)
+                          {(std as { remainingMonths: number }).remainingMonths}{" "}
+                          tháng (Cảnh báo)
                         </span>
                       ) : (
                         <span className="rounded-full bg-rose-100 text-rose-800 px-2 py-0.5 text-[10px] font-bold animate-pulse">
-                          {std.remainingMonths} tháng (Khẩn)
+                          {(std as { remainingMonths: number }).remainingMonths}{" "}
+                          tháng (Khẩn)
                         </span>
                       )}
                     </td>
                     <td className="py-3.5 px-3">
                       <div className="flex items-center gap-1.5">
                         <span className="font-bold text-[#0F2744]">
-                          {std.publicationPoints?.toFixed(1)} / 2.0đ
+                          {(
+                            std as { publicationPoints: number }
+                          ).publicationPoints?.toFixed(1)}{" "}
+                          / 2.0đ
                         </span>
-                        {std.publicationPoints >= 2.0 ? (
+                        {(std as { publicationPoints: number })
+                          .publicationPoints >= 2.0 ? (
                           <span className="text-emerald-600 font-bold text-[10px]">
                             ✓ Đạt
                           </span>
@@ -454,7 +480,7 @@ export default function AcademicStudentsManagementPage() {
                     <td className="py-3.5 px-3 text-right">
                       <button
                         onClick={() => {
-                          setSelectedStudent(std);
+                          setSelectedStudent(std as StudentDossier);
                           setStudentModalOpen(true);
                         }}
                         className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-[#164E9B] hover:bg-slate-50 transition-colors shadow-2xs"
