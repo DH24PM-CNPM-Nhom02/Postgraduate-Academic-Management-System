@@ -23,7 +23,13 @@ import {
   MOCK_STUDENTS,
 } from "@/src/components/academic";
 
+import { useNCS } from "@/src/hooks/use-ncs";
+
 export default function AcademicStudentsManagementPage() {
+  const { data: students, isPending, isError } = useNCS();
+
+  console.log("Fetched students data:", students);
+
   // Search & Filter States
   const [studentSearchText, setStudentSearchText] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
@@ -31,11 +37,14 @@ export default function AcademicStudentsManagementPage() {
   const [milestoneFilter, setMilestoneFilter] = useState("all");
 
   // Dynamic Students List (Supports live Excel import)
-  const [studentsList, setStudentsList] = useState<StudentDossier[]>(MOCK_STUDENTS);
+  const [studentsList, setStudentsList] =
+    useState<StudentDossier[]>(MOCK_STUDENTS);
 
   // Modal State
   const [studentModalOpen, setStudentModalOpen] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<StudentDossier | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<StudentDossier | null>(
+    null,
+  );
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -46,7 +55,9 @@ export default function AcademicStudentsManagementPage() {
   // Handle Excel Import Success
   const handleImportSuccess = (newStudents: StudentDossier[]) => {
     setStudentsList((prev) => [...newStudents, ...prev]);
-    setToastMessage(`Đã thêm thành công ${newStudents.length} nghiên cứu sinh từ file Excel vào hệ thống.`);
+    setToastMessage(
+      `Đã thêm thành công ${newStudents.length} nghiên cứu sinh từ file Excel vào hệ thống.`,
+    );
     setTimeout(() => setToastMessage(null), 5000);
   };
 
@@ -61,18 +72,30 @@ export default function AcademicStudentsManagementPage() {
         s.supervisorMain.toLowerCase().includes(query) ||
         (s.supervisorCo && s.supervisorCo.toLowerCase().includes(query));
 
-      const matchDept = departmentFilter === "all" || s.department === departmentFilter;
+      const matchDept =
+        departmentFilter === "all" || s.department === departmentFilter;
       const matchStatus = statusFilter === "all" || s.status === statusFilter;
       const matchMilestone =
-        milestoneFilter === "all" || s.currentMilestoneIndex.toString() === milestoneFilter;
+        milestoneFilter === "all" ||
+        s.currentMilestoneIndex.toString() === milestoneFilter;
 
       return matchSearch && matchDept && matchStatus && matchMilestone;
     });
-  }, [studentsList, studentSearchText, departmentFilter, statusFilter, milestoneFilter]);
+  }, [
+    studentsList,
+    studentSearchText,
+    departmentFilter,
+    statusFilter,
+    milestoneFilter,
+  ]);
 
   const activeCount = studentsList.filter((s) => s.status === "active").length;
-  const warningCount = studentsList.filter((s) => s.status === "warning" || s.status === "overdue").length;
-  const paperPassCount = studentsList.filter((s) => s.publicationPoints >= 2.0).length;
+  const warningCount = studentsList.filter(
+    (s) => s.status === "warning" || s.status === "overdue",
+  ).length;
+  const paperPassCount = studentsList.filter(
+    (s) => s.publicationPoints >= 2.0,
+  ).length;
 
   const handleResetFilters = () => {
     setStudentSearchText("");
@@ -102,18 +125,24 @@ export default function AcademicStudentsManagementPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-            <Link href="/academic" className="hover:text-[#164E9B] flex items-center gap-1">
+            <Link
+              href="/academic"
+              className="hover:text-[#164E9B] flex items-center gap-1"
+            >
               <ArrowLeft className="size-3" />
               <span>Tổng quan học vụ</span>
             </Link>
             <span>/</span>
-            <span className="font-semibold text-slate-700">Quản lý Nghiên cứu sinh</span>
+            <span className="font-semibold text-slate-700">
+              Quản lý Nghiên cứu sinh
+            </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-[#0F2744] tracking-tight">
             Quản lý Nghiên cứu sinh Toàn trường
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Theo dõi tiến độ 9 mốc đào tạo, hồ sơ đề tài, phân công GVHD và chuẩn đầu ra nghiên cứu sinh.
+            Theo dõi tiến độ 9 mốc đào tạo, hồ sơ đề tài, phân công GVHD và
+            chuẩn đầu ra nghiên cứu sinh.
           </p>
         </div>
 
@@ -129,7 +158,9 @@ export default function AcademicStudentsManagementPage() {
 
           <button
             onClick={() => {
-              alert("Đang chuẩn bị trích xuất dữ liệu danh sách NCS định dạng Excel...");
+              alert(
+                "Đang chuẩn bị trích xuất dữ liệu danh sách NCS định dạng Excel...",
+              );
             }}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs transition-all cursor-pointer"
           >
@@ -151,10 +182,14 @@ export default function AcademicStudentsManagementPage() {
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-[#0F2744]">{studentsList.length}</span>
+            <span className="text-2xl font-black text-[#0F2744]">
+              {studentsList.length}
+            </span>
             <span className="text-xs text-slate-500">nghiên cứu sinh</span>
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">Thuộc 4 Khoa chuyên ngành trọng điểm</p>
+          <p className="text-[11px] text-slate-500 mt-1">
+            Thuộc 4 Khoa chuyên ngành trọng điểm
+          </p>
         </div>
 
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/30 p-4.5 shadow-xs">
@@ -167,12 +202,16 @@ export default function AcademicStudentsManagementPage() {
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-emerald-900">{activeCount}</span>
+            <span className="text-2xl font-black text-emerald-900">
+              {activeCount}
+            </span>
             <span className="text-xs font-semibold text-emerald-700">
               {((activeCount / MOCK_STUDENTS.length) * 100).toFixed(0)}% tổng số
             </span>
           </div>
-          <p className="text-[11px] text-slate-600 mt-1">Thời gian đào tạo còn trên 12 tháng</p>
+          <p className="text-[11px] text-slate-600 mt-1">
+            Thời gian đào tạo còn trên 12 tháng
+          </p>
         </div>
 
         <div className="rounded-2xl border border-amber-200 bg-amber-50/30 p-4.5 shadow-xs">
@@ -185,12 +224,16 @@ export default function AcademicStudentsManagementPage() {
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-amber-900">{warningCount}</span>
+            <span className="text-2xl font-black text-amber-900">
+              {warningCount}
+            </span>
             <span className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded-full">
               1 ca khẩn cấp (&lt;3 tháng)
             </span>
           </div>
-          <p className="text-[11px] text-slate-600 mt-1">Cần đôn đốc nộp hồ sơ bảo vệ cấp ĐVCM</p>
+          <p className="text-[11px] text-slate-600 mt-1">
+            Cần đôn đốc nộp hồ sơ bảo vệ cấp ĐVCM
+          </p>
         </div>
 
         <div className="rounded-2xl border border-indigo-200 bg-indigo-50/30 p-4.5 shadow-xs">
@@ -203,12 +246,16 @@ export default function AcademicStudentsManagementPage() {
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-indigo-950">{paperPassCount}</span>
+            <span className="text-2xl font-black text-indigo-950">
+              {paperPassCount}
+            </span>
             <span className="text-xs font-semibold text-indigo-700">
               / {studentsList.length} NCS
             </span>
           </div>
-          <p className="text-[11px] text-slate-600 mt-1">Đủ điều kiện xuất bản WoS/Scopus Q1-Q3</p>
+          <p className="text-[11px] text-slate-600 mt-1">
+            Đủ điều kiện xuất bản WoS/Scopus Q1-Q3
+          </p>
         </div>
       </div>
 
@@ -307,7 +354,9 @@ export default function AcademicStudentsManagementPage() {
               <tr>
                 <th className="py-3 px-3.5">Họ tên &amp; MSSV</th>
                 <th className="py-3 px-3">Chuyên ngành &amp; Khóa</th>
-                <th className="py-3 px-3 max-w-sm">Đề tài luận án &amp; GVHD</th>
+                <th className="py-3 px-3 max-w-sm">
+                  Đề tài luận án &amp; GVHD
+                </th>
                 <th className="py-3 px-3">Mốc hiện tại</th>
                 <th className="py-3 px-3">Thời gian còn lại</th>
                 <th className="py-3 px-3">Bài báo WoS/Scopus</th>
@@ -315,80 +364,123 @@ export default function AcademicStudentsManagementPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredStudents.length === 0 ? (
+              {students?.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-slate-400">
                     <Users className="size-8 mx-auto text-slate-300 mb-2" />
                     <p className="font-semibold text-slate-600">
-                      Không tìm thấy nghiên cứu sinh nào phù hợp với điều kiện tìm kiếm.
+                      Không tìm thấy nghiên cứu sinh nào phù hợp với điều kiện
+                      tìm kiếm.
                     </p>
                     <p className="text-[11px] text-slate-400 mt-1">
-                      Thử điều chỉnh từ khóa tìm kiếm hoặc bấm &ldquo;Đặt lại bộ lọc&rdquo;.
+                      Thử điều chỉnh từ khóa tìm kiếm hoặc bấm &ldquo;Đặt lại bộ
+                      lọc&rdquo;.
                     </p>
                   </td>
                 </tr>
               ) : (
-                filteredStudents.map((std) => (
-                  <tr key={std.id} className="hover:bg-blue-50/40 transition-colors">
+                students?.map((std: unknown) => (
+                  <tr
+                    key={(std as { id: string }).id}
+                    className="hover:bg-blue-50/40 transition-colors"
+                  >
                     <td className="py-3.5 px-3.5">
-                      <span className="font-bold text-slate-900 block text-xs">{std.name}</span>
+                      <span className="font-bold text-slate-900 block text-xs">
+                        {(std as { hoTen: string }).hoTen}
+                      </span>
                       <span className="text-[11px] font-mono text-slate-500 font-medium">
-                        {std.code}
+                        {(std as { mshv: string }).mshv}
                       </span>
                     </td>
                     <td className="py-3.5 px-3">
-                      <span className="font-semibold text-slate-800 block">{std.department}</span>
-                      <span className="text-[11px] text-slate-500">{std.cohort}</span>
+                      <span className="font-semibold text-slate-800 block">
+                        {
+                          (std as { nganh: { tenNganh: string } }).nganh
+                            ?.tenNganh
+                        }
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        {
+                          (std as { khoaHocNcs: { maKhoaHoc: string } })
+                            .khoaHocNcs?.maKhoaHoc
+                        }
+                      </span>
                     </td>
                     <td className="py-3.5 px-3 max-w-sm">
-                      <p className="line-clamp-2 text-slate-700 italic">“{std.thesisTopic}”</p>
+                      <p className="line-clamp-2 text-slate-700 italic">
+                        “{(std as { thesisTopic: string }).thesisTopic}”
+                      </p>
                       <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 mt-1">
                         <span>
-                          GVHD chính: <strong>{std.supervisorMain}</strong>
+                          GVHD chính:{" "}
+                          <strong>
+                            {(std as { supervisorMain: string }).supervisorMain}
+                          </strong>
                         </span>
-                        {std.supervisorCo && (
+                        {(std as { supervisorCo: string }).supervisorCo && (
                           <span>
-                            • Đồng HD: <strong>{std.supervisorCo}</strong>
+                            • Đồng HD:{" "}
+                            <strong>
+                              {(std as { supervisorCo: string }).supervisorCo}
+                            </strong>
                           </span>
                         )}
                       </div>
                     </td>
                     <td className="py-3.5 px-3">
                       <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-[#164E9B] px-2.5 py-0.5 text-[11px] font-bold">
-                        Mốc {std.currentMilestoneIndex} / 9
+                        Mốc{" "}
+                        {
+                          (std as { currentMilestoneIndex: number })
+                            .currentMilestoneIndex
+                        }{" "}
+                        / 9
                       </span>
                     </td>
                     <td className="py-3.5 px-3">
-                      {std.remainingMonths > 12 ? (
+                      {(std as { remainingMonths: number }).remainingMonths >
+                      12 ? (
                         <span className="rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
-                          {std.remainingMonths} tháng
+                          {(std as { remainingMonths: number }).remainingMonths}{" "}
+                          tháng
                         </span>
-                      ) : std.remainingMonths > 3 ? (
+                      ) : (std as { remainingMonths: number }).remainingMonths >
+                        3 ? (
                         <span className="rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold">
-                          {std.remainingMonths} tháng (Cảnh báo)
+                          {(std as { remainingMonths: number }).remainingMonths}{" "}
+                          tháng (Cảnh báo)
                         </span>
                       ) : (
                         <span className="rounded-full bg-rose-100 text-rose-800 px-2 py-0.5 text-[10px] font-bold animate-pulse">
-                          {std.remainingMonths} tháng (Khẩn)
+                          {(std as { remainingMonths: number }).remainingMonths}{" "}
+                          tháng (Khẩn)
                         </span>
                       )}
                     </td>
                     <td className="py-3.5 px-3">
                       <div className="flex items-center gap-1.5">
                         <span className="font-bold text-[#0F2744]">
-                          {std.publicationPoints.toFixed(1)} / 2.0đ
+                          {(
+                            std as { publicationPoints: number }
+                          ).publicationPoints?.toFixed(1)}{" "}
+                          / 2.0đ
                         </span>
-                        {std.publicationPoints >= 2.0 ? (
-                          <span className="text-emerald-600 font-bold text-[10px]">✓ Đạt</span>
+                        {(std as { publicationPoints: number })
+                          .publicationPoints >= 2.0 ? (
+                          <span className="text-emerald-600 font-bold text-[10px]">
+                            ✓ Đạt
+                          </span>
                         ) : (
-                          <span className="text-slate-400 text-[10px]">Thiếu</span>
+                          <span className="text-slate-400 text-[10px]">
+                            Thiếu
+                          </span>
                         )}
                       </div>
                     </td>
                     <td className="py-3.5 px-3 text-right">
                       <button
                         onClick={() => {
-                          setSelectedStudent(std);
+                          setSelectedStudent(std as StudentDossier);
                           setStudentModalOpen(true);
                         }}
                         className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-[#164E9B] hover:bg-slate-50 transition-colors shadow-2xs"
@@ -407,16 +499,23 @@ export default function AcademicStudentsManagementPage() {
         {/* TABLE PAGINATION */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 pt-2 gap-2">
           <span>
-            Hiển thị 1 - {filteredStudents.length} của {studentsList.length} nghiên cứu sinh
+            Hiển thị 1 - {filteredStudents.length} của {studentsList.length}{" "}
+            nghiên cứu sinh
           </span>
           <div className="flex items-center gap-1">
-            <button disabled className="rounded-lg border px-3 py-1 text-slate-400 cursor-not-allowed">
+            <button
+              disabled
+              className="rounded-lg border px-3 py-1 text-slate-400 cursor-not-allowed"
+            >
               Trang trước
             </button>
             <button className="rounded-lg border bg-[#164E9B] text-white px-3 py-1 font-bold">
               1
             </button>
-            <button disabled className="rounded-lg border px-3 py-1 text-slate-400 cursor-not-allowed">
+            <button
+              disabled
+              className="rounded-lg border px-3 py-1 text-slate-400 cursor-not-allowed"
+            >
               Trang sau
             </button>
           </div>
