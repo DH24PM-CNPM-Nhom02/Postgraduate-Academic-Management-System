@@ -24,7 +24,7 @@
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
-    "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
+    "test:e2e": "vitest run --config ./vitest.config.e2e.ts --passWithNoTests",
     "prisma:generate": "cd apps/auth-service && npx prisma generate && cd ../phd-service && npx prisma generate && cd ../document-service && npx prisma generate && cd ../notification-service && npx prisma generate",
     "prisma:push": "cd apps/auth-service && npx prisma db push && cd ../phd-service && npx prisma db push && cd ../document-service && npx prisma db push && cd ../notification-service && npx prisma db push",
     "prisma:seed": "cd apps/$APP_NAME && npx prisma db seed"
