@@ -19,7 +19,7 @@ import { NcsController } from './ncs.controller.js';
           transport: Transport.TCP,
           options: {
             host: c.get('PHD_SERVICE_HOST', '127.0.0.1'),
-            port: Number(c.get('PHD_SERVICE_PORT', 3004)),
+            port: Number(c.get('PHD_SERVICE_PORT', 3002)),
           },
         }),
       },
