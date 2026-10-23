@@ -9,7 +9,7 @@ async function bootstrap() {
       transport: Transport.TCP,
       options: {
         host: process.env.NOTIFICATION_SERVICE_HOST ?? '0.0.0.0',
-        port: Number(process.env.NOTIFICATION_SERVICE_PORT ?? 3003),
+        port: Number(process.env.NOTIFICATION_SERVICE_PORT ?? 3004),
       },
     },
   );
