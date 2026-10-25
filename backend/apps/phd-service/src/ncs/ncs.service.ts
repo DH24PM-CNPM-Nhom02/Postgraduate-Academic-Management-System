@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { TrangThaiHocTap, TrangThaiMoc } from '../generated/prisma/index.js';
 import { chuanHoaChuoi, validateEmail, validatePhoneNumber } from '../helpers/validateData.util.js';
 import { Prisma } from '../generated/prisma/index.js';
+import { goiService } from '../helpers/call-service.util.js';
 type AuthUser = {
   id: string;
   username: string;
@@ -113,19 +114,7 @@ export class NcsService {
    * trả về lỗi để hệ thống phía trên xử lý.
    */
   async callAuth<T>(cmd: string, payload: unknown, ms = 5000): Promise<T> {
-    return firstValueFrom(
-      this.auth.send<T>({ cmd }, payload).pipe(
-        timeout(ms),
-        catchError((err) =>
-          throwError(
-            () =>
-              new RpcException(
-                err?.statusCode ? err : { statusCode: 502, message: 'Không gọi được auth-service' },
-              ),
-          ),
-        ),
-      ),
-    );
+    return goiService<T>(this.auth, cmd, payload, ms);
   }
 
   /**
@@ -531,15 +520,27 @@ export class NcsService {
 
     for (const hoSo of danhSachHoSo) {
       for (const moc of danhSachMoc) {
-        const laMocDauTien = moc.thuTu === 1;
+        let trangThai: TrangThaiMoc = TrangThaiMoc.LOCKED;
+        let openedAt: Date | null = null;
+        let passedAt: Date | null = null;
+
+        if (moc.thuTu === 1) {
+          // Nhập học: có hồ sơ là coi như đã đạt, không cần nộp minh chứng
+          trangThai = TrangThaiMoc.PASSED;
+          openedAt = thoiGianHienTai;
+          passedAt = thoiGianHienTai;
+        } else if (moc.thuTu === 2) {
+          // Mốc đầu tiên NCS phải nộp
+          trangThai = TrangThaiMoc.UNLOCKED;
+          openedAt = thoiGianHienTai;
+        }
 
         danhSachTienTrinh.push({
           ncsId: hoSo.id,
           mocId: moc.id,
-          trangThai: laMocDauTien
-            ? TrangThaiMoc.UNLOCKED
-            : TrangThaiMoc.LOCKED,
-          openedAt: laMocDauTien ? thoiGianHienTai : null,
+          trangThai,
+          openedAt,
+          passedAt,
         });
       }
 
@@ -812,7 +813,7 @@ export class NcsService {
           if (!validateEmail(input.email)) {
             throw new RpcException({ statusCode: 400, message: 'Email không hợp lệ' });
           }
-          else if(input.email.length > 100){
+          else if (input.email.length > 100) {
             throw new RpcException({ statusCode: 400, message: 'Email dài quá 100 ký tự' });
           }
           setChange('email', 'email', hoSoCu.email, input.email);

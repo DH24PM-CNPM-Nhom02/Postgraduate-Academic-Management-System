@@ -6,6 +6,7 @@ import type { ImportGvhdRow, UpdateGvhdDto, UpdateGvhdStatusDto } from '../../..
 import type { GioiTinh, HocHamHocVi, Prisma } from '../generated/prisma/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isRealDate, validateEmail } from '../helpers/validateData.util.js';
+import { goiService } from '../helpers/call-service.util.js';
 
 const MAX_ROWS = 200;
 const DANH_SACH_HOC_HAM = ['GIAO_SU', 'PHO_GIAO_SU', 'TIEN_SI_KHOA_HOC', 'TIEN_SI'];
@@ -18,14 +19,7 @@ export class SupervisorService {
   ) { }
 
   private async callAuth<T>(cmd: string, payload: unknown, ms = 5000): Promise<T> {
-    return firstValueFrom(
-      this.auth.send<T>({ cmd }, payload).pipe(
-        timeout(ms),
-        catchError((err) => throwError(() => new RpcException(
-          err?.statusCode ? err : { statusCode: 502, message: 'Không gọi được auth-service' },
-        ))),
-      ),
-    );
+    return goiService<T>(this.auth, cmd, payload, ms);
   }
 
   /**
