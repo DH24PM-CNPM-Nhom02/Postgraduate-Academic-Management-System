@@ -274,7 +274,7 @@ model MocTienTrinh {
 }
 
 /// Trạng thái từng mốc của từng NCS — nguồn sự thật cho BR-08.
-/// Tạo sẵn 9 dòng khi tạo NCS: mốc 1 = UNLOCKED, mốc 2..9 = LOCKED.
+/// Tạo sẵn 9 dòng khi tạo NCS: mốc 1 = PASSED, mốc 2 = UNLOCKED, mốc 3..9 = LOCKED.
 model TienTrinhNcs {
   id          String       @id @default(uuid())
   ncsId       String       @map("ncs_id")

@@ -28,6 +28,10 @@ export const PERMISSIONS = {
     DOCUMENT_UPLOAD: 'document.upload',
     DOCUMENT_READ: 'document.read',
     DOCUMENT_DELETE: 'document.delete',
+
+    DECISION_READ: 'decision.read',
+    DECISION_CREATE: 'decision.create',
+    DECISION_UPDATE: 'decision.update',
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

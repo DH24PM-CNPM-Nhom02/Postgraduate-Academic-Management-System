@@ -38,9 +38,10 @@ const rolePermissions: Record<string, string[]> = {
     P.THESIS_CHANGE_APPROVE, P.GRADUATION_CHECK,
     P.NCS_READ, P.NCS_CREATE, P.NCS_UPDATE, //ncs 
     P.GVHD_CREATE, P.GVHD_READ, P.GVHD_UPDATE,
-    P.DOCUMENT_UPLOAD, P.DOCUMENT_READ, P.DOCUMENT_DELETE
+    P.DOCUMENT_UPLOAD, P.DOCUMENT_READ, P.DOCUMENT_DELETE,
+    P.DECISION_READ, P.DECISION_CREATE, P.DECISION_UPDATE,
   ],
-  [ROLES.GVHD]: [P.MILESTONE_READ, P.QUOTA_READ],
+  [ROLES.GVHD]: [P.MILESTONE_READ, P.QUOTA_READ, P.DECISION_READ],
   [ROLES.NCS]: [P.MILESTONE_READ, P.MILESTONE_SUBMIT, P.THESIS_CHANGE_CREATE, P.DOCUMENT_UPLOAD, P.DOCUMENT_READ],
 };
 
@@ -63,7 +64,7 @@ async function main() {
     const found = await prisma.permission.findMany({ where: { name: { in: perms } } });
     await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
     await prisma.rolePermission.createMany({
-      data: found.map((p:any) => ({ roleId: role.id, permissionId: p.id })),
+      data: found.map((p: any) => ({ roleId: role.id, permissionId: p.id })),
     });
   }
   console.log('finished') // 3. Tài khoản admin đầu tiên
