@@ -11,6 +11,11 @@ on:
 permissions:
   contents: read
 
+# Push commit moi len cung branch/PR thi huy run cu dang chay
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # ---------------------------------------------------------------
   # Job 1: Backend (cần MariaDB để test và kiểm tra Prisma schema)
