@@ -5,7 +5,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator.js';
 import { PHD_SERVICE } from '../common/constants/service.js';
 import type { AuthUser } from '../common/interface/auth-user.interface.js';
-import { SubmitMilestoneDto } from '../../../../lib/contracts/src/dto/progress.dto.js';
+import { SubmitMilestoneDto, ApproveMilestoneDto, RejectMilestoneDto, CreateEvaluationDto } from '../../../../lib/contracts/src/dto/progress.dto.js';
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
 
 @Controller('progress')
@@ -55,5 +55,54 @@ export class ProgressController {
   @RequirePermissions(PERMISSIONS.MILESTONE_APPROVE)
   progressOfNcs(@Param('ncsId', new ParseUUIDPipe()) ncsId: string) {
     return this.send('phd.progress.ncs', { ncsId });
+  }
+
+  // Giáo vụ duyệt mốc
+  @Post('reviews/:tienTrinhId/approve')
+  @RequirePermissions(PERMISSIONS.MILESTONE_APPROVE)
+  approve(
+    @CurrentUser() u: AuthUser,
+    @Param('tienTrinhId', new ParseUUIDPipe()) tienTrinhId: string,
+    @Body() body: ApproveMilestoneDto,
+  ) {
+    return this.send('phd.progress.approve', {
+      actorId: u.id,
+      tienTrinhId,
+      quyetDinhId: body.quyetDinhId,
+    });
+  }
+
+  // Giáo vụ từ chối mốc
+  @Post('reviews/:tienTrinhId/reject')
+  @RequirePermissions(PERMISSIONS.MILESTONE_REJECT)
+  reject(
+    @CurrentUser() u: AuthUser,
+    @Param('tienTrinhId', new ParseUUIDPipe()) tienTrinhId: string,
+    @Body() body: RejectMilestoneDto,
+  ) {
+    return this.send('phd.progress.reject', {
+      actorId: u.id,
+      tienTrinhId,
+      lyDo: body.lyDo,
+    });
+  }
+
+  // Giáo vụ nhập phiếu nhận xét (thay người chấm ngoài hệ thống)
+  @Post('evidences/:minhChungId/evaluations')
+  @RequirePermissions(PERMISSIONS.MILESTONE_APPROVE)
+  createEvaluation(
+    @CurrentUser() u: AuthUser,
+    @Param('minhChungId', new ParseUUIDPipe()) minhChungId: string,
+    @Body() body: CreateEvaluationDto,
+  ) {
+    // actorId và minhChungId đặt sau body để client không ghi đè được
+    return this.send('phd.evaluation.create', { ...body, actorId: u.id, minhChungId });
+  }
+
+  // Giáo vụ xem các phiếu và điểm trung bình của một lần nộp
+  @Get('evidences/:minhChungId/evaluations')
+  @RequirePermissions(PERMISSIONS.MILESTONE_APPROVE)
+  listEvaluations(@Param('minhChungId', new ParseUUIDPipe()) minhChungId: string) {
+    return this.send('phd.evaluation.list', { minhChungId });
   }
 }
