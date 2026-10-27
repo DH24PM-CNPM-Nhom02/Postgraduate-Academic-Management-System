@@ -23,4 +23,27 @@ export class ProgressController {
     getProgressOfNcs(@Payload() d: { ncsId: string }) {
         return this.progress.tienTrinhCuaNcs(d.ncsId);
     }
+
+    @MessagePattern({ cmd: 'phd.progress.approve' })
+    duyet(@Payload() d: { actorId: string; tienTrinhId: string; quyetDinhId: string }) {
+        return this.progress.duyetMoc(d.actorId, d.tienTrinhId, d.quyetDinhId);
+    }
+
+    @MessagePattern({ cmd: 'phd.progress.reject' })
+    tuChoi(@Payload() d: { actorId: string; tienTrinhId: string; lyDo: string }) {
+        return this.progress.tuChoiMoc(d.actorId, d.tienTrinhId, d.lyDo);
+    }
+
+    @MessagePattern({ cmd: 'phd.evaluation.create' })
+    nhapPhieu(@Payload() d: {
+        actorId: string; minhChungId: string; tenNguoiCham: string;
+        donViNguoiCham?: string; diem: number; nhanXet?: string; xacNhanTrung?: boolean;
+    }) {
+        return this.progress.nhapPhieuNhanXet(d);
+    }
+
+    @MessagePattern({ cmd: 'phd.evaluation.list' })
+    danhSachPhieu(@Payload() d: { minhChungId: string }) {
+        return this.progress.danhSachPhieu(d.minhChungId);
+    }
 }
