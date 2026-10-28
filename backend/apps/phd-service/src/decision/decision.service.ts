@@ -11,6 +11,7 @@ const TRANG_THAI_MOI: Partial<Record<LoaiQuyetDinh, TrangThaiHocTap>> = {
     NGUNG_HOC: 'NGUNG_HOC',
     BUOC_THOI_HOC: 'BUOC_THOI_HOC',
     GIA_HAN: 'GIA_HAN',
+    HOC_TIEP: 'DANG_HOC',
 };
 
 // NCS đang ở trạng thái nào thì mới được nhận quyết định loại đó
@@ -19,11 +20,28 @@ const TRANG_THAI_CHO_PHEP: Record<string, TrangThaiHocTap[]> = {
     GIA_HAN: ['DANG_HOC', 'GIA_HAN'],
     NGUNG_HOC: ['DANG_HOC', 'GIA_HAN', 'BAO_LUU'],
     BUOC_THOI_HOC: ['DANG_HOC', 'GIA_HAN', 'BAO_LUU'],
+    HOC_TIEP: ['BAO_LUU'],
 };
 
 // Các loại quyết định làm khóa tài khoản đăng nhập của NCS
 const LOAI_KHOA_TAI_KHOAN = ['BAO_LUU', 'NGUNG_HOC', 'BUOC_THOI_HOC'];
 
+// Các loại quyết định làm mở lại tài khoản đăng nhập của NCS
+const LOAI_MO_TAI_KHOAN = ['HOC_TIEP'];
+
+// NCS ở các trạng thái này thì tài khoản bị khóa
+const TRANG_THAI_BI_KHOA: TrangThaiHocTap[] = ['BAO_LUU', 'NGUNG_HOC', 'BUOC_THOI_HOC'];
+
+// Các loại quyết định có đổi trạng thái NCS (dùng để tìm quyết định mới hơn khi hoàn tác)
+const LOAI_DOI_TRANG_THAI = Object.keys(TRANG_THAI_CHO_PHEP) as LoaiQuyetDinh[];
+
+// Giá trị cũ của NCS được lưu trong audit (oldValue) lúc tạo quyết định, dùng để hoàn tác
+type oldValue = {
+    trangThai?: TrangThaiHocTap;
+    hanGiaHan?: string | null;
+    ngayChuyenTrangThai?: string | null;
+    lyDoChuyenTrangThai?: string | null;
+};
 @Injectable()
 export class DecisionService {
     constructor(
@@ -81,7 +99,7 @@ export class DecisionService {
             },
             select: {
                 id: true, mshv: true, userId: true, trangThai: true,
-                hanChinhQuy: true, hanBuocThoiHoc: true, hanGiaHan: true,
+                hanChinhQuy: true, hanBuocThoiHoc: true, hanGiaHan: true, ngayChuyenTrangThai: true, lyDoChuyenTrangThai: true
             },
         })
         if (dsNcs.length !== dsNcsId.length) {
@@ -167,14 +185,19 @@ export class DecisionService {
                         entityId: qd.id,
                         ncsId: ncs ? ncs.id : null,
                         oldValue: ncs && trangThaiMoi
-                            ? { trangThai: ncs.trangThai, hanGiaHan: ngayChuoi(ncs.hanGiaHan) }
+                            ? {
+                                trangThai: ncs.trangThai,
+                                hanGiaHan: ngayChuoi(ncs.hanGiaHan),
+                                ngayChuyenTrangThai: ngayChuoi(ncs.ngayChuyenTrangThai),
+                                lyDoChuyenTrangThai: ncs.lyDoChuyenTrangThai,
+                            }
                             : undefined,
                         newValue: {
                             loai,
                             soQuyetDinh: d.soQuyetDinh,
                             ngayQuyetDinh: d.ngayQuyetDinh,
                             trangThai: trangThaiMoi ?? null,
-                            hanGiaHan: ngayChuoi(hanMoi),
+                            hanGiaHan: ngayChuoi(hanMoi ?? ncs?.hanGiaHan),
                         },
                     },
                 });
@@ -196,6 +219,21 @@ export class DecisionService {
                     canhBao.push(`Tài khoản của NCS ${ncs.mshv} đã được khóa`);
                 } catch (error) {
                     canhBao.push(`Không thể khóa tài khoản của NCS ${ncs.mshv}, cần khóa thủ công`);
+                }
+            }
+        }
+
+        // Mở lại tài khoản khi NCS bảo lưu quay lại học (HOC_TIEP)
+        if (LOAI_MO_TAI_KHOAN.includes(loai)) {
+            for (const ncs of dsNcs) {
+                if (!ncs.userId) {
+                    continue;
+                }
+                try {
+                    await goiService(this.auth, 'auth.set-active', { userId: ncs.userId, isActive: true });
+                    canhBao.push(`Tài khoản của NCS ${ncs.mshv} đã được mở lại`);
+                } catch (error) {
+                    canhBao.push(`Không thể mở lại tài khoản của NCS ${ncs.mshv}, cần mở thủ công`);
                 }
             }
         }
@@ -228,7 +266,7 @@ export class DecisionService {
         return qd;
     }
 
-    async deactivateDecision(id: string, lyDo: string) {
+    async deactivateDecision(id: string, lyDo: string, nguoiThucHienId: string) {
         const qd = await this.prisma.quyetDinh.findUnique({ where: { id } });
         if (!qd) {
             throw new RpcException({ statusCode: 404, message: 'Không tìm thấy quyết định' });
@@ -236,13 +274,138 @@ export class DecisionService {
         if (qd.trangThai === 'DEACTIVATE') {
             throw new RpcException({ statusCode: 400, message: 'Quyết định đã bị vô hiệu hóa' });
         }
-        return this.prisma.quyetDinh.update({
-            where: { id },
-            data: {
-                trangThai: 'DEACTIVATE',
-                // Giữ ghi chú cũ, thêm lý do vô hiệu hóa vào sau
-                ghiChu: [qd.ghiChu, `Vô hiệu hóa với lý do: ${lyDo}`].filter(Boolean).join('\n'),
+
+        // Giữ ghi chú cũ, thêm lý do vô hiệu hóa vào sau
+        const ghiChuMoi = [qd.ghiChu, `Vô hiệu hóa với lý do: ${lyDo}`].filter(Boolean).join('\n');
+
+        // Loại quyết định không đổi trạng thái NCS: chỉ đánh dấu vô hiệu hóa như trước
+        if (!(qd.loai in TRANG_THAI_CHO_PHEP) || !qd.ncsId) {
+            const quyetDinh = await this.prisma.quyetDinh.update({
+                where: { id },
+                data: { trangThai: 'DEACTIVATE', ghiChu: ghiChuMoi },
+            });
+            return { quyetDinh, canhBao: [] as string[] };
+        }
+
+        // ---- Từ đây là quyết định có đổi trạng thái NCS: phải hoàn tác ----
+
+        // 1. Chỉ được hủy quyết định đổi trạng thái mới nhất còn hiệu lực của NCS này
+        const moiHon = await this.prisma.quyetDinh.findFirst({
+            where: {
+                ncsId: qd.ncsId,
+                trangThai: 'HIEU_LUC',
+                loai: { in: LOAI_DOI_TRANG_THAI },
+                createdAt: { gt: qd.createdAt },
+            },
+            select: { soQuyetDinh: true, loai: true },
+        });
+        if (moiHon) {
+            throw new RpcException({
+                statusCode: 400,
+                message: `Nghiên cứu sinh đã có quyết định mới hơn (${moiHon.loai} số ${moiHon.soQuyetDinh}), hãy vô hiệu hóa quyết định mới hơn trước`,
+            });
+        }
+
+        // 2. Lấy lại giá trị cũ của NCS từ audit lúc tạo quyết định
+        const audit = await this.prisma.auditLog.findFirst({
+            where: {
+                action: 'TAO_QUYET_DINH',
+                entityType: 'QuyetDinh',
+                entityId: qd.id
+            },
+            select: {
+                oldValue: true,
+                newValue: true
             },
         });
+        const oldValue = audit?.oldValue as oldValue | null | undefined;
+        const newValue = audit?.newValue as oldValue | null | undefined;
+        if (
+            !oldValue
+            || !oldValue.trangThai
+            || oldValue.hanGiaHan === undefined
+            || oldValue.ngayChuyenTrangThai === undefined
+            || oldValue.lyDoChuyenTrangThai === undefined
+        ) {
+            throw new RpcException({
+                statusCode: 400,
+                message: 'Quyết định này không có đủ dữ liệu để hoàn tác (tạo trước khi có nhật ký), hãy xử lý thủ công',
+            });
+        }
+
+        const trangThaiCu: TrangThaiHocTap = oldValue.trangThai;
+
+        // 3. Hồ sơ NCS hiện tại phải còn đúng như lúc quyết định này được áp dụng
+        const ncs = await this.prisma.nghienCuuSinh.findUnique({
+            where: { id: qd.ncsId },
+            select: { id: true, mshv: true, userId: true, trangThai: true, hanGiaHan: true },
+        });
+        if (!ncs) {
+            throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ NCS' });
+        }
+        if (newValue?.trangThai && ncs.trangThai !== newValue.trangThai) {
+            throw new RpcException({
+                statusCode: 400,
+                message: `Trạng thái hiện tại của NCS ${ncs.mshv} (${ncs.trangThai}) khác với lúc ra quyết định ${qd.soQuyetDinh}, hãy xử lý thủ công`,
+            });
+        }
+
+        // 4. Ghi DB trong 1 transaction: đánh dấu quyết định + khôi phục NCS + audit
+        const quyetDinh = await this.prisma.$transaction(async (tx) => {
+            const daHuy = await tx.quyetDinh.update({
+                where: { id },
+                data: { trangThai: 'DEACTIVATE', ghiChu: ghiChuMoi },
+            });
+ 
+            await tx.nghienCuuSinh.update({
+                where: { id: ncs.id },
+                data: {
+                    trangThai: trangThaiCu,
+                    hanGiaHan: oldValue.hanGiaHan ? parseNgay(oldValue.hanGiaHan, 'Hạn gia hạn cũ') : null,
+                    ngayChuyenTrangThai: oldValue.ngayChuyenTrangThai
+                        ? parseNgay(oldValue.ngayChuyenTrangThai, 'Ngày chuyển trạng thái cũ')
+                        : null,
+                    lyDoChuyenTrangThai: oldValue.lyDoChuyenTrangThai,
+                },
+            });
+ 
+            await tx.auditLog.create({
+                data: {
+                    actorId: nguoiThucHienId,
+                    action: 'VO_HIEU_QUYET_DINH',
+                    entityType: 'QuyetDinh',
+                    entityId: id,
+                    ncsId: ncs.id,
+                    oldValue: { trangThai: ncs.trangThai, hanGiaHan: ngayChuoi(ncs.hanGiaHan) },
+                    newValue: { trangThai: trangThaiCu, hanGiaHan: oldValue.hanGiaHan, lyDo },
+                },
+            });
+ 
+            return daHuy;
+        });
+
+        // 5. Khóa / mở khóa tài khoản theo trạng thái vừa khôi phục
+        const canhBao: string[] = [];
+        if (ncs.userId) {
+            // Trạng thái cũ là trạng thái bị khóa → khóa lại TK (vd: hủy HOC_TIEP → quay về BAO_LUU)
+            // Trạng thái cũ là trạng thái bình thường → mở lại TK (vd: hủy BAO_LUU → quay về DANG_HOC)
+            const canKhoa = TRANG_THAI_BI_KHOA.includes(trangThaiCu);
+            try {
+                await goiService(this.auth, 'auth.set-active', { userId: ncs.userId, isActive: !canKhoa });
+                canhBao.push(
+                    canKhoa
+                        ? `Tài khoản của NCS ${ncs.mshv} đã được khóa lại (khôi phục trạng thái ${trangThaiCu})`
+                        : `Tài khoản của NCS ${ncs.mshv} đã được mở lại (khôi phục trạng thái ${trangThaiCu})`,
+                );
+            } catch {
+                canhBao.push(
+                    canKhoa
+                        ? `Không thể khóa lại tài khoản của NCS ${ncs.mshv}, cần xử lý thủ công`
+                        : `Không thể mở lại tài khoản của NCS ${ncs.mshv}, cần xử lý thủ công`,
+                );
+            }
+        }
+
+        return { quyetDinh, canhBao };
     }
 }

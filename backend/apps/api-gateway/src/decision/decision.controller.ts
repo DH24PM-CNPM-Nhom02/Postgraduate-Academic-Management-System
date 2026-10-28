@@ -41,8 +41,9 @@ export class DecisionController {
   @RequirePermissions(PERMISSIONS.DECISION_UPDATE)
   deactivate(
     @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentUser() u: AuthUser,
     @Body() body: DeactivateDecisionDto,
   ) {
-    return this.send('phd.decision.deactivate', { id, lyDo: body.lyDo });
+    return this.send('phd.decision.deactivate', { id, lyDo: body.lyDo, nguoiThucHienId: u.id });
   }
 }
