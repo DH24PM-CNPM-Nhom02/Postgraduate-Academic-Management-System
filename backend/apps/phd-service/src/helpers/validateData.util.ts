@@ -1,8 +1,22 @@
+import { RpcException } from "@nestjs/microservices";
+
 // "2026-02-31" khớp định dạng nhưng không phải ngày thật, nên phải kiểm tra thêm
 export function isRealDate(s: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
   const d = new Date(s);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+}
+
+// Chuỗi 'YYYY-MM-DD' -> Date, chặn ngày không có thật (vd 2026-02-31)
+export function parseNgay(chuoi: string, tenTruong: string): Date {
+  const ngay = new Date(`${chuoi}T00:00:00.000Z`);
+  if (Number.isNaN(ngay.getTime()) || ngay.toISOString().slice(0, 10) !== chuoi) {
+    throw new RpcException({ statusCode: 400, message: `${tenTruong} không hợp lệ` });
+  }
+  return ngay;
+}
+export function ngayChuoi(ngay: Date | null | undefined): string | null {
+  return ngay ? ngay.toISOString().slice(0, 10) : null;
 }
 
 export function validateEmail(email: string): boolean {

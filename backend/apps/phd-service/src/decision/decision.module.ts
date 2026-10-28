@@ -16,9 +16,17 @@ import { DecisionService } from './decision.service.js';
           port: Number(process.env.DOCUMENT_SERVICE_PORT ?? 3003),
         },
       },
+      {
+        name: 'AUTH_SERVICE',
+        transport: Transport.TCP,
+        options: {
+          host: process.env.AUTH_SERVICE_HOST ?? '127.0.0.1',
+          port: Number(process.env.AUTH_SERVICE_PORT ?? 3001),
+        },
+      }
     ]),
   ],
   controllers: [DecisionController],
   providers: [DecisionService],
 })
-export class DecisionModule {}
+export class DecisionModule { }
