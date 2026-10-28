@@ -4,7 +4,7 @@ import { DecisionService } from './decision.service.js';
 
 @Controller()
 export class DecisionController {
-  constructor(private readonly decision: DecisionService) {}
+  constructor(private readonly decision: DecisionService) { }
 
   @MessagePattern({ cmd: 'phd.decision.create' })
   createDecision(@Payload() d: {
@@ -25,7 +25,7 @@ export class DecisionController {
   }
 
   @MessagePattern({ cmd: 'phd.decision.deactivate' })
-  deactivateDecision(@Payload() d: { id: string; lyDo: string }) {
-    return this.decision.deactivateDecision(d.id, d.lyDo);
+  deactivateDecision(@Payload() d: { id: string; lyDo: string, nguoiThucHienId: string }) {
+    return this.decision.deactivateDecision(d.id, d.lyDo, d.nguoiThucHienId);
   }
 }
