@@ -32,6 +32,10 @@ export const PERMISSIONS = {
     DECISION_READ: 'decision.read',
     DECISION_CREATE: 'decision.create',
     DECISION_UPDATE: 'decision.update',
+
+    ASSIGNMENT_READ: 'assignment.read',
+    ASSIGNMENT_CREATE: 'assignment.create',
+    ASSIGNMENT_UPDATE: 'assignment.update',
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
