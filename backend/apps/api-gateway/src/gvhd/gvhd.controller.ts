@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Header, Inject, Param, Patch, Post, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Header, Inject, Param, Patch, Post, Query, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
@@ -7,6 +7,7 @@ import { RequirePermissions } from '../common/decorators/require-permissions.dec
 import { PHD_SERVICE } from '../common/constants/service.js';
 import type { AuthUser } from '../common/interface/auth-user.interface.js';
 import { CreateGvhdBatchDto, UpdateGvhdDto, UpdateGvhdStatusDto } from '../../../../lib/contracts/src/dto/gvhd.dto.js';
+import { CreateAssignmentDto, DeactivateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
 import { buildGvhdTemplate, parseGvhdExcel } from './gvhd-excel.js';
 
@@ -79,6 +80,38 @@ export class GvhdController {
   @Get('me')
   me(@CurrentUser() u: AuthUser) {
     return this.send('phd.gvhd.get', { userId: u.id });
+  }
+
+  @Get('me/ncs')
+  myNcsList(@CurrentUser() u: AuthUser) {
+    return this.send('phd.gvhd.my-ncs', { userId: u.id });
+  }
+
+  @Get('me/ncs/:ncsId')
+  myNcsDetail(@CurrentUser() u: AuthUser, @Param('ncsId') ncsId: string) {
+    return this.send('phd.gvhd.my-ncs-detail', { userId: u.id, ncsId });
+  }
+
+  @Post('assignments')
+  @RequirePermissions(PERMISSIONS.ASSIGNMENT_CREATE)
+  createAssignment(@CurrentUser() u: AuthUser, @Body() dto: CreateAssignmentDto) {
+    return this.send('phd.gvhd.assignment-create', { actorId: u.id, data: dto });
+  }
+
+  @Patch('assignments/:id/deactivate')
+  @RequirePermissions(PERMISSIONS.ASSIGNMENT_UPDATE)
+  deactivateAssignment(
+    @CurrentUser() u: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: DeactivateAssignmentDto,
+  ) {
+    return this.send('phd.gvhd.assignment-deactivate', { actorId: u.id, id, data: dto });
+  }
+
+  @Get('assignments')
+  @RequirePermissions(PERMISSIONS.ASSIGNMENT_READ)
+  listAssignments(@Query() query: ListAssignmentQueryDto) {
+    return this.send('phd.gvhd.assignment-list', { query });
   }
 
   // Chi tiết một GVHD (Giáo vụ xem)
