@@ -63,6 +63,7 @@ enum LoaiQuyetDinh {
   GIA_HAN
   BAO_LUU
   NGUNG_HOC
+  BUOC_THOI_HOC
   KHAC
 }
 
