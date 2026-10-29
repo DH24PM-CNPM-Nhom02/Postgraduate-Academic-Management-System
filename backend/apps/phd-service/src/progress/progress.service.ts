@@ -3,6 +3,7 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { catchError, firstValueFrom, throwError, timeout } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { goiService } from '../helpers/call-service.util.js';
+import { DeadlineService } from './deadline.service.js';
 
 
 const DIEM_DAT = 7;            // điểm trung bình tối thiểu để đạt (thang 10)
@@ -13,6 +14,7 @@ export class ProgressService {
     constructor(
         private readonly prisma: PrismaService,
         @Inject('DOCUMENT_SERVICE') private readonly document: ClientProxy,
+        private readonly han: DeadlineService,
     ) { }
 
     private async callDocument<T>(cmd: string, payload: unknown, ms = 5000): Promise<T> {
@@ -155,12 +157,15 @@ export class ProgressService {
                 }
             }
         })
+        const hanNcs = await this.han.tinhHanCacMoc(ncs.id);
         return {
             ncs,
+            hanCuaNcs: hanNcs.hanCuaNcs,
             tienTrinhs: danhSach.map((tt) => ({
                 ...tt,
                 //FE dùng cờ này để bật tắt nút nộp minh chứng của mốc đó
-                coTheNop: tt.trangThai === "UNLOCKED" || tt.trangThai === "REJECTED"
+                coTheNop: tt.trangThai === "UNLOCKED" || tt.trangThai === "REJECTED",
+                han: hanNcs.hanHieuLucCuaMoc[tt.moc.thuTu] ?? null,
             }))
         }
     }

@@ -4,6 +4,7 @@ import { PrismaModule } from '../prisma/prisma.module.js';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { ProgressController } from './progress.controller.js';
 import { ProgressService } from './progress.service.js';
+import { HanService } from './deadline.service.js';
 
 @Module({
     imports: [
@@ -21,6 +22,6 @@ import { ProgressService } from './progress.service.js';
         ])
     ],
     controllers: [ProgressController],
-    providers: [ProgressService],
+    providers: [ProgressService, HanService],
 })
 export class ProgressModule { }

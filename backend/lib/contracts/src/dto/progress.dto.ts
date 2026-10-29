@@ -1,4 +1,4 @@
-import { IsBoolean, IsNumber, IsOptional, IsString, IsUUID, Length, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsDateString, IsNumber, IsOptional, IsString, IsUUID, Length, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 
 // Body khi NCS nộp minh chứng cho một mốc (số thứ tự mốc nằm trên URL)
 export class SubmitMilestoneDto {
@@ -48,4 +48,11 @@ export class CreateEvaluationDto {
   @IsOptional()
   @IsBoolean()
   xacNhanTrung?: boolean;
+}
+
+export class SetPlanDeadlineDto {
+  // Dạng YYYY-MM-DD; gửi null để xóa hạn kế hoạch
+  @ValidateIf((o) => o.hanKeHoach !== null)
+  @IsDateString({ strict: true })
+  hanKeHoach!: string | null;
 }
