@@ -20,6 +20,7 @@ import {
   X,
   ShieldCheck,
   Building2,
+  ScrollText,
 } from "lucide-react";
 import { HoverLogo } from "./HoverLogo";
 
@@ -68,6 +69,22 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     badge: "2.5/3",
     badgeColor: "bg-emerald-100 text-emerald-800 font-bold",
     href: "/academic/supervisors",
+  },
+  {
+    id: "review-queue",
+    title: "Hàng chờ duyệt 9 mốc",
+    icon: FileCheck2,
+    group: "main",
+    badge: "9 Mốc",
+    badgeColor: "bg-amber-100 text-amber-800 font-bold",
+    href: "/academic/review-queue",
+  },
+  {
+    id: "decisions",
+    title: "Quản lý Quyết định học vụ",
+    icon: ScrollText,
+    group: "main",
+    href: "/academic/decisions",
   },
   {
     id: "evidence",
@@ -157,6 +174,10 @@ export function AcademicSidebar({
       currentTab = "students";
     } else if (pathname?.startsWith("/academic/supervisors")) {
       currentTab = "supervisors";
+    } else if (pathname?.startsWith("/academic/review-queue")) {
+      currentTab = "review-queue";
+    } else if (pathname?.startsWith("/academic/decisions")) {
+      currentTab = "decisions";
     } else if (pathname?.startsWith("/academic/evidence")) {
       currentTab = "evidence";
     } else if (pathname?.startsWith("/academic/topic-changes")) {
