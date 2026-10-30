@@ -122,6 +122,21 @@ enum LoaiDonVi {
   PHONG_BAN
 }
 
+/// Hạn của một mốc được tính từ đâu (xem model MocHan)
+enum MocGoc {
+  /// Từ ngày nhập học của NCS (nghien_cuu_sinh.ngay_nhap_hoc)
+  NGAY_NHAP_HOC
+  /// Từ ngày một mốc khác được duyệt đạt (tien_trinh_ncs.passed_at của mốc gocThuTu)
+  NGAY_MOC_DAT
+  /// Tính từ cuối thời hạn chính quy (hanGiaHan nếu có, không thì hanChinhQuy); số âm = lùi
+  HET_HAN_CHINH_QUY
+}
+
+enum DonViHan {
+  NGAY
+  NGAY_LAM_VIEC
+  THANG
+}
 // ----------------------------------------------------------------------------
 // 1. HỒ SƠ NCS & CĂN CỨ PHÁP LÝ
 // ----------------------------------------------------------------------------
@@ -274,6 +289,7 @@ model MocTienTrinh {
   yeuCauDiem Boolean @default(false) @map("yeu_cau_diem")
 
   tienTrinhs TienTrinhNcs[]
+  hans       MocHan[]
 
   @@map("moc_tien_trinh")
 }
@@ -288,6 +304,9 @@ model TienTrinhNcs {
   openedAt    DateTime?    @map("opened_at")
   submittedAt DateTime?    @map("submitted_at")
   passedAt    DateTime?    @map("passed_at")
+  /// Hạn theo Kế hoạch học tập và nghiên cứu toàn khóa đã phê duyệt (Giáo vụ nhập, có thể để trống).
+  /// Dùng để nhắc; phải <= hạn cứng của mốc (xem MocHan) và <= hanBuocThoiHoc.
+  hanKeHoach  DateTime?    @map("han_ke_hoach") @db.Date
   /// Optimistic lock: tăng mỗi lần đổi trạng thái (chống duyệt trùng/đồng thời)
   version     Int          @default(0)
   createdAt   DateTime     @default(now()) @map("created_at")
@@ -300,6 +319,33 @@ model TienTrinhNcs {
   @@unique([ncsId, mocId])
   @@index([trangThai])
   @@map("tien_trinh_ncs")
+}
+
+/// Cấu hình hạn theo quy định của trường. Một mốc có thể có nhiều hạn.
+/// Hạn của từng NCS KHÔNG lưu cứng: tính khi truy vấn từ ngày gốc + soDonVi (xem han.service.ts).
+model MocHan {
+  id         Int      @id @default(autoincrement())
+  mocId      Int      @map("moc_id")
+  /// Mã ngắn để seed upsert, vd NOP_MINH_CHUNG, DANG_KY_CHUYEN_DE
+  maHan      String   @map("ma_han") @db.VarChar(50)
+  tenHan     String   @map("ten_han") @db.VarChar(200)
+  mocGoc     MocGoc   @map("moc_goc")
+  /// Chỉ dùng khi mocGoc = NGAY_MOC_DAT: thứ tự mốc làm gốc (vd 8)
+  gocThuTu   Int?     @map("goc_thu_tu")
+  /// Số âm = lùi (vd -3 THANG so với hết hạn chính quy)
+  soDonVi    Int      @map("so_don_vi")
+  donVi      DonViHan @map("don_vi")
+  /// true = hạn ước tính/tham khảo, chỉ để nhắc, không dùng làm hạn cứng
+  laHanMem   Boolean  @default(false) @map("la_han_mem")
+  /// Căn cứ trong quy định, để Giáo vụ đối chiếu
+  canCu      String?  @map("can_cu") @db.VarChar(255)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  moc MocTienTrinh @relation(fields: [mocId], references: [id], onDelete: Restrict)
+
+  @@unique([mocId, maHan])
+  @@map("moc_han")
 }
 
 /// Mỗi lần nộp = 1 dòng. Bị từ chối -> NCS nộp lại = dòng mới (lanNop + 1).

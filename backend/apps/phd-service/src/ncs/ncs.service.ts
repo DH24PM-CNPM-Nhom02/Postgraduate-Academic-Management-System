@@ -10,6 +10,7 @@ import { TrangThaiHocTap, TrangThaiMoc } from '../generated/prisma/index.js';
 import { chuanHoaChuoi, validateEmail, validatePhoneNumber } from '../helpers/validateData.util.js';
 import { Prisma } from '../generated/prisma/index.js';
 import { goiService } from '../helpers/call-service.util.js';
+import { congThang } from '../helpers/date.util.js';
 type AuthUser = {
   id: string;
   username: string;
@@ -26,23 +27,6 @@ const THOI_GIAN_DAO_TAO = {
 };
 
 const SO_THANG_TOI_DA = 72;
-
-/**
- * Cộng số tháng vào một ngày.
- * Ví dụ: 31/01 cộng 1 tháng sẽ thành ngày cuối tháng 2.
- */
-function congThang(ngay: Date, soThang: number): Date {
-  const nam = ngay.getUTCFullYear();
-  const thang = ngay.getUTCMonth() + soThang;
-  const ngayTrongThang = ngay.getUTCDate();
-
-  const ngayCuoiThangDich = new Date(Date.UTC(nam, thang + 1, 0)).getUTCDate();
-  const ngayKetQua = Math.min(ngayTrongThang, ngayCuoiThangDich);
-
-  return new Date(Date.UTC(nam, thang, ngayKetQua));
-}
-
-
 
 /**
  * Tìm một giá trị trong danh sách đã chuẩn hóa.

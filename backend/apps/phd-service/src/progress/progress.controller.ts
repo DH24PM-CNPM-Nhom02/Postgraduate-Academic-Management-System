@@ -1,10 +1,14 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { ProgressService } from './progress.service.js';
+import { DeadlineService } from './deadline.service.js';
 
 @Controller()
 export class ProgressController {
-    constructor(private readonly progress: ProgressService) { }
+    constructor(
+        private readonly progress: ProgressService,
+        private readonly deadline: DeadlineService,
+    ) { }
 
     @MessagePattern({ cmd: 'phd.progress.submit' })
     submit(@Payload() d: { userId: string; thuTu: number; fileId: string; ghiChu?: string }) {
@@ -45,5 +49,10 @@ export class ProgressController {
     @MessagePattern({ cmd: 'phd.evaluation.list' })
     danhSachPhieu(@Payload() d: { minhChungId: string }) {
         return this.progress.danhSachPhieu(d.minhChungId);
+    }
+
+    @MessagePattern({ cmd: 'phd.progress.plan-deadline' })
+    datHanKeHoach(@Payload() d: { actorId: string; tienTrinhId: string; hanKeHoach: string | null }) {
+        return this.deadline.datHanKeHoach(d.actorId, d.tienTrinhId, d.hanKeHoach);
     }
 }

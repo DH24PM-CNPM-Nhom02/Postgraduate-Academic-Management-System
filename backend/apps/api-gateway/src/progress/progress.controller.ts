@@ -1,11 +1,11 @@
-import { BadRequestException, Body, Controller, Get, Inject, Param, ParseIntPipe, ParseUUIDPipe, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Inject, Param, ParseIntPipe, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator.js';
 import { PHD_SERVICE } from '../common/constants/service.js';
 import type { AuthUser } from '../common/interface/auth-user.interface.js';
-import { SubmitMilestoneDto, ApproveMilestoneDto, RejectMilestoneDto, CreateEvaluationDto } from '../../../../lib/contracts/src/dto/progress.dto.js';
+import { SubmitMilestoneDto, ApproveMilestoneDto, RejectMilestoneDto, CreateEvaluationDto, SetPlanDeadlineDto } from '../../../../lib/contracts/src/dto/progress.dto.js';
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
 
 @Controller('progress')
@@ -104,5 +104,19 @@ export class ProgressController {
   @RequirePermissions(PERMISSIONS.MILESTONE_APPROVE)
   listEvaluations(@Param('minhChungId', new ParseUUIDPipe()) minhChungId: string) {
     return this.send('phd.evaluation.list', { minhChungId });
+  }
+  // Giáo vụ nhập (hoặc xóa, gửi hanKeHoach = null) hạn theo Kế hoạch học tập và nghiên cứu toàn khóa của một mốc
+  @Patch('milestones/:tienTrinhId/plan-deadline')
+  @RequirePermissions(PERMISSIONS.MILESTONE_APPROVE)
+  setPlanDeadline(
+    @CurrentUser() u: AuthUser,
+    @Param('tienTrinhId', new ParseUUIDPipe()) tienTrinhId: string,
+    @Body() body: SetPlanDeadlineDto,
+  ) {
+    return this.send('phd.progress.plan-deadline', {
+      actorId: u.id,
+      tienTrinhId,
+      hanKeHoach: body.hanKeHoach ?? null,
+    });
   }
 }
