@@ -1,4 +1,3 @@
-// notification-service — thông báo in-app. DB: notification_db (PostgreSQL)
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -8,20 +7,31 @@ datasource db {
   provider = "mysql"
 }
 
-model Notification {
-  id          String    @id @default(uuid())
-  /// auth-service.users.id
-  recipientId String    @map("recipient_id")
-  /// vd: phd.milestone.passed, phd.milestone.rejected
-  eventType   String    @map("event_type") @db.VarChar(100)
-  title       String    @db.VarChar(255)
-  body        String    @db.Text
-  /// Dữ liệu kèm theo (ncsId, entityId...) để FE điều hướng
-  data        Json?
-  readAt      DateTime? @map("read_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
+enum NhomThongBao {
+  QUYET_DINH          // Về quyết định
+  TIEN_DO             // Tiến độ và học vụ (mốc, phân công GVHD, đổi đề tài)
+  NHAC_HAN            // Nhắc hạn
+  HE_THONG            // Thông báo hệ thống (Admin gửi)
+  CANH_BAO_KY_THUAT   // Lỗi và cảnh báo kỹ thuật (chỉ người cần xử lý)
+}
 
-  @@index([recipientId, readAt])
-  @@index([recipientId, createdAt])
-  @@map("notifications")
+model Notification {
+  id        String       @id @default(uuid())
+  userId    String       @map("user_id")
+  nhom      NhomThongBao
+  loai      String       @db.VarChar(50)
+  tieuDe    String       @map("tieu_de") @db.VarChar(200)
+  noiDung   String       @map("noi_dung") @db.Text
+  duLieu    Json?        @map("du_lieu")
+  daDoc     Boolean      @default(false) @map("da_doc")
+  readAt    DateTime?    @map("read_at")
+  // Chống gửi trùng: service luôn nối thêm userId vào khóa người gửi truyền vào
+  khoaTrung String?      @unique @map("khoa_trung") @db.VarChar(191)
+  // null = chưa có hạn tự xóa. Cách tính xem notification.policy.ts
+  hetHanAt  DateTime?    @map("het_han_at")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@index([userId, daDoc, createdAt])
+  @@index([hetHanAt])
+  @@map("notification")
 }
