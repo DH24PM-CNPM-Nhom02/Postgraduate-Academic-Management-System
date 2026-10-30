@@ -18,9 +18,8 @@ import {
 } from "lucide-react";
 import { Input } from "@/src/components/ui/input";
 import { Label } from "@/src/components/ui/label";
-import { StudentDossier } from "./StudentDetailModal";
-import { SupervisorQuotaRecord } from "./mockData";
 import { studentImportSchema, supervisorImportSchema } from "@/src/lib/schemas";
+import type { StudentDossier, SupervisorQuotaRecord } from "@/src/types/academic";
 
 export type EntityImportType = "student" | "supervisor";
 

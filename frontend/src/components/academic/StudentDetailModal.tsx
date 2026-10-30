@@ -12,23 +12,9 @@ import {
   AlertCircle,
   ShieldAlert,
 } from "lucide-react";
+import type { StudentDossier } from "@/src/types/academic";
 
-export interface StudentDossier {
-  id: string;
-  name: string;
-  code: string;
-  cohort: string;
-  department: string;
-  thesisTopic: string;
-  supervisorMain: string;
-  supervisorCo?: string;
-  remainingMonths: number;
-  currentMilestoneIndex: number; // 1 to 9
-  publicationPoints: number; // threshold 2.0
-  status: "active" | "warning" | "overdue";
-  email: string;
-  phone: string;
-}
+export type { StudentDossier };
 
 export interface StudentDetailModalProps {
   isOpen: boolean;

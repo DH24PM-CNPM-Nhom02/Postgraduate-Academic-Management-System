@@ -7,7 +7,6 @@ import {
   Download,
   ArrowLeft,
   CheckCircle2,
-  FileText,
 } from "lucide-react";
 import { MOCK_PROCEDURES } from "@/src/components/academic";
 
