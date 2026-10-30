@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { RpcException } from '@nestjs/microservices';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { congNgay, congNgayLamViec, congThang, kyBaoCaoTiepTheo, soNgayGiua } from '../helpers/date.util.js';
+import { congNgay, congNgayLamViec, congThang, kyBaoCaoTiepTheo, soNgayGiua, layNgay } from '../helpers/date.util.js';
 import { isRealDate } from '../helpers/validateData.util.js';
 
 const SO_NGAY_SAP_HAN = 30;            // còn từ 30 ngày trở xuống thì báo "sắp hết hạn"
-const SO_NGAY_LAM_VIEC_BAO_CAO_LAI = 30; // mốc 4, 5: báo cáo lần 2 cách lần 1 tối thiểu 30 ngày làm việc
+
 
 // Mốc 6 (báo cáo tiến độ định kỳ / bảo vệ giữa kỳ): 02 lần mỗi năm, vào tháng 6 và tháng 12.
 // Là lịch cố định cho mọi NCS nên viết thẳng trong code, không đưa vào bảng moc_han.
@@ -93,15 +93,7 @@ export class DeadlineService {
             thuTu: true,
             hans: true
           }
-        },
-        minhChungs: {
-          orderBy: { lanNop: 'desc' },
-          take: 1,
-          select: {
-            trangThai: true,
-            ngayNop: true
-          }
-        },
+        }
       },
     });
 
@@ -143,16 +135,14 @@ export class DeadlineService {
       // Hạn hiệu lực (hanHieuLuc) ưu tiên hạn kế hoạch do Giáo vụ nhập. Nếu không có hạn kế hoạch thì sử dụng hạn cứng.
       const hanHieuLuc = tt.hanKeHoach ?? hanCung;
 
-      let tinhTrang: 'DA_DAT' | 'CHUA_CO_HAN' | 'CON_HAN' | 'SAP_HAN' | 'QUA_HAN' = 'CHUA_CO_HAN';
+      let tinhTrang: 'DA_DAT' | 'CHUA_CO_HAN' | 'CON_HAN' | 'SAP_HET_HAN' | 'QUA_HAN' = 'CHUA_CO_HAN';
       let soNgayConLai: number | null = null;
       if (tt.trangThai === 'PASSED') {
         tinhTrang = 'DA_DAT';
       } else if (hanHieuLuc) {
         soNgayConLai = soNgayGiua(homNay, hanHieuLuc);
-        tinhTrang = soNgayConLai < 0 ? 'QUA_HAN' : soNgayConLai <= SO_NGAY_SAP_HAN ? 'SAP_HAN' : 'CON_HAN';
+        tinhTrang = soNgayConLai < 0 ? 'QUA_HAN' : soNgayConLai <= SO_NGAY_SAP_HAN ? 'SAP_HET_HAN' : 'CON_HAN';
       }
-
-      
 
       ketQua[tt.moc.thuTu] = {
         hanHieuLuc: ngayChuoi(hanHieuLuc),
@@ -176,7 +166,23 @@ export class DeadlineService {
   async datHanKeHoach(actorId: string, tienTrinhId: string, hanKeHoach: string | null) {
     const tienTrinh = await this.prisma.tienTrinhNcs.findUnique({
       where: { id: tienTrinhId },
-      select: { id: true, ncsId: true, trangThai: true, hanKeHoach: true, moc: { select: { thuTu: true } }, ncs: { select: { hanBuocThoiHoc: true } } },
+      select: {
+        id: true,
+        ncsId: true,
+        trangThai: true,
+        hanKeHoach: true,
+        moc: {
+          select: {
+            thuTu: true
+          }
+        },
+        ncs: {
+          select: {
+            hanBuocThoiHoc: true,
+            ngayNhapHoc: true
+          }
+        }
+      },
     });
     if (!tienTrinh) {
       throw new RpcException({ statusCode: 404, message: 'Không tìm thấy tiến trình' });
@@ -200,10 +206,23 @@ export class DeadlineService {
       if (han.hanCung && hanKeHoach > han.hanCung) {
         throw new RpcException({ statusCode: 400, message: `Hạn kế hoạch không được muộn hơn hạn quy định của mốc (${han.hanCung})` });
       }
+      // Không được sớm hơn ngày quyết định giao cho NCS hướng dẫn
+      if (ngayMoi < tienTrinh.ncs.ngayNhapHoc) {
+        throw new RpcException({ statusCode: 400, message: 'Hạn kế hoạch không được sớm hơn ngày quyết định giao cho NCS hướng dẫn của NCS' });
+      }
+      // Không được sớm hơn ngày hiện tại
+      if (ngayMoi < layNgay(new Date())) {
+        throw new RpcException({ statusCode: 400, message: 'Hạn kế hoạch không được đặt trong quá khứ' });
+      }
     }
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.tienTrinhNcs.update({ where: { id: tienTrinh.id }, data: { hanKeHoach: ngayMoi } });
+      await tx.tienTrinhNcs.update({
+        where: { id: tienTrinh.id },
+        data: {
+          hanKeHoach: ngayMoi
+        }
+      });
       await tx.auditLog.create({
         data: {
           actorId,
