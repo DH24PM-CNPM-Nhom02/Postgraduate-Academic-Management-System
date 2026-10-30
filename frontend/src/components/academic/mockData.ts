@@ -1,5 +1,12 @@
-import { StudentDossier } from "./StudentDetailModal";
-import { TopicChangeItem } from "./TopicChangeModal";
+import type {
+  StudentDossier,
+  SupervisorQuotaRecord,
+  EvidenceItem,
+  TopicChangeItem,
+  CalendarEventItem,
+} from "@/src/types/academic";
+
+export type { StudentDossier, SupervisorQuotaRecord, EvidenceItem, TopicChangeItem, CalendarEventItem };
 
 // Realistic Vietnamese Graduate Data for Academic Affairs
 export const MOCK_STUDENTS: StudentDossier[] = [
@@ -137,22 +144,6 @@ export const MOCK_STUDENTS: StudentDossier[] = [
   },
 ];
 
-export interface SupervisorQuotaRecord {
-  id: string;
-  name: string;
-  code: string;
-  department: string;
-  degree: string;
-  independentCount: number;
-  coCount: number;
-  usedQuota: number;
-  maxQuota: number;
-  remainingQuota: number;
-  statusText: string;
-  statusColor: string;
-  assignedStudents: string[];
-}
-
 export const MOCK_SUPERVISORS: SupervisorQuotaRecord[] = [
   {
     id: "gv-01",
@@ -247,7 +238,7 @@ export const MOCK_SUPERVISORS: SupervisorQuotaRecord[] = [
 ];
 
 // Evidence Approvals Dataset
-export const MOCK_EVIDENCES = [
+export const MOCK_EVIDENCES: EvidenceItem[] = [
   {
     id: "ev-01",
     studentName: "Nguyễn Văn An",
@@ -314,7 +305,6 @@ export const MOCK_EVIDENCES = [
     badgeColor: "bg-blue-100 text-[#164E9B] border-blue-200",
   },
 ];
-export type EvidenceItem = (typeof MOCK_EVIDENCES)[number];
 
 // Topic Change Requests Dataset
 export const MOCK_TOPIC_CHANGES: TopicChangeItem[] = [

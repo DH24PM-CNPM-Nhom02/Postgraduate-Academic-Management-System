@@ -10,7 +10,6 @@ import {
   Shield,
   ChevronDown,
   Terminal,
-  Activity,
 } from "lucide-react";
 import { useAuth } from "@/src/hooks/use-auth";
 
