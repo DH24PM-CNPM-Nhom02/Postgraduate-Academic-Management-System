@@ -1,10 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
-import { catchError, firstValueFrom, throwError, timeout } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { goiService } from '../helpers/call-service.util.js';
 import { DeadlineService } from './deadline.service.js';
-
+import { layNgay } from '../helpers/date.util.js';
 
 const DIEM_DAT = 7;            // điểm trung bình tối thiểu để đạt (thang 10)
 const SO_PHIEU_TOI_THIEU = 3;  // quy định của trường: tối thiểu 3 phiếu nhận xét
@@ -30,6 +29,12 @@ export class ProgressService {
         if (!ncs) {
             throw new RpcException({ statusCode: 404, message: 'Bạn chưa có hồ sơ NCS' });
         }
+
+        // Quá hạn của một mốc vẫn được nộp, nhưng không được vượt tổng thời gian đào tạo tối đa (72 tháng)
+        if (layNgay(new Date()) > ncs.hanBuocThoiHoc) {
+            throw new RpcException({ statusCode: 403, message: 'Đã vượt quá tổng thời gian đào tạo tối đa, không thể nộp minh chứng' });
+        }
+        
         if (ncs.trangThai !== 'DANG_HOC' && ncs.trangThai !== 'GIA_HAN') {
             throw new RpcException({ statusCode: 403, message: 'Hồ sơ NCS không ở trạng thái đang học' });
         }
