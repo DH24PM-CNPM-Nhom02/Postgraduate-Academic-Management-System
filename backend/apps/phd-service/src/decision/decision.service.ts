@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { goiService } from '../helpers/call-service.util.js';
 import type { LoaiQuyetDinh, TrangThaiQuyetDinh, TrangThaiHocTap } from '../generated/prisma/index.js';
 import { ngayChuoi, parseNgay } from '../helpers/validateData.util.js';
+import { NotificationClient } from '../notification/notification.client.js';
 
 // Loại quyết định làm đổi trạng thái học tập của NCS -> trạng thái mới
 const TRANG_THAI_MOI: Partial<Record<LoaiQuyetDinh, TrangThaiHocTap>> = {
@@ -47,7 +48,8 @@ export class DecisionService {
     constructor(
         private readonly prisma: PrismaService,
         @Inject('DOCUMENT_SERVICE') private readonly document: ClientProxy,
-        @Inject('AUTH_SERVICE') private readonly auth: ClientProxy
+        @Inject('AUTH_SERVICE') private readonly auth: ClientProxy,
+        private readonly thongBao: NotificationClient,
     ) { }
 
     async create(d: {
@@ -98,7 +100,7 @@ export class DecisionService {
                 }
             },
             select: {
-                id: true, mshv: true, userId: true, trangThai: true,
+                id: true, mshv: true, userId: true, hoTen:true, trangThai: true,
                 hanChinhQuy: true, hanBuocThoiHoc: true, hanGiaHan: true, ngayChuyenTrangThai: true, lyDoChuyenTrangThai: true
             },
         })
@@ -237,6 +239,68 @@ export class DecisionService {
                 }
             }
         }
+        // 8. Gửi thông báo (sau khi DB đã commit, lỗi gửi không ảnh hưởng quyết định)
+        if (LOAI_DOI_TRANG_THAI.includes(loai)) {
+            const ncsIds = dsNcs.map((n) => n.id);
+            const phanCongs = await this.prisma.phanCongHuongDan.findMany({
+                where: { ncsId: { in: ncsIds }, trangThai: 'DANG_HIEU_LUC' },
+                include: { gvhd: { select: { userId: true } } },
+            });
+            const gvhdMap = new Map<string, string[]>();
+            for (const pc of phanCongs) {
+                if (pc.gvhd?.userId) {
+                    const list = gvhdMap.get(pc.ncsId) ?? [];
+                    list.push(pc.gvhd.userId);
+                    gvhdMap.set(pc.ncsId, list);
+                }
+            }
+
+            for (const n of dsNcs) {
+                // 1. Gửi thông báo cho NCS
+                if (n.userId) {
+                    this.thongBao.gui({
+                        userIds: [n.userId],
+                        loai: 'QUYET_DINH_DOI_TRANG_THAI',
+                        khoaTrung: `QD:${loai}:${d.soQuyetDinh}:${n.id}`,
+                        duLieu: {
+                            loaiQuyetDinh: loai,
+                            soQuyetDinh: d.soQuyetDinh,
+                            ngayQuyetDinh: d.ngayQuyetDinh,
+                            hanMoi: loai === 'GIA_HAN' ? (d.hanMoi ?? null) : null,
+                            ghiChu: d.ghiChu ?? null,
+                        },
+                    });
+                }
+
+                // 2. Gửi thông báo cho GVHD của NCS
+                const gvhdUserIds = gvhdMap.get(n.id) ?? [];
+                if (gvhdUserIds.length > 0) {
+                    this.thongBao.gui({
+                        userIds: [...new Set(gvhdUserIds)],
+                        loai: 'GVHD_QUYET_DINH_DOI_TRANG_THAI',
+                        khoaTrung: `GVHD_QD:${loai}:${d.soQuyetDinh}:${n.id}`,
+                        duLieu: {
+                            loaiQuyetDinh: loai,
+                            soQuyetDinh: d.soQuyetDinh,
+                            ngayQuyetDinh: d.ngayQuyetDinh,
+                            hanMoi: loai === 'GIA_HAN' ? (d.hanMoi ?? null) : null,
+                            ghiChu: d.ghiChu ?? null,
+                            tenNcs: n.hoTen,
+                            mshv: n.mshv,
+                        },
+                    });
+                }
+            }
+        }
+        // Khóa hoặc mở khóa tài khoản lỗi thì báo riêng cho người vừa tạo quyết định,
+        // vì response có thể không ai đọc kỹ
+        if (canhBao.length > 0) {
+            this.thongBao.gui({
+                userIds: [d.nguoiTaoId],
+                loai: 'CANH_BAO_TAI_KHOAN',
+                duLieu: { canhBao }
+            });
+        }
         return { quyetDinhs, canhBao };
 
     }
@@ -338,7 +402,7 @@ export class DecisionService {
         // 3. Hồ sơ NCS hiện tại phải còn đúng như lúc quyết định này được áp dụng
         const ncs = await this.prisma.nghienCuuSinh.findUnique({
             where: { id: qd.ncsId },
-            select: { id: true, mshv: true, userId: true, trangThai: true, hanGiaHan: true },
+            select: { id: true, mshv: true, userId: true, hoTen:true, trangThai: true, hanGiaHan: true },
         });
         if (!ncs) {
             throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ NCS' });
@@ -356,7 +420,7 @@ export class DecisionService {
                 where: { id },
                 data: { trangThai: 'DEACTIVATE', ghiChu: ghiChuMoi },
             });
- 
+
             await tx.nghienCuuSinh.update({
                 where: { id: ncs.id },
                 data: {
@@ -368,7 +432,7 @@ export class DecisionService {
                     lyDoChuyenTrangThai: oldValue.lyDoChuyenTrangThai,
                 },
             });
- 
+
             await tx.auditLog.create({
                 data: {
                     actorId: nguoiThucHienId,
@@ -380,7 +444,7 @@ export class DecisionService {
                     newValue: { trangThai: trangThaiCu, hanGiaHan: oldValue.hanGiaHan, lyDo },
                 },
             });
- 
+
             return daHuy;
         });
 
@@ -404,6 +468,46 @@ export class DecisionService {
                         : `Không thể mở lại tài khoản của NCS ${ncs.mshv}, cần xử lý thủ công`,
                 );
             }
+        }
+
+        // 6. Thông báo cho NCS và GVHD biết hồ sơ đã được hoàn lại (sau khi DB đã commit)
+        if (ncs.userId) {
+            this.thongBao.gui({
+                userIds: [ncs.userId],
+                loai: 'QUYET_DINH_BI_HUY',
+                khoaTrung: `QD-HUY:${id}`,
+                duLieu: { loaiQuyetDinh: qd.loai, soQuyetDinh: qd.soQuyetDinh, lyDo },
+            });
+        }
+
+        const phanCongs = await this.prisma.phanCongHuongDan.findMany({
+            where: { ncsId: ncs.id, trangThai: 'DANG_HIEU_LUC' },
+            include: { gvhd: { select: { userId: true } } },
+        });
+        const gvhdUserIds = phanCongs
+            .map((pc) => pc.gvhd?.userId)
+            .filter((u): u is string => typeof u === 'string' && u.length > 0);
+
+        if (gvhdUserIds.length > 0) {
+            this.thongBao.gui({
+                userIds: [...new Set(gvhdUserIds)],
+                loai: 'GVHD_QUYET_DINH_BI_HUY',
+                khoaTrung: `GVHD_QD-HUY:${id}`,
+                duLieu: {
+                    loaiQuyetDinh: qd.loai,
+                    soQuyetDinh: qd.soQuyetDinh,
+                    lyDo,
+                    tenNcs: ncs.hoTen,
+                    mshv: ncs.mshv,
+                },
+            });
+        }
+        if (canhBao.length > 0) {
+            this.thongBao.gui({
+                userIds: [nguoiThucHienId],
+                loai: 'CANH_BAO_TAI_KHOAN',
+                duLieu: { canhBao }
+            });
         }
 
         return { quyetDinh, canhBao };

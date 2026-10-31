@@ -22,11 +22,11 @@ export class CreateAssignmentDto {
   ngayBatDau?: string;
 }
 
-export class DeactivateAssignmentDto {
-  @IsOptional()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'ngayKetThuc phải có dạng YYYY-MM-DD' })
-  ngayKetThuc?: string;
-}
+// export class DeactivateAssignmentDto {
+//   @IsOptional()
+//   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'ngayKetThuc phải có dạng YYYY-MM-DD' })
+//   ngayKetThuc?: string;
+// }
 
 export class ListAssignmentQueryDto {
   @IsOptional()

@@ -99,6 +99,6 @@ export class NcsController {
   @Patch(':id/status')
   @RequirePermissions(PERMISSIONS.NCS_UPDATE)
   updateStatus(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() body: UpdateNcsStatusDto) {
-    return this.send('phd.ncs.update-status', { actorId: u.id, id, duLieu: body });
+    return "ĐÃ BẢO LÀ ĐỪNG DÙNG RỒI, TẠI VÌ MUỐN ĐỔI TRẠNG THÁI CỦA 1 NCS THÌ PHẢI CẦN 1 QUYẾT ĐỊNH ĐỂ LÀM CĂN CỨ PHÁP LÝ. HÃY TẠO QUYẾT ĐỊNH TRƯỚC.";
   }
 }

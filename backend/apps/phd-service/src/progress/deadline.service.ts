@@ -3,6 +3,7 @@ import { RpcException } from '@nestjs/microservices';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { congNgay, congNgayLamViec, congThang, kyBaoCaoTiepTheo, soNgayGiua, layNgay } from '../helpers/date.util.js';
 import { isRealDate } from '../helpers/validateData.util.js';
+import { NotificationClient } from '../notification/notification.client.js';
 
 const SO_NGAY_SAP_HAN = 30;            // còn từ 30 ngày trở xuống thì báo "sắp hết hạn"
 
@@ -39,7 +40,10 @@ const ngayChuoi = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
 
 @Injectable()
 export class DeadlineService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly thongBao: NotificationClient,
+  ) { }
 
   /** Tính 1 hạn từ ngày gốc. Trả về null nếu chưa có ngày gốc (vd mốc 8 chưa được duyệt). */
   private tinhMotHan(h: MocHan, ncs: NcsHan, ngayDatCuaMoc: Map<number, Date>): Date | null {
@@ -178,6 +182,7 @@ export class DeadlineService {
         },
         ncs: {
           select: {
+            userId: true,
             hanBuocThoiHoc: true,
             ngayNhapHoc: true
           }
@@ -235,6 +240,22 @@ export class DeadlineService {
         },
       });
     });
+
+    if (tienTrinh.ncs.userId) {
+      try {
+        this.thongBao.gui({
+          userIds: [tienTrinh.ncs.userId],
+          loai: 'CAP_NHAT_HAN_KE_HOACH',
+          duLieu: {
+            thuTu: tienTrinh.moc.thuTu,
+            hanKeHoach: ngayChuoi(ngayMoi),
+          },
+          khoaTrung: `HAN_KE_HOACH:${tienTrinh.id}:${ngayChuoi(ngayMoi)}`,
+        });
+      } catch (err) {
+        // Lỗi gửi thông báo không làm hỏng kết quả trả về
+      }
+    }
 
     return { tienTrinhId: tienTrinh.id, hanKeHoach: ngayChuoi(ngayMoi) };
   }
