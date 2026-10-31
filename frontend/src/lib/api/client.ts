@@ -1,13 +1,14 @@
 /**
- * lib/api — API fetch wrappers & TanStack Query hooks
+ * lib/api/client.ts — Experimental Native Fetch Wrapper (Chưa sử dụng)
  *
- * Cấu hình:
- * - Base URL từ env NEXT_PUBLIC_API_URL
- * - Auto-attach JWT từ cookie
- * - 401 interceptor → trigger refresh → retry
+ * GHI CHÚ KIẾN TRÚC:
+ * - Dự án hiện tại chuẩn hóa toàn bộ HTTP clients qua Axios (publicApiClient và apiClient trong lib/api/).
+ * - File này được giữ lại dưới dạng prototype cho trường hợp tương lai cần dùng native Fetch API
+ *   trong Edge Runtime / Server Actions (nếu có nhu cầu).
+ * - Hiện tại không export qua index.ts để tránh gây nhầm lẫn cho lập trình viên.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
 
 /**
  * Fetch wrapper với auto-auth headers
