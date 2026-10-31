@@ -81,9 +81,14 @@ function toItem(r: ImportNcsRow): CreateNcsItemDto {
   };
 }
 
+import { NotificationClient } from '../notification/notification.client.js';
+
 @Injectable()
 export class NcsImportService {
-  constructor(private readonly ncs: NcsService) { }
+  constructor(
+    private readonly ncs: NcsService,
+    private readonly thongBao: NotificationClient,
+  ) { }
 
   // ===== Flow 1: chỉ kiểm tra, KHÔNG ghi gì =====
   async preview(rows: ImportNcsRow[]) {
@@ -118,18 +123,29 @@ export class NcsImportService {
     // Tạo tài khoản cho MSHV chưa có (mật khẩu ban đầu = MSHV do auth-service đặt)
     const needAccount = rows.filter((_, i) => results[i].willCreateAccount);
     if (needAccount.length > 0) {
-      await this.ncs.callAuth(
-        'auth.create-users',
-        {
-          users: needAccount.map((r) => ({
-            username: r.mshv.trim(),
-            fullName: r.hoTen!.trim(), // analyze đã bắt buộc có họ tên khi cần tạo tài khoản
-            email: emailOf(r) || undefined,
-            role: ROLES.NCS,
-          })),
-        },
-        30000,
-      );
+      try {
+        await this.ncs.callAuth(
+          'auth.create-users',
+          {
+            users: needAccount.map((r) => ({
+              username: r.mshv.trim(),
+              fullName: r.hoTen!.trim(), // analyze đã bắt buộc có họ tên khi cần tạo tài khoản
+              email: emailOf(r) || undefined,
+              role: ROLES.NCS,
+            })),
+          },
+          30000,
+        );
+      } catch (err) {
+        this.thongBao.gui({
+          userIds: [actorId],
+          loai: 'CANH_BAO_TAI_KHOAN',
+          duLieu: {
+            canhBao: [`Lỗi tạo tài khoản cho danh sách NCS import: ${(err as Error).message}`],
+          },
+        });
+        throw err;
+      }
     }
 
     //Tạo hồ sơ (một transaction, như đã viết ở NcsService)

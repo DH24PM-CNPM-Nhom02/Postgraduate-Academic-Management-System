@@ -3,11 +3,12 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { catchError, firstValueFrom, throwError, timeout } from 'rxjs';
 import { ROLES } from '../../../../lib/contracts/src/permissions.js';
 import type { ImportGvhdRow, UpdateGvhdDto, UpdateGvhdStatusDto } from '../../../../lib/contracts/src/dto/gvhd.dto.js';
-import type { CreateAssignmentDto, DeactivateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
+import type { CreateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
 import type { GioiTinh, HocHamHocVi, Prisma } from '../generated/prisma/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isRealDate, validateEmail } from '../helpers/validateData.util.js';
 import { goiService } from '../helpers/call-service.util.js';
+import { NotificationClient } from '../notification/notification.client.js';
 
 const MAX_ROWS = 200;
 const DANH_SACH_HOC_HAM = ['GIAO_SU', 'PHO_GIAO_SU', 'TIEN_SI_KHOA_HOC', 'TIEN_SI'];
@@ -17,6 +18,7 @@ export class SupervisorService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject('AUTH_SERVICE') private readonly auth: ClientProxy,
+    private readonly thongBao: NotificationClient,
   ) { }
 
   private async callAuth<T>(cmd: string, payload: unknown, ms = 5000): Promise<T> {
@@ -832,7 +834,7 @@ export class SupervisorService {
     //Kiểm tra NCS
     const ncs = await this.prisma.nghienCuuSinh.findUnique({
       where: { id: dto.ncsId },
-      select: { id: true, trangThai: true, hoTen: true },
+      select: { id: true, userId: true, mshv: true, trangThai: true, hoTen: true },
     });
     if (!ncs) {
       throw new RpcException({ statusCode: 404, message: 'Không tìm thấy NCS' });
@@ -847,7 +849,7 @@ export class SupervisorService {
     //Kiểm tra GVHD
     const gvhdCheck = await this.prisma.giangVienHuongDan.findUnique({
       where: { id: dto.gvhdId },
-      select: { id: true, trangThai: true, hoTen: true },
+      select: { id: true, userId: true, trangThai: true, hoTen: true },
     });
     if (!gvhdCheck) {
       throw new RpcException({ statusCode: 404, message: 'Không tìm thấy GVHD' });
@@ -906,7 +908,7 @@ export class SupervisorService {
     const trongSoVal = dto.vaiTro === 'HUONG_DAN_CHINH' ? 1.0 : 0.5;
 
     //Transaction kiểm tra định mức + optimistic lock
-    return await this.prisma.$transaction(async (tx) => {
+    const phanCong= await this.prisma.$transaction(async (tx) => {
       const gvhd = await tx.giangVienHuongDan.findUnique({
         where: { id: dto.gvhdId },
       });
@@ -994,13 +996,41 @@ export class SupervisorService {
 
       return phanCong;
     });
+    // Gửi thông báo cho NCS và GVHD
+    try {
+      if (ncs.userId) {
+        this.thongBao.gui({
+          userIds: [ncs.userId],
+          loai: 'NCS_DUOC_PHAN_CONG_GVHD',
+          duLieu: {
+            tenGvhd: gvhdCheck.hoTen,
+          },
+          khoaTrung: `PHAN_CONG_NCS:${phanCong.id}`,
+        });
+      }
+      if (gvhdCheck.userId) {
+        this.thongBao.gui({
+          userIds: [gvhdCheck.userId],
+          loai: 'GVHD_NHAN_NCS',
+          duLieu: {
+            tenNcs: ncs.hoTen,
+            mshv: ncs.mshv,
+          },
+          khoaTrung: `PHAN_CONG_GVHD:${phanCong.id}`,
+        });
+      }
+    } catch (err) {
+      // ignore
+    }
+
+    return phanCong;
   }
 
   /**
    * D2. Vô hiệu hóa (đổi) phân công GVHD và trả lại định mức
    */
-  async deactivateAssignment(actorId: string, id: string, dto?: DeactivateAssignmentDto) {
-    return await this.prisma.$transaction(async (tx) => {
+  async deactivateAssignment(actorId: string, id: string) {
+    const updated = await this.prisma.$transaction(async (tx) => {
       const phanCong = await tx.phanCongHuongDan.findUnique({
         where: { id },
         include: { gvhd: true },
@@ -1032,7 +1062,7 @@ export class SupervisorService {
         });
       }
 
-      const ngayKetThuc = dto?.ngayKetThuc ? new Date(dto.ngayKetThuc) : new Date();
+      const ngayKetThuc = new Date();
 
       const updated = await tx.phanCongHuongDan.update({
         where: { id },
@@ -1044,6 +1074,7 @@ export class SupervisorService {
           gvhd: {
             select: {
               id: true,
+              userId: true,
               hoTen: true,
               hocHamHocVi: true,
               soNcsDangHuongDan: true,
@@ -1051,7 +1082,7 @@ export class SupervisorService {
             },
           },
           ncs: {
-            select: { id: true, mshv: true, hoTen: true },
+            select: { id: true, userId: true, mshv: true, hoTen: true },
           },
           quyetDinh: {
             select: { id: true, soQuyetDinh: true, ngayQuyetDinh: true },
@@ -1072,6 +1103,29 @@ export class SupervisorService {
 
       return updated;
     });
+
+    const recipientUserIds: string[] = [];
+    if (updated.ncs?.userId) recipientUserIds.push(updated.ncs.userId);
+    if (updated.gvhd?.userId) recipientUserIds.push(updated.gvhd.userId);
+
+    if (recipientUserIds.length > 0) {
+      try {
+        this.thongBao.gui({
+          userIds: recipientUserIds,
+          loai: 'THAY_DOI_PHAN_CONG_GVHD',
+          duLieu: {
+            tenNcs: updated.ncs?.hoTen,
+            mshv: updated.ncs?.mshv,
+            tenGvhd: updated.gvhd?.hoTen,
+          },
+          khoaTrung: `DEACTIVATE_GVHD:${id}`,
+        });
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    return updated;
   }
 
   /**

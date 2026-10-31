@@ -7,7 +7,7 @@ import { RequirePermissions } from '../common/decorators/require-permissions.dec
 import { PHD_SERVICE } from '../common/constants/service.js';
 import type { AuthUser } from '../common/interface/auth-user.interface.js';
 import { CreateGvhdBatchDto, UpdateGvhdDto, UpdateGvhdStatusDto } from '../../../../lib/contracts/src/dto/gvhd.dto.js';
-import { CreateAssignmentDto, DeactivateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
+import { CreateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
 import { buildGvhdTemplate, parseGvhdExcel } from './gvhd-excel.js';
 
@@ -103,9 +103,8 @@ export class GvhdController {
   deactivateAssignment(
     @CurrentUser() u: AuthUser,
     @Param('id') id: string,
-    @Body() dto: DeactivateAssignmentDto,
   ) {
-    return this.send('phd.gvhd.assignment-deactivate', { actorId: u.id, id, data: dto });
+    return this.send('phd.gvhd.assignment-deactivate', { actorId: u.id, id });
   }
 
   @Get('assignments')

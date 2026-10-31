@@ -144,15 +144,17 @@ export const MAU_THONG_BAO: Record<string, Mau> = { ... }
 
 ### 5.1. Danh sách các mã mẫu (`loai`):
 1. **Tiến độ học vụ (`TIEN_DO`)**:
-   - `MOC_DUOC_DUYET`: Báo cho NCS khi minh chứng mốc tiến độ được phê duyệt (tự động thông báo mở mốc tiếp theo nếu có).
-   - `MOC_BI_TU_CHOI`: Báo cho NCS lý do bị từ chối và yêu cầu nộp lại.
+   - `MOC_DUOC_DUYET`: Báo cho NCS khi minh chứng mốc tiến độ của mình được phê duyệt (tự động thông báo mở mốc tiếp theo nếu có).
+   - `MOC_BI_TU_CHOI`: Báo cho NCS lý do minh chứng của mình bị từ chối và yêu cầu nộp lại.
+   - `GVHD_MOC_DUOC_DUYET`: Báo cho GVHD khi mốc tiến độ của NCS được phê duyệt (kèm tên và MSHV).
+   - `GVHD_MOC_BI_TU_CHOI`: Báo cho GVHD khi mốc tiến độ của NCS bị từ chối (kèm tên, MSHV và lý do).
    - `NCS_DUOC_PHAN_CONG_GVHD`: Báo cho NCS tên giảng viên hướng dẫn vừa được chỉ định.
    - `GVHD_NHAN_NCS`: Báo cho GVHD biết họ vừa nhận hướng dẫn một NCS mới (kèm MSHV).
 2. **Quyết định học vụ (`QUYET_DINH`)**:
-   - `QUYET_DINH_DOI_TRANG_THAI`: Áp dụng quyết định: Bảo lưu, Cho học tiếp, Buộc thôi học, Ngừng học, Gia hạn.
-     - Tự động cảnh báo khóa tài khoản nếu là quyết định bảo lưu/ngừng học/buộc thôi học.
-     - Tự động định dạng ngày tháng chuẩn Việt Nam (`DD/MM/YYYY`).
-   - `QUYET_DINH_BI_HUY`: Thông báo khi một quyết định trước đó bị hủy bỏ / thu hồi và hồ sơ được phục hồi.
+   - `QUYET_DINH_DOI_TRANG_THAI`: Báo cho NCS khi có quyết định thay đổi trạng thái (Bảo lưu, Cho học tiếp, Buộc thôi học, Ngừng học, Gia hạn), tự động cảnh báo khóa tài khoản nếu cần.
+   - `GVHD_QUYET_DINH_DOI_TRANG_THAI`: Báo cho GVHD khi có quyết định thay đổi trạng thái của NCS mình hướng dẫn (kèm tên, MSHV).
+   - `QUYET_DINH_BI_HUY`: Thông báo cho NCS khi một quyết định trước đó bị hủy bỏ / thu hồi và hồ sơ được phục hồi.
+   - `GVHD_QUYET_DINH_BI_HUY`: Thông báo cho GVHD khi quyết định của NCS mình hướng dẫn bị hủy bỏ / thu hồi.
 3. **Cảnh báo kỹ thuật (`CANH_BAO_KY_THUAT`)**:
    - `CANH_BAO_TAI_KHOAN`: Cảnh báo khi tạo/cập nhật tài khoản đăng nhập NCS bị lỗi, cần can thiệp thủ công.
 4. **Hệ thống (`HE_THONG`)**:

@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import type { ImportGvhdRow, UpdateGvhdDto, UpdateGvhdStatusDto } from '../../../../lib/contracts/src/dto/gvhd.dto.js';
-import type { CreateAssignmentDto, DeactivateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
+import type { CreateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
 import { SupervisorService } from './supervisor.service.js';
 // import { GvhdImportService } from './gvhd-import.service.js';
 
@@ -51,8 +51,8 @@ export class SupervisorController {
   }
 
   @MessagePattern({ cmd: 'phd.gvhd.assignment-deactivate' })
-  deactivateAssignment(@Payload() d: { actorId: string; id: string; data?: DeactivateAssignmentDto }) {
-    return this.gvhd.deactivateAssignment(d.actorId, d.id, d.data);
+  deactivateAssignment(@Payload() d: { actorId: string; id: string }) {
+    return this.gvhd.deactivateAssignment(d.actorId, d.id);
   }
 
   @MessagePattern({ cmd: 'phd.gvhd.assignment-list' })
