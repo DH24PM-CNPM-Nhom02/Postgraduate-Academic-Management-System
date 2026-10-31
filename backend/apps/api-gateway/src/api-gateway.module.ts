@@ -11,6 +11,7 @@ import {GvhdModule} from './gvhd/gvhd.module.js'
 import { DocumentsModule } from './document/document.module.js';
 import { ProgressModule } from './progress/progress.module.js';
 import { DecisionModule } from './decision/decision.module.js';
+import { NotificationModule } from './notification/notification.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -20,6 +21,7 @@ import { DecisionModule } from './decision/decision.module.js';
     DocumentsModule,
     ProgressModule,
     DecisionModule,
+    NotificationModule,
     ClientsModule.register([
       {
         name: 'AUTH_SERVICE',

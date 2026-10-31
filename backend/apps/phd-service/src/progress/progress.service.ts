@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { goiService } from '../helpers/call-service.util.js';
@@ -10,9 +10,12 @@ const SO_PHIEU_TOI_THIEU = 3;  // quy định của trường: tối thiểu 3 p
 
 @Injectable()
 export class ProgressService {
+    private readonly logger = new Logger(ProgressService.name);
+
     constructor(
         private readonly prisma: PrismaService,
         @Inject('DOCUMENT_SERVICE') private readonly document: ClientProxy,
+        @Inject('NOTIFICATION_SERVICE') private readonly notificationClient: ClientProxy,
         private readonly han: DeadlineService,
     ) { }
 
@@ -209,6 +212,12 @@ export class ProgressService {
             where: { id: tienTrinhId },
             include: {
                 moc: true,
+                ncs: {
+                    select: {
+                        id: true,
+                        userId: true,
+                    },
+                },
                 minhChungs: {
                     orderBy: {
                         lanNop: 'desc'
@@ -272,7 +281,7 @@ export class ProgressService {
         }
 
         const now = new Date();
-        return this.prisma.$transaction(async (tx) => {
+        const ketQua = await this.prisma.$transaction(async (tx) => {
             // Chỉ cập nhật nếu mốc vẫn còn đúng version và đang chờ duyệt (chống duyệt trùng)
             const kq = await tx.tienTrinhNcs.updateMany({
                 where: {
@@ -343,13 +352,32 @@ export class ProgressService {
                 mocKeTiep: mocKe.count > 0 ? tienTrinh.moc.thuTu + 1 : null,
             };
         });
+
+        // Bắn thông báo không đồng bộ (fire-and-forget) cho NCS khi mốc được duyệt
+        const recipientUserId = tienTrinh.ncs?.userId;
+        if (recipientUserId) {
+            try {
+                this.notificationClient.emit('notification.create', {
+                    userIds: [recipientUserId],
+                    loai: 'MOC_DUOC_DUYET',
+                    duLieu: {
+                        thuTu: tienTrinh.moc.thuTu,
+                        mocKeTiep: ketQua.mocKeTiep,
+                    },
+                    khoaTrung: `DUYET_MOC:${tienTrinh.id}:${minhChung.lanNop}`,
+                });
+            } catch (err) {
+                this.logger.warn(`Không thể gửi sự kiện thông báo duyệt mốc: ${(err as Error).message}`);
+            }
+        }
+
+        return ketQua;
     }
 
     async tuChoiMoc(actorId: string, tienTrinhId: string, lyDo: string) {
         const { tienTrinh, minhChung } = await this.layMocChoDuyet(tienTrinhId);
         const now = new Date();
-
-        return this.prisma.$transaction(async (tx) => {
+        const ketQua = await this.prisma.$transaction(async (tx) => {
             const kq = await tx.tienTrinhNcs.updateMany({
                 where: { id: tienTrinh.id, version: tienTrinh.version, trangThai: 'PENDING_REVIEW' },
                 data: { trangThai: 'REJECTED', version: { increment: 1 } },
@@ -389,6 +417,26 @@ export class ProgressService {
 
             return { tienTrinhId: tienTrinh.id, trangThai: 'REJECTED' };
         });
+
+        // Bắn thông báo không đồng bộ cho NCS khi mốc bị từ chối
+        const recipientUserId = tienTrinh.ncs?.userId;
+        if (recipientUserId) {
+            try {
+                this.notificationClient.emit('notification.create', {
+                    userIds: [recipientUserId],
+                    loai: 'MOC_BI_TU_CHOI',
+                    duLieu: {
+                        thuTu: tienTrinh.moc.thuTu,
+                        lyDo,
+                    },
+                    khoaTrung: `TU_CHOI_MOC:${tienTrinh.id}:${minhChung.lanNop}`,
+                });
+            } catch (err) {
+                this.logger.warn(`Không thể gửi sự kiện thông báo từ chối mốc: ${(err as Error).message}`);
+            }
+        }
+
+        return ketQua;
     }
 
     // Tổng hợp phiếu của một lần nộp: số phiếu, điểm trung bình, đã đủ phiếu chưa

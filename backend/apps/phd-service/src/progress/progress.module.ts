@@ -19,6 +19,14 @@ import { DeadlineService } from './deadline.service.js';
                     port: Number(process.env.DOCUMENT_SERVICE_PORT ?? 3003),
                 },
             },
+            {
+                name: 'NOTIFICATION_SERVICE',
+                transport: Transport.TCP,
+                options: {
+                    host: process.env.NOTIFICATION_SERVICE_HOST ?? '127.0.0.1',
+                    port: Number(process.env.NOTIFICATION_SERVICE_PORT ?? 3004),
+                },
+            },
         ])
     ],
     controllers: [ProgressController],
