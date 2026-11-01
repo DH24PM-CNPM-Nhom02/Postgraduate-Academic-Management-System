@@ -24,6 +24,18 @@ export const PERMISSIONS = {
     GVHD_READ: 'gvhd.read',
     GVHD_CREATE: 'gvhd.create',
     GVHD_UPDATE: 'gvhd.update',
+
+    DOCUMENT_UPLOAD: 'document.upload',
+    DOCUMENT_READ: 'document.read',
+    DOCUMENT_DELETE: 'document.delete',
+
+    DECISION_READ: 'decision.read',
+    DECISION_CREATE: 'decision.create',
+    DECISION_UPDATE: 'decision.update',
+
+    ASSIGNMENT_READ: 'assignment.read',
+    ASSIGNMENT_CREATE: 'assignment.create',
+    ASSIGNMENT_UPDATE: 'assignment.update',
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

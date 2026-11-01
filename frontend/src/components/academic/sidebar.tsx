@@ -19,7 +19,6 @@ import {
   ChevronRight,
   X,
   ShieldCheck,
-  Building2,
 } from "lucide-react";
 import { HoverLogo } from "./HoverLogo";
 

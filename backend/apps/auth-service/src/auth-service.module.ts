@@ -4,13 +4,16 @@ import { AuthService} from './auth-service.service.js';
 
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { ClientsModule, Transport } from '@nestjs/microservices';
 import { AuthCronService } from './auth-cron.service.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ScheduleModule } from '@nestjs/schedule';
 import type { StringValue } from 'ms';
+
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }),
-     JwtModule.registerAsync({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    JwtModule.registerAsync({
       useFactory: (configService: ConfigService) => ({
         global: true,
         secret: configService.getOrThrow<string>('JWT_ACCESS_SECRET'),
@@ -19,11 +22,20 @@ import type { StringValue } from 'ms';
         },
       }),
       inject: [ConfigService],
-     }), 
-     PrismaModule,
-     ScheduleModule.forRoot(),
-     
-    ],
+    }),
+    PrismaModule,
+    ScheduleModule.forRoot(),
+    ClientsModule.register([
+      {
+        name: 'NOTIFICATION_SERVICE',
+        transport: Transport.TCP,
+        options: {
+          host: process.env.NOTIFICATION_HOST ?? 'localhost',
+          port: Number(process.env.NOTIFICATION_PORT ?? 3004),
+        },
+      },
+    ]),
+  ],
   controllers: [AuthController],
   providers: [AuthService, AuthCronService],
 })

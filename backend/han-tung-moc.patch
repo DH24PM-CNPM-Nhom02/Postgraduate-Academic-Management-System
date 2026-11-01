@@ -1,0 +1,109 @@
+diff --git a/backend/apps/phd-service/src/helpers/date.util.spec.ts b/backend/apps/phd-service/src/helpers/date.util.spec.ts
+index dacebec..1b9884e 100644
+--- a/backend/apps/phd-service/src/helpers/date.util.spec.ts
++++ b/backend/apps/phd-service/src/helpers/date.util.spec.ts
+@@ -1,4 +1,4 @@
+-import { congNgayLamViec, congThang } from './date.util.js';
++import { congNgayLamViec, congThang, kyBaoCaoTiepTheo } from './date.util.js';
+ 
+ const ngay = (s: string) => new Date(`${s}T00:00:00.000Z`);
+ const chuoi = (d: Date) => d.toISOString().slice(0, 10);
+@@ -19,4 +19,11 @@ describe('date.util', () => {
+     // 30 ngày làm việc = 6 tuần đúng
+     expect(chuoi(congNgayLamViec(ngay('2026-10-30'), 30))).toBe('2026-12-11');
+   });
++
++  it('kỳ báo cáo định kỳ tháng 6 và tháng 12', () => {
++    expect(chuoi(kyBaoCaoTiepTheo(ngay('2026-10-29'), [6, 12]))).toBe('2026-12-31');
++    expect(chuoi(kyBaoCaoTiepTheo(ngay('2027-01-05'), [6, 12]))).toBe('2027-06-30');
++    expect(chuoi(kyBaoCaoTiepTheo(ngay('2027-06-30'), [6, 12]))).toBe('2027-06-30'); // đúng ngày cuối kỳ vẫn còn tính
++    expect(chuoi(kyBaoCaoTiepTheo(ngay('2027-07-01'), [6, 12]))).toBe('2027-12-31');
++  });
+ });
+diff --git a/backend/apps/phd-service/src/helpers/date.util.ts b/backend/apps/phd-service/src/helpers/date.util.ts
+index 75a5647..2638f7a 100644
+--- a/backend/apps/phd-service/src/helpers/date.util.ts
++++ b/backend/apps/phd-service/src/helpers/date.util.ts
+@@ -45,3 +45,21 @@ export function layNgay(d: Date): Date {
+ export function soNgayGiua(a: Date, b: Date): number {
+   return Math.round((layNgay(b).getTime() - layNgay(a).getTime()) / 86400000);
+ }
++
++/**
++ * Ngày cuối của kỳ báo cáo định kỳ gần nhất từ hôm nay trở đi.
++ * thangs là các tháng (1-12) có kỳ báo cáo, vd [6, 12] -> 30/06 và 31/12 hằng năm.
++ * Hôm nay đúng ngày cuối kỳ thì kỳ đó vẫn còn tính.
++ */
++export function kyBaoCaoTiepTheo(homNay: Date, thangs: number[]): Date {
++  const ngayHomNay = layNgay(homNay);
++  const sapXep = [...thangs].sort((a, b) => a - b);
++  for (let nam = ngayHomNay.getUTCFullYear(); ; nam++) {
++    for (const thang of sapXep) {
++      const cuoiThang = new Date(Date.UTC(nam, thang, 0)); // ngày 0 của tháng sau = ngày cuối tháng này
++      if (cuoiThang >= ngayHomNay) {
++        return cuoiThang;
++      }
++    }
++  }
++}
+diff --git a/backend/apps/phd-service/src/progress/han.service.ts b/backend/apps/phd-service/src/progress/han.service.ts
+index 8e2f27e..8dd8bb8 100644
+--- a/backend/apps/phd-service/src/progress/han.service.ts
++++ b/backend/apps/phd-service/src/progress/han.service.ts
+@@ -1,11 +1,16 @@
+ import { Injectable } from '@nestjs/common';
+ import { RpcException } from '@nestjs/microservices';
+ import { PrismaService } from '../prisma/prisma.service.js';
+-import { congNgay, congNgayLamViec, congThang, soNgayGiua } from '../helpers/date.util.js';
++import { congNgay, congNgayLamViec, congThang, kyBaoCaoTiepTheo, soNgayGiua } from '../helpers/date.util.js';
+ 
+ const SO_NGAY_SAP_HAN = 30;            // còn từ 30 ngày trở xuống thì báo "sắp hạn"
+ const SO_NGAY_LAM_VIEC_BAO_CAO_LAI = 30; // mốc 4, 5: báo cáo lần 2 cách lần 1 tối thiểu 30 ngày làm việc
+ 
++// Mốc 6 (báo cáo tiến độ định kỳ / bảo vệ giữa kỳ): 02 lần mỗi năm, vào tháng 6 và tháng 12.
++// Là lịch cố định cho mọi NCS nên viết thẳng trong code, không đưa vào bảng moc_han.
++const MOC_BAO_CAO_DINH_KY = 6;
++const THANG_BAO_CAO_DINH_KY = [6, 12];
++
+ type NcsHan = {
+   ngayNhapHoc: Date;
+   hanChinhQuy: Date;
+@@ -13,6 +18,11 @@ type NcsHan = {
+   hanBuocThoiHoc: Date;
+ };
+ 
++type HanDaTinh = {
++  h: { maHan: string; tenHan: string; laHanMem: boolean; canCu: string | null };
++  han: Date | null;
++};
++
+ type DongMocHan = {
+   maHan: string;
+   tenHan: string;
+@@ -94,11 +104,25 @@ export class HanService {
+     const ketQua: Record<number, unknown> = {};
+ 
+     for (const tt of tienTrinhs) {
+-      const cacHan = tt.moc.hans.map((h) => ({
++      const cacHan: HanDaTinh[] = tt.moc.hans.map((h) => ({
+         h,
+         han: this.tinhMotHan(h, ncs, ngayDatCuaMoc),
+       }));
+ 
++      // Mốc 6: hạn là ngày cuối của kỳ báo cáo (30/06 hoặc 31/12) sắp tới, không vượt 72 tháng
++      if (tt.moc.thuTu === MOC_BAO_CAO_DINH_KY && tt.trangThai !== 'PASSED') {
++        const kyTiepTheo = kyBaoCaoTiepTheo(homNay, THANG_BAO_CAO_DINH_KY);
++        cacHan.push({
++          h: {
++            maHan: 'KY_BAO_CAO_TIEP_THEO',
++            tenHan: 'Báo cáo tiến độ định kỳ (kỳ tiếp theo)',
++            laHanMem: false,
++            canCu: 'Định kỳ 02 lần mỗi năm vào tháng 6 và tháng 12',
++          },
++          han: kyTiepTheo > ncs.hanBuocThoiHoc ? ncs.hanBuocThoiHoc : kyTiepTheo,
++        });
++      }
++
+       // Hạn cứng của mốc = hạn sớm nhất trong các hạn không phải hạn mềm
+       const hanCungList = cacHan.filter((x) => !x.h.laHanMem && x.han).map((x) => x.han as Date);
+       const hanCung = hanCungList.length > 0 ? new Date(Math.min(...hanCungList.map((d) => d.getTime()))) : null;

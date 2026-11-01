@@ -1,3 +1,9 @@
+import { redirect } from "next/navigation";
+
+/**
+ * Route: / (trong Route group (supervisor))
+ * Tự động chuyển hướng về trang làm việc của Giảng viên Hướng dẫn: /supervisor
+ */
 export default function SupervisorRootPage() {
-  return <div className="min-h-screen bg-white" />;
+  redirect("/supervisor");
 }

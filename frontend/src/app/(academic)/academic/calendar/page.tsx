@@ -5,9 +5,7 @@ import Link from "next/link";
 import {
   CalendarDays,
   ArrowLeft,
-  Clock,
   Calendar,
-  AlertCircle,
 } from "lucide-react";
 import { MOCK_CALENDAR_EVENTS } from "@/src/components/academic";
 

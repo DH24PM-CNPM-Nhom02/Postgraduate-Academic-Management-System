@@ -3,9 +3,12 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { catchError, firstValueFrom, throwError, timeout } from 'rxjs';
 import { ROLES } from '../../../../lib/contracts/src/permissions.js';
 import type { ImportGvhdRow, UpdateGvhdDto, UpdateGvhdStatusDto } from '../../../../lib/contracts/src/dto/gvhd.dto.js';
+import type { CreateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
 import type { GioiTinh, HocHamHocVi, Prisma } from '../generated/prisma/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isRealDate, validateEmail } from '../helpers/validateData.util.js';
+import { goiService } from '../helpers/call-service.util.js';
+import { NotificationClient } from '../notification/notification.client.js';
 
 const MAX_ROWS = 200;
 const DANH_SACH_HOC_HAM = ['GIAO_SU', 'PHO_GIAO_SU', 'TIEN_SI_KHOA_HOC', 'TIEN_SI'];
@@ -15,17 +18,11 @@ export class SupervisorService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject('AUTH_SERVICE') private readonly auth: ClientProxy,
+    private readonly thongBao: NotificationClient,
   ) { }
 
   private async callAuth<T>(cmd: string, payload: unknown, ms = 5000): Promise<T> {
-    return firstValueFrom(
-      this.auth.send<T>({ cmd }, payload).pipe(
-        timeout(ms),
-        catchError((err) => throwError(() => new RpcException(
-          err?.statusCode ? err : { statusCode: 502, message: 'Không gọi được auth-service' },
-        ))),
-      ),
-    );
+    return goiService<T>(this.auth, cmd, payload, ms);
   }
 
   /**
@@ -396,9 +393,26 @@ export class SupervisorService {
             parent: {
               select: { id: true, ten: true },
             },
-          }
-        }
-      }
+          },
+        },
+        phanCongs: {
+          where: { trangThai: 'DANG_HIEU_LUC' },
+          select: {
+            id: true,
+            vaiTro: true,
+            trongSo: true,
+            ngayBatDau: true,
+            ncs: {
+              select: {
+                id: true,
+                mshv: true,
+                hoTen: true,
+                trangThai: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!hoSo) {
@@ -623,5 +637,538 @@ export class SupervisorService {
       throw error;
     }
 
+  }
+
+  /**
+   * B. GVHD xem danh sách NCS mình hướng dẫn kèm đề tài và 9 mốc tiến trình
+   */
+  async getMyNcsList(userId: string) {
+    const gvhd = await this.prisma.giangVienHuongDan.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!gvhd) {
+      throw new RpcException({ statusCode: 404, message: 'Bạn chưa có hồ sơ GVHD' });
+    }
+
+    const phanCongs = await this.prisma.phanCongHuongDan.findMany({
+      where: {
+        gvhdId: gvhd.id,
+        trangThai: 'DANG_HIEU_LUC',
+      },
+      select: {
+        id: true,
+        vaiTro: true,
+        trongSo: true,
+        ngayBatDau: true,
+        ncs: {
+          select: {
+            id: true,
+            mshv: true,
+            hoTen: true,
+            trangThai: true,
+            nganhId: true,
+            khoaHoc: true,
+            lop: true,
+            hanChinhQuy: true,
+            hanBuocThoiHoc: true,
+            hanGiaHan: true,
+            nganh: {
+              select: { id: true, maNganh: true, tenNganh: true },
+            },
+            deTais: {
+              where: { trangThai: 'HIEU_LUC' },
+              select: { id: true, tenDeTai: true, createdAt: true },
+              take: 1,
+            },
+            tienTrinhs: {
+              select: {
+                id: true,
+                trangThai: true,
+                moc: {
+                  select: {
+                    thuTu: true,
+                    tenMoc: true,
+                    yeuCauDiem: true,
+                  },
+                },
+              },
+              orderBy: {
+                moc: {
+                  thuTu: 'asc',
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return phanCongs.map((pc) => {
+      const deTaiHieuLuc = pc.ncs.deTais?.[0] || null;
+      const tienTrinhs = pc.ncs.tienTrinhs.map((tt) => ({
+        mocThuTu: tt.moc.thuTu,
+        tenMoc: tt.moc.tenMoc,
+        trangThai: tt.trangThai,
+        yeuCauDiem: tt.moc.yeuCauDiem,
+      }));
+
+      return {
+        phanCongId: pc.id,
+        vaiTro: pc.vaiTro,
+        trongSo: pc.trongSo,
+        ngayBatDau: pc.ngayBatDau,
+        ncs: {
+          id: pc.ncs.id,
+          mshv: pc.ncs.mshv,
+          hoTen: pc.ncs.hoTen,
+          trangThai: pc.ncs.trangThai,
+          nganh: pc.ncs.nganh,
+          khoaHoc: pc.ncs.khoaHoc,
+          lop: pc.ncs.lop,
+          hanChinhQuy: pc.ncs.hanChinhQuy,
+          hanBuocThoiHoc: pc.ncs.hanBuocThoiHoc,
+          hanGiaHan: pc.ncs.hanGiaHan,
+          deTaiHieuLuc,
+          tienTrinhs,
+        },
+      };
+    });
+  }
+
+  /**
+   * C. GVHD xem chi tiết một NCS (có kiểm tra quyền sở hữu)
+   */
+  async getMyNcsDetail(userId: string, ncsId: string) {
+    const gvhd = await this.prisma.giangVienHuongDan.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!gvhd) {
+      throw new RpcException({ statusCode: 404, message: 'Bạn chưa có hồ sơ GVHD' });
+    }
+
+    const ownership = await this.prisma.phanCongHuongDan.findFirst({
+      where: {
+        gvhdId: gvhd.id,
+        ncsId,
+        trangThai: 'DANG_HIEU_LUC',
+      },
+    });
+    if (!ownership) {
+      throw new RpcException({
+        statusCode: 403,
+        message: 'Bạn không phải GVHD chính thức của NCS này',
+      });
+    }
+
+    const ncsDetail = await this.prisma.nghienCuuSinh.findUnique({
+      where: { id: ncsId },
+      include: {
+        nganh: true,
+        khoaHocNcs: true,
+        deTais: {
+          orderBy: { createdAt: 'desc' },
+        },
+        phanCongs: {
+          include: {
+            gvhd: {
+              select: {
+                id: true,
+                hoTen: true,
+                email: true,
+                hocHamHocVi: true,
+                chuyenNganh: true,
+                donVi: { select: { id: true, ten: true } },
+              },
+            },
+            quyetDinh: {
+              select: {
+                id: true,
+                soQuyetDinh: true,
+                ngayQuyetDinh: true,
+                loai: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        tienTrinhs: {
+          include: {
+            moc: true,
+            minhChungs: {
+              include: {
+                quyetDinh: {
+                  select: {
+                    id: true,
+                    soQuyetDinh: true,
+                    ngayQuyetDinh: true,
+                  },
+                },
+                phieuNhanXets: true,
+              },
+              orderBy: { lanNop: 'desc' },
+            },
+          },
+          orderBy: {
+            moc: { thuTu: 'asc' },
+          },
+        },
+        quyetDinhs: {
+          orderBy: { ngayQuyetDinh: 'desc' },
+        },
+      },
+    });
+
+    if (!ncsDetail) {
+      throw new RpcException({ statusCode: 404, message: 'Không tìm thấy thông tin NCS' });
+    }
+
+    return ncsDetail;
+  }
+
+  /**
+   * D1. Phân công GVHD cho NCS (có kiểm tra định mức và optimistic locking)
+   */
+  async createAssignment(actorId: string, dto: CreateAssignmentDto) {
+    //Kiểm tra NCS
+    const ncs = await this.prisma.nghienCuuSinh.findUnique({
+      where: { id: dto.ncsId },
+      select: { id: true, userId: true, mshv: true, trangThai: true, hoTen: true },
+    });
+    if (!ncs) {
+      throw new RpcException({ statusCode: 404, message: 'Không tìm thấy NCS' });
+    }
+    if (ncs.trangThai !== 'DANG_HOC' && ncs.trangThai !== 'GIA_HAN') {
+      throw new RpcException({
+        statusCode: 400,
+        message: 'NCS không ở trạng thái được phép phân công GVHD (chỉ chấp nhận DANG_HOC hoặc GIA_HAN)',
+      });
+    }
+
+    //Kiểm tra GVHD
+    const gvhdCheck = await this.prisma.giangVienHuongDan.findUnique({
+      where: { id: dto.gvhdId },
+      select: { id: true, userId: true, trangThai: true, hoTen: true },
+    });
+    if (!gvhdCheck) {
+      throw new RpcException({ statusCode: 404, message: 'Không tìm thấy GVHD' });
+    }
+    if (!gvhdCheck.trangThai) {
+      throw new RpcException({ statusCode: 400, message: 'GVHD đã bị vô hiệu hóa, không thể phân công' });
+    }
+
+    //Kiểm tra Quyết định
+    const quyetDinh = await this.prisma.quyetDinh.findUnique({
+      where: { id: dto.quyetDinhId },
+      select: { id: true, loai: true, trangThai: true },
+    });
+    if (!quyetDinh) {
+      throw new RpcException({ statusCode: 404, message: 'Không tìm thấy quyết định' });
+    }
+    if (quyetDinh.loai !== 'PHAN_CONG_GVHD' || quyetDinh.trangThai !== 'HIEU_LUC') {
+      throw new RpcException({
+        statusCode: 400,
+        message: 'Quyết định phải thuộc loại PHAN_CONG_GVHD và đang có hiệu lực',
+      });
+    }
+
+    //Kiểm tra trùng phân công cùng GVHD
+    const trungGvhd = await this.prisma.phanCongHuongDan.findFirst({
+      where: {
+        ncsId: dto.ncsId,
+        gvhdId: dto.gvhdId,
+        trangThai: 'DANG_HIEU_LUC',
+      },
+    });
+    if (trungGvhd) {
+      throw new RpcException({
+        statusCode: 409,
+        message: 'GVHD này đã và đang được phân công hướng dẫn NCS này',
+      });
+    }
+
+    //Kiểm tra ràng buộc duy nhất 1 GVHD chính
+    if (dto.vaiTro === 'HUONG_DAN_CHINH') {
+      const gvhdChinhHienTai = await this.prisma.phanCongHuongDan.findFirst({
+        where: {
+          ncsId: dto.ncsId,
+          vaiTro: 'HUONG_DAN_CHINH',
+          trangThai: 'DANG_HIEU_LUC',
+        },
+      });
+      if (gvhdChinhHienTai) {
+        throw new RpcException({
+          statusCode: 400,
+          message: 'NCS đã có GVHD chính. Vui lòng vô hiệu hóa GVHD cũ trước khi gán mới',
+        });
+      }
+    }
+
+    const trongSoVal = dto.vaiTro === 'HUONG_DAN_CHINH' ? 1.0 : 0.5;
+
+    //Transaction kiểm tra định mức + optimistic lock
+    const phanCong= await this.prisma.$transaction(async (tx) => {
+      const gvhd = await tx.giangVienHuongDan.findUnique({
+        where: { id: dto.gvhdId },
+      });
+      if (!gvhd || !gvhd.trangThai) {
+        throw new RpcException({ statusCode: 400, message: 'GVHD không tồn tại hoặc đã bị vô hiệu hóa' });
+      }
+
+      const soHienTai = Number(gvhd.soNcsDangHuongDan);
+      const soMoi = Number((soHienTai + trongSoVal).toFixed(1));
+
+      if (soMoi > gvhd.maxNcsChoPhep) {
+        throw new RpcException({
+          statusCode: 400,
+          message: `Vượt định mức hướng dẫn của GVHD (hiện tại: ${soHienTai}, thêm: ${trongSoVal}, tối đa: ${gvhd.maxNcsChoPhep})`,
+        });
+      }
+
+      const updateResult = await tx.giangVienHuongDan.updateMany({
+        where: {
+          id: dto.gvhdId,
+          version: gvhd.version,
+        },
+        data: {
+          soNcsDangHuongDan: soMoi,
+          version: { increment: 1 },
+        },
+      });
+
+      if (updateResult.count === 0) {
+        throw new RpcException({
+          statusCode: 409,
+          message: 'Dữ liệu GVHD vừa thay đổi do thao tác đồng thời, vui lòng thử lại',
+        });
+      }
+
+      const ngayBatDau = dto.ngayBatDau ? new Date(dto.ngayBatDau) : new Date();
+
+      const phanCong = await tx.phanCongHuongDan.create({
+        data: {
+          ncsId: dto.ncsId,
+          gvhdId: dto.gvhdId,
+          vaiTro: dto.vaiTro,
+          trongSo: trongSoVal,
+          quyetDinhId: dto.quyetDinhId,
+          trangThai: 'DANG_HIEU_LUC',
+          ngayBatDau,
+        },
+        include: {
+          gvhd: {
+            select: {
+              id: true,
+              hoTen: true,
+              hocHamHocVi: true,
+              email: true,
+              soNcsDangHuongDan: true,
+              maxNcsChoPhep: true,
+            },
+          },
+          ncs: {
+            select: { id: true, mshv: true, hoTen: true, trangThai: true },
+          },
+          quyetDinh: {
+            select: { id: true, soQuyetDinh: true, ngayQuyetDinh: true, loai: true },
+          },
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: 'ASSIGNMENT_CREATE',
+          entityType: 'PhanCongHuongDan',
+          entityId: phanCong.id,
+          oldValue: {},
+          newValue: {
+            ncsId: dto.ncsId,
+            gvhdId: dto.gvhdId,
+            vaiTro: dto.vaiTro,
+            trongSo: trongSoVal,
+            quyetDinhId: dto.quyetDinhId,
+            ngayBatDau,
+          },
+        },
+      });
+
+      return phanCong;
+    });
+    // Gửi thông báo cho NCS và GVHD
+    try {
+      if (ncs.userId) {
+        this.thongBao.gui({
+          userIds: [ncs.userId],
+          loai: 'NCS_DUOC_PHAN_CONG_GVHD',
+          duLieu: {
+            tenGvhd: gvhdCheck.hoTen,
+          },
+          khoaTrung: `PHAN_CONG_NCS:${phanCong.id}`,
+        });
+      }
+      if (gvhdCheck.userId) {
+        this.thongBao.gui({
+          userIds: [gvhdCheck.userId],
+          loai: 'GVHD_NHAN_NCS',
+          duLieu: {
+            tenNcs: ncs.hoTen,
+            mshv: ncs.mshv,
+          },
+          khoaTrung: `PHAN_CONG_GVHD:${phanCong.id}`,
+        });
+      }
+    } catch (err) {
+      // ignore
+    }
+
+    return phanCong;
+  }
+
+  /**
+   * D2. Vô hiệu hóa (đổi) phân công GVHD và trả lại định mức
+   */
+  async deactivateAssignment(actorId: string, id: string) {
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const phanCong = await tx.phanCongHuongDan.findUnique({
+        where: { id },
+        include: { gvhd: true },
+      });
+      if (!phanCong) {
+        throw new RpcException({ statusCode: 404, message: 'Không tìm thấy phân công hướng dẫn' });
+      }
+      if (phanCong.trangThai !== 'DANG_HIEU_LUC') {
+        throw new RpcException({ statusCode: 400, message: 'Phân công này đã bị vô hiệu hóa trước đó' });
+      }
+
+      const gvhd = phanCong.gvhd;
+      const soHienTai = Number(gvhd.soNcsDangHuongDan);
+      const trongSoVal = Number(phanCong.trongSo);
+      const soMoi = Math.max(0, Number((soHienTai - trongSoVal).toFixed(1)));
+
+      const updateResult = await tx.giangVienHuongDan.updateMany({
+        where: { id: gvhd.id, version: gvhd.version },
+        data: {
+          soNcsDangHuongDan: soMoi,
+          version: { increment: 1 },
+        },
+      });
+
+      if (updateResult.count === 0) {
+        throw new RpcException({
+          statusCode: 409,
+          message: 'Dữ liệu GVHD vừa thay đổi do thao tác đồng thời, vui lòng thử lại',
+        });
+      }
+
+      const ngayKetThuc = new Date();
+
+      const updated = await tx.phanCongHuongDan.update({
+        where: { id },
+        data: {
+          trangThai: 'DEACTIVATE',
+          ngayKetThuc,
+        },
+        include: {
+          gvhd: {
+            select: {
+              id: true,
+              userId: true,
+              hoTen: true,
+              hocHamHocVi: true,
+              soNcsDangHuongDan: true,
+              maxNcsChoPhep: true,
+            },
+          },
+          ncs: {
+            select: { id: true, userId: true, mshv: true, hoTen: true },
+          },
+          quyetDinh: {
+            select: { id: true, soQuyetDinh: true, ngayQuyetDinh: true },
+          },
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: 'ASSIGNMENT_DEACTIVATE',
+          entityType: 'PhanCongHuongDan',
+          entityId: id,
+          oldValue: { trangThai: phanCong.trangThai, ngayKetThuc: phanCong.ngayKetThuc },
+          newValue: { trangThai: 'DEACTIVATE', ngayKetThuc },
+        },
+      });
+
+      return updated;
+    });
+
+    const recipientUserIds: string[] = [];
+    if (updated.ncs?.userId) recipientUserIds.push(updated.ncs.userId);
+    if (updated.gvhd?.userId) recipientUserIds.push(updated.gvhd.userId);
+
+    if (recipientUserIds.length > 0) {
+      try {
+        this.thongBao.gui({
+          userIds: recipientUserIds,
+          loai: 'THAY_DOI_PHAN_CONG_GVHD',
+          duLieu: {
+            tenNcs: updated.ncs?.hoTen,
+            mshv: updated.ncs?.mshv,
+            tenGvhd: updated.gvhd?.hoTen,
+          },
+          khoaTrung: `DEACTIVATE_GVHD:${id}`,
+        });
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    return updated;
+  }
+
+  /**
+   * D3. Xem danh sách phân công
+   */
+  async listAssignments(query: ListAssignmentQueryDto) {
+    const where: Prisma.PhanCongHuongDanWhereInput = {};
+    if (query?.ncsId) where.ncsId = query.ncsId;
+    if (query?.gvhdId) where.gvhdId = query.gvhdId;
+    if (query?.trangThai) where.trangThai = query.trangThai as any;
+
+    return this.prisma.phanCongHuongDan.findMany({
+      where,
+      include: {
+        gvhd: {
+          select: {
+            id: true,
+            hoTen: true,
+            email: true,
+            hocHamHocVi: true,
+            soNcsDangHuongDan: true,
+            maxNcsChoPhep: true,
+            donVi: { select: { id: true, ten: true } },
+          },
+        },
+        ncs: {
+          select: {
+            id: true,
+            mshv: true,
+            hoTen: true,
+            trangThai: true,
+          },
+        },
+        quyetDinh: {
+          select: {
+            id: true,
+            soQuyetDinh: true,
+            ngayQuyetDinh: true,
+            loai: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 }

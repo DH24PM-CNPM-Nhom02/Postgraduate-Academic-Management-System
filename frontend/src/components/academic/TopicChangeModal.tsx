@@ -9,21 +9,9 @@ import {
   Calendar,
   Building,
 } from "lucide-react";
+import type { TopicChangeItem } from "@/src/types/academic";
 
-export interface TopicChangeItem {
-  id: string;
-  studentName: string;
-  studentCode: string;
-  cohort: string;
-  department: string;
-  currentTopic: string;
-  proposedTopic: string;
-  reason: string;
-  supervisorName: string;
-  supervisorOpinion: string;
-  requestDate: string;
-  status: "pending_review" | "approved" | "rejected";
-}
+export type { TopicChangeItem };
 
 export interface TopicChangeModalProps {
   isOpen: boolean;

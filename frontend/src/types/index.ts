@@ -7,6 +7,8 @@
  *   npx openapi-typescript http://localhost:8080/v3/api-docs -o src/types/api.ts
  */
 
+export * from "./academic";
+
 // Placeholder types — sẽ được generate từ OpenAPI spec
 
 /** Trạng thái mốc đào tạo */

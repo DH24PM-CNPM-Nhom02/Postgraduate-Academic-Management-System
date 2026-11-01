@@ -19,3 +19,10 @@ export {
 export { GlobalSearchModal } from "./GlobalSearchModal";
 export { HoverLogo } from "./HoverLogo";
 export * from "./mockData";
+
+// Clean Architecture View Components
+export { StudentsManagementView } from "./students/StudentsManagementView";
+export { SupervisorsManagementView } from "./supervisors/SupervisorsManagementView";
+export { EvidenceManagementView } from "./evidence/EvidenceManagementView";
+export { TopicChangesManagementView } from "./topic-changes/TopicChangesManagementView";
+export { AcademicDashboardView } from "./dashboard/AcademicDashboardView";

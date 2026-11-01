@@ -57,4 +57,9 @@ export class AuthController {
   findEmails(@Payload() d: { emails: string[] }) {
     return this.auth.findEmailOwners(d.emails);
   }
+
+  @MessagePattern({ cmd: 'auth.get-users-by-role' })
+  getUsersByRole(@Payload() d: { role: string }) {
+    return this.auth.getUsersByRole(d.role);
+  }
 }

@@ -9,6 +9,9 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { TrangThaiHocTap, TrangThaiMoc } from '../generated/prisma/index.js';
 import { chuanHoaChuoi, validateEmail, validatePhoneNumber } from '../helpers/validateData.util.js';
 import { Prisma } from '../generated/prisma/index.js';
+import { goiService } from '../helpers/call-service.util.js';
+import { congThang } from '../helpers/date.util.js';
+import { NotificationClient } from '../notification/notification.client.js';
 type AuthUser = {
   id: string;
   username: string;
@@ -25,23 +28,6 @@ const THOI_GIAN_DAO_TAO = {
 };
 
 const SO_THANG_TOI_DA = 72;
-
-/**
- * Cộng số tháng vào một ngày.
- * Ví dụ: 31/01 cộng 1 tháng sẽ thành ngày cuối tháng 2.
- */
-function congThang(ngay: Date, soThang: number): Date {
-  const nam = ngay.getUTCFullYear();
-  const thang = ngay.getUTCMonth() + soThang;
-  const ngayTrongThang = ngay.getUTCDate();
-
-  const ngayCuoiThangDich = new Date(Date.UTC(nam, thang + 1, 0)).getUTCDate();
-  const ngayKetQua = Math.min(ngayTrongThang, ngayCuoiThangDich);
-
-  return new Date(Date.UTC(nam, thang, ngayKetQua));
-}
-
-
 
 /**
  * Tìm một giá trị trong danh sách đã chuẩn hóa.
@@ -105,6 +91,7 @@ export class NcsService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject('AUTH_SERVICE') private readonly auth: ClientProxy,
+    private readonly thongBao: NotificationClient,
   ) { }
 
   /**
@@ -113,19 +100,7 @@ export class NcsService {
    * trả về lỗi để hệ thống phía trên xử lý.
    */
   async callAuth<T>(cmd: string, payload: unknown, ms = 5000): Promise<T> {
-    return firstValueFrom(
-      this.auth.send<T>({ cmd }, payload).pipe(
-        timeout(ms),
-        catchError((err) =>
-          throwError(
-            () =>
-              new RpcException(
-                err?.statusCode ? err : { statusCode: 502, message: 'Không gọi được auth-service' },
-              ),
-          ),
-        ),
-      ),
-    );
+    return goiService<T>(this.auth, cmd, payload, ms);
   }
 
   /**
@@ -531,15 +506,27 @@ export class NcsService {
 
     for (const hoSo of danhSachHoSo) {
       for (const moc of danhSachMoc) {
-        const laMocDauTien = moc.thuTu === 1;
+        let trangThai: TrangThaiMoc = TrangThaiMoc.LOCKED;
+        let openedAt: Date | null = null;
+        let passedAt: Date | null = null;
+
+        if (moc.thuTu === 1) {
+          // Nhập học: có hồ sơ là coi như đã đạt, không cần nộp minh chứng
+          trangThai = TrangThaiMoc.PASSED;
+          openedAt = thoiGianHienTai;
+          passedAt = thoiGianHienTai;
+        } else if (moc.thuTu === 2) {
+          // Mốc đầu tiên NCS phải nộp
+          trangThai = TrangThaiMoc.UNLOCKED;
+          openedAt = thoiGianHienTai;
+        }
 
         danhSachTienTrinh.push({
           ncsId: hoSo.id,
           mocId: moc.id,
-          trangThai: laMocDauTien
-            ? TrangThaiMoc.UNLOCKED
-            : TrangThaiMoc.LOCKED,
-          openedAt: laMocDauTien ? thoiGianHienTai : null,
+          trangThai,
+          openedAt,
+          passedAt,
         });
       }
 
@@ -662,7 +649,7 @@ export class NcsService {
     const reason = data.lyDoChuyenTrangThai?.trim() || null;
     const profile = await this.prisma.nghienCuuSinh.findUnique({
       where: { id: ncsId },
-      select: { id: true, userId: true, trangThai: true, ngayChuyenTrangThai: true, lyDoChuyenTrangThai: true },
+      select: { id: true, userId: true, mshv: true, hoTen: true, trangThai: true, ngayChuyenTrangThai: true, lyDoChuyenTrangThai: true },
     });
     if (!profile) throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ NCS' });
 
@@ -685,7 +672,7 @@ export class NcsService {
     }
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const updated= await this.prisma.$transaction(async (tx) => {
         const current = await tx.nghienCuuSinh.findUnique({
           where: { id: ncsId },
           select: { id: true, trangThai: true, ngayChuyenTrangThai: true, lyDoChuyenTrangThai: true },
@@ -728,6 +715,39 @@ export class NcsService {
         });
         return updated;
       });
+
+      // Bắn thông báo cập nhật trạng thái học tập cho NCS và GVHD
+      try {
+        const recipientUserIds: string[] = [];
+        if (profile.userId) recipientUserIds.push(profile.userId);
+
+        const phanCongs = await this.prisma.phanCongHuongDan.findMany({
+          where: { ncsId, trangThai: 'DANG_HIEU_LUC' },
+          include: { gvhd: { select: { userId: true } } },
+        });
+        for (const pc of phanCongs) {
+          if (pc.gvhd?.userId) recipientUserIds.push(pc.gvhd.userId);
+        }
+
+        if (recipientUserIds.length > 0) {
+          this.thongBao.gui({
+            userIds: recipientUserIds,
+            loai: 'CAP_NHAT_TRANG_THAI_HOC_TAP',
+            duLieu: {
+              tenNcs: profile.hoTen,
+              mshv: profile.mshv,
+              trangThaiMoi: data.trangThai,
+              ngayHieuLuc: data.ngayChuyenTrangThai,
+              lyDo: reason,
+            },
+            khoaTrung: `TRANG_THAI_NCS:${ncsId}:${data.trangThai}:${newEffectiveDate}`,
+          });
+        }
+      } catch (err) {
+        // ignore notification error
+      }
+
+      return updated;
     } catch (error) {
       if (accountNeedsUpdate && profile.userId) {
         try {
@@ -812,7 +832,7 @@ export class NcsService {
           if (!validateEmail(input.email)) {
             throw new RpcException({ statusCode: 400, message: 'Email không hợp lệ' });
           }
-          else if(input.email.length > 100){
+          else if (input.email.length > 100) {
             throw new RpcException({ statusCode: 400, message: 'Email dài quá 100 ký tự' });
           }
           setChange('email', 'email', hoSoCu.email, input.email);

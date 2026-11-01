@@ -1,8 +1,8 @@
 // auth/auth.service.ts
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { RpcException } from '@nestjs/microservices';
+import { ClientProxy, RpcException } from '@nestjs/microservices';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
@@ -29,6 +29,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    @Inject('NOTIFICATION_SERVICE') private readonly notifClient: ClientProxy,
   ) { }
 
   // ---------- Đăng nhập ----------
@@ -174,6 +175,17 @@ export class AuthService {
         data: { revokedAt: new Date() },
       }),
     ]);
+
+    try {
+      this.notifClient.emit('notification.create', {
+        userIds: [userId],
+        loai: 'TAI_KHOAN_DOI_MAT_KHAU',
+        khoaTrung: `DOI_MK:${userId}:${Date.now()}`,
+      }).subscribe({ error: () => {} });
+    } catch {
+      // ignore notification errors
+    }
+
     return { message: 'Đổi mật khẩu thành công' };
   }
 
@@ -386,5 +398,28 @@ export class AuthService {
         message: `Email đã được dùng: ${names.join(', ')}`,
       });
     }
+  }
+
+  // ---------- Danh sách người dùng theo vai trò (Role) ----------
+  async getUsersByRole(role: string) {
+    return this.prisma.user.findMany({
+      where: {
+        isActive: true,
+        deletedAt: null,
+        roles: {
+          some: {
+            role: {
+              name: role,
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        username: true,
+        fullName: true,
+        email: true,
+      },
+    });
   }
 }

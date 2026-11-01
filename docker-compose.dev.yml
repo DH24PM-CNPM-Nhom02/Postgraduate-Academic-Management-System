@@ -87,6 +87,19 @@ services:
     networks:
       - pams-network
 
+  seaweedfs:
+    image: chrislusf/seaweedfs:${SEAWEEDFS_TAG:-4.48}
+    command: server -s3 -dir=/data -ip.bind=0.0.0.0 -master.volumeSizeLimitMB=1024 -volume.max=100
+    environment:
+      AWS_ACCESS_KEY_ID: ${SEAWEED_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${SEAWEED_S3_SECRET_KEY}
+    ports:
+      - "8333:8333"
+    volumes:
+      - seaweedfs_data:/data
+    networks:
+      - pams-network
+
   document-service:
     build:
       <<: *backend-build
@@ -97,7 +110,14 @@ services:
       DOCUMENT_SERVICE_HOST: 0.0.0.0
       DOCUMENT_SERVICE_PORT: 3002
       DOCUMENT_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/document_db
+      SEAWEED_S3_ENDPOINT: http://seaweedfs:8333
+      SEAWEED_S3_REGION: us-east-1
+      SEAWEED_S3_BUCKET: pams-documents
+      SEAWEED_S3_ACCESS_KEY: ${SEAWEED_S3_ACCESS_KEY}
+      SEAWEED_S3_SECRET_KEY: ${SEAWEED_S3_SECRET_KEY}
     depends_on:
+      seaweedfs:
+        condition: service_started
       mariadb:
         condition: service_healthy
     networks:
@@ -169,4 +189,5 @@ networks:
     driver: bridge
 
 volumes:
+  seaweedfs_data:
   mariadb_data:

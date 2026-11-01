@@ -5,10 +5,6 @@ import Link from "next/link";
 import {
   BookOpen,
   ArrowLeft,
-  ShieldCheck,
-  CheckCircle2,
-  Clock,
-  Award,
 } from "lucide-react";
 
 export default function AcademicRegulationsPage() {

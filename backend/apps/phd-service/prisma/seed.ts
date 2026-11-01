@@ -105,6 +105,36 @@ const DON_VI_CAP_2: { ten: string; loai: Loai; parent: string }[] = [
   { ten: "Phòng Nghiên cứu Nông nghiệp và Phát triển nông thôn - Viện BĐKH", loai: 'PHONG_BAN', parent: "Viện Biến đổi khí hậu" },
 ];
 
+// ---------------------------------------------------------------------------
+// 5. Hạn theo quy định của trường (bảng moc_han). Hạn của từng NCS được tính khi truy vấn.
+//    Mốc 1 và mốc 6 không có dòng ở đây: mốc 1 tự đạt, mốc 6 là lịch cố định tháng 6 và tháng 12.
+// ---------------------------------------------------------------------------
+type DongHan = {
+  thuTu: number;
+  maHan: string;
+  tenHan: string;
+  mocGoc: 'NGAY_NHAP_HOC' | 'NGAY_MOC_DAT' | 'HET_HAN_CHINH_QUY';
+  gocThuTu?: number;
+  soDonVi: number;
+  donVi: 'NGAY' | 'NGAY_LAM_VIEC' | 'THANG';
+  laHanMem?: boolean;
+  canCu: string;
+};
+
+const HAN_TRUOC_MOC_8 = 'Phải xong trước khi đăng ký bảo vệ mốc 8; hồ sơ mốc 8 nộp chậm nhất 3 tháng trước khi hết hạn chính quy';
+
+const MOC_HANS: DongHan[] = [
+  { thuTu: 2, maHan: 'HOAN_THANH', tenHan: 'Hoàn thành tiểu luận tổng quan', mocGoc: 'NGAY_NHAP_HOC', soDonVi: 6, donVi: 'THANG', canCu: 'Thực hiện trong 06 tháng đầu khóa' },
+  { thuTu: 3, maHan: 'HOAN_THANH', tenHan: 'Hoàn thành đề cương nghiên cứu', mocGoc: 'NGAY_NHAP_HOC', soDonVi: 6, donVi: 'THANG', canCu: 'Thực hiện trong 06 tháng đầu khóa' },
+  { thuTu: 4, maHan: 'DANG_KY_CHUYEN_DE', tenHan: 'GVHD gửi phiếu đăng ký chuyên đề', mocGoc: 'NGAY_NHAP_HOC', soDonVi: 12, donVi: 'THANG', laHanMem: true, canCu: 'Chậm nhất đầu năm học thứ 2 (ước tính 12 tháng từ ngày nhập học)' },
+  { thuTu: 4, maHan: 'HOAN_THANH', tenHan: 'Hoàn thành chuyên đề 1', mocGoc: 'HET_HAN_CHINH_QUY', soDonVi: -3, donVi: 'THANG', canCu: HAN_TRUOC_MOC_8 },
+  { thuTu: 5, maHan: 'HOAN_THANH', tenHan: 'Hoàn thành chuyên đề 2', mocGoc: 'HET_HAN_CHINH_QUY', soDonVi: -3, donVi: 'THANG', canCu: HAN_TRUOC_MOC_8 },
+  { thuTu: 7, maHan: 'HOAN_THANH', tenHan: 'Hoàn thành seminar cuối khóa', mocGoc: 'HET_HAN_CHINH_QUY', soDonVi: -3, donVi: 'THANG', canCu: HAN_TRUOC_MOC_8 },
+  { thuTu: 8, maHan: 'NOP_HO_SO', tenHan: 'Nộp hồ sơ đăng ký bảo vệ cấp đơn vị chuyên môn', mocGoc: 'HET_HAN_CHINH_QUY', soDonVi: -3, donVi: 'THANG', canCu: 'Chậm nhất 03 tháng trước khi hết thời hạn chính quy' },
+  { thuTu: 9, maHan: 'HOAN_THIEN_GUI_PHAN_BIEN', tenHan: 'Hoàn thiện luận án gửi phản biện độc lập', mocGoc: 'NGAY_MOC_DAT', gocThuTu: 8, soDonVi: 60, donVi: 'NGAY_LAM_VIEC', canCu: 'Tối đa 60 ngày làm việc sau khi hội đồng cấp đơn vị thông qua (mốc 8)' },
+  { thuTu: 9, maHan: 'BAO_VE_CO_SO', tenHan: 'Bảo vệ luận án cấp cơ sở đào tạo', mocGoc: 'NGAY_MOC_DAT', gocThuTu: 8, soDonVi: 12, donVi: 'THANG', canCu: 'Nhà trường tổ chức trong vòng 12 tháng kể từ ngày mốc 8 được thông qua' },
+];
+
 async function seedMoc() {
   for (const m of MOCS) {
     await prisma.mocTienTrinh.upsert({
@@ -116,6 +146,27 @@ async function seedMoc() {
   const count = await prisma.mocTienTrinh.count();
   if (count !== MOCS.length) {
     throw new Error(`moc_tien_trinh có ${count} dòng, mong đợi ${MOCS.length}; kiểm tra lại dữ liệu cũ`);
+  }
+}
+
+async function seedMocHan() {
+  for (const h of MOC_HANS) {
+    const moc = await prisma.mocTienTrinh.findUnique({ where: { thuTu: h.thuTu }, select: { id: true } });
+    if (!moc) throw new Error(`Chưa có mốc ${h.thuTu}, hãy chạy seedMoc trước`);
+    const duLieu = {
+      tenHan: h.tenHan,
+      mocGoc: h.mocGoc,
+      gocThuTu: h.gocThuTu ?? null,
+      soDonVi: h.soDonVi,
+      donVi: h.donVi,
+      laHanMem: h.laHanMem ?? false,
+      canCu: h.canCu,
+    };
+    await prisma.mocHan.upsert({
+      where: { mocId_maHan: { mocId: moc.id, maHan: h.maHan } },
+      update: duLieu,
+      create: { mocId: moc.id, maHan: h.maHan, ...duLieu },
+    });
   }
 }
 
@@ -163,6 +214,8 @@ async function seedDonVi() {
 async function main() {
   await seedMoc();
   console.log('Seed 9 mốc xong');
+  await seedMocHan();
+  console.log(`Seed ${MOC_HANS.length} dòng hạn xong`);
   await seedNganh();
   console.log(`Seed ${NGANHS.length} ngành xong`);
   await seedKhoa();

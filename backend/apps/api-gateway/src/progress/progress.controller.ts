@@ -1,0 +1,122 @@
+import { BadRequestException, Body, Controller, Get, Inject, Param, ParseIntPipe, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import { ClientProxy } from '@nestjs/microservices';
+import { firstValueFrom, timeout } from 'rxjs';
+import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { RequirePermissions } from '../common/decorators/require-permissions.decorator.js';
+import { PHD_SERVICE } from '../common/constants/service.js';
+import type { AuthUser } from '../common/interface/auth-user.interface.js';
+import { SubmitMilestoneDto, ApproveMilestoneDto, RejectMilestoneDto, CreateEvaluationDto, SetPlanDeadlineDto } from '../../../../lib/contracts/src/dto/progress.dto.js';
+import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
+
+@Controller('progress')
+export class ProgressController {
+  constructor(@Inject(PHD_SERVICE) private readonly phd: ClientProxy) { }
+
+  private send<T>(cmd: string, payload: unknown, ms = 10000) {
+    return firstValueFrom(this.phd.send<T>({ cmd }, payload).pipe(timeout(ms)));
+  }
+
+  // NCS nộp minh chứng cho mốc số :thuTu (mốc 1 tự động đạt nên chỉ nhận 2 đến 9)
+  @Post('milestones/:thuTu/submit')
+  @RequirePermissions(PERMISSIONS.MILESTONE_SUBMIT)
+  submit(
+    @CurrentUser() u: AuthUser,
+    @Param('thuTu', ParseIntPipe) thuTu: number,
+    @Body() body: SubmitMilestoneDto,
+  ) {
+    if (thuTu < 2 || thuTu > 9) {
+      throw new BadRequestException('Số thứ tự mốc phải từ 2 đến 9');
+    }
+    // userId lấy từ token, không lấy từ client
+    return this.send('phd.progress.submit', {
+      userId: u.id,
+      thuTu,
+      fileId: body.fileId,
+      ghiChu: body.ghiChu,
+    });
+  }
+
+  // NCS xem tiến trình của mình
+  @Get('me')
+  @RequirePermissions(PERMISSIONS.MILESTONE_READ)
+  myProgress(@CurrentUser() u: AuthUser) {
+    return this.send('phd.progress.my', { userId: u.id });
+  }
+
+  // Giáo vụ: danh sách mốc chờ duyệt
+  @Get('pending')
+  @RequirePermissions(PERMISSIONS.MILESTONE_APPROVE)
+  pending() {
+    return this.send('phd.progress.pending', {});
+  }
+
+  // Giáo vụ: tiến trình của một NCS
+  @Get('ncs/:ncsId')
+  @RequirePermissions(PERMISSIONS.MILESTONE_APPROVE)
+  progressOfNcs(@Param('ncsId', new ParseUUIDPipe()) ncsId: string) {
+    return this.send('phd.progress.ncs', { ncsId });
+  }
+
+  // Giáo vụ duyệt mốc
+  @Post('reviews/:tienTrinhId/approve')
+  @RequirePermissions(PERMISSIONS.MILESTONE_APPROVE)
+  approve(
+    @CurrentUser() u: AuthUser,
+    @Param('tienTrinhId', new ParseUUIDPipe()) tienTrinhId: string,
+    @Body() body: ApproveMilestoneDto,
+  ) {
+    return this.send('phd.progress.approve', {
+      actorId: u.id,
+      tienTrinhId,
+      quyetDinhId: body.quyetDinhId,
+    });
+  }
+
+  // Giáo vụ từ chối mốc
+  @Post('reviews/:tienTrinhId/reject')
+  @RequirePermissions(PERMISSIONS.MILESTONE_REJECT)
+  reject(
+    @CurrentUser() u: AuthUser,
+    @Param('tienTrinhId', new ParseUUIDPipe()) tienTrinhId: string,
+    @Body() body: RejectMilestoneDto,
+  ) {
+    return this.send('phd.progress.reject', {
+      actorId: u.id,
+      tienTrinhId,
+      lyDo: body.lyDo,
+    });
+  }
+
+  // Giáo vụ nhập phiếu nhận xét (thay người chấm ngoài hệ thống)
+  @Post('evidences/:minhChungId/evaluations')
+  @RequirePermissions(PERMISSIONS.MILESTONE_APPROVE)
+  createEvaluation(
+    @CurrentUser() u: AuthUser,
+    @Param('minhChungId', new ParseUUIDPipe()) minhChungId: string,
+    @Body() body: CreateEvaluationDto,
+  ) {
+    // actorId và minhChungId đặt sau body để client không ghi đè được
+    return this.send('phd.evaluation.create', { ...body, actorId: u.id, minhChungId });
+  }
+
+  // Giáo vụ xem các phiếu và điểm trung bình của một lần nộp
+  @Get('evidences/:minhChungId/evaluations')
+  @RequirePermissions(PERMISSIONS.MILESTONE_APPROVE)
+  listEvaluations(@Param('minhChungId', new ParseUUIDPipe()) minhChungId: string) {
+    return this.send('phd.evaluation.list', { minhChungId });
+  }
+  // Giáo vụ nhập (hoặc xóa, gửi hanKeHoach = null) hạn theo Kế hoạch học tập và nghiên cứu toàn khóa của một mốc
+  @Patch('milestones/:tienTrinhId/plan-deadline')
+  @RequirePermissions(PERMISSIONS.MILESTONE_APPROVE)
+  setPlanDeadline(
+    @CurrentUser() u: AuthUser,
+    @Param('tienTrinhId', new ParseUUIDPipe()) tienTrinhId: string,
+    @Body() body: SetPlanDeadlineDto,
+  ) {
+    return this.send('phd.progress.plan-deadline', {
+      actorId: u.id,
+      tienTrinhId,
+      hanKeHoach: body.hanKeHoach ?? null,
+    });
+  }
+}

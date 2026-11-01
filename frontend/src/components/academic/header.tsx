@@ -16,7 +16,6 @@ import {
   Clock,
   FileEdit,
   HelpCircle,
-  Building2,
 } from "lucide-react";
 import { useAuth } from "@/src/hooks/use-auth";
 import { HoverLogo } from "./HoverLogo";
