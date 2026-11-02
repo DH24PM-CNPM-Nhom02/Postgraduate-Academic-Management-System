@@ -6,7 +6,9 @@ import { RpcToHttpFilter } from './common/filters/rpc-to-http.filter.js';
 async function bootstrap() {
   const app = await NestFactory.create(ApiGatewayModule);
   
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['health', 'ping', 'api/v1/health', 'api/v1/ping'],
+  });
   
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,

@@ -338,6 +338,17 @@ export class DecisionService {
         if (qd.trangThai === 'DEACTIVATE') {
             throw new RpcException({ statusCode: 400, message: 'Quyết định đã bị vô hiệu hóa' });
         }
+        // Quyết định công nhận tốt nghiệp đã dùng để xác nhận tốt nghiệp thì không vô hiệu hóa riêng được
+        // chưa có chức năng hoàn tác tốt nghiệp, làm vậy sẽ khiến dữ liệu lệch nhau
+        if (qd.loai === 'CONG_NHAN_TOT_NGHIEP') {
+            const daDung = await this.prisma.xetTotNghiep.findFirst({
+                where: { quyetDinhId: qd.id, trangThai: 'DA_DUYET' },
+                select: { id: true },
+            });
+            if (daDung) {
+                throw new RpcException({ statusCode: 400, message: 'Quyết định này đã dùng để xác nhận tốt nghiệp, chưa hỗ trợ vô hiệu hóa' });
+            }
+        }
 
         // Giữ ghi chú cũ, thêm lý do vô hiệu hóa vào sau
         const ghiChuMoi = [qd.ghiChu, `Vô hiệu hóa với lý do: ${lyDo}`].filter(Boolean).join('\n');
