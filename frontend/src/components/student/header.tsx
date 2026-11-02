@@ -105,21 +105,21 @@ export function StudentHeader({ onToggleSidebar }: StudentHeaderProps) {
 
                 <div className="py-1">
                   <Link
-                    href="/dashboard"
+                    href="/student/profile"
                     onClick={() => setDropdownOpen(false)}
                     className="flex items-center gap-2 rounded-md px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors"
                   >
                     <User className="size-4 text-muted-foreground" />
                     <span>Hồ sơ nghiên cứu sinh</span>
                   </Link>
-                  <a
-                    href="#"
+                  <Link
+                    href="/student/profile?tab=security"
                     onClick={() => setDropdownOpen(false)}
                     className="flex items-center gap-2 rounded-md px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors"
                   >
                     <Shield className="size-4 text-muted-foreground" />
                     <span>Đổi mật khẩu</span>
-                  </a>
+                  </Link>
                 </div>
 
                 <div className="border-t border-border pt-1">

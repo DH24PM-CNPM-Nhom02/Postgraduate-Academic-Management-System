@@ -28,8 +28,13 @@ const navItems = [
   },
   {
     title: "Mốc tiến độ NCS",
-    href: "/milestones",
+    href: "/student/progress",
     icon: Milestone,
+  },
+  {
+    title: "Hồ sơ nghiên cứu sinh",
+    href: "/student/profile",
+    icon: User,
   },
   {
     title: "Công bố khoa học",
@@ -148,7 +153,11 @@ export function StudentSidebar({ isOpen, onClose }: StudentSidebarProps) {
 
         {/* User Mini Card at Bottom */}
         <div className="border-t border-border p-3">
-          <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-2.5">
+          <Link
+            href="/student/profile"
+            onClick={onClose}
+            className="flex items-center gap-3 rounded-lg bg-muted/50 p-2.5 transition-colors hover:bg-muted"
+          >
             <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold text-xs dark:bg-blue-900 dark:text-blue-200">
               {user?.fullName ? user.fullName.charAt(0).toUpperCase() : <User className="size-4" />}
             </div>
@@ -160,7 +169,7 @@ export function StudentSidebar({ isOpen, onClose }: StudentSidebarProps) {
                 {user?.username ? `Mã NCS: ${user.username}` : "Khóa NCS"}
               </p>
             </div>
-          </div>
+          </Link>
         </div>
       </aside>
     </>
