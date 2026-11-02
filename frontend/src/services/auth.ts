@@ -1,4 +1,4 @@
-import { publicApiClient } from "@/src/lib/axios-public";
+import { publicApiClient } from "@/src/lib/api";
 import {
   InvalidParameters,
   UnauthorizedError,
@@ -12,14 +12,47 @@ export interface LoginPayload {
   password: string;
 }
 
+export interface AuthUserResponse {
+  id: string;
+  username: string;
+  email?: string;
+  fullName: string;
+  roles?: string[];
+  mustChangePassword?: boolean;
+}
+
+export interface TokenPairResponse {
+  access_token: string;
+  refresh_token: string;
+}
+
+export interface LoginResponseData extends TokenPairResponse {
+  user: AuthUserResponse;
+}
+
+export type LoginApiResponse = LoginResponseData | { data: LoginResponseData };
+export type RefreshApiResponse = TokenPairResponse | { data: TokenPairResponse };
+
+export interface UserProfileResponse {
+  id: string;
+  username: string;
+  fullName: string;
+  email?: string;
+  roles?: string[];
+  permissions?: string[];
+  mustChangePassword?: boolean;
+}
+
+export type GetMeApiResponse = UserProfileResponse | { data: UserProfileResponse };
+
 export const authService = {
   /**
    * Đăng nhập bằng username + password.
-   * Backend trả về: { data: { user, access_token, refresh_token } }
+   * Backend trả về: { user, access_token, refresh_token } hoặc bọc trong { data: ... }
    */
-  login: async (credentials: Record<string, string>) => {
+  login: async (credentials: Record<string, string>): Promise<LoginApiResponse> => {
     try {
-      const res = await publicApiClient.post("/auth/login", {
+      const res = await publicApiClient.post<LoginApiResponse>("/auth/login", {
         username: credentials.username,
         password: credentials.password,
       });
@@ -49,11 +82,11 @@ export const authService = {
 
   /**
    * Lấy thông tin user hiện tại từ access_token.
-   * Backend trả về: { data: { id, fullName, username, email, role, ... } }
+   * Backend trả về: { user } hoặc bọc trong { data: ... }
    */
-  getMe: async (accessToken: string) => {
+  getMe: async (accessToken: string): Promise<GetMeApiResponse> => {
     try {
-      const res = await publicApiClient.get("/auth/me", {
+      const res = await publicApiClient.get<GetMeApiResponse>("/auth/me", {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
@@ -69,11 +102,11 @@ export const authService = {
 
   /**
    * Refresh access token bằng refresh token.
-   * Backend trả về: { data: { access_token, refresh_token } }
+   * Backend trả về: { access_token, refresh_token } hoặc bọc trong { data: ... }
    */
-  refreshToken: async (refreshToken: string) => {
+  refreshToken: async (refreshToken: string): Promise<RefreshApiResponse> => {
     try {
-      const res = await publicApiClient.post("/auth/refresh", {
+      const res = await publicApiClient.post<RefreshApiResponse>("/auth/refresh", {
         refreshToken,
       });
       return res.data;
