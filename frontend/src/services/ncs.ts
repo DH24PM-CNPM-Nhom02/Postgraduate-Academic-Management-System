@@ -1,4 +1,4 @@
-import { apiClient } from "../lib/api/axios";
+import { apiClient } from "@/src/lib/api";
 
 export const NcsService = {
   getAllStudentsWithPagination: async () => {
