@@ -26,3 +26,5 @@ export { SupervisorsManagementView } from "./supervisors/SupervisorsManagementVi
 export { EvidenceManagementView } from "./evidence/EvidenceManagementView";
 export { TopicChangesManagementView } from "./topic-changes/TopicChangesManagementView";
 export { AcademicDashboardView } from "./dashboard/AcademicDashboardView";
+export { DecisionsManagementView } from "./decisions/DecisionsManagementView";
+export { MilestoneReviewView } from "./milestone-review/MilestoneReviewView";
