@@ -137,6 +137,7 @@ enum DonViHan {
   NGAY_LAM_VIEC
   THANG
 }
+
 // ----------------------------------------------------------------------------
 // 1. HỒ SƠ NCS & CĂN CỨ PHÁP LÝ
 // ----------------------------------------------------------------------------
@@ -324,23 +325,23 @@ model TienTrinhNcs {
 /// Cấu hình hạn theo quy định của trường. Một mốc có thể có nhiều hạn.
 /// Hạn của từng NCS KHÔNG lưu cứng: tính khi truy vấn từ ngày gốc + soDonVi (xem han.service.ts).
 model MocHan {
-  id         Int      @id @default(autoincrement())
-  mocId      Int      @map("moc_id")
+  id        Int      @id @default(autoincrement())
+  mocId     Int      @map("moc_id")
   /// Mã ngắn để seed upsert, vd NOP_MINH_CHUNG, DANG_KY_CHUYEN_DE
-  maHan      String   @map("ma_han") @db.VarChar(50)
-  tenHan     String   @map("ten_han") @db.VarChar(200)
-  mocGoc     MocGoc   @map("moc_goc")
+  maHan     String   @map("ma_han") @db.VarChar(50)
+  tenHan    String   @map("ten_han") @db.VarChar(200)
+  mocGoc    MocGoc   @map("moc_goc")
   /// Chỉ dùng khi mocGoc = NGAY_MOC_DAT: thứ tự mốc làm gốc (vd 8)
-  gocThuTu   Int?     @map("goc_thu_tu")
+  gocThuTu  Int?     @map("goc_thu_tu")
   /// Số âm = lùi (vd -3 THANG so với hết hạn chính quy)
-  soDonVi    Int      @map("so_don_vi")
-  donVi      DonViHan @map("don_vi")
+  soDonVi   Int      @map("so_don_vi")
+  donVi     DonViHan @map("don_vi")
   /// true = hạn ước tính/tham khảo, chỉ để nhắc, không dùng làm hạn cứng
-  laHanMem   Boolean  @default(false) @map("la_han_mem")
+  laHanMem  Boolean  @default(false) @map("la_han_mem")
   /// Căn cứ trong quy định, để Giáo vụ đối chiếu
-  canCu      String?  @map("can_cu") @db.VarChar(255)
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  canCu     String?  @map("can_cu") @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   moc MocTienTrinh @relation(fields: [mocId], references: [id], onDelete: Restrict)
 
@@ -521,28 +522,33 @@ model DeNghiDieuChinh {
 // ----------------------------------------------------------------------------
 // 5. XÉT TỐT NGHIỆP TỰ ĐỘNG (UC-PHD-12)
 // ----------------------------------------------------------------------------
-/// da9Moc tính từ tien_trinh_ncs. Ngoại ngữ/công nợ lấy từ phân hệ khác hoặc
-/// mock (nguonDuLieu) — lưu snapshot lúc kiểm tra.
 model XetTotNghiep {
-  id                   String             @id @default(uuid())
-  ncsId                String             @unique @map("ncs_id")
-  da9Moc               Boolean            @default(false) @map("da_9_moc")
-  datNgoaiNgu          Boolean            @default(false) @map("dat_ngoai_ngu")
-  /// Chuẩn đầu ra ngoại ngữ đã được công nhận (CHUAN_DAU_RA_TA) và ngày công nhận
-  chuanDauRaNgoaiNgu   String?            @map("chuan_dau_ra_ngoai_ngu") @db.VarChar(100)
-  ngayCongNhanNgoaiNgu DateTime?          @map("ngay_cong_nhan_ngoai_ngu") @db.Date
-  khongConCongNo       Boolean            @default(false) @map("khong_con_cong_no")
-  /// MOCK | API — nguồn dữ liệu ngoại ngữ/công nợ
-  nguonDuLieu          String?            @map("nguon_du_lieu") @db.VarChar(20)
-  kiemTraLuc           DateTime?          @map("kiem_tra_luc")
-  trangThai            TrangThaiTotNghiep @default(CHUA_DU_DIEU_KIEN) @map("trang_thai")
-  nguoiDuyetId         String?            @map("nguoi_duyet_id")
-  ngayDuyet            DateTime?          @map("ngay_duyet")
+  id                     String             @id @default(uuid())
+  ncsId                  String             @unique @map("ncs_id")
+  // Chuẩn đầu ra ngoại ngữ (Giáo vụ xác nhận)
+  datNgoaiNgu            Boolean            @default(false) @map("dat_ngoai_ngu")
+  chuanDauRaNgoaiNgu     String?            @map("chuan_dau_ra_ngoai_ngu") @db.VarChar(100)
+  ngayCongNhanNgoaiNgu   DateTime?          @map("ngay_cong_nhan_ngoai_ngu") @db.Date
+  ngoaiNguGhiChu         String?            @map("ngoai_ngu_ghi_chu") @db.VarChar(500)
+  ngoaiNguNguoiXacNhanId String?            @map("ngoai_ngu_nguoi_xac_nhan_id")
+  ngoaiNguNgayXacNhan    DateTime?          @map("ngoai_ngu_ngay_xac_nhan")
+  ngoaiNguDocumentId     String?            @map("ngoai_ngu_document_id")
+  // Nghĩa vụ tài chính / công nợ (Giáo vụ xác nhận)
+  khongConCongNo         Boolean            @default(false) @map("khong_con_cong_no")
+  congNoGhiChu           String?            @map("cong_no_ghi_chu") @db.VarChar(500)
+  congNoNguoiXacNhanId   String?            @map("cong_no_nguoi_xac_nhan_id")
+  congNoNgayXacNhan      DateTime?          @map("cong_no_ngay_xac_nhan")
+  congNoDocumentId       String?            @map("cong_no_document_id")
+
+  kiemTraLuc             DateTime?          @map("kiem_tra_luc")
+  trangThai              TrangThaiTotNghiep @default(CHUA_DU_DIEU_KIEN) @map("trang_thai")
+  nguoiDuyetId           String?            @map("nguoi_duyet_id")
+  ngayDuyet              DateTime?          @map("ngay_duyet")
   /// Ngày hiệu lực công nhận tốt nghiệp theo quyết định (khác ngày Giáo vụ bấm duyệt)
-  ngayTotNghiep        DateTime?          @map("ngay_tot_nghiep") @db.Date
-  quyetDinhId          String?            @map("quyet_dinh_id")
-  createdAt            DateTime           @default(now()) @map("created_at")
-  updatedAt            DateTime           @updatedAt @map("updated_at")
+  ngayTotNghiep          DateTime?          @map("ngay_tot_nghiep") @db.Date
+  quyetDinhId            String?            @map("quyet_dinh_id")
+  createdAt              DateTime           @default(now()) @map("created_at")
+  updatedAt              DateTime           @updatedAt @map("updated_at")
 
   ncs       NghienCuuSinh @relation(fields: [ncsId], references: [id], onDelete: Restrict)
   quyetDinh QuyetDinh?    @relation(fields: [quyetDinhId], references: [id], onDelete: Restrict)
