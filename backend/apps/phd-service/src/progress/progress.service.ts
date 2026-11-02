@@ -1,24 +1,32 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
-import { catchError, firstValueFrom, throwError, timeout } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { goiService } from '../helpers/call-service.util.js';
 import { DeadlineService } from './deadline.service.js';
-
+import { layNgay } from '../helpers/date.util.js';
+import { NotificationClient } from '../notification/notification.client.js';
 
 const DIEM_DAT = 7;            // điểm trung bình tối thiểu để đạt (thang 10)
 const SO_PHIEU_TOI_THIEU = 3;  // quy định của trường: tối thiểu 3 phiếu nhận xét
 
 @Injectable()
 export class ProgressService {
+    private readonly logger = new Logger(ProgressService.name);
+
     constructor(
         private readonly prisma: PrismaService,
         @Inject('DOCUMENT_SERVICE') private readonly document: ClientProxy,
+        @Inject('AUTH_SERVICE') private readonly auth: ClientProxy,
         private readonly han: DeadlineService,
+        private readonly thongBao: NotificationClient,
     ) { }
 
     private async callDocument<T>(cmd: string, payload: unknown, ms = 5000): Promise<T> {
         return goiService<T>(this.document, cmd, payload, ms);
+    }
+
+    private async callAuth<T>(cmd: string, payload: unknown, ms = 5000): Promise<T> {
+        return goiService<T>(this.auth, cmd, payload, ms);
     }
 
     async nopMinhChung(userId: string, thuTu: number, fileId: string, ghiChu?: string) {
@@ -30,6 +38,12 @@ export class ProgressService {
         if (!ncs) {
             throw new RpcException({ statusCode: 404, message: 'Bạn chưa có hồ sơ NCS' });
         }
+
+        // Quá hạn của một mốc vẫn được nộp, nhưng không được vượt tổng thời gian đào tạo tối đa (72 tháng)
+        if (layNgay(new Date()) > ncs.hanBuocThoiHoc) {
+            throw new RpcException({ statusCode: 403, message: 'Đã vượt quá tổng thời gian đào tạo tối đa, không thể nộp minh chứng' });
+        }
+
         if (ncs.trangThai !== 'DANG_HOC' && ncs.trangThai !== 'GIA_HAN') {
             throw new RpcException({ statusCode: 403, message: 'Hồ sơ NCS không ở trạng thái đang học' });
         }
@@ -69,7 +83,7 @@ export class ProgressService {
             where: { tienTrinhId: tienTrinh.id },
         });
 
-        return this.prisma.$transaction(async (tx) => {
+        const minhChungMoi = await this.prisma.$transaction(async (tx) => {
             const kq = await tx.tienTrinhNcs.updateMany({
                 where: {
                     id: tienTrinh.id,
@@ -96,6 +110,50 @@ export class ProgressService {
                 },
             });
         });
+
+        // Bắn thông báo cho Giáo vụ và GVHD khi NCS nộp minh chứng mốc
+        try {
+            const recipientUserIds: string[] = [];
+
+            // 1. GVHD của NCS
+            const phanCongs = await this.prisma.phanCongHuongDan.findMany({
+                where: { ncsId: ncs.id, trangThai: 'DANG_HIEU_LUC' },
+                include: { gvhd: { select: { userId: true } } },
+            });
+            for (const pc of phanCongs) {
+                if (pc.gvhd?.userId) recipientUserIds.push(pc.gvhd.userId);
+            }
+
+            // 2. Tài khoản Giáo vụ (GIAO_VU)
+            try {
+                const giaoVus = await this.callAuth<{ id: string }[]>('auth.get-users-by-role', { role: 'GIAO_VU' });
+                if (Array.isArray(giaoVus)) {
+                    for (const gv of giaoVus) {
+                        if (gv.id) recipientUserIds.push(gv.id);
+                    }
+                }
+            } catch (authErr) {
+                this.logger.warn(`Không lấy được danh sách Giáo vụ từ auth-service: ${(authErr as Error).message}`);
+            }
+
+            const uniqueRecipients = [...new Set(recipientUserIds)];
+            if (uniqueRecipients.length > 0) {
+                this.thongBao.gui({
+                    userIds: uniqueRecipients,
+                    loai: 'NCS_NOP_MINH_CHUNG',
+                    duLieu: {
+                        thuTu,
+                        tenNcs: ncs.hoTen,
+                        mshv: ncs.mshv,
+                    },
+                    khoaTrung: `NOP_MINH_CHUNG:${tienTrinh.id}:${minhChungMoi.lanNop}`,
+                });
+            }
+        } catch (err) {
+            this.logger.warn(`Không thể gửi thông báo NCS nộp minh chứng: ${(err as Error).message}`);
+        }
+
+        return minhChungMoi;
     }
 
     //ncs tự xem tiến trình của mình 
@@ -204,6 +262,14 @@ export class ProgressService {
             where: { id: tienTrinhId },
             include: {
                 moc: true,
+                ncs: {
+                    select: {
+                        id: true,
+                        userId: true,
+                        hoTen: true,
+                        mshv: true,
+                    },
+                },
                 minhChungs: {
                     orderBy: {
                         lanNop: 'desc'
@@ -267,7 +333,7 @@ export class ProgressService {
         }
 
         const now = new Date();
-        return this.prisma.$transaction(async (tx) => {
+        const ketQua = await this.prisma.$transaction(async (tx) => {
             // Chỉ cập nhật nếu mốc vẫn còn đúng version và đang chờ duyệt (chống duyệt trùng)
             const kq = await tx.tienTrinhNcs.updateMany({
                 where: {
@@ -338,13 +404,55 @@ export class ProgressService {
                 mocKeTiep: mocKe.count > 0 ? tienTrinh.moc.thuTu + 1 : null,
             };
         });
+
+        // Bắn thông báo không đồng bộ (fire-and-forget) cho NCS và GVHD khi mốc được duyệt
+        try {
+            // Thông báo cho NCS
+            if (tienTrinh.ncs?.userId) {
+                this.thongBao.gui({
+                    userIds: [tienTrinh.ncs.userId],
+                    loai: 'MOC_DUOC_DUYET',
+                    duLieu: {
+                        thuTu: tienTrinh.moc.thuTu,
+                        mocKeTiep: ketQua.mocKeTiep,
+                    },
+                    khoaTrung: `DUYET_MOC:${tienTrinh.id}:${minhChung.lanNop}`,
+                });
+            }
+
+            // Thông báo cho GVHD
+            const phanCongs = await this.prisma.phanCongHuongDan.findMany({
+                where: { ncsId: tienTrinh.ncsId, trangThai: 'DANG_HIEU_LUC' },
+                include: { gvhd: { select: { userId: true } } },
+            });
+            const gvhdUserIds = phanCongs
+                .map((pc) => pc.gvhd?.userId)
+                .filter((id): id is string => typeof id === 'string' && id.length > 0);
+
+            if (gvhdUserIds.length > 0) {
+                this.thongBao.gui({
+                    userIds: gvhdUserIds,
+                    loai: 'GVHD_MOC_DUOC_DUYET',
+                    duLieu: {
+                        thuTu: tienTrinh.moc.thuTu,
+                        mocKeTiep: ketQua.mocKeTiep,
+                        tenNcs: tienTrinh.ncs?.hoTen,
+                        mshv: tienTrinh.ncs?.mshv,
+                    },
+                    khoaTrung: `GVHD_DUYET_MOC:${tienTrinh.id}:${minhChung.lanNop}`,
+                });
+            }
+        } catch (err) {
+            this.logger.warn(`Không thể gửi sự kiện thông báo duyệt mốc: ${(err as Error).message}`);
+        }
+
+        return ketQua;
     }
 
     async tuChoiMoc(actorId: string, tienTrinhId: string, lyDo: string) {
         const { tienTrinh, minhChung } = await this.layMocChoDuyet(tienTrinhId);
         const now = new Date();
-
-        return this.prisma.$transaction(async (tx) => {
+        const ketQua = await this.prisma.$transaction(async (tx) => {
             const kq = await tx.tienTrinhNcs.updateMany({
                 where: { id: tienTrinh.id, version: tienTrinh.version, trangThai: 'PENDING_REVIEW' },
                 data: { trangThai: 'REJECTED', version: { increment: 1 } },
@@ -384,6 +492,49 @@ export class ProgressService {
 
             return { tienTrinhId: tienTrinh.id, trangThai: 'REJECTED' };
         });
+
+        // Bắn thông báo không đồng bộ cho NCS và GVHD khi mốc bị từ chối
+        try {
+            // Thông báo cho NCS
+            if (tienTrinh.ncs?.userId) {
+                this.thongBao.gui({
+                    userIds: [tienTrinh.ncs.userId],
+                    loai: 'MOC_BI_TU_CHOI',
+                    duLieu: {
+                        thuTu: tienTrinh.moc.thuTu,
+                        lyDo,
+                    },
+                    khoaTrung: `TU_CHOI_MOC:${tienTrinh.id}:${minhChung.lanNop}`,
+                });
+            }
+
+            // Thông báo cho GVHD
+            const phanCongs = await this.prisma.phanCongHuongDan.findMany({
+                where: { ncsId: tienTrinh.ncsId, trangThai: 'DANG_HIEU_LUC' },
+                include: { gvhd: { select: { userId: true } } },
+            });
+            const gvhdUserIds = phanCongs
+                .map((pc) => pc.gvhd?.userId)
+                .filter((id): id is string => typeof id === 'string' && id.length > 0);
+
+            if (gvhdUserIds.length > 0) {
+                this.thongBao.gui({
+                    userIds: gvhdUserIds,
+                    loai: 'GVHD_MOC_BI_TU_CHOI',
+                    duLieu: {
+                        thuTu: tienTrinh.moc.thuTu,
+                        lyDo,
+                        tenNcs: tienTrinh.ncs?.hoTen,
+                        mshv: tienTrinh.ncs?.mshv,
+                    },
+                    khoaTrung: `GVHD_TU_CHOI_MOC:${tienTrinh.id}:${minhChung.lanNop}`,
+                });
+            }
+        } catch (err) {
+            this.logger.warn(`Không thể gửi sự kiện thông báo từ chối mốc: ${(err as Error).message}`);
+        }
+
+        return ketQua;
     }
 
     // Tổng hợp phiếu của một lần nộp: số phiếu, điểm trung bình, đã đủ phiếu chưa
@@ -482,6 +633,41 @@ export class ProgressService {
             });
             return moi;
         });
+
+        // Gửi thông báo có phiếu nhận xét mới cho NCS và GVHD
+        try {
+            const recipientUserIds: string[] = [];
+            const ncs = await this.prisma.nghienCuuSinh.findUnique({
+                where: { id: minhChung.tienTrinh.ncsId },
+                select: { userId: true, hoTen: true, mshv: true },
+            });
+            if (ncs?.userId) recipientUserIds.push(ncs.userId);
+
+            const phanCongs = await this.prisma.phanCongHuongDan.findMany({
+                where: { ncsId: minhChung.tienTrinh.ncsId, trangThai: 'DANG_HIEU_LUC' },
+                include: { gvhd: { select: { userId: true } } },
+            });
+            for (const pc of phanCongs) {
+                if (pc.gvhd?.userId) recipientUserIds.push(pc.gvhd.userId);
+            }
+
+            if (recipientUserIds.length > 0) {
+                this.thongBao.gui({
+                    userIds: recipientUserIds,
+                    loai: 'CO_PHIEU_NHAN_XET_MOI',
+                    duLieu: {
+                        thuTu: minhChung.tienTrinh.moc.thuTu,
+                        tenNguoiCham,
+                        diem: d.diem,
+                        tenNcs: ncs?.hoTen,
+                        mshv: ncs?.mshv,
+                    },
+                    khoaTrung: `PHIEU_NX:${phieu.id}`,
+                });
+            }
+        } catch (err) {
+            this.logger.warn(`Không thể gửi thông báo phiếu nhận xét: ${(err as Error).message}`);
+        }
 
         // Trả luôn tổng hợp để FE hiện "2/3 phiếu" sau mỗi lần nhập
         return { phieu, tongHop: await this.tongHopPhieu(minhChung.id) };

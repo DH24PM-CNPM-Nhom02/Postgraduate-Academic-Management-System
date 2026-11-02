@@ -3,10 +3,12 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { DecisionController } from './decision.controller.js';
 import { DecisionService } from './decision.service.js';
+import { NotificationModule } from '../notification/notification.module.js';
 
 @Module({
   imports: [
     PrismaModule,
+    NotificationModule,
     ClientsModule.register([
       {
         name: 'DOCUMENT_SERVICE',

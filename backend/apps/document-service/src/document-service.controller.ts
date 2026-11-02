@@ -37,4 +37,10 @@ export class DocumentServiceController {
   delete(@Payload() d: { nguoiDung: NguoiDungTaiLieu; id: string }) {
     return this.documentService.xoa(d.nguoiDung, d.id);
   }
+
+  @MessagePattern({ cmd: 'ping' })
+  @MessagePattern('ping')
+  ping() {
+    return 'pong';
+  }
 }

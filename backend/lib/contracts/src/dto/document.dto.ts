@@ -1,6 +1,6 @@
 import { IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
-export const DOCUMENT_TYPES = ['MINH_CHUNG_MOC', 'QUYET_DINH', 'KHAC'] as const;
+export const DOCUMENT_TYPES = ['MINH_CHUNG_MOC', 'QUYET_DINH', 'MINH_CHUNG_NGOAI_NGU', 'MINH_CHUNG_CONG_NO', 'KHAC'] as const;
 export type DocumentTypeValue = (typeof DOCUMENT_TYPES)[number];
 
 // Tối đa 15MB mỗi file PDF

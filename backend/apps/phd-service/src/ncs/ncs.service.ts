@@ -11,6 +11,7 @@ import { chuanHoaChuoi, validateEmail, validatePhoneNumber } from '../helpers/va
 import { Prisma } from '../generated/prisma/index.js';
 import { goiService } from '../helpers/call-service.util.js';
 import { congThang } from '../helpers/date.util.js';
+import { NotificationClient } from '../notification/notification.client.js';
 type AuthUser = {
   id: string;
   username: string;
@@ -90,6 +91,7 @@ export class NcsService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject('AUTH_SERVICE') private readonly auth: ClientProxy,
+    private readonly thongBao: NotificationClient,
   ) { }
 
   /**
@@ -647,7 +649,7 @@ export class NcsService {
     const reason = data.lyDoChuyenTrangThai?.trim() || null;
     const profile = await this.prisma.nghienCuuSinh.findUnique({
       where: { id: ncsId },
-      select: { id: true, userId: true, trangThai: true, ngayChuyenTrangThai: true, lyDoChuyenTrangThai: true },
+      select: { id: true, userId: true, mshv: true, hoTen: true, trangThai: true, ngayChuyenTrangThai: true, lyDoChuyenTrangThai: true },
     });
     if (!profile) throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ NCS' });
 
@@ -670,7 +672,7 @@ export class NcsService {
     }
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const updated= await this.prisma.$transaction(async (tx) => {
         const current = await tx.nghienCuuSinh.findUnique({
           where: { id: ncsId },
           select: { id: true, trangThai: true, ngayChuyenTrangThai: true, lyDoChuyenTrangThai: true },
@@ -713,6 +715,39 @@ export class NcsService {
         });
         return updated;
       });
+
+      // Bắn thông báo cập nhật trạng thái học tập cho NCS và GVHD
+      try {
+        const recipientUserIds: string[] = [];
+        if (profile.userId) recipientUserIds.push(profile.userId);
+
+        const phanCongs = await this.prisma.phanCongHuongDan.findMany({
+          where: { ncsId, trangThai: 'DANG_HIEU_LUC' },
+          include: { gvhd: { select: { userId: true } } },
+        });
+        for (const pc of phanCongs) {
+          if (pc.gvhd?.userId) recipientUserIds.push(pc.gvhd.userId);
+        }
+
+        if (recipientUserIds.length > 0) {
+          this.thongBao.gui({
+            userIds: recipientUserIds,
+            loai: 'CAP_NHAT_TRANG_THAI_HOC_TAP',
+            duLieu: {
+              tenNcs: profile.hoTen,
+              mshv: profile.mshv,
+              trangThaiMoi: data.trangThai,
+              ngayHieuLuc: data.ngayChuyenTrangThai,
+              lyDo: reason,
+            },
+            khoaTrung: `TRANG_THAI_NCS:${ncsId}:${data.trangThai}:${newEffectiveDate}`,
+          });
+        }
+      } catch (err) {
+        // ignore notification error
+      }
+
+      return updated;
     } catch (error) {
       if (accountNeedsUpdate && profile.userId) {
         try {

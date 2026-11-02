@@ -4,12 +4,14 @@ import { PrismaModule } from '../prisma/prisma.module.js';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { SupervisorController } from './supervisor.controller.js';
 import { SupervisorService } from './supervisor.service.js';
+import { NotificationModule } from '../notification/notification.module.js';
 // import { GvhdImportService } from './gvhd-import.service.js';
 
 @Module({
     imports: [
         ConfigModule.forRoot({ isGlobal: true }),
         PrismaModule,
+        NotificationModule,
         ClientsModule.register([
             {
                 name: 'AUTH_SERVICE',
