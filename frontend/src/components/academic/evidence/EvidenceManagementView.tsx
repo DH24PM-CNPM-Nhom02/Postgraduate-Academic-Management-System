@@ -12,10 +12,12 @@ import {
   ShieldCheck,
   Filter,
   Loader2,
+  Calculator,
 } from "lucide-react";
 import {
   DocumentPreviewModal,
   ApprovalDialog,
+  EvaluationInputModal,
   MOCK_EVIDENCES,
 } from "@/src/components/academic";
 import { useAcademicEvidences } from "@/src/hooks/use-academic";
@@ -42,6 +44,9 @@ export function EvidenceManagementView({ embedded = false }: EvidenceManagementV
 
   const [approvalModalOpen, setApprovalModalOpen] = useState(false);
   const [approvalData, setApprovalData] = useState<EvidenceItem | null>(null);
+
+  const [evalModalOpen, setEvalModalOpen] = useState(false);
+  const [evalData, setEvalData] = useState<EvidenceItem | null>(null);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -175,16 +180,30 @@ export function EvidenceManagementView({ embedded = false }: EvidenceManagementV
           </div>
 
           <div className="flex items-center gap-2">
-            <Filter className="size-3.5 text-slate-400" />
-            <select
-              value={evidenceFilter}
-              onChange={(e) => setEvidenceFilter(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-700 focus:bg-white focus:border-[#164E9B] outline-none cursor-pointer"
+            <button
+              onClick={() => {
+                setEvalData(null);
+                setEvalModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50/90 px-3 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-colors shadow-2xs cursor-pointer"
+              title="Nhập & thẩm định phiếu nhận xét chấm điểm (Mốc 2, 4, 5)"
             >
-              <option value="all">Tất cả bước duyệt</option>
-              <option value="academic">Chờ Giáo vụ duyệt (Ưu tiên)</option>
-              <option value="gvhd">Chờ GVHD xác nhận</option>
-            </select>
+              <Calculator className="size-3.5 text-indigo-600" />
+              <span>Nhập Phiếu Nhận Xét (Mốc 2, 4, 5)</span>
+            </button>
+
+            <div className="flex items-center gap-1.5">
+              <Filter className="size-3.5 text-slate-400" />
+              <select
+                value={evidenceFilter}
+                onChange={(e) => setEvidenceFilter(e.target.value)}
+                className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-700 focus:bg-white focus:border-[#164E9B] outline-none cursor-pointer"
+              >
+                <option value="all">Tất cả bước duyệt</option>
+                <option value="academic">Chờ Giáo vụ duyệt (Ưu tiên)</option>
+                <option value="gvhd">Chờ GVHD xác nhận</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -240,6 +259,23 @@ export function EvidenceManagementView({ embedded = false }: EvidenceManagementV
                     </td>
                     <td className="py-3 px-3 text-right">
                       <div className="inline-flex items-center gap-1.5">
+                        {/* Nút nhập phiếu nhận xét điểm số (Mốc 2, 4, 5) */}
+                        {(item.milestone.includes("Mốc 2") ||
+                          item.milestone.includes("Mốc 4") ||
+                          item.milestone.includes("Mốc 5")) && (
+                          <button
+                            onClick={() => {
+                              setEvalData(item);
+                              setEvalModalOpen(true);
+                            }}
+                            className="rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-indigo-700 hover:bg-indigo-100 shadow-2xs text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                            title="Nhập phiếu nhận xét chấm điểm theo quy chế"
+                          >
+                            <Calculator className="size-3 text-indigo-600" />
+                            <span>Phiếu điểm</span>
+                          </button>
+                        )}
+
                         <button
                           onClick={() => {
                             setPreviewData(item);
@@ -292,6 +328,26 @@ export function EvidenceManagementView({ embedded = false }: EvidenceManagementV
         studentCode={approvalData?.studentCode}
         milestoneName={approvalData?.milestone}
         currentStep={approvalData?.step}
+      />
+
+      {/* EVALUATION INPUT MODAL (MỐC 2, 4, 5) */}
+      <EvaluationInputModal
+        isOpen={evalModalOpen}
+        onClose={() => setEvalModalOpen(false)}
+        studentName={evalData?.studentName || "Nguyễn Văn An"}
+        studentCode={evalData?.studentCode || "NCS230104"}
+        initialMilestone={
+          evalData?.milestone.includes("Mốc 4")
+            ? 4
+            : evalData?.milestone.includes("Mốc 5")
+            ? 5
+            : 2
+        }
+        onSavedSuccess={(evals, avg) => {
+          triggerToast(
+            `Đã lưu kết quả phiếu nhận xét! Điểm trung bình: ${avg.toFixed(1)}/10. Hệ thống đã kích hoạt thông báo tới NCS và GVHD.`
+          );
+        }}
       />
     </div>
   );
