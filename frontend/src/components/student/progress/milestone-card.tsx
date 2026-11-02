@@ -17,6 +17,7 @@ import { MilestoneProgressItem, EvidenceItem } from "@/src/types/progress";
 import { SubmitEvidenceDialog } from "./submit-evidence-dialog";
 import { EvidenceHistory } from "./evidence-history";
 import { DocumentViewButton } from "./document-view-button";
+import { EvaluationReviewsSection } from "./evaluation-reviews-section";
 
 interface MilestoneCardProps {
   milestone: MilestoneProgressItem;
@@ -220,16 +221,15 @@ export function MilestoneCard({
 
         {/* Thông báo quy định riêng biệt của Mốc 8 */}
         {isMilestone8 && (
-          <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200/80 flex items-start gap-3 text-amber-950">
-            <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="p-4 rounded-xl bg-blue-50/80 border border-blue-200 flex items-start gap-3 text-blue-950 shadow-2xs">
+            <Info className="w-4 h-4 text-[#164E9B] shrink-0 mt-0.5" />
             <div className="text-xs space-y-0.5">
-              <span className="font-semibold text-amber-950">
+              <span className="font-bold text-[#164E9B]">
                 Lưu ý quan trọng cho Mốc 8:{" "}
               </span>
-              <span className="text-amber-800 leading-relaxed font-normal">
-                Mốc này chỉ nộp duy nhất 01 file PDF gộp toàn bộ bài báo công bố và
-                tài liệu minh chứng chỉ số WoS/Scopus tương ứng theo danh mục phê duyệt.
-              </span>
+              <p className="text-blue-900 leading-relaxed font-medium">
+                Bạn cần gộp tất cả các bài báo khoa học thành 1 file PDF duy nhất trước khi nộp.
+              </p>
             </div>
           </div>
         )}
@@ -396,6 +396,16 @@ export function MilestoneCard({
               </button>
             )}
           </div>
+        )}
+
+        {/* Kết quả đánh giá / Phiếu nhận xét của Hội đồng (Mốc có yeuCauDiem = true: Mốc 2, 4, 5) */}
+        {milestone.yeuCauDiem && (
+          <EvaluationReviewsSection
+            yeuCauDiem={milestone.yeuCauDiem}
+            thuTuMoc={milestone.thuTu}
+            diemTrungBinh={milestone.diemTrungBinh}
+            phieuNhanXets={milestone.phieuNhanXets}
+          />
         )}
 
         {/* Lịch sử các lần nộp (EvidenceHistory) */}

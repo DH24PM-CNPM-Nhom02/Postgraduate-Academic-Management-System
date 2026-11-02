@@ -10,7 +10,9 @@ import {
   ArrowRight,
   History,
   FileText,
+  Scale,
 } from "lucide-react";
+import { useTriggerNotification } from "@/src/hooks/use-notifications";
 
 export type ApprovalDecision = "approve" | "revise" | "reject";
 
@@ -21,6 +23,7 @@ export interface ApprovalDialogProps {
     decision: ApprovalDecision;
     notes: string;
     score?: number;
+    quyetDinhId?: string;
   }) => void;
   recordTitle?: string;
   studentName?: string;
@@ -28,6 +31,29 @@ export interface ApprovalDialogProps {
   milestoneName?: string;
   currentStep?: "gvhd_confirm" | "academic_review";
 }
+
+const LEGAL_DECISIONS = [
+  {
+    id: "qd-142",
+    code: "142/QĐ-ĐHAG",
+    title: "142/QĐ-ĐHAG (Căn cứ duyệt mốc chuyên đề TS - Ngày 15/09/2026)",
+  },
+  {
+    id: "qd-158",
+    code: "158/QĐ-ĐHAG",
+    title: "158/QĐ-ĐHAG (Căn cứ phê chuẩn kết quả học phần bổ sung - Ngày 20/09/2026)",
+  },
+  {
+    id: "qd-204",
+    code: "204/QĐ-ĐHAG",
+    title: "204/QĐ-ĐHAG (Thành lập Hội đồng thẩm định mốc đề cương chi tiết)",
+  },
+  {
+    id: "custom",
+    code: "Tùy chọn khác",
+    title: "+ Nhập số quyết định căn cứ pháp lý khác...",
+  },
+];
 
 export function ApprovalDialog({
   isOpen,
@@ -39,9 +65,13 @@ export function ApprovalDialog({
   milestoneName = "Mốc 3: Báo cáo chuyên đề 1",
   currentStep = "academic_review",
 }: ApprovalDialogProps) {
+  const triggerNotification = useTriggerNotification();
+
   const [decision, setDecision] = useState<ApprovalDecision>("approve");
   const [notes, setNotes] = useState("");
   const [score, setScore] = useState<string>("8.5");
+  const [quyetDinhId, setQuyetDinhId] = useState<string>("qd-142");
+  const [customQuyetDinh, setCustomQuyetDinh] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
 
@@ -53,15 +83,95 @@ export function ApprovalDialog({
       setValidationError("Bắt buộc phải nhập lý do và căn cứ nhận xét khi Từ chối hoặc Yêu cầu bổ sung.");
       return;
     }
+    if (decision === "approve") {
+      if (quyetDinhId === "custom" && !customQuyetDinh.trim()) {
+        setValidationError("Vui lòng nhập số quyết định pháp lý làm căn cứ duyệt mốc.");
+        return;
+      }
+      if (!quyetDinhId) {
+        setValidationError("Bắt buộc phải chọn Căn cứ quyết định pháp lý (loại CAN_CU_DUYET_MOC) khi duyệt mốc.");
+        return;
+      }
+    }
     setValidationError(null);
     setIsConfirming(true);
   };
 
   const handleFinalConfirm = () => {
+    const finalQuyetDinh = quyetDinhId === "custom" ? customQuyetDinh.trim() : quyetDinhId;
+
+    // Trigger Notification chuẩn mực tương ứng theo từng Role
+    if (decision === "approve") {
+      const qdObj = LEGAL_DECISIONS.find((q) => q.id === quyetDinhId);
+      const qdDisplay = quyetDinhId === "custom" ? customQuyetDinh : qdObj?.code || "142/QĐ-ĐHAG";
+
+      // 1. Gửi tới Nghiên cứu sinh (MOC_DUOC_DUYET)
+      triggerNotification({
+        nhom: "TIEN_DO",
+        loai: "MOC_DUOC_DUYET",
+        tieuDe: `Mốc ${milestoneName.slice(0, 6)} của bạn đã được duyệt`,
+        noiDung: `Minh chứng ${milestoneName} của bạn đã được phê duyệt đạt theo Căn cứ Quyết định số ${qdDisplay}. Mốc tiếp theo đã được mở để bạn nộp minh chứng.`.replace(/\s+/g, " "),
+        duLieu: {
+          thuTu: milestoneName,
+          soQuyetDinh: qdDisplay,
+          quyetDinhId: finalQuyetDinh,
+        },
+        targetRole: "student",
+        targetUrl: "/student/progress",
+      });
+
+      // 2. Gửi tới Giảng viên Hướng dẫn (GVHD_MOC_DUOC_DUYET)
+      triggerNotification({
+        nhom: "TIEN_DO",
+        loai: "GVHD_MOC_DUOC_DUYET",
+        tieuDe: `Mốc ${milestoneName.slice(0, 6)} của NCS ${studentName} đã được duyệt`,
+        noiDung: `Minh chứng ${milestoneName} của NCS ${studentName} (${studentCode}) đã được phê duyệt đạt theo Căn cứ Quyết định số ${qdDisplay}. Mốc tiếp theo đã được mở.`.replace(/\s+/g, " "),
+        duLieu: {
+          tenNcs: studentName,
+          mshv: studentCode,
+          thuTu: milestoneName,
+          soQuyetDinh: qdDisplay,
+        },
+        targetRole: "supervisor",
+        targetUrl: "/supervisor/dashboard",
+      });
+    } else if (decision === "reject") {
+      // 1. Gửi tới Nghiên cứu sinh (MOC_BI_TU_CHOI)
+      triggerNotification({
+        nhom: "TIEN_DO",
+        loai: "MOC_BI_TU_CHOI",
+        tieuDe: `Mốc ${milestoneName.slice(0, 6)} cần nộp lại`,
+        noiDung: `Minh chứng ${milestoneName} của bạn chưa được chấp nhận. Lý do: ${notes}. Vui lòng bổ sung và nộp lại.`.replace(/\s+/g, " "),
+        duLieu: {
+          thuTu: milestoneName,
+          lyDo: notes,
+        },
+        targetRole: "student",
+        targetUrl: "/student/progress",
+      });
+
+      // 2. Gửi tới Giảng viên Hướng dẫn (GVHD_MOC_BI_TU_CHOI)
+      triggerNotification({
+        nhom: "TIEN_DO",
+        loai: "GVHD_MOC_BI_TU_CHOI",
+        tieuDe: `Mốc ${milestoneName.slice(0, 6)} của NCS ${studentName} cần nộp lại`,
+        noiDung: `Minh chứng ${milestoneName} của NCS ${studentName} (${studentCode}) chưa được chấp nhận. Lý do: ${notes}.`.replace(/\s+/g, " "),
+        duLieu: {
+          tenNcs: studentName,
+          mshv: studentCode,
+          thuTu: milestoneName,
+          lyDo: notes,
+        },
+        targetRole: "supervisor",
+        targetUrl: "/supervisor/dashboard",
+      });
+    }
+
     onSubmit({
       decision,
       notes,
       score: score ? parseFloat(score) : undefined,
+      quyetDinhId: finalQuyetDinh,
     });
     setIsConfirming(false);
     onClose();
@@ -89,7 +199,7 @@ export function ApprovalDialog({
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-white/80 hover:bg-white/20 hover:text-white transition-colors"
+            className="rounded-lg p-1.5 text-white/80 hover:bg-white/20 hover:text-white transition-colors cursor-pointer"
           >
             <X className="size-5" />
           </button>
@@ -185,7 +295,7 @@ export function ApprovalDialog({
                   <CheckCircle2 className="size-6 text-emerald-600 mb-1" />
                   <span className="text-xs font-bold">Phê duyệt Đạt</span>
                   <span className="text-[10px] text-slate-500 mt-0.5">
-                    Chuyển mốc đào tạo tiếp theo
+                    Gắn Quyết định &amp; Mở mốc tiếp
                   </span>
                 </label>
 
@@ -237,11 +347,47 @@ export function ApprovalDialog({
               </div>
             </div>
 
-            {/* Score input (Optional) */}
+            {/* BẮT BUỘC: Quyết định pháp lý căn cứ duyệt mốc (CAN_CU_DUYET_MOC) */}
+            {decision === "approve" && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-3.5 space-y-2 animate-in fade-in duration-150">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#164E9B]">
+                  <Scale className="size-4" />
+                  <span>Căn cứ Quyết định pháp lý (loại CAN_CU_DUYET_MOC) *</span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-snug">
+                  Theo quy định của Trường Đại học An Giang, mọi mốc đào tạo đạt yêu cầu đều phải gắn liền với Quyết định pháp lý hoặc Quyết định công nhận của Hiệu trưởng.
+                </p>
+                <select
+                  value={quyetDinhId}
+                  onChange={(e) => setQuyetDinhId(e.target.value)}
+                  className="w-full rounded-lg border border-blue-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:border-[#164E9B] focus:ring-1 focus:ring-[#164E9B] outline-none cursor-pointer"
+                >
+                  {LEGAL_DECISIONS.map((q) => (
+                    <option key={q.id} value={q.id}>
+                      {q.title}
+                    </option>
+                  ))}
+                </select>
+
+                {quyetDinhId === "custom" && (
+                  <div className="pt-1">
+                    <input
+                      type="text"
+                      value={customQuyetDinh}
+                      onChange={(e) => setCustomQuyetDinh(e.target.value)}
+                      placeholder="Nhập số QĐ căn cứ (ví dụ: 250/QĐ-ĐHAG-SĐH)..."
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:border-[#164E9B] focus:ring-1 focus:ring-[#164E9B] outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Score input & reviewer */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Điểm chuyên đề / Đánh giá (Thang điểm 10):
+                  Điểm chuyên đề / Đánh giá (Thang 10):
                 </label>
                 <input
                   type="number"
@@ -270,7 +416,7 @@ export function ApprovalDialog({
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                 Ý kiến nhận xét &amp; Hướng dẫn hoàn thiện:
                 {(decision === "reject" || decision === "revise") && (
-                  <span className="text-rose-500 font-bold ml-1">* (Bắt buộc)</span>
+                  <span className="text-rose-500 font-bold ml-1">* (Bắt buộc lý do)</span>
                 )}
               </label>
               <textarea
@@ -282,8 +428,8 @@ export function ApprovalDialog({
                 }}
                 placeholder={
                   decision === "approve"
-                    ? "Nhập nhận xét chuyên môn (không bắt buộc đối với kết quả Đạt)..."
-                    : "Mô tả cụ thể nội dung cần hoàn thiện hoặc lý do không phê duyệt để NCS chỉnh sửa..."
+                    ? "Nhập nhận xét chuyên môn bổ sung (tùy chọn)..."
+                    : "Mô tả cụ thể nội dung cần hoàn thiện hoặc lý do từ chối hồ sơ (bắt buộc theo quy chế)..."
                 }
                 className="w-full rounded-lg border border-slate-300 p-3 text-xs focus:border-[#164E9B] focus:ring-1 focus:ring-[#164E9B]"
               />
@@ -301,8 +447,8 @@ export function ApprovalDialog({
                 <History className="size-3.5 text-[#164E9B]" />
                 <span>Nhật ký thẩm định trước đó</span>
               </div>
-              <p>• 14/10/2026 14:32: NCS Nguyễn Văn An nộp minh chứng phiên bản v2.</p>
-              <p>• 14/10/2026 14:30: Hệ thống tự động kiểm tra định dạng PDF hợp lệ (16 trang).</p>
+              <p>• 14/10/2026 14:32: NCS {studentName} nộp minh chứng phiên bản v2.</p>
+              <p>• 14/10/2026 14:30: Hệ thống tự động kiểm tra định dạng PDF hợp lệ.</p>
             </div>
 
             {/* Footer Buttons */}
@@ -310,13 +456,13 @@ export function ApprovalDialog({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 Hủy bỏ
               </button>
               <button
                 type="submit"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#164E9B] px-5 py-2 text-xs font-bold text-white hover:bg-[#113E7D] transition-colors shadow-xs"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#164E9B] px-5 py-2 text-xs font-bold text-white hover:bg-[#113E7D] transition-colors shadow-xs cursor-pointer"
               >
                 <CheckCircle2 className="size-4" />
                 <span>Tiếp tục &amp; Xác nhận</span>
@@ -339,29 +485,22 @@ export function ApprovalDialog({
                       ? "Phê duyệt Đạt"
                       : decision === "revise"
                       ? "Yêu cầu bổ sung"
-                      : "Không duyệt"}
+                      : "Không duyệt / Từ chối"}
                   </strong>{" "}
-                  cho NCS <strong>{studentName}</strong>.
+                  cho NCS <strong>{studentName}</strong> ({studentCode}).
                 </p>
-                <p className="text-amber-800">
-                  Quyết định này sẽ được gửi email thông báo trực tiếp đến NCS và lưu vào nhật ký kiểm toán hệ thống (Audit Trail).
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 p-4 text-xs space-y-2 bg-slate-50">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Mốc đào tạo:</span>
-                <span className="font-semibold text-slate-900">{milestoneName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Điểm đánh giá:</span>
-                <span className="font-bold text-[#164E9B]">{score || "Chưa nhập"} / 10</span>
-              </div>
-              <div>
-                <span className="text-slate-500 block mb-0.5">Nhận xét:</span>
-                <p className="italic text-slate-700 bg-white p-2 rounded border border-slate-200">
-                  {notes || "Đạt yêu cầu học vụ của mốc đào tạo."}
+                {decision === "approve" && (
+                  <p className="text-[11px] text-amber-800">
+                    Căn cứ pháp lý:{" "}
+                    <strong>
+                      {quyetDinhId === "custom"
+                        ? customQuyetDinh
+                        : LEGAL_DECISIONS.find((q) => q.id === quyetDinhId)?.code}
+                    </strong>
+                  </p>
+                )}
+                <p className="text-[11px] text-amber-700 pt-1">
+                  Hệ thống sẽ ngay lập tức đồng bộ thông báo tới tài khoản Nghiên cứu sinh và Giảng viên Hướng dẫn.
                 </p>
               </div>
             </div>
@@ -370,17 +509,17 @@ export function ApprovalDialog({
               <button
                 type="button"
                 onClick={() => setIsConfirming(false)}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
               >
-                Quay lại chỉnh sửa
+                Quay lại sửa
               </button>
               <button
                 type="button"
                 onClick={handleFinalConfirm}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-5 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition-colors shadow-xs"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-6 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition-colors shadow-xs cursor-pointer"
               >
                 <CheckCircle2 className="size-4" />
-                <span>Hoàn tất &amp; Ký duyệt</span>
+                <span>Xác nhận Ban hành &amp; Gửi thông báo</span>
               </button>
             </div>
           </div>

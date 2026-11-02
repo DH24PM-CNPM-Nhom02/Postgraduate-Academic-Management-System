@@ -8,6 +8,9 @@ export { QuotaBar } from "./QuotaBar";
 export { SupervisorSelector } from "./SupervisorSelector";
 export { DocumentPreviewModal } from "./DocumentPreviewModal";
 export { ApprovalDialog } from "./ApprovalDialog";
+export { EvaluationInputModal } from "./EvaluationInputModal";
+export { SupervisorAssignmentModal } from "./SupervisorAssignmentModal";
+export { DecisionIssueModal } from "./DecisionIssueModal";
 export { TopicChangeModal, type TopicChangeItem } from "./TopicChangeModal";
 export { StudentDetailModal, type StudentDossier } from "./StudentDetailModal";
 export {

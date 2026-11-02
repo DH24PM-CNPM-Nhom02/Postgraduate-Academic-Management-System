@@ -35,6 +35,20 @@ export interface EvidenceItem {
 }
 
 /**
+ * Bản ghi phiếu nhận xét / đánh giá của thành viên Hội đồng hoặc Người chấm
+ */
+export interface PhieuNhanXetItem {
+  id: string;
+  tenNguoiCham: string;
+  chucDanh: string; // VD: "Chủ tịch Hội đồng", "Cán bộ Phản biện 1", "Ủy viên Thư ký"
+  diem: number; // Thang 10, lẻ 1 chữ số thập phân (e.g. 8.5)
+  fileUrl?: string;
+  fileName: string;
+  ngayDanhGia?: string;
+  nhanXet?: string;
+}
+
+/**
  * Dữ liệu một mốc trong 9 mốc tiến trình
  */
 export interface MilestoneProgressItem {
@@ -53,6 +67,7 @@ export interface MilestoneProgressItem {
   ghiChuHeThong?: string; // Ghi chú hệ thống (vd: "Đã hoàn thành khi nhập học")
   minhChungHienTai?: EvidenceItem;
   lichSuMinhChung: EvidenceItem[];
+  phieuNhanXets?: PhieuNhanXetItem[]; // Danh sách phiếu nhận xét của Hội đồng chấm điểm
 }
 
 /**
