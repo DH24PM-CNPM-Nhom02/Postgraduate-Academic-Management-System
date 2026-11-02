@@ -367,4 +367,35 @@ export class GraduationAssessmentService {
             }
         }
     }
+
+    // ===== Danh sách quyết định công nhận tốt nghiệp chưa dùng của 1 NCS (cho ô chọn quyết định ở màn hình xác nhận) =====
+    // Chỉ lấy quyết định còn hiệu lực và chưa dùng để xác nhận tốt nghiệp, mới nhất trước
+    async danhSachQuyetDinhChuaDung(ncsId: string) {
+        const ncs = await this.prisma.nghienCuuSinh.findUnique({
+            where: { id: ncsId },
+            select: { id: true },
+        });
+        if (!ncs) {
+            throw new RpcException({ statusCode: 404, message: 'Không tìm thấy NCS' });
+        }
+
+        const dsQuyetDinh = await this.prisma.quyetDinh.findMany({
+            where: {
+                ncsId,
+                loai: 'CONG_NHAN_TOT_NGHIEP',
+                trangThai: 'HIEU_LUC',
+                totNghieps: { none: { trangThai: 'DA_DUYET' } },
+            },
+            select: { id: true, soQuyetDinh: true, ngayQuyetDinh: true, fileId: true, ghiChu: true },
+            orderBy: { ngayQuyetDinh: 'desc' },
+        });
+
+        return dsQuyetDinh.map((q) => ({
+            id: q.id,
+            soQuyetDinh: q.soQuyetDinh,
+            ngayQuyetDinh: ngayChuoi(q.ngayQuyetDinh),
+            fileId: q.fileId,
+            ghiChu: q.ghiChu,
+        }));
+    }
 }

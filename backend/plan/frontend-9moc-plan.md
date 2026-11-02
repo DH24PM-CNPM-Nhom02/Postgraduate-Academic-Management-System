@@ -9,9 +9,11 @@ Hệ thống quản lý đào tạo sau đại học (PostGraduate Academic Syst
 3. [Quy tắc về file: upload trước, lấy fileId](#3-quy-tắc-về-file-upload-trước-lấy-fileid)
 4. [Màn hình của NCS](#4-màn-hình-của-ncs)
 5. [Màn hình của Giáo vụ](#5-màn-hình-của-giáo-vụ)
-6. [Bảng API tổng hợp](#6-bảng-api-tổng-hợp)
-7. [Quy tắc chung và xử lý lỗi](#7-quy-tắc-chung-và-xử-lý-lỗi)
-8. [Ngoài phạm vi luồng này](#8-ngoài-phạm-vi-luồng-này)
+6. [Hệ thống Thông báo (Notification)](#6-hệ-thống-thông-báo-notification)
+7. [Màn hình Xét tốt nghiệp (Graduation Assessment)](#7-màn-hình-xét-tốt-nghiệp-graduation-assessment)
+8. [Bảng API tổng hợp](#8-bảng-api-tổng-hợp)
+9. [Quy tắc chung và xử lý lỗi](#9-quy-tắc-chung-và-xử-lý-lỗi)
+10. [Ngoài phạm vi luồng này](#10-ngoài-phạm-vi-luồng-này)
 
 ---
 
@@ -416,15 +418,176 @@ Việc khóa hoặc mở khóa tài khoản chạy **sau khi** dữ liệu đã 
 | 404 | Có NCS không tồn tại (message liệt kê id), hoặc file không tồn tại |
 | 409 | Số quyết định đã tồn tại với ngày khác, hoặc NCS đã gắn với số quyết định này |
 
-#### g. Gợi ý UI
+#### g. Gợi ý UI chi tiết và luồng tạo quyết định
 
-- **Chọn NCS:** ô chọn nhiều (multi-select) có tìm theo MSHV hoặc họ tên, hiển thị số NCS đã chọn. Với các loại đổi trạng thái, nên lọc hoặc làm mờ NCS không hợp lệ theo sơ đồ chuyển trạng thái ở mục e (ví dụ `HOC_TIEP` chỉ liệt kê NCS đang `BAO_LUU`).
-- **Loại `GIA_HAN`:** hiện thêm ô chọn ngày "Hạn mới", và hiển thị hạn hiện tại của từng NCS đã chọn nếu có.
-- **Loại `BAO_LUU`, `NGUNG_HOC`, `BUOC_THOI_HOC`:** có hộp xác nhận trước khi gửi, ví dụ "Quyết định này sẽ đổi trạng thái và khóa tài khoản của N NCS". Thao tác này ảnh hưởng trực tiếp đến NCS nên không nên cho gửi bằng một cú bấm.
-- **Loại `HOC_TIEP`:** hộp xác nhận ghi "N NCS sẽ trở lại học và được mở khóa tài khoản". Hạn học tập không đổi, nên NCS có thể quay lại khi hạn đã gần hoặc đã hết; nếu cần thì Giáo vụ ra thêm quyết định `GIA_HAN`.
-- **Sau khi tạo thành công:** hiển thị `canhBao` (nếu có) và tải lại danh sách.
-- **Danh sách quyết định:** nên nhóm các dòng theo `soQuyetDinh` để Giáo vụ thấy một quyết định áp dụng cho những NCS nào.
-- **Chi tiết khi xem một dòng:** hiển thị `soQuyetDinh`, `ngayQuyetDinh`, tên NCS (`ncs.mshv`, `ncs.hoTen`), trạng thái hiệu lực, nút xem PDF nếu có `fileId`.
+##### 1. Khung form chung
+
+```
+┌─ Tạo quyết định ────────────────────────────────┐
+│ Loại quyết định:  [ Bảo lưu            ▼ ]       │  ← chọn trước, các khối dưới đổi theo
+│                                                  │
+│ Số quyết định:    [ 123/QĐ-ĐHAG ]                │
+│ Ngày quyết định:  [ 2026-10-01 ]                 │
+│ File PDF:         [Chọn file]  (không bắt buộc)  │
+│ Ghi chú / Lý do:  [ ........................ ]   │
+│                                                  │
+│ ── KHỐI RIÊNG THEO LOẠI (xem mục 2) ──           │
+│  chọn NCS / hạn mới / cảnh báo...                │
+│                                                  │
+│                      [Hủy]  [Tạo quyết định]     │
+└──────────────────────────────────────────────────┘
+```
+
+Hai chỗ nên làm cho tiện:
+- **Kiểm tra trùng số quyết định khi nhập xong (onBlur `soQuyetDinh`):** gọi `GET /decisions?soQuyetDinh=...` rồi lọc theo `loai` ở FE. Nếu số này đã tồn tại, tự điền `ngayQuyetDinh` cũ, khóa ô ngày lại và hiện dòng: *"Số này đã áp dụng cho N NCS, bạn đang thêm NCS vào quyết định này"*. Cách này tránh triệt để lỗi 409 "khác ngày".
+- **Đổi nhãn ô `ghiChu` linh hoạt:** Với loại quyết định đổi trạng thái, đổi nhãn thành **"Lý do (NCS sẽ thấy)"** vì nội dung này hiển thị trực tiếp cho NCS khi xem hồ sơ/thông báo. Với các loại khác, giữ nhãn thông thường "Ghi chú".
+
+##### 2. Khối riêng theo 4 nhóm quyết định
+
+Chia 11 loại quyết định thành 4 nhóm nghiệp vụ:
+
+| Nhóm | Loại quyết định | `ncsIds` | Khối giao diện riêng |
+| :---- | :---- | :---- | :---- |
+| **A. Đổi trạng thái, khóa tài khoản** | `BAO_LUU`, `NGUNG_HOC`, `BUOC_THOI_HOC` | Bắt buộc | Chọn NCS có lọc theo trạng thái + Modal cảnh báo xác nhận |
+| **B. Quay lại học** | `HOC_TIEP` | Bắt buộc | Chỉ liệt kê NCS đang `BAO_LUU` + Modal xác nhận mở khóa |
+| **C. Gia hạn đào tạo** | `GIA_HAN` | Bắt buộc | Chọn NCS + Ô "Hạn mới" chung + Bảng so sánh hạn từng NCS |
+| **D. Chỉ lưu quyết định** | `GIAO_DE_TAI`, `PHAN_CONG_GVHD`, `THANH_LAP_TIEU_BAN`, `CAN_CU_DUYET_MOC`, `CONG_NHAN_TOT_NGHIEP`, `KHAC` | Tùy chọn | Công tắc "Áp dụng cho NCS cụ thể / Chung" |
+
+**Nguồn dữ liệu danh sách NCS (`GET /ncs`):**
+FE gọi `GET /ncs` để lấy toàn bộ danh sách NCS cho ô Multi-Select. API trả về các trường cần thiết:
+- `id`, `mshv`, `hoTen`, `lop`, `trangThai`
+- `hanChinhQuy`, `hanGiaHan`, `hanBuocThoiHoc`
+- **Hạn hiện tại** = `hanGiaHan ?? hanChinhQuy`
+- **Hạn tối đa 72 tháng** = `hanBuocThoiHoc` (server đã tính sẵn từ ngày nhập học)
+
+**Chi tiết xử lý từng nhóm:**
+
+- **Nhóm A (`BAO_LUU`, `NGUNG_HOC`, `BUOC_THOI_HOC`):**
+  - Multi-select NCS có tìm theo MSHV hoặc họ tên, hiển thị "Đã chọn N NCS".
+  - Theo sơ đồ chuyển trạng thái: `BAO_LUU` chỉ áp dụng cho NCS đang `DANG_HOC` hoặc `GIA_HAN`. `NGUNG_HOC` và `BUOC_THOI_HOC` áp dụng cho cả `DANG_HOC`, `GIA_HAN`, `BAO_LUU`.
+  - Các NCS không đúng trạng thái hợp lệ thì **làm mờ (disabled)** kèm tooltip *"Đang ở trạng thái X"* để Giáo vụ hiểu lý do.
+  - Ô "Lý do (NCS sẽ thấy)" nên bắt buộc nhập ở client.
+  - Hộp thoại xác nhận trước khi gửi:
+    * `BAO_LUU`: Hộp cảnh báo màu vàng/cam ghi rõ: *"Quyết định này sẽ chuyển N NCS sang trạng thái Bảo lưu và khóa tài khoản đăng nhập."*
+    * `NGUNG_HOC`, `BUOC_THOI_HOC`: Đây là trạng thái kết thúc không có đường hoàn tác. Hộp xác nhận dùng **màu đỏ**, thêm dòng chữ *"Thao tác này là dứt điểm, không thể khôi phục"* và bắt người dùng tick chọn *"Tôi đã kiểm tra kỹ danh sách NCS"* hoặc gõ lại số quyết định để mở nút bấm gửi.
+
+- **Nhóm B (`HOC_TIEP`):**
+  - Multi-select chỉ liệt kê các NCS đang ở trạng thái `BAO_LUU`. Nếu không có ai thì hiển thị *"Hiện không có NCS nào đang bảo lưu"*.
+  - Hộp xác nhận ghi rõ: *"N NCS sẽ trở lại học tập và được mở khóa tài khoản đăng nhập."*
+  - Hiện kèm dòng nhắc: *"Thời hạn học tập của NCS được giữ nguyên (không tự động gia hạn thêm). Nếu cần gia hạn thêm thời gian, vui lòng lập quyết định Gia hạn riêng."*
+
+- **Nhóm C (`GIA_HAN`):**
+  - Chỉ cho phép chọn NCS đang `DANG_HOC` hoặc `GIA_HAN`.
+  - Ô "Hạn mới" (date picker `YYYY-MM-DD`) áp dụng chung cho cả lô được chọn.
+  - Dưới ô chọn NCS, hiển thị ngay **Bảng kiểm tra hạn:**
+
+| MSHV | Họ tên | Hạn hiện tại | Hạn tối đa (72 tháng) | Hạn mới | Đánh giá |
+| :---- | :---- | :---- | :---- | :---- | :---- |
+| DPM2001 | Nguyễn Văn A | 2026-10-31 | 2029-09-30 | 2027-04-30 | <span style="color:green">✔ Hợp lệ</span> |
+| DPM2002 | Trần Thị B | 2027-06-30 | 2029-09-30 | 2027-04-30 | <span style="color:red">✘ Trước hạn hiện tại</span> |
+
+  - FE kiểm tra client-side cho từng NCS: `hanMoi > hanHienTai` VÀ `hanMoi <= hanBuocThoiHoc`. Nếu có bất kỳ dòng nào vi phạm, tô đỏ và vô hiệu hóa nút "Tạo quyết định" (vì server chạy transaction: 1 người sai sẽ từ chối toàn bộ).
+  - Hộp xác nhận ghi: *"Gia hạn học tập đến ngày dd/mm/yyyy cho N NCS."*
+
+- **Nhóm D (Chỉ lưu quyết định):**
+  - Trên đầu khối có công tắc Toggle: **"Áp dụng cho: ◉ NCS cụ thể ○ Chung (không gắn NCS)"**.
+  - Nếu chọn "NCS cụ thể": hiện Multi-select NCS (chọn bao nhiêu tùy ý).
+  - Nếu chọn "Chung": ẩn Multi-select, gửi `ncsIds: []`.
+  - Mặc định:
+    * `GIAO_DE_TAI`, `PHAN_CONG_GVHD`: mặc định là **NCS cụ thể**.
+    * `THANH_LAP_TIEU_BAN`, `KHAC`: mặc định là **Chung**.
+    * `CAN_CU_DUYET_MOC`: Mặc định NCS cụ thể. Cần có dòng hướng dẫn: *"Chọn 'Chung' nếu quyết định này là quy chế/hội đồng chung áp dụng để duyệt mốc cho mọi NCS."*
+    * `CONG_NHAN_TOT_NGHIEP`: Mặc định NCS cụ thể. Quyết định này sẽ được dùng khi xác nhận tốt nghiệp, nên có dòng gợi ý: *"Khuyến khích đính kèm file scan PDF và chọn đúng NCS để tra cứu khi xét tốt nghiệp."*
+
+##### 3. Xử lý sau khi bấm "Tạo quyết định"
+
+- Hộp xác nhận: Bật modal với nhóm A, B, C; nhóm D cho gửi trực tiếp.
+- Thành công: Nếu server trả về mảng `canhBao` có phần tử (ví dụ lỗi đồng bộ khóa/mở tài khoản), hiển thị **Banner vàng cố định trên đầu trang** liệt kê từng cảnh báo để Giáo vụ xử lý thủ công (không dùng toast tự biến mất). Sau đó tự động tải lại danh sách quyết định.
+- Lỗi 400, 409: Hiển thị nguyên văn `message` từ server vì backend đã chỉ đích danh MSHV vi phạm. Nếu `message` là một mảng chuỗi (lỗi validate class-validator), hiển thị thành danh sách gạch đầu dòng.
+
+##### 4. Màn hình danh sách quyết định & Vô hiệu hóa
+
+- **Hiển thị theo Accordion nhóm theo `soQuyetDinh`:** Mỗi nhóm là một hàng cha, click để mở danh sách các NCS bên trong:
+  * Dòng cha: `123/QĐ-ĐHAG · [Badge: Bảo lưu] · 01/10/2026 · 5 NCS · [Nút: Xem PDF]`
+  * Khi mở: Bảng con hiển thị danh sách 5 NCS (MSHV, Họ tên, Trạng thái hiệu lực, Ghi chú, Nút thao tác).
+- **Bộ lọc:** Lọc theo Loại quyết định, Trạng thái (`HIEU_LUC` / `DEACTIVATE`), Số quyết định, hoặc tìm kiếm theo NCS.
+- **Badge màu theo nhóm:** Giúp phân biệt trực quan quyết định có làm thay đổi hồ sơ NCS hay không. Quyết định đã bị `DEACTIVATE` thì làm mờ chữ và gạch ngang (strikethrough).
+- **Vô hiệu hóa từng dòng NCS:** Nút "Vô hiệu hóa" nằm ở **từng dòng của mỗi NCS** (vì API thực hiện trên từng dòng `quyetDinhId`).
+- **Modal xác nhận vô hiệu hóa:**
+  * Bắt buộc có ô nhập `lyDo` (1 đến 1000 ký tự).
+  * 5 loại có hoàn tác (`BAO_LUU`, `HOC_TIEP`, `NGUNG_HOC`, `BUOC_THOI_HOC`, `GIA_HAN`): Modal cảnh báo ghi rõ: *"Hồ sơ của NCS sẽ được hoàn lại trạng thái trước quyết định này, tài khoản đăng nhập có thể được khóa hoặc mở lại."*
+  * Các loại khác: Modal xác nhận bình thường.
+  * Nếu server trả lỗi 400 do hủy sai thứ tự (còn quyết định mới hơn): Hiển thị modal lỗi nguyên văn message của server, kèm nút điều hướng đến quyết định mới hơn cần hủy trước nếu có.
+
+##### 5. Gợi ý cấu hình gọn trong mã nguồn (`LOAI_QUYET_DINH`)
+
+```ts
+export const CAU_HINH_QUYET_DINH: Record<string, {
+  nhan: string;
+  nhom: 'A' | 'B' | 'C' | 'D';
+  batBuocNcs: boolean;
+  trangThaiHopLe?: string[];
+  canHanMoi?: boolean;
+  canXacNhan?: boolean;
+  canhBao?: string;
+  mauSac?: string;
+}> = {
+  BAO_LUU: {
+    nhan: 'Bảo lưu',
+    nhom: 'A',
+    batBuocNcs: true,
+    trangThaiHopLe: ['DANG_HOC', 'GIA_HAN'],
+    canXacNhan: true,
+    canhBao: 'sẽ chuyển sang Bảo lưu và khóa tài khoản đăng nhập',
+    mauSac: 'warning',
+  },
+  NGUNG_HOC: {
+    nhan: 'Ngừng học',
+    nhom: 'A',
+    batBuocNcs: true,
+    trangThaiHopLe: ['DANG_HOC', 'GIA_HAN', 'BAO_LUU'],
+    canXacNhan: true,
+    canhBao: 'sẽ chuyển sang Ngừng học và khóa tài khoản vĩnh viễn',
+    mauSac: 'destructive',
+  },
+  BUOC_THOI_HOC: {
+    nhan: 'Buộc thôi học',
+    nhom: 'A',
+    batBuocNcs: true,
+    trangThaiHopLe: ['DANG_HOC', 'GIA_HAN', 'BAO_LUU'],
+    canXacNhan: true,
+    canhBao: 'sẽ bị Buộc thôi học và khóa tài khoản vĩnh viễn',
+    mauSac: 'destructive',
+  },
+  HOC_TIEP: {
+    nhan: 'Học tiếp',
+    nhom: 'B',
+    batBuocNcs: true,
+    trangThaiHopLe: ['BAO_LUU'],
+    canXacNhan: true,
+    canhBao: 'sẽ trở lại học và được mở khóa tài khoản',
+    mauSac: 'info',
+  },
+  GIA_HAN: {
+    nhan: 'Gia hạn',
+    nhom: 'C',
+    batBuocNcs: true,
+    trangThaiHopLe: ['DANG_HOC', 'GIA_HAN'],
+    canHanMoi: true,
+    canXacNhan: true,
+    canhBao: 'sẽ được gia hạn học tập',
+    mauSac: 'primary',
+  },
+  GIAO_DE_TAI: { nhan: 'Giao đề tài', nhom: 'D', batBuocNcs: false },
+  PHAN_CONG_GVHD: { nhan: 'Phân công GVHD', nhom: 'D', batBuocNcs: false },
+  THANH_LAP_TIEU_BAN: { nhan: 'Thành lập tiểu ban', nhom: 'D', batBuocNcs: false },
+  CAN_CU_DUYET_MOC: { nhan: 'Căn cứ duyệt mốc', nhom: 'D', batBuocNcs: false },
+  CONG_NHAN_TOT_NGHIEP: { nhan: 'Công nhận tốt nghiệp', nhom: 'D', batBuocNcs: false },
+  KHAC: { nhan: 'Quyết định khác', nhom: 'D', batBuocNcs: false },
+};
+```
+
+---
 
 #### h. Vô hiệu hóa quyết định
 
@@ -461,70 +624,266 @@ Việc khóa hoặc mở khóa tài khoản chạy **sau khi** dữ liệu đã 
 - Quyết định `GIA_HAN` không đụng tới tài khoản.
 - Nếu khóa hoặc mở khóa lỗi thì dữ liệu vẫn được lưu và lỗi nằm trong `canhBao`.
 
-**Các lỗi 400 cần hiển thị `message` nguyên văn:**
+---
 
-| Tình huống | Gợi ý xử lý ở UI |
-| :---- | :---- |
-| NCS có quyết định đổi trạng thái mới hơn còn hiệu lực | Cho Giáo vụ mở quyết định mới hơn đó để vô hiệu hóa trước |
-| Quyết định không có đủ dữ liệu để hoàn tác (tạo trước khi hệ thống ghi nhật ký giá trị cũ) | Báo cần xử lý thủ công, không thử lại |
-| Trạng thái hiện tại của NCS khác với lúc ra quyết định (có người sửa trực tiếp hồ sơ) | Báo cần xử lý thủ công, không thử lại |
+## 6. Hệ thống Thông báo (Notification)
 
-**Gợi ý UI:**
+Hệ thống thông báo tự động gửi thông tin cho NCS, Giảng viên hướng dẫn (GVHD), và Giáo vụ/Admin khi có sự kiện thay đổi tiến trình, quyết định hoặc nhắc hạn.
 
-- Với 5 loại có hoàn tác, hộp xác nhận nên ghi rõ: "Hồ sơ của NCS sẽ được hoàn lại trạng thái trước quyết định này, tài khoản có thể được khóa hoặc mở lại". Với các loại còn lại chỉ cần xác nhận thông thường.
-- Sau khi vô hiệu hóa, hiển thị `canhBao` nếu có, rồi tải lại danh sách quyết định và hồ sơ NCS.
-- Mọi lần vô hiệu hóa có hoàn tác đều được ghi nhật ký (audit) để truy vết.
+### 6.1 Các API Gateway
+
+| Phương thức & Đường dẫn | Chức năng | Query / Body | Response gợi ý |
+| :---- | :---- | :---- | :---- |
+| `GET /notifications` | Danh sách thông báo của người dùng đăng nhập | `?unread=true` (chỉ chưa đọc), `?group=TIEN_DO` (lọc nhóm), `?page=1&limit=20` | `{ items: Notification[], tong: number, trang: number, soLuong: number }` |
+| `GET /notifications/unread-count` | Lấy số lượng thông báo chưa đọc (cho Badge chuông) | Không | `{ soLuong: number }` |
+| `PATCH /notifications/:id/read` | Đánh dấu 1 thông báo đã đọc | Không | Thông báo vừa cập nhật (`daDoc: true`, `readAt: ISO`) |
+| `PATCH /notifications/read-all` | Đánh dấu tất cả thông báo của người dùng đã đọc | Không | `{ soLuong: number }` (số lượng thông báo vừa cập nhật) |
+
+### 6.2 Cấu trúc một thông báo (`Notification`)
+
+```json
+{
+  "id": "e45f...uuid",
+  "userId": "usr...uuid",
+  "nhom": "TIEN_DO",
+  "loai": "MOC_DUOC_DUYET",
+  "tieuDe": "Mốc 3 đã được duyệt",
+  "noiDung": "Minh chứng mốc 3 của bạn đã được duyệt. Mốc 4 đã được mở để bạn nộp minh chứng.",
+  "duLieu": { "thuTu": 3, "mocKeTiep": 4 },
+  "daDoc": false,
+  "readAt": null,
+  "createdAt": "2026-11-02T10:30:00.000Z"
+}
+```
+
+- **Các nhóm thông báo (`nhom`):**
+  * `TIEN_DO`: Duyệt mốc (`MOC_DUOC_DUYET`), từ chối mốc (`MOC_BI_TU_CHOI`), nộp minh chứng (`NCS_NOP_MINH_CHUNG`), có phiếu nhận xét mới (`CO_PHIEU_NHAN_XET_MOI`), phân công GVHD (`NCS_DUOC_PHAN_CONG_GVHD`), v.v.
+  * `QUYET_DINH`: Quyết định đổi trạng thái (`QUYET_DINH_DOI_TRANG_THAI`), công nhận tốt nghiệp (`TOT_NGHIEP`, `GVHD_NCS_TOT_NGHIEP`), quyết định bị hủy (`QUYET_DINH_BI_HUY`).
+  * `NHAC_HAN`: Nhắc hạn học tập định kỳ (`NHAC_HAN_HOC_TAP`), cảnh báo sắp hết hạn 72 tháng (`CANH_BAO_HET_HAN_DAO_TAO`).
+  * `CANH_BAO_KY_THUAT`: Cảnh báo không cập nhật được tài khoản Keycloak, đổi mật khẩu.
+  * `HE_THONG`: Thông báo hệ thống chung.
+
+### 6.3 Gợi ý UI / UX cho Frontend
+
+1. **Chuông thông báo trên Header / Topbar:**
+   - Gọi `GET /notifications/unread-count` khi khởi tạo ứng dụng hoặc sau các thao tác lớn.
+   - Nếu `soLuong > 0`, hiển thị Badge đỏ (ví dụ `3` hoặc `99+`).
+   - Click vào chuông mở **Notification Popover (Dropdown)**:
+     * Hiển thị 5 đến 10 thông báo gần nhất.
+     * Nút "Đánh dấu tất cả đã đọc" (gọi `PATCH /notifications/read-all`).
+     * Dưới cùng có link "Xem tất cả thông báo" chuyển hướng sang trang `/notifications`.
+2. **Trang Quản lý Thông báo (`/notifications`):**
+   - Header có nút "Đánh dấu tất cả đã đọc".
+   - Bộ lọc theo Tabs: `Tất cả`, `Tiến độ`, `Quyết định`, `Nhắc hạn`, `Hệ thống`.
+   - Toggle switch: *"Chỉ hiện thông báo chưa đọc"*.
+   - Danh sách thông báo có icon/badge riêng theo từng nhóm, hiển thị thời gian tương đối (ví dụ "5 phút trước", "Hôm qua").
+   - Trạng thái chưa đọc có nền highlight nhẹ (ví dụ nền xanh nhạt) kèm chấm tròn xanh.
+3. **Điều hướng ngữ cảnh (Deep-linking) khi click thông báo:**
+   - Khi bấm vào thông báo:
+     * Gọi ngay `PATCH /notifications/:id/read` để cập nhật trạng thái đã đọc và giảm badge chuông.
+     * Dựa vào `nhom`, `loai` và `duLieu` để navigate:
+       - Mốc tiến trình (`MOC_DUOC_DUYET`, `MOC_BI_TU_CHOI`...): chuyển đến màn hình tiến trình mốc tương ứng.
+       - Quyết định (`QUYET_DINH_DOI_TRANG_THAI`...): chuyển đến trang danh sách quyết định hoặc hồ sơ NCS.
+       - Tốt nghiệp (`TOT_NGHIEP`): chuyển đến hồ sơ / chứng nhận tốt nghiệp.
 
 ---
 
-## 6. Bảng API tổng hợp
+## 7. Màn hình Xét tốt nghiệp (Graduation Assessment)
 
-| Vai trò | Method và đường dẫn | Quyền |
+Sau khi NCS hoàn thành mốc 9, hệ thống không tự động cấp bằng tốt nghiệp. Giáo vụ tiến hành quy trình rà soát 6 điều kiện tốt nghiệp, xác nhận ngoại ngữ, công nợ và ra quyết định công nhận tốt nghiệp.
+
+### 7.1 6 Điều kiện tốt nghiệp được kiểm tra tự động
+
+Server đánh giá 6 điều kiện dựa trên hồ sơ NCS (`tinhKetQuaTotNghiep`):
+
+| STT | Mã điều kiện (`ma`) | Tên điều kiện (`ten`) | Tiêu chí đạt (`dat = true`) | Ghi chú & Minh chứng |
+| :---: | :---- | :---- | :---- | :---- |
+| 1 | `HOAN_THANH_MOC` | Hoàn thành tất cả các mốc | Đã đạt đủ 9/9 mốc tiến trình (`trangThai = PASSED`) | Báo số mốc đã đạt: 9/9 |
+| 2 | `TRANG_THAI_HOC_TAP` | Đang học | Đang ở trạng thái `DANG_HOC` hoặc `GIA_HAN` (không bảo lưu, ngừng học, thôi học) | Báo trạng thái hiện tại |
+| 3 | `THOI_HAN` | Chưa quá hạn tối đa (72 tháng) | Ngày hoàn thành mốc cuối ≤ `hanBuocThoiHoc` | Báo ngày đạt mốc cuối và hạn 72 tháng |
+| 4 | `NGOAI_NGU` | Đạt chuẩn đầu ra ngoại ngữ | Giáo vụ đã xác nhận đạt chuẩn ngoại ngữ | Báo tên chuẩn ngoại ngữ, ngày công nhận, đính kèm `fileId` |
+| 5 | `CONG_NO` | Hoàn thành nghĩa vụ tài chính | Giáo vụ đã xác nhận không còn công nợ | Báo tình trạng công nợ, đính kèm `fileId` nếu có |
+| 6 | `DE_NGHI_CHO_DUYET` | Không còn đề nghị điều chỉnh chờ duyệt | Số đề nghị điều chỉnh đang chờ duyệt = 0 | Báo số lượng đề nghị đang chờ |
+
+> **Quy tắc đủ điều kiện:** `duDieuKien = true` khi và chỉ khi **toàn bộ 6 điều kiện** đều `dat = true`.
+
+### 7.2 Các API Xét tốt nghiệp
+
+| Phương thức & Endpoint | Quyền | Mục đích |
 | :---- | :---- | :---- |
-| NCS | `GET /progress/me` | `MILESTONE_READ` |
-| NCS | `POST /progress/milestones/:thuTu/submit` | `MILESTONE_SUBMIT` |
-| NCS, Giáo vụ | `POST /documents/upload` | `DOCUMENT_UPLOAD` |
-| NCS, Giáo vụ | `GET /documents/:id`, `GET /documents/:id/download` | `DOCUMENT_READ` |
-| Giáo vụ | `DELETE /documents/:id` | `DOCUMENT_DELETE` |
-| Giáo vụ | `GET /progress/pending` | `MILESTONE_APPROVE` |
-| Giáo vụ | `GET /progress/ncs/:ncsId` | `MILESTONE_APPROVE` |
-| Giáo vụ | `GET, POST /progress/evidences/:minhChungId/evaluations` | `MILESTONE_APPROVE` |
-| Giáo vụ | `POST /progress/reviews/:tienTrinhId/approve` | `MILESTONE_APPROVE` |
-| Giáo vụ | `POST /progress/reviews/:tienTrinhId/reject` | `MILESTONE_REJECT` |
-| Giáo vụ | `POST /decisions` (một hoặc nhiều NCS, có thể đổi trạng thái NCS) | `DECISION_CREATE` |
-| Giáo vụ | `GET /decisions`, `GET /decisions/:id` | `DECISION_READ` |
-| Giáo vụ | `PATCH /decisions/:id/deactivate` | `DECISION_UPDATE` |
+| `GET /graduation` | `GRADUATION_CHECK` | Danh sách NCS đã hoàn tất các mốc. Query `?duDieuKien=true` hoặc `?duDieuKien=false` |
+| `GET /graduation/ncs/:ncsId` | `GRADUATION_CHECK` | Xem chi tiết kết quả 6 điều kiện xét tốt nghiệp của 1 NCS |
+| `PUT /graduation/ncs/:ncsId/ngoai-ngu` | `GRADUATION_CHECK` | Giáo vụ xác nhận kết quả chuẩn đầu ra ngoại ngữ |
+| `PUT /graduation/ncs/:ncsId/cong-no` | `GRADUATION_CHECK` | Giáo vụ xác nhận tình trạng công nợ của NCS |
+| `GET /graduation/ncs/:ncsId/quyet-dinh` | `GRADUATION_CHECK` | Danh sách quyết định `CONG_NHAN_TOT_NGHIEP` còn hiệu lực & chưa dùng của NCS này |
+| `POST /graduation/confirm` | `GRADUATION_CHECK` | Xác nhận tốt nghiệp: gắn quyết định, chuyển trạng thái `DA_TOT_NGHIEP`, gửi thông báo |
 
-Admin có toàn bộ quyền. Việc ẩn menu theo role ở FE chỉ để giao diện gọn, server vẫn là nơi chặn thật (403).
+### 7.3 Chi tiết Body & Dữ liệu API
+
+#### a. Xác nhận Ngoại ngữ: `PUT /graduation/ncs/:ncsId/ngoai-ngu`
+Nếu đính kèm minh chứng, upload trước qua `POST /documents/upload` (`documentType: MINH_CHUNG_NGOAI_NGU`):
+
+```json
+{
+  "dat": true,
+  "chuanDauRa": "TOEIC 750 / B2 Vstep",
+  "ngayCongNhanNgoaiNgu": "2026-09-15",
+  "ghiChu": "Chứng chỉ nộp đợt 2",
+  "fileId": "uuid-file-pdf"
+}
+```
+*Lưu ý:* Khi `dat = true`, bắt buộc phải có `chuanDauRa` và `ngayCongNhanNgoaiNgu`.
+
+#### b. Xác nhận Công nợ: `PUT /graduation/ncs/:ncsId/cong-no`
+
+```json
+{
+  "khongConCongNo": true,
+  "ghiChu": "Đã thanh toán học phí đầy đủ",
+  "fileId": "uuid-file-pdf (nếu có giấy xác nhận)"
+}
+```
+
+#### c. Danh sách quyết định công nhận tốt nghiệp chưa dùng: `GET /graduation/ncs/:ncsId/quyet-dinh`
+Trả về mảng các quyết định loại `CONG_NHAN_TOT_NGHIEP` của chính NCS đó, đang có hiệu lực (`HIEU_LUC`) và chưa từng dùng để duyệt tốt nghiệp:
+
+```json
+[
+  {
+    "id": "qd-uuid-1",
+    "soQuyetDinh": "456/QĐ-ĐHAG",
+    "ngayQuyetDinh": "2026-11-01",
+    "fileId": "file-uuid",
+    "ghiChu": "Đợt tốt nghiệp tháng 11/2026"
+  }
+]
+```
+
+#### d. Xác nhận tốt nghiệp: `POST /graduation/confirm`
+Xác nhận cho 1 hoặc nhiều NCS cùng lúc:
+
+```json
+{
+  "danhSach": [
+    {
+      "ncsId": "ncs-uuid-1",
+      "quyetDinhId": "qd-uuid-1",
+      "ngayTotNghiep": "2026-11-01"
+    }
+  ]
+}
+```
+*Lưu ý:* `ngayTotNghiep` là tùy chọn; nếu bỏ trống, server tự lấy theo `ngayQuyetDinh`.
+
+- **Khi thành công (201):**
+  ```json
+  {
+    "ketQua": [
+      {
+        "ncsId": "ncs-uuid-1",
+        "mshv": "DPM2001",
+        "quyetDinhId": "qd-uuid-1",
+        "ngayTotNghiep": "2026-11-01"
+      }
+    ]
+  }
+  ```
+  Hồ sơ NCS chuyển sang `DA_TOT_NGHIEP`. Hệ thống tự động gửi thông báo đến NCS và các GVHD được phân công.
+
+- **Khi có lỗi (400):** Server kiểm tra lại điều kiện ngay lúc xác nhận. Nếu có NCS chưa đủ điều kiện hoặc đã duyệt trước đó, server trả lỗi 400 kèm mảng `chiTiet`:
+  ```json
+  {
+    "statusCode": 400,
+    "message": "Có 1 NCS chưa đủ điều kiện tốt nghiệp",
+    "chiTiet": [
+      {
+        "ncsId": "ncs-uuid-2",
+        "mshv": "DPM2002",
+        "hoTen": "Trần Thị B",
+        "lyDo": "Chưa đạt: Đạt chuẩn đầu ra ngoại ngữ, Hoàn thành nghĩa vụ tài chính"
+      }
+    ]
+  }
+  ```
+
+### 7.4 Gợi ý UI / UX cho Màn hình Xét tốt nghiệp
+
+1. **Màn hình Danh sách xét tốt nghiệp (`/graduation`):**
+   - **Tabs lọc:** `Tất cả`, `Đủ điều kiện (xanh)`, `Chưa đủ điều kiện (cam)`.
+   - **Bảng dữ liệu:**
+     * Cột thông tin NCS: MSHV, Họ tên, Trạng thái học tập.
+     * Cột trạng thái duyệt: Badge `Đã tốt nghiệp` / `Chưa tốt nghiệp`.
+     * Cột 6 điều kiện: Hiển thị 6 icon hoặc checklist thu nhỏ (ví dụ: `Mốc: ✔`, `TT: ✔`, `Hạn: ✔`, `NN: ✘`, `Nợ: ✔`, `ĐN: ✔`). Hover vào từng icon hiển thị tooltip ghi chú chi tiết.
+     * Cột thao tác: Nút "Kiểm tra chi tiết", Nút "Xác nhận ngoại ngữ/công nợ".
+     * Hàng đầu bảng có nút **"Xác nhận tốt nghiệp"** (bật khi tick chọn ít nhất 1 NCS đủ điều kiện).
+2. **Modal / Drawer Xác nhận Ngoại ngữ & Công nợ:**
+   - Mở nhanh khi bấm vào biểu tượng Ngoại ngữ hoặc Công nợ trên từng hàng.
+   - Cho phép upload file scan chứng chỉ/phiếu thu và lưu kết quả. Sau khi lưu, tự động tải lại bảng.
+3. **Quy trình Xác nhận tốt nghiệp (Modal Xác nhận):**
+   - **Bước 1:** Giáo vụ tạo trước quyết định loại `CONG_NHAN_TOT_NGHIEP` cho các NCS ở module Quyết định (upload scan PDF QĐ tốt nghiệp).
+   - **Bước 2:** Tại màn hình Xét tốt nghiệp, chọn các NCS đã đủ điều kiện, bấm "Xác nhận tốt nghiệp".
+   - **Bước 3:** Modal hiện danh sách các NCS được chọn. Với mỗi NCS, hiển thị một **Dropdown chọn quyết định** (gọi `GET /graduation/ncs/:ncsId/quyet-dinh` để nạp các quyết định công nhận tốt nghiệp chưa dùng).
+   - **Bước 4:** Bấm "Xác nhận". Nếu có lỗi `chiTiet`, hiển thị Modal popup chi tiết từng NCS bị từ chối để Giáo vụ kịp thời xử lý.
 
 ---
 
-## 7. Quy tắc chung và xử lý lỗi
+## 8. Bảng API tổng hợp
 
-- Mọi API cần header `Authorization: Bearer <accessToken>`.
-- Lỗi trả về dạng `{ "statusCode": 400, "message": "…" }`. Với lỗi kiểm tra dữ liệu đầu vào, `message` có thể là một **mảng chuỗi**. Chỉ lỗi trùng phiếu nhận xét có thêm trường `code`.
-- Ý nghĩa mã lỗi dùng chung:
+| Vai trò | Method và đường dẫn | Quyền | Chức năng |
+| :---- | :---- | :---- | :---- |
+| **NCS** | `GET /progress/me` | `MILESTONE_READ` | Xem 9 mốc tiến trình của bản thân |
+| **NCS** | `POST /progress/milestones/:thuTu/submit` | `MILESTONE_SUBMIT` | Nộp file minh chứng mốc (kèm fileId) |
+| **NCS, Giáo vụ** | `POST /documents/upload` | `DOCUMENT_UPLOAD` | Upload file PDF (minh chứng mốc, quyết định, ngoại ngữ...) |
+| **NCS, Giáo vụ** | `GET /documents/:id`, `GET /documents/:id/download` | `DOCUMENT_READ` | Đọc metadata / Download hoặc xem PDF |
+| **NCS, GVHD, Giáo vụ** | `GET /notifications` | Mọi user đã đăng nhập | Danh sách thông báo (phân trang, lọc nhóm, chưa đọc) |
+| **NCS, GVHD, Giáo vụ** | `GET /notifications/unread-count` | Mọi user đã đăng nhập | Số lượng thông báo chưa đọc (cho Badge chuông) |
+| **NCS, GVHD, Giáo vụ** | `PATCH /notifications/:id/read` | Mọi user đã đăng nhập | Đánh dấu 1 thông báo đã đọc |
+| **NCS, GVHD, Giáo vụ** | `PATCH /notifications/read-all` | Mọi user đã đăng nhập | Đánh dấu tất cả thông báo đã đọc |
+| **Giáo vụ** | `GET /ncs` | `NCS_READ` | Danh sách NCS kèm trạng thái, hạn chính quy, gia hạn, hạn 72 tháng |
+| **Giáo vụ** | `DELETE /documents/:id` | `DOCUMENT_DELETE` | Xóa file PDF rác chưa gắn nghiệp vụ |
+| **Giáo vụ** | `GET /progress/pending` | `MILESTONE_APPROVE` | Hàng đợi mốc chờ duyệt |
+| **Giáo vụ** | `GET /progress/ncs/:ncsId` | `MILESTONE_APPROVE` | Xem lịch sử 9 mốc của 1 NCS |
+| **Giáo vụ** | `GET, POST /progress/evidences/:minhChungId/evaluations` | `MILESTONE_APPROVE` | Xem / Nhập phiếu nhận xét chấm điểm (mốc 2, 4, 5) |
+| **Giáo vụ** | `POST /progress/reviews/:tienTrinhId/approve` | `MILESTONE_APPROVE` | Duyệt đạt mốc tiến trình (kèm quyetDinhId) |
+| **Giáo vụ** | `POST /progress/reviews/:tienTrinhId/reject` | `MILESTONE_REJECT` | Từ chối mốc tiến trình (kèm lý do) |
+| **Giáo vụ** | `POST /decisions` | `DECISION_CREATE` | Tạo quyết định (1 hoặc nhiều NCS, có thể đổi trạng thái NCS) |
+| **Giáo vụ** | `GET /decisions`, `GET /decisions/:id` | `DECISION_READ` | Danh sách quyết định (lọc số QĐ, loại, NCS...) / Chi tiết |
+| **Giáo vụ** | `PATCH /decisions/:id/deactivate` | `DECISION_UPDATE` | Vô hiệu hóa quyết định (hoàn tác trạng thái hồ sơ NCS nếu có) |
+| **Giáo vụ** | `GET /graduation` | `GRADUATION_CHECK` | Danh sách NCS xét tốt nghiệp (lọc `duDieuKien`) |
+| **Giáo vụ** | `GET /graduation/ncs/:ncsId` | `GRADUATION_CHECK` | Chi tiết kết quả 6 điều kiện xét tốt nghiệp của 1 NCS |
+| **Giáo vụ** | `PUT /graduation/ncs/:ncsId/ngoai-ngu` | `GRADUATION_CHECK` | Xác nhận chuẩn đầu ra ngoại ngữ |
+| **Giáo vụ** | `PUT /graduation/ncs/:ncsId/cong-no` | `GRADUATION_CHECK` | Xác nhận tình trạng công nợ tài chính |
+| **Giáo vụ** | `GET /graduation/ncs/:ncsId/quyet-dinh` | `GRADUATION_CHECK` | Lấy quyết định `CONG_NHAN_TOT_NGHIEP` chưa dùng của NCS |
+| **Giáo vụ** | `POST /graduation/confirm` | `GRADUATION_CHECK` | Xác nhận tốt nghiệp cho 1 hoặc nhiều NCS |
 
-| Mã | Ý nghĩa | Cách xử lý ở UI |
+Admin có toàn bộ quyền. Việc phân quyền và ẩn menu theo role ở FE nhằm tối ưu giao diện, server luôn kiểm tra quyền thực tế (403).
+
+---
+
+## 9. Quy tắc chung và xử lý lỗi
+
+- **Xác thực:** Mọi API đều yêu cầu header `Authorization: Bearer <accessToken>`.
+- **Định dạng lỗi:** Lỗi trả về có dạng `{ "statusCode": 400, "message": "…" }`. Với lỗi kiểm tra dữ liệu đầu vào (class-validator), `message` có thể là một **mảng các chuỗi**. Lỗi xét tốt nghiệp có thêm trường `chiTiet`. Lỗi trùng phiếu nhận xét có thêm `code: "PHIEU_TRUNG_NGUOI_CHAM"`.
+- **Ý nghĩa mã lỗi HTTP:**
+
+| Mã lỗi | Ý nghĩa | Cách xử lý gợi ý ở UI |
 | :---- | :---- | :---- |
-| 400 | Dữ liệu không hợp lệ hoặc vi phạm điều kiện nghiệp vụ | Hiện `message` |
-| 401 | Token hết hạn hoặc thiếu | Gọi `POST /auth/refresh` hoặc chuyển về đăng nhập |
-| 403 | Không đủ quyền hoặc không phải dữ liệu của mình | Hiện thông báo không có quyền |
-| 404 | Không tìm thấy | Hiện `message` |
-| 409 | Xung đột (trùng, hoặc dữ liệu vừa bị thay đổi) | Thường là "tải lại" |
-| 502, 503, 504 | Service khác lỗi hoặc phản hồi chậm | "Hệ thống đang bận, thử lại sau" |
+| 400 | Dữ liệu không hợp lệ hoặc vi phạm điều kiện nghiệp vụ | Hiển thị nguyên văn `message` (nếu là mảng thì hiện từng dòng) |
+| 401 | Token hết hạn hoặc không hợp lệ | Tự động gọi `POST /auth/refresh` hoặc redirect về trang đăng nhập |
+| 403 | Không đủ quyền hạn thao tác | Hiển thị thông báo không có quyền truy cập |
+| 404 | Bản ghi hoặc tài nguyên không tìm thấy | Hiển thị `message` thông báo |
+| 409 | Xung đột dữ liệu (bị trùng lặp, hoặc bản ghi vừa bị thay đổi) | Hiển thị thông báo và tải lại dữ liệu mới nhất từ server |
+| 502, 503, 504 | Microservice nội bộ gián đoạn hoặc phản hồi chậm | Hiển thị thông báo "Hệ thống đang bận, vui lòng thử lại sau" |
 
-- Sau mỗi thao tác ghi (nộp, duyệt, từ chối, nhập phiếu, tạo hoặc vô hiệu hóa quyết định), **gọi lại API đọc** thay vì tự sửa state tại chỗ. Một lần duyệt thay đổi nhiều mốc cùng lúc (mốc hiện tại thành `PASSED`, mốc kế thành `UNLOCKED`), và một lần tạo quyết định có thể đổi trạng thái của nhiều NCS, một lần vô hiệu hóa có thể hoàn tác trạng thái của NCS đó.
-- Thời điểm trả về là chuỗi ISO 8601, hiển thị theo giờ Việt Nam. `ngayQuyetDinh` và `hanMoi` là ngày thuần.
-- Hai Giáo vụ cùng duyệt một mốc: chỉ một người thành công, người còn lại nhận 409. FE nên xử lý bằng cách tải lại hàng chờ.
+- **Cơ chế cập nhật dữ liệu (Re-fetch):** Sau mỗi thao tác ghi (nộp minh chứng, duyệt/từ chối mốc, nhập phiếu, tạo/hủy quyết định, xác nhận tốt nghiệp), **luôn gọi lại API GET** thay vì tự biến đổi state tại chỗ. Lý do: các nghiệp vụ này thường kích hoạt giao dịch phức tạp (mở khóa mốc kế tiếp, cập nhật trạng thái học tập của nhiều NCS, cập nhật cờ hoàn tất tốt nghiệp).
+- **Múi giờ & Định dạng ngày:** Các mốc thời gian ISO 8601 hiển thị theo giờ Việt Nam (UTC+7). Các trường ngày thuần (`ngayQuyetDinh`, `hanMoi`, `ngayTotNghiep`) luôn có định dạng `YYYY-MM-DD`.
+- **Tránh race condition:** Hai Giáo vụ cùng duyệt 1 mốc hoặc cùng thao tác trên 1 quyết định: người gửi sau sẽ nhận 409. FE xử lý bằng cách bắt 409 và reload danh sách.
 
 ---
 
-## 8. Ngoài phạm vi luồng này
+## 10. Ngoài phạm vi luồng này
 
-Các phần sau **chưa có** trong luồng 9 mốc, FE chưa cần dựng màn hình:
+Các phần sau **chưa có** trong giai đoạn này, FE chưa cần dựng màn hình:
 
-- Xét tốt nghiệp sau khi hoàn thành mốc 9 (mốc 9 `PASSED` không tự cấp tốt nghiệp).
-- Thông báo cho NCS khi mốc được duyệt hoặc bị từ chối.
-- GVHD xem tiến trình của NCS mình hướng dẫn.
-- Định mức hướng dẫn của GVHD và thay đổi đề tài.
+- Giảng viên hướng dẫn (GVHD) theo dõi tiến trình trực quan của toàn bộ NCS do mình hướng dẫn.
+- Quản lý định mức giờ hướng dẫn của GVHD và thủ tục điều chỉnh thay đổi đề tài/cán bộ hướng dẫn.

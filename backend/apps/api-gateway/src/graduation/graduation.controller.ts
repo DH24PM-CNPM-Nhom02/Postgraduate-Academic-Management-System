@@ -57,4 +57,11 @@ export class GraduationController {
     xacNhanTotNghiep(@CurrentUser() u: AuthUser, @Body() body: XacNhanTotNghiepDto) {
         return this.send('phd.graduation.confirm', { ...body, nguoiXacNhanId: u.id });
     }
+
+    // Quyết định công nhận tốt nghiệp còn hiệu lực và chưa dùng của một NCS (cho ô chọn quyết định khi xác nhận)
+    @Get('ncs/:ncsId/quyet-dinh')
+    @RequirePermissions(PERMISSIONS.GRADUATION_CHECK)
+    quyetDinhChuaDung(@Param('ncsId', new ParseUUIDPipe()) ncsId: string) {
+        return this.send('phd.graduation.decisions', { ncsId });
+    }
 }
