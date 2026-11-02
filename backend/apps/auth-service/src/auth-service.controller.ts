@@ -62,4 +62,11 @@ export class AuthController {
   getUsersByRole(@Payload() d: { role: string }) {
     return this.auth.getUsersByRole(d.role);
   }
+
+  @MessagePattern({ cmd: 'ping' })
+  @MessagePattern('ping')
+  ping() {
+    return 'pong';
+  }
 }
+

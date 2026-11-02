@@ -135,6 +135,20 @@ export const MAU_THONG_BAO: Record<string, Mau> = {
             return nd;
         },
     },
+    TOT_NGHIEP: {
+        nhom: 'QUYET_DINH',
+        tieuDe: () => 'Công nhận tốt nghiệp',
+        noiDung: (d) =>
+            `Quyết định công nhận tốt nghiệp số ${chuoi(d.soQuyetDinh)}${d.ngayQuyetDinh ? ` ngày ${ngayVN(d.ngayQuyetDinh)}` : ''} đã được áp dụng cho hồ sơ của bạn.` +
+            `${d.ngayTotNghiep ? ` Ngày công nhận tốt nghiệp: ${ngayVN(d.ngayTotNghiep)}.` : ''}`,
+    },
+    GVHD_NCS_TOT_NGHIEP: {
+        nhom: 'QUYET_DINH',
+        tieuDe: (d) => `NCS ${chuoi(d.tenNcs, chuoi(d.mshv))} được công nhận tốt nghiệp`,
+        noiDung: (d) =>
+            `Quyết định công nhận tốt nghiệp số ${chuoi(d.soQuyetDinh)}${d.ngayQuyetDinh ? ` ngày ${ngayVN(d.ngayQuyetDinh)}` : ''} đã được áp dụng cho NCS ${chuoi(d.tenNcs)} (${chuoi(d.mshv)}).` +
+            `${d.ngayTotNghiep ? ` Ngày công nhận tốt nghiệp: ${ngayVN(d.ngayTotNghiep)}.` : ''}`,
+    },
     QUYET_DINH_BI_HUY: {
         nhom: 'QUYET_DINH',
         tieuDe: (d) => `Quyết định ${tenQuyetDinh(d)} đã bị vô hiệu hóa`,

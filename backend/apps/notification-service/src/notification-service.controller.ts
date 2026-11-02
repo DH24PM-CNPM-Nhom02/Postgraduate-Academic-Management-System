@@ -39,4 +39,10 @@ export class NotificationController {
     danhDauTatCaDaDoc(@Payload() d: { userId: string }) {
         return this.service.danhDauTatCaDaDoc(d.userId);
     }
+
+    @MessagePattern({ cmd: 'ping' })
+    @MessagePattern('ping')
+    ping() {
+        return 'pong';
+    }
 }
