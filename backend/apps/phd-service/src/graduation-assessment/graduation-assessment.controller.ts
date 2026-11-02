@@ -43,4 +43,9 @@ export class GraduationAssessmentController {
         return this.graduation.xacNhanTotNghiep(d);
     }
 
+    @MessagePattern({ cmd: 'phd.graduation.decisions' })
+    quyetDinhChuaDung(@Payload() d: { ncsId: string }) {
+        return this.graduation.danhSachQuyetDinhChuaDung(d.ncsId);
+    }
+
 }
