@@ -19,6 +19,7 @@ const PUBLIC_ROUTES = [
   "/progress-reports",
   "/review-queue",
   "/supervisors",
+  "/student",
 ];
 
 export default auth((req) => {
