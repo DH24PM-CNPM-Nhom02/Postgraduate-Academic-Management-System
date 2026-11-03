@@ -2,13 +2,44 @@ import { apiClient } from "../lib/api/axios";
 import type { StudentDossier } from "@/src/types/academic";
 
 /**
+ * Cấu trúc dữ liệu thô nhận về từ Backend API
+ */
+export interface BackendNcsRaw {
+  id?: string;
+  name?: string;
+  code?: string;
+  hoTen?: string;
+  mshv?: string;
+  lop?: string;
+  trangThai?: string;
+  ngayNhapHoc?: string | Date;
+  hanChinhQuy?: string | Date;
+  hanGiaHan?: string | Date | null;
+  hanBuocThoiHoc?: string | Date;
+  khoaHocNcs?: { maKhoaHoc?: string };
+  nganh?: { maNganh?: string; tenNganh?: string };
+  deTai?: string;
+  thesisTopic?: string;
+  gvhd?: string;
+  dongGvhd?: string;
+  supervisorMain?: string;
+  supervisorCo?: string;
+  diemBaiBao?: number;
+  publicationPoints?: number;
+  email?: string;
+  sdt?: string;
+  phone?: string;
+  tienTrinhs?: Array<{ trangThai?: string }>;
+}
+
+/**
  * Hàm chuyển đổi dữ liệu thô từ Backend sang cấu trúc hiển thị giao diện Frontend (StudentDossier).
  * Giúp giao diện luôn hiển thị mượt mà kể cả khi cấu trúc database dùng tiếng Việt (hoTen, mshv...).
  */
-export function mapBackendNcsToStudentDossier(raw: any): StudentDossier {
+export function mapBackendNcsToStudentDossier(raw: BackendNcsRaw): StudentDossier {
   // Nếu dữ liệu đã chuẩn cấu trúc StudentDossier sẵn
   if (raw.name && raw.code) {
-    return raw as StudentDossier;
+    return raw as unknown as StudentDossier;
   }
 
   // 1. Tính số tháng đào tạo còn lại dựa vào hạn chính quy hoặc hạn gia hạn
@@ -37,7 +68,7 @@ export function mapBackendNcsToStudentDossier(raw: any): StudentDossier {
   // 3. Tính mốc tiến trình hiện tại (dựa vào danh sách tiến trình đã hoàn thành)
   let currentMilestoneIndex = 1;
   if (Array.isArray(raw.tienTrinhs) && raw.tienTrinhs.length > 0) {
-    const passedCount = raw.tienTrinhs.filter((t: any) => t.trangThai === "PASSED").length;
+    const passedCount = raw.tienTrinhs.filter((t) => t.trangThai === "PASSED").length;
     currentMilestoneIndex = Math.min(9, Math.max(1, passedCount + 1));
   }
 
@@ -72,7 +103,7 @@ export const NcsService = {
    * Endpoint: GET /ncs
    */
   getAllStudents: async (): Promise<StudentDossier[]> => {
-    const response = await apiClient.get("/ncs");
+    const response = await apiClient.get<BackendNcsRaw[]>("/ncs");
     const data = response.data;
     if (Array.isArray(data)) {
       return data.map(mapBackendNcsToStudentDossier);
@@ -91,8 +122,8 @@ export const NcsService = {
    * 2. Lấy thông tin chi tiết của 1 NCS (kèm 9 mốc tiến trình & ngành học)
    * Endpoint: GET /ncs/:id
    */
-  getStudentById: async (id: string): Promise<any> => {
-    const response = await apiClient.get(`/ncs/${id}`);
+  getStudentById: async (id: string): Promise<BackendNcsRaw> => {
+    const response = await apiClient.get<BackendNcsRaw>(`/ncs/${id}`);
     return response.data;
   },
 
@@ -100,8 +131,11 @@ export const NcsService = {
    * 3. Cập nhật thông tin lý lịch NCS
    * Endpoint: PATCH /ncs/:id
    */
-  updateStudent: async (id: string, data: any): Promise<any> => {
-    const response = await apiClient.patch(`/ncs/${id}`, data);
+  updateStudent: async (
+    id: string,
+    data: Record<string, unknown>
+  ): Promise<BackendNcsRaw> => {
+    const response = await apiClient.patch<BackendNcsRaw>(`/ncs/${id}`, data);
     return response.data;
   },
 
@@ -113,8 +147,11 @@ export const NcsService = {
     id: string,
     trangThai: string,
     lyDo?: string
-  ): Promise<any> => {
-    const response = await apiClient.patch(`/ncs/${id}/status`, { trangThai, lyDo });
+  ): Promise<BackendNcsRaw> => {
+    const response = await apiClient.patch<BackendNcsRaw>(`/ncs/${id}/status`, {
+      trangThai,
+      lyDo,
+    });
     return response.data;
   },
 
@@ -133,12 +170,16 @@ export const NcsService = {
    * 6. Upload file Excel để xem trước dữ liệu hợp lệ/lỗi (chưa lưu)
    * Endpoint: POST /ncs/import/preview
    */
-  previewImportExcel: async (file: File): Promise<any> => {
+  previewImportExcel: async (file: File): Promise<Record<string, unknown>> => {
     const formData = new FormData();
     formData.append("file", file);
-    const response = await apiClient.post("/ncs/import/preview", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const response = await apiClient.post<Record<string, unknown>>(
+      "/ncs/import/preview",
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      }
+    );
     return response.data;
   },
 
@@ -146,12 +187,16 @@ export const NcsService = {
    * 7. Xác nhận nạp file Excel vào cơ sở dữ liệu thật
    * Endpoint: POST /ncs/import/confirm
    */
-  confirmImportExcel: async (file: File): Promise<any> => {
+  confirmImportExcel: async (file: File): Promise<Record<string, unknown>> => {
     const formData = new FormData();
     formData.append("file", file);
-    const response = await apiClient.post("/ncs/import/confirm", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const response = await apiClient.post<Record<string, unknown>>(
+      "/ncs/import/confirm",
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      }
+    );
     return response.data;
   },
 };

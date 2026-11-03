@@ -4,9 +4,19 @@ import type {
   EvidenceItem,
   TopicChangeItem,
   CalendarEventItem,
+  DecisionItem,
+  PendingMilestoneItem,
 } from "@/src/types/academic";
 
-export type { StudentDossier, SupervisorQuotaRecord, EvidenceItem, TopicChangeItem, CalendarEventItem };
+export type {
+  StudentDossier,
+  SupervisorQuotaRecord,
+  EvidenceItem,
+  TopicChangeItem,
+  CalendarEventItem,
+  DecisionItem,
+  PendingMilestoneItem,
+};
 
 // Realistic Vietnamese Graduate Data for Academic Affairs
 export const MOCK_STUDENTS: StudentDossier[] = [
@@ -444,7 +454,7 @@ export const MOCK_FORMS = [
 
 
 // Mock Decisions Dataset
-export const MOCK_DECISIONS: any[] = [
+export const MOCK_DECISIONS: DecisionItem[] = [
   {
     id: "dec-1",
     soQuyetDinh: "124/QĐ-ĐHAG",
@@ -528,7 +538,7 @@ export const MOCK_DECISIONS: any[] = [
 ];
 
 // Mock Pending Review Milestones Dataset
-export const MOCK_PENDING_MILESTONES: any[] = [
+export const MOCK_PENDING_MILESTONES: PendingMilestoneItem[] = [
   {
     id: "prog-1",
     submittedAt: "2026-10-28T09:30:00Z",

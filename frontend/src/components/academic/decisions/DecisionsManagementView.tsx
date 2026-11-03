@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import {
   FileText,
@@ -10,11 +10,9 @@ import {
   CheckCircle2,
   XCircle,
   Calendar,
-  User,
   Users,
   Clock,
   ArrowLeft,
-  ShieldCheck,
   Download,
   AlertTriangle,
   Check,
@@ -409,14 +407,13 @@ function DeactivateDecisionModal({ isOpen, decision, onClose, onConfirm }: Deact
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (isOpen) {
-      setReason("");
-      setError("");
-    }
-  }, [isOpen]);
-
   if (!isOpen || !decision) return null;
+
+  const handleClose = () => {
+    setReason("");
+    setError("");
+    onClose();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -437,7 +434,7 @@ function DeactivateDecisionModal({ isOpen, decision, onClose, onConfirm }: Deact
       <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-200 p-5 space-y-4 text-xs animate-in zoom-in-95">
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
         >
           <X className="size-4" />
@@ -488,7 +485,7 @@ function DeactivateDecisionModal({ isOpen, decision, onClose, onConfirm }: Deact
           <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="rounded-xl border border-slate-200 px-3.5 py-1.5 font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
             >
               Hủy
@@ -839,6 +836,7 @@ export function DecisionsManagementView({ embedded = false }: { embedded?: boole
 
       {/* Modal vô hiệu hóa */}
       <DeactivateDecisionModal
+        key={deactivateDecision?.id}
         isOpen={!!deactivateDecision}
         decision={deactivateDecision}
         onClose={() => setDeactivateDecision(null)}

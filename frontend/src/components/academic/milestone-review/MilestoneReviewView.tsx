@@ -7,17 +7,13 @@ import {
   FileText,
   Search,
   CheckCircle2,
-  Clock,
   ShieldCheck,
   ArrowLeft,
   Award,
   AlertCircle,
   XCircle,
-  ArrowRight,
   Download,
   Calendar,
-  User,
-  Users,
   X,
 } from "lucide-react";
 import { MOCK_PENDING_MILESTONES, MOCK_DECISIONS } from "../mockData";
