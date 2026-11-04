@@ -11,8 +11,6 @@ import {
   FileEdit,
   ClipboardList,
   CalendarDays,
-  FileSpreadsheet,
-  Award,
   BookOpen,
   HelpCircle,
   ChevronLeft,
@@ -106,7 +104,7 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
   // Nhóm nghiệp vụ học vụ
   {
     id: "procedures",
-    title: "Thủ tục học vụ",
+    title: "Thủ tục & Biểu mẫu học vụ",
     icon: ClipboardList,
     group: "academic",
     href: "/academic/procedures",
@@ -119,20 +117,6 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     badge: "Mới",
     badgeColor: "bg-indigo-100 text-indigo-700",
     href: "/academic/calendar",
-  },
-  {
-    id: "forms",
-    title: "Biểu mẫu & Đơn từ",
-    icon: FileSpreadsheet,
-    group: "academic",
-    href: "/academic/forms",
-  },
-  {
-    id: "results",
-    title: "Kết quả học tập & Tiến độ",
-    icon: Award,
-    group: "academic",
-    href: "/academic/students",
   },
 
   // Nhóm trợ giúp & văn bản

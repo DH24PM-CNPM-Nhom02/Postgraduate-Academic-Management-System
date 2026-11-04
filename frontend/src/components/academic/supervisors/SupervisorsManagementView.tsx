@@ -19,6 +19,7 @@ import {
   QuotaBar,
   SupervisorSelector,
   ExcelImportModal,
+  SupervisorAssignmentModal,
   MOCK_SUPERVISORS,
 } from "@/src/components/academic";
 import { useAcademicSupervisors } from "@/src/hooks/use-academic";
@@ -45,6 +46,8 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
 
   const [selectedSupervisor, setSelectedSupervisor] = useState<SupervisorQuotaRecord | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [assignSupervisor, setAssignSupervisor] = useState<SupervisorQuotaRecord | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const handleImportSuccess = (newSupervisors: SupervisorQuotaRecord[]) => {
@@ -122,6 +125,18 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
               <span>Đang tải...</span>
             </div>
           )}
+          {/* NÚT PHÂN CÔNG NCS MỚI */}
+          <button
+            onClick={() => {
+              setAssignSupervisor(null);
+              setAssignModalOpen(true);
+            }}
+            className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/80 px-3.5 py-2 text-xs font-bold text-[#164E9B] hover:bg-blue-100 shadow-2xs transition-all cursor-pointer"
+          >
+            <UserCheck className="size-4" />
+            <span>Phân công NCS</span>
+          </button>
+
           {/* NÚT THÊM GVHD (MỞ MODAL IMPORT EXCEL) */}
           <button
             onClick={() => setImportModalOpen(true)}
@@ -371,12 +386,24 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
                   </h4>
                   <span className="text-[11px] text-slate-500">{selectedSupervisor.department}</span>
                 </div>
-                <button
-                  onClick={() => setSelectedSupervisor(null)}
-                  className="rounded p-1 text-slate-400 hover:text-slate-700 hover:bg-white text-xs font-bold cursor-pointer"
-                >
-                  ✕ Đóng
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setAssignSupervisor(selectedSupervisor);
+                      setAssignModalOpen(true);
+                    }}
+                    className="rounded-lg bg-[#164E9B] px-2.5 py-1 text-white hover:bg-[#123E7C] text-[11px] font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
+                  >
+                    <UserCheck className="size-3.5" />
+                    <span>Phân công thêm NCS</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedSupervisor(null)}
+                    className="rounded p-1 text-slate-400 hover:text-slate-700 hover:bg-white text-xs font-bold cursor-pointer"
+                  >
+                    ✕ Đóng
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
@@ -430,6 +457,20 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
         onClose={() => setImportModalOpen(false)}
         entityType="supervisor"
         onSuccess={handleImportSuccess}
+      />
+
+      {/* SUPERVISOR ASSIGNMENT MODAL */}
+      <SupervisorAssignmentModal
+        isOpen={assignModalOpen}
+        onClose={() => {
+          setAssignModalOpen(false);
+          setAssignSupervisor(null);
+        }}
+        selectedSupervisor={assignSupervisor}
+        onSuccess={(msg) => {
+          setToastMessage(msg);
+          setTimeout(() => setToastMessage(null), 5000);
+        }}
       />
     </div>
   );
