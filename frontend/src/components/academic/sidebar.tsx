@@ -12,6 +12,8 @@ import {
   ClipboardList,
   CalendarDays,
   BookOpen,
+  Award,
+  FileSpreadsheet,
   HelpCircle,
   ChevronLeft,
   ChevronRight,
