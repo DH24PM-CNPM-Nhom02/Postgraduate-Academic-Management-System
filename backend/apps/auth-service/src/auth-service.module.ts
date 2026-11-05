@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthController } from './auth-service.controller.js';
-import { AuthService} from './auth-service.service.js';
+import { AuthService } from './auth-service.service.js';
 
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
@@ -9,7 +9,7 @@ import { AuthCronService } from './auth-cron.service.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { ScheduleModule } from '@nestjs/schedule';
 import type { StringValue } from 'ms';
-
+import { HealthController } from './health.controller.js';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -36,7 +36,7 @@ import type { StringValue } from 'ms';
       },
     ]),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, HealthController],
   providers: [AuthService, AuthCronService],
 })
 export class AuthServiceModule {}

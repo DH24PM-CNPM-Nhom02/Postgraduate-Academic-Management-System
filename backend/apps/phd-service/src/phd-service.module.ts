@@ -10,9 +10,19 @@ import { ProgressModule } from './progress/progress.module.js';
 import { DecisionModule } from './decision/decision.module.js';
 import { PhdCronModule } from './cron/phd-cron.module.js';
 
+import { HealthController } from './health.controller.js';
+
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, NcsModule, SupervisorModule, ProgressModule, DecisionModule, PhdCronModule],
-  // controllers: [PhdServiceController],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    PrismaModule,
+    NcsModule,
+    SupervisorModule,
+    ProgressModule,
+    DecisionModule,
+    PhdCronModule,
+  ],
+  controllers: [HealthController],
   // providers: [PhdServiceService],
 })
-export class PhdServiceModule { }
+export class PhdServiceModule {}

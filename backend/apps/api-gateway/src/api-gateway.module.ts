@@ -6,8 +6,8 @@ import { ApiGatewayService } from './api-gateway.service.js';
 import { ConfigModule } from '@nestjs/config';
 
 import { AuthModule } from './auth/auth.module.js';
-import {NcsModule} from './ncs/ncs.module.js'
-import {GvhdModule} from './gvhd/gvhd.module.js'
+import { NcsModule } from './ncs/ncs.module.js';
+import { GvhdModule } from './gvhd/gvhd.module.js';
 import { DocumentsModule } from './document/document.module.js';
 import { ProgressModule } from './progress/progress.module.js';
 import { DecisionModule } from './decision/decision.module.js';

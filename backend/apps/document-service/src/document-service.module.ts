@@ -6,9 +6,14 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { StorageModule } from '../storage/storage.module.js';
 
+import { HealthController } from './health.controller.js';
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule,StorageModule],
-  controllers: [DocumentServiceController],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    PrismaModule,
+    StorageModule,
+  ],
+  controllers: [DocumentServiceController, HealthController],
   providers: [DocumentServiceService],
 })
 export class DocumentServiceModule {}
