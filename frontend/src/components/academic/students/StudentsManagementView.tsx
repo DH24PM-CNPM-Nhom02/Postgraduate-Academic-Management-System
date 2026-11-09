@@ -36,7 +36,8 @@ interface StudentsManagementViewProps {
 
 export function StudentsManagementView({ embedded = false }: StudentsManagementViewProps) {
   // Chỉ gọi API NCS khi component này được mount!
-  const { data: initialData, isLoading } = useAcademicStudents();
+  // Kết nối API NCS từ Backend qua React Query Hook
+  const { data: initialData, isLoading, refetch, isFetching } = useAcademicStudents();
 
   // Search & Filter States
   const [studentSearchText, setStudentSearchText] = useState("");
@@ -327,13 +328,25 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
             </h2>
           </div>
 
-          <button
-            onClick={handleResetFilters}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 self-start sm:self-auto transition-colors cursor-pointer"
-          >
-            <RefreshCw className="size-3.5" />
-            <span>Đặt lại bộ lọc</span>
-          </button>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              title="Đồng bộ dữ liệu mới nhất từ máy chủ"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#164E9B] bg-blue-50/50 hover:bg-blue-100/70 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin" : ""}`} />
+              <span>{isFetching ? "Đang đồng bộ..." : "Đồng bộ từ máy chủ"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <span>Đặt lại bộ lọc</span>
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
