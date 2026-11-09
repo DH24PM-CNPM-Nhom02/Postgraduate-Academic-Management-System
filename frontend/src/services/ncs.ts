@@ -1,4 +1,5 @@
 import { apiClient } from "@/src/lib/api";
+import type { StudentDossier } from "@/src/types/academic";
 
 export const NcsService = {
   getAllStudentsWithPagination: async () => {
