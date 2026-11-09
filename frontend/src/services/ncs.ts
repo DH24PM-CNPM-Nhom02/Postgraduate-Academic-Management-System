@@ -1,10 +1,10 @@
-import { apiClient } from "../lib/api/axios";
+import { apiClient } from "@/src/lib/api";
 import type { StudentDossier } from "@/src/types/academic";
 
 /**
  * Cấu trúc dữ liệu thô nhận về từ Backend API
  */
-export interface BackendNcsRaw {
+export interface BackendNcsRaw {  
   id?: string;
   name?: string;
   code?: string;

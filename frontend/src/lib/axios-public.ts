@@ -1,14 +1,5 @@
-import axios from "axios";
-
-// Dùng cho các API KHÔNG cần token: login, refresh...
-// Không gắn interceptor Authorization vì lúc gọi, user chưa có token.
-
-const baseURL =
-  typeof window === "undefined"
-    ? process.env.API_INTERNAL_URL
-    : process.env.NEXT_PUBLIC_API_URL;
-
-export const publicApiClient = axios.create({
-  baseURL,
-  headers: { "Content-Type": "application/json" },
-});
+/**
+ * @deprecated File này được giữ lại để tương thích ngược.
+ * Vui lòng import trực tiếp từ: "@/src/lib/api" hoặc "@/src/lib/api/axios-public"
+ */
+export { publicApiClient } from "./api/axios-public";
