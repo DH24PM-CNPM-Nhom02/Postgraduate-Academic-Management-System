@@ -3,6 +3,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { NcsService } from "@/src/services/ncs";
 import {
+  GvhdService,
+  type BackendAssignmentRaw,
+  type BackendAssignmentDecisionRaw,
+  type CreateAssignmentPayload,
+} from "@/src/services/gvhd";
+import {
   MOCK_STUDENTS,
   MOCK_SUPERVISORS,
   MOCK_EVIDENCES,
@@ -14,6 +20,8 @@ import type {
   EvidenceItem,
   TopicChangeItem,
 } from "@/src/types/academic";
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Custom hook lấy danh sách Nghiên cứu sinh (Học vụ)
@@ -91,10 +99,105 @@ export function useAcademicSupervisors() {
   return useQuery<SupervisorQuotaRecord[]>({
     queryKey: ["academic", "supervisors"],
     queryFn: async () => {
+      try {
+        const response = await GvhdService.getAllSupervisors();
+        if (response && Array.isArray(response) && response.length > 0) {
+          return response;
+        }
+      } catch (err) {
+        console.warn("Backend GVHD service unavailable, using initial state:", err);
+      }
       return MOCK_SUPERVISORS;
     },
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * Custom hook lấy danh sách phân công GVHD hiện hành từ Backend
+ */
+export function useAcademicAssignments(
+  params?: { ncsId?: string; gvhdId?: string; trangThai?: string },
+  enabled = true
+) {
+  return useQuery<BackendAssignmentRaw[]>({
+    queryKey: [
+      "academic",
+      "assignments",
+      params?.ncsId ?? "all",
+      params?.gvhdId ?? "all",
+      params?.trangThai ?? "all",
+    ],
+    queryFn: async () => {
+      try {
+        return await GvhdService.getAssignments(params);
+      } catch (err) {
+        console.warn("Backend assignments service unavailable:", err);
+        return [];
+      }
+    },
+    enabled,
+    staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * Custom hook lấy danh sách Quyết định phân công GVHD đang hiệu lực cho một NCS
+ */
+export function useAssignmentDecisions(ncsId?: string, enabled = true) {
+  const hasValidUuid = Boolean(ncsId && UUID_REGEX.test(ncsId));
+
+  return useQuery<BackendAssignmentDecisionRaw[]>({
+    queryKey: ["academic", "assignment-decisions", ncsId ?? "none"],
+    queryFn: async () => {
+      try {
+        return await GvhdService.getAssignmentDecisions(ncsId);
+      } catch (err) {
+        console.warn("Backend assignment decisions unavailable:", err);
+        return [];
+      }
+    },
+    enabled: enabled && hasValidUuid,
+    staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * Custom hook phân công GVHD mới cho NCS (POST /gvhd/assignments)
+ */
+export function useCreateAssignment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: CreateAssignmentPayload) => {
+      return await GvhdService.createAssignment(payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["academic", "supervisors"] });
+      queryClient.invalidateQueries({ queryKey: ["academic", "assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["academic", "students"] });
+    },
+  });
+}
+
+/**
+ * Custom hook hủy phân công GVHD hiện hành (PATCH /gvhd/assignments/:id/deactivate)
+ */
+export function useDeactivateAssignment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, lyDo }: { id: string; lyDo: string }) => {
+      return await GvhdService.deactivateAssignment(id, lyDo);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["academic", "supervisors"] });
+      queryClient.invalidateQueries({ queryKey: ["academic", "assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["academic", "students"] });
+    },
   });
 }
 

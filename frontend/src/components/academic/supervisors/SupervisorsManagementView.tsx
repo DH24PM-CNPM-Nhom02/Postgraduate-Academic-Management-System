@@ -21,8 +21,10 @@ import {
   ExcelImportModal,
   SupervisorAssignmentModal,
   MOCK_SUPERVISORS,
+  MOCK_STUDENTS,
 } from "@/src/components/academic";
-import { useAcademicSupervisors } from "@/src/hooks/use-academic";
+import type { SupervisorOption } from "@/src/components/academic/SupervisorSelector";
+import { useAcademicSupervisors, useAcademicStudents } from "@/src/hooks/use-academic";
 import type { SupervisorQuotaRecord } from "@/src/types/academic";
 
 interface SupervisorsManagementViewProps {
@@ -31,7 +33,8 @@ interface SupervisorsManagementViewProps {
 
 export function SupervisorsManagementView({ embedded = false }: SupervisorsManagementViewProps) {
   // Chỉ gọi hook khi component này được mount!
-  const { data: initialData, isLoading } = useAcademicSupervisors();
+  const { data: initialData, isLoading, refetch, isFetching } = useAcademicSupervisors();
+  const { data: studentsData } = useAcademicStudents();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
@@ -44,11 +47,53 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
     return [...importedSupervisors, ...base];
   }, [initialData, importedSupervisors]);
 
-  const [selectedSupervisor, setSelectedSupervisor] = useState<SupervisorQuotaRecord | null>(null);
+  const studentsList = useMemo(() => {
+    return studentsData && Array.isArray(studentsData) && studentsData.length > 0 ? studentsData : MOCK_STUDENTS;
+  }, [studentsData]);
+
+  const [selectedSupervisorId, setSelectedSupervisorId] = useState<string | null>(null);
+  const [previewSupervisorId, setPreviewSupervisorId] = useState<string | null>(null);
+  const [testAssignmentType, setTestAssignmentType] = useState<"independent" | "co_supervisor">("co_supervisor");
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [assignSupervisor, setAssignSupervisor] = useState<SupervisorQuotaRecord | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const selectedSupervisor = useMemo(
+    () => supervisorsList.find((sv) => sv.id === selectedSupervisorId) ?? null,
+    [supervisorsList, selectedSupervisorId]
+  );
+
+  const rightQuotaSupervisor = useMemo(
+    () =>
+      selectedSupervisor ||
+      supervisorsList.find((sv) => sv.id === previewSupervisorId) ||
+      supervisorsList[0] ||
+      null,
+    [selectedSupervisor, supervisorsList, previewSupervisorId]
+  );
+
+  const departmentOptions = useMemo(
+    () =>
+      Array.from(new Set(supervisorsList.map((s) => s.department)))
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, "vi")),
+    [supervisorsList]
+  );
+
+  const selectorOptions: SupervisorOption[] = useMemo(
+    () =>
+      supervisorsList.map((sv) => ({
+        id: sv.id,
+        name: sv.name,
+        title: "",
+        department: sv.department,
+        independentCount: sv.independentCount,
+        coCount: sv.coCount,
+        maxQuota: sv.maxQuota,
+      })),
+    [supervisorsList]
+  );
 
   const handleImportSuccess = (newSupervisors: SupervisorQuotaRecord[]) => {
     setImportedSupervisors((prev) => [...newSupervisors, ...prev]);
@@ -246,17 +291,29 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
               </p>
             </div>
 
-            <button
-              onClick={() => {
-                setSearchTerm("");
-                setDepartmentFilter("all");
-                setQuotaStatusFilter("all");
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 self-start sm:self-auto transition-colors cursor-pointer"
-            >
-              <RefreshCw className="size-3.5" />
-              <span>Đặt lại</span>
-            </button>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => refetch()}
+                disabled={isFetching}
+                title="Đồng bộ dữ liệu mới nhất từ máy chủ"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#164E9B] bg-blue-50/50 hover:bg-blue-100/70 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin" : ""}`} />
+                <span>{isFetching ? "Đang đồng bộ..." : "Đồng bộ từ máy chủ"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm("");
+                  setDepartmentFilter("all");
+                  setQuotaStatusFilter("all");
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <span>Đặt lại</span>
+              </button>
+            </div>
           </div>
 
           {/* Search & Filter Bar */}
@@ -278,9 +335,11 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
               className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-700 focus:bg-white focus:border-[#164E9B] outline-none cursor-pointer"
             >
               <option value="all">Tất cả Khoa / Bộ môn</option>
-              <option value="Khoa Công nghệ Thông tin">Khoa CNTT</option>
-              <option value="Khoa Nông nghiệp - TNTN">Khoa Nông nghiệp - TNTN</option>
-              <option value="Khoa Kinh tế - QTKD">Khoa Kinh tế - QTKD</option>
+              {departmentOptions.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
             </select>
 
             <select
@@ -316,14 +375,23 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
                   </tr>
                 ) : (
                   filteredSupervisors.map((sv) => {
-                    const percent = Math.min(100, Math.round((sv.usedQuota / sv.maxQuota) * 100));
+                    const percent =
+                      sv.maxQuota > 0
+                        ? Math.min(100, Math.round((sv.usedQuota / sv.maxQuota) * 100))
+                        : 0;
                     const isFull = sv.remainingQuota <= 0;
+                    const isSelected = sv.id === selectedSupervisor?.id;
 
                     return (
                       <tr
                         key={sv.id}
-                        className="hover:bg-blue-50/40 transition-colors cursor-pointer"
-                        onClick={() => setSelectedSupervisor(sv)}
+                        className={`transition-colors cursor-pointer ${
+                          isSelected ? "bg-blue-50/70" : "hover:bg-blue-50/40"
+                        }`}
+                        onClick={() => {
+                          setSelectedSupervisorId(sv.id);
+                          setPreviewSupervisorId(sv.id);
+                        }}
                       >
                         <td className="py-3 px-3">
                           <span className="font-bold text-slate-900 block hover:text-[#164E9B]">
@@ -398,7 +466,7 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
                     <span>Phân công thêm NCS</span>
                   </button>
                   <button
-                    onClick={() => setSelectedSupervisor(null)}
+                    onClick={() => setSelectedSupervisorId(null)}
                     className="rounded p-1 text-slate-400 hover:text-slate-700 hover:bg-white text-xs font-bold cursor-pointer"
                   >
                     ✕ Đóng
@@ -406,32 +474,45 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                {selectedSupervisor.assignedStudents.map((std, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-2 rounded-lg bg-white p-2 border border-blue-100 shadow-2xs"
-                  >
-                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[#164E9B] font-bold text-[10px]">
-                      {idx + 1}
-                    </span>
-                    <span className="font-medium text-slate-800 text-[11px] truncate">{std}</span>
-                  </div>
-                ))}
-              </div>
+              {selectedSupervisor.assignedStudents.length === 0 ? (
+                <p className="text-[11px] italic text-slate-500 py-1">
+                  Giảng viên hiện chưa được phân công hướng dẫn nghiên cứu sinh nào.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  {selectedSupervisor.assignedStudents.map((std, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-2 rounded-lg bg-white p-2 border border-blue-100 shadow-2xs"
+                    >
+                      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[#164E9B] font-bold text-[10px]">
+                        {idx + 1}
+                      </span>
+                      <span className="font-medium text-slate-800 text-[11px] truncate">{std}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
 
         {/* Right Col: Interactive Tools & Live Quota Checker */}
         <div className="space-y-6">
-          <QuotaBar
-            used={2.5}
-            max={3.0}
-            independentCount={1}
-            coCount={3}
-            showDetails={true}
-          />
+          <div className="space-y-1.5">
+            {rightQuotaSupervisor && (
+              <p className="text-[11px] font-semibold text-slate-500 px-1 truncate">
+                Đang xem định mức: <strong className="text-[#0F2744]">{rightQuotaSupervisor.name}</strong>
+              </p>
+            )}
+            <QuotaBar
+              used={rightQuotaSupervisor?.usedQuota ?? 0}
+              max={rightQuotaSupervisor?.maxQuota ?? 3.0}
+              independentCount={rightQuotaSupervisor?.independentCount ?? 0}
+              coCount={rightQuotaSupervisor?.coCount ?? 0}
+              showDetails={true}
+            />
+          </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
@@ -442,10 +523,37 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
               Mô phỏng gán nghiên cứu sinh mới cho giảng viên để kiểm tra tính hợp lệ và tự động phát hiện vượt trần quy chế BR-09.
             </p>
 
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setTestAssignmentType("independent")}
+                className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition-colors cursor-pointer ${
+                  testAssignmentType === "independent"
+                    ? "border-[#164E9B] bg-blue-50 text-[#164E9B]"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                Độc lập (+1.0)
+              </button>
+              <button
+                type="button"
+                onClick={() => setTestAssignmentType("co_supervisor")}
+                className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition-colors cursor-pointer ${
+                  testAssignmentType === "co_supervisor"
+                    ? "border-[#164E9B] bg-blue-50 text-[#164E9B]"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                Đồng HD (+0.5)
+              </button>
+            </div>
+
             <SupervisorSelector
               label="Chọn Giảng viên hướng dẫn thử nghiệm:"
-              selectedId="gv-01"
-              assignmentType="co_supervisor"
+              selectedId={rightQuotaSupervisor?.id}
+              supervisors={selectorOptions}
+              onSelect={(opt) => setPreviewSupervisorId(opt.id)}
+              assignmentType={testAssignmentType}
             />
           </div>
         </div>
@@ -461,12 +569,15 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
 
       {/* SUPERVISOR ASSIGNMENT MODAL */}
       <SupervisorAssignmentModal
+        key={`assign-${assignModalOpen}-${assignSupervisor?.id ?? "none"}`}
         isOpen={assignModalOpen}
         onClose={() => {
           setAssignModalOpen(false);
           setAssignSupervisor(null);
         }}
         selectedSupervisor={assignSupervisor}
+        students={studentsList}
+        supervisors={supervisorsList}
         onSuccess={(msg) => {
           setToastMessage(msg);
           setTimeout(() => setToastMessage(null), 5000);
