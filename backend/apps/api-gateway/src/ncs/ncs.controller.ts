@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Header, Inject, Param, Patch, Post, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Header, Inject, Param, Patch, Post, Query, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
@@ -6,7 +6,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator.js';
 import { PHD_SERVICE } from '../common/constants/service.js';
 import type { AuthUser } from '../common/interface/auth-user.interface.js';
-import { CreateNcsBatchDto, UpdateNcsDto, UpdateNcsStatusDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
+import { CreateNcsBatchDto, ListNcsQueryDto, UpdateNcsDto, UpdateNcsStatusDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
 import { buildNcsTemplate, parseNcsExcel } from './ncs-excel.js';
 
@@ -70,11 +70,11 @@ export class NcsController {
   }
 
 
-  // List NCS (có thể có filter, phân trang sau) vì FE sử dụng tanstack table nên khỏi pagi và fil 
+  // List NCS (Hybrid pagination: không truyền page/limit -> trả toàn bộ cho TanStack Table client-side)
   @Get()
   @RequirePermissions(PERMISSIONS.NCS_READ)
-  list() {
-    return this.send('phd.ncs.list', {});
+  list(@Query() query: ListNcsQueryDto) {
+    return this.send('phd.ncs.list', { query });
   }
 
   @Get('me')

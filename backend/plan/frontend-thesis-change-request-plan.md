@@ -58,6 +58,25 @@ Mỗi NCS tại một thời điểm **chỉ được phép có tối đa 01 đ�
 
 Hệ thống hỗ trợ 3 loại đề nghị điều chỉnh (`loai`):
 
+---
+
+### 1.4 Cơ chế Phân trang Linh hoạt (Hybrid Pagination) cho các API danh sách
+
+Nhằm hỗ trợ tốt nhất cho Frontend sử dụng **TanStack Table** và tối ưu hiệu năng:
+- **Mặc định (khi FE KHÔNG truyền `page` và `limit`):** Backend trả về **mảng thuần `T[]`** chứa toàn bộ dữ liệu. FE sử dụng tính năng phân trang, tìm kiếm, lọc trực tiếp tại Client-side (TanStack Table client-side row models) với tốc độ phản hồi 0ms.
+- **Khi truyền `page` và `limit` (ví dụ `?page=1&limit=20`):** Backend tự động chuyển sang phân trang Server-side và trả về định dạng chuẩn:
+  ```json
+  {
+    "data": [ ... ],
+    "total": 120,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 6
+  }
+  ```
+- Cơ chế này áp dụng cho: `GET /thesis`, `GET /gvhd`, `GET /gvhd/assignments`.
+- Riêng `GET /change-request` luôn trả dạng paginated `{ data, total, page, limit }` do đơn đề nghị tăng dần theo thời gian.
+
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                               3 LOẠI ĐƠN ĐỀ NGHỊ                                      │
@@ -330,8 +349,17 @@ GVHD có thể tạo đơn `DOI_DE_TAI` hoặc `DOI_GVHD` thay cho NCS:
   ```
 
 #### b. Danh sách & Tra cứu đề tài: `GET /thesis`
-- Bộ lọc: Khóa học (`khoaHocId`), Trạng thái (`HIEU_LUC`, `DA_THAY_THE`, `DA_HUY`), Giảng viên hướng dẫn (`gvhdId`).
-- Hiển thị: MSHV, Tên NCS, Tên đề tài, Trạng thái, Quyết định giao (số QĐ, ngày ký), Danh sách GVHD.
+- **Bộ lọc (Query Parameters):**
+  - `khoaHocId`: UUID khóa học.
+  - `trangThai`: Trạng thái đề tài của NCS: `HIEU_LUC`, `DA_THAY_THE`, `DA_HUY`, hoặc `CHUA_GIAO`.
+    - *Lưu ý về `CHUA_GIAO`:* Đây là trạng thái nghiệp vụ ảo (NCS chưa có bất kỳ đề tài nào ở trạng thái `HIEU_LUC`), giúp Giáo vụ nhanh chóng lọc ra danh sách các tân NCS chưa được phân công đề tài để làm quyết định giao.
+  - `gvhdId`: UUID giảng viên hướng dẫn (lọc những NCS do giảng viên này hướng dẫn).
+  - `page`: Số trang (tùy chọn, vd: `1`).
+  - `limit`: Số bản ghi mỗi trang (tùy chọn, vd: `20`, tối đa `100`).
+- **Định dạng dữ liệu trả về:**
+  - *Mặc định (không truyền `page`/`limit`):* Trả về mảng `T[]` để TanStack Table xử lý client-side.
+  - *Khi truyền `page`/`limit`:* Trả về `{ data: T[], total, page, limit, totalPages }`.
+- **Thông tin mỗi dòng:** MSHV, Tên NCS, Tên đề tài, Trạng thái (`trangThaiDeTai`), Quyết định giao (số QĐ, ngày ký), Danh sách GVHD (`phanCongs`).
 
 #### c. Hủy đề tài do giao nhầm: `PATCH /thesis/:id/deactivate`
 - Nút "Hủy phân công đề tài" chỉ hiển thị ở đề tài `HIEU_LUC`.
@@ -365,6 +393,14 @@ GVHD có thể tạo đơn `DOI_DE_TAI` hoặc `DOI_GVHD` thay cho NCS:
 - Nút "Hủy phân công" trên từng dòng phân công đang hiệu lực.
 - Modal xác nhận: Nhập `lyDo` bắt buộc.
 - Payload: `{ "lyDo": "Nhập sai quyết định phân công" }`.
+
+#### c. Danh sách & Tra cứu phân công: `GET /gvhd/assignments`
+- **Bộ lọc (Query Parameters):**
+  - `ncsId`: Lọc theo NCS cụ thể.
+  - `gvhdId`: Lọc theo GVHD cụ thể.
+  - `trangThai`: Lọc trạng thái phân công (`DANG_HIEU_LUC`, `DEACTIVATE`).
+  - `page`, `limit`: Phân trang tùy chọn (mặc định không truyền trả mảng `T[]`, có truyền trả `{ data, total, page, limit, totalPages }`).
+- **Hiển thị:** Tên & MSHV NCS, Họ tên GVHD, Vai trò (`HUONG_DAN_CHINH` / `DONG_HUONG_DAN`), Quyết định phân công (số QĐ, ngày ký), Trạng thái.
 
 ---
 
@@ -470,20 +506,21 @@ Dưới đây là danh sách các thông báo tự động được hệ thống
 | Endpoint | Method | Role / Quyền | Request Body | Mô tả chức năng |
 | :--- | :---: | :--- | :--- | :--- |
 | `/thesis` | `POST` | `GIAO_VU`, `ADMIN`<br>(`assignment.create`) | `{ ncsId, quyetDinhId, tenDeTai }` | Giao đề tài luận án cho NCS |
-| `/thesis` | `GET` | `GIAO_VU`, `ADMIN`<br>(`assignment.read`) | Query: `khoaHocId`, `trangThai`, `gvhdId` | Danh sách đề tài luận án |
+| `/thesis` | `GET` | `GIAO_VU`, `ADMIN`<br>(`assignment.read`) | Query: `khoaHocId`, `trangThai` (`HIEU_LUC`, `DA_THAY_THE`, `DA_HUY`, `CHUA_GIAO`), `gvhdId`, `page`, `limit` | Danh sách đề tài luận án (Hybrid pagination) |
 | `/thesis/ncs/me` | `GET` | `NCS`<br>(`thesis_change.create`) | Không | NCS xem đề tài hiện tại và lịch sử đề tài của mình |
 | `/thesis/admin/:ncsId` | `GET` | `GIAO_VU`, `ADMIN`<br>(`assignment.read`) | Không | Xem chi tiết đề tài của một NCS cụ thể |
 | `/thesis/:id/deactivate` | `PATCH` | `GIAO_VU`, `ADMIN`<br>(`assignment.update`) | `{ lyDo }` | Hủy phân công đề tài do giao nhầm |
 
 ---
 
-### 8.2 Phân hệ Phân công GVHD (`/gvhd`)
+### 8.2 Phân hệ Giảng viên hướng dẫn & Phân công (`/gvhd`)
 
 | Endpoint | Method | Role / Quyền | Request Body | Mô tả chức năng |
 | :--- | :---: | :--- | :--- | :--- |
+| `/gvhd` | `GET` | `GIAO_VU`, `ADMIN`<br>(`gvhd.read`) | Query: `page`, `limit` (tùy chọn) | Danh sách giảng viên hướng dẫn (Hybrid pagination) |
 | `/gvhd/my-supervisors` | `GET` | `NCS` (Người dùng có hồ sơ NCS) | Không | NCS xem danh sách GVHD đang hướng dẫn mình |
 | `/gvhd/assignments` | `POST` | `GIAO_VU`, `ADMIN`<br>(`assignment.create`) | `{ ncsId, gvhdId, vaiTro, quyetDinhId }` | Phân công GVHD cho NCS |
-| `/gvhd/assignments` | `GET` | `GIAO_VU`, `ADMIN`<br>(`assignment.read`) | Query: `ncsId`, `gvhdId`, `trangThai` | Tra cứu danh sách phân công GVHD |
+| `/gvhd/assignments` | `GET` | `GIAO_VU`, `ADMIN`<br>(`assignment.read`) | Query: `ncsId`, `gvhdId`, `trangThai`, `page`, `limit` | Tra cứu danh sách phân công GVHD (Hybrid pagination) |
 | `/gvhd/assignments/:id/deactivate` | `PATCH` | `GIAO_VU`, `ADMIN`<br>(`assignment.update`) | `{ lyDo }` | Hủy phân công GVHD do giao nhầm |
 
 ---

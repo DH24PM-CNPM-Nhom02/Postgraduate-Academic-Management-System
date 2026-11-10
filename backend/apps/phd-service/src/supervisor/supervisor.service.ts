@@ -2,10 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { catchError, firstValueFrom, throwError, timeout } from 'rxjs';
 import { ROLES } from '../../../../lib/contracts/src/permissions.js';
-import type { ImportGvhdRow, UpdateGvhdDto, UpdateGvhdStatusDto } from '../../../../lib/contracts/src/dto/gvhd.dto.js';
+import type { ImportGvhdRow, ListGvhdQueryDto, UpdateGvhdDto, UpdateGvhdStatusDto } from '../../../../lib/contracts/src/dto/gvhd.dto.js';
 import type { CreateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
 import type { GioiTinh, HocHamHocVi, Prisma } from '../generated/prisma/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { paginatePrisma } from '../helpers/pagination.util.js';
 import { isRealDate, validateEmail } from '../helpers/validateData.util.js';
 import { goiService } from '../helpers/call-service.util.js';
 import { NotificationClient } from '../notification/notification.client.js';
@@ -340,8 +341,10 @@ export class SupervisorService {
   }
 
   //Get info Supervisor
-  async getAllSupervisor() {
-    return await this.prisma.giangVienHuongDan.findMany({
+  async getAllSupervisor(query?: ListGvhdQueryDto) {
+    return paginatePrisma(this.prisma.giangVienHuongDan, {
+      page: query?.page,
+      limit: query?.limit,
       orderBy: { maGv: 'asc' },
       select: {
         id: true,
@@ -364,7 +367,7 @@ export class SupervisorService {
           }
         }
       },
-    })
+    });
   }
 
   /**
@@ -1226,8 +1229,10 @@ export class SupervisorService {
     if (query?.gvhdId) where.gvhdId = query.gvhdId;
     if (query?.trangThai) where.trangThai = query.trangThai as any;
 
-    return this.prisma.phanCongHuongDan.findMany({
-      where,
+    return paginatePrisma(this.prisma.phanCongHuongDan, {
+      page: query?.page,
+      limit: query?.limit,
+      where: Object.keys(where).length ? where : undefined,
       include: {
         gvhd: {
           select: {

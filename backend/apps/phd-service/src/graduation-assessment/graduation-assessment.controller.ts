@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { GraduationAssessmentService } from './graduation-assessment.service.js';
-import { XacNhanCongNoDto, XacNhanNgoaiNguDto } from '../../../../lib/contracts/src/dto/graduation-assessment.dto.js';
+import { ListXetTotNghiepQueryDto, XacNhanCongNoDto, XacNhanNgoaiNguDto } from '../../../../lib/contracts/src/dto/graduation-assessment.dto.js';
 
 @Controller()
 export class GraduationAssessmentController {
@@ -31,7 +31,7 @@ export class GraduationAssessmentController {
     }
 
     @MessagePattern({ cmd: 'phd.graduation.list' })
-    danhSach(@Payload() d: { duDieuKien?: string }) {
+    danhSach(@Payload() d: ListXetTotNghiepQueryDto) {
         return this.graduation.danhSach(d);
     }
 

@@ -4,7 +4,8 @@ import { randomUUID } from 'crypto';
 import { firstValueFrom, timeout, catchError, throwError } from 'rxjs';
 
 import { ROLES } from '../../../../lib/contracts/src/permissions.js';
-import { CCCD_PATTERN, type CreateNcsItemDto, type UpdateNcsDto, type UpdateNcsStatusDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
+import { CCCD_PATTERN, type CreateNcsItemDto, type ListNcsQueryDto, type UpdateNcsDto, type UpdateNcsStatusDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
+import { paginatePrisma } from '../helpers/pagination.util.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TrangThaiHocTap, TrangThaiMoc } from '../generated/prisma/index.js';
 import { chuanHoaChuoi, validateEmail, validatePhoneNumber } from '../helpers/validateData.util.js';
@@ -571,8 +572,16 @@ export class NcsService {
   }
 
   // ==========Get All NCS============
-  async getAllNcs() {
-    return await this.prisma.nghienCuuSinh.findMany({
+  async getAllNcs(query?: ListNcsQueryDto) {
+    const where: Prisma.NghienCuuSinhWhereInput = {};
+    if (query?.trangThai) where.trangThai = query.trangThai as TrangThaiHocTap;
+    if (query?.khoaHocId) where.khoaHocId = query.khoaHocId;
+    if (query?.nganhId) where.nganhId = Number(query.nganhId) || undefined;
+
+    return paginatePrisma(this.prisma.nghienCuuSinh, {
+      page: query?.page,
+      limit: query?.limit,
+      where: Object.keys(where).length ? where : undefined,
       orderBy: { mshv: 'asc' },
       select: {
         id: true,

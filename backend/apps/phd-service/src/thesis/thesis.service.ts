@@ -211,46 +211,78 @@ export class ThesisService {
     const deTaiStatus = query.trangThai && query.trangThai !== 'CHUA_GIAO'
       ? query.trangThai as 'HIEU_LUC' | 'DA_THAY_THE' | 'DA_HUY'
       : undefined;
-    const ncss = await this.prisma.nghienCuuSinh.findMany({
-      where: {
-        khoaHocId: query.khoaHocId,
-        AND: [
-          query.gvhdId
-            ? { phanCongs: { some: { gvhdId: query.gvhdId, trangThai: 'DANG_HIEU_LUC' } } }
-            : {},
-          deTaiStatus
-            ? { deTais: { some: { trangThai: deTaiStatus } } }
-            : {},
-          query.trangThai === 'CHUA_GIAO'
-            ? { deTais: { none: { trangThai: 'HIEU_LUC' } } }
-            : {},
-        ],
+    const where = {
+      khoaHocId: query.khoaHocId,
+      AND: [
+        query.gvhdId
+          ? { phanCongs: { some: { gvhdId: query.gvhdId, trangThai: 'DANG_HIEU_LUC' as const } } }
+          : {},
+        deTaiStatus
+          ? { deTais: { some: { trangThai: deTaiStatus } } }
+          : {},
+        query.trangThai === 'CHUA_GIAO'
+          ? { deTais: { none: { trangThai: 'HIEU_LUC' as const } } }
+          : {},
+      ],
+    };
+
+    const select = {
+      id: true,
+      mshv: true,
+      hoTen: true,
+      khoaHoc: true,
+      deTais: {
+        include: { quyetDinh: { select: { soQuyetDinh: true, ngayQuyetDinh: true } } },
+        orderBy: { createdAt: 'desc' as const },
       },
-      select: {
-        id: true,
-        mshv: true,
-        hoTen: true,
-        khoaHoc: true,
-        deTais: {
-          include: { quyetDinh: { select: { soQuyetDinh: true, ngayQuyetDinh: true } } },
-          orderBy: { createdAt: 'desc' },
-        },
-        phanCongs: {
-          where: { trangThai: 'DANG_HIEU_LUC' },
-          include: {
-            gvhd: { select: { id: true, hoTen: true } },
-            quyetDinh: { select: { soQuyetDinh: true, ngayQuyetDinh: true } },
-          },
+      phanCongs: {
+        where: { trangThai: 'DANG_HIEU_LUC' as const },
+        include: {
+          gvhd: { select: { id: true, hoTen: true } },
+          quyetDinh: { select: { soQuyetDinh: true, ngayQuyetDinh: true } },
         },
       },
-      orderBy: { hoTen: 'asc' },
+    };
+
+    const mapNcs = (ncs: any) => ({
+      ...ncs,
+      trangThaiDeTai: ncs.deTais.find((deTai: any) => deTai.trangThai === 'HIEU_LUC')?.trangThai ?? 'CHUA_GIAO',
+      deTaiHienTai: ncs.deTais.find((deTai: any) => deTai.trangThai === 'HIEU_LUC') ?? null,
     });
 
-    return ncss.map((ncs) => ({
-      ...ncs,
-      trangThaiDeTai: ncs.deTais.find((deTai) => deTai.trangThai === 'HIEU_LUC')?.trangThai ?? 'CHUA_GIAO',
-      deTaiHienTai: ncs.deTais.find((deTai) => deTai.trangThai === 'HIEU_LUC') ?? null,
-    }));
+    const wantPagination = query.page != null && query.limit != null;
+
+    if (!wantPagination) {
+      const ncss = await this.prisma.nghienCuuSinh.findMany({
+        where,
+        select,
+        orderBy: { hoTen: 'asc' },
+      });
+      return ncss.map(mapNcs);
+    }
+
+    const page = Math.max(1, Number(query.page));
+    const limit = Math.min(100, Math.max(1, Number(query.limit)));
+    const skip = (page - 1) * limit;
+
+    const [ncss, total] = await Promise.all([
+      this.prisma.nghienCuuSinh.findMany({
+        where,
+        select,
+        skip,
+        take: limit,
+        orderBy: { hoTen: 'asc' },
+      }),
+      this.prisma.nghienCuuSinh.count({ where }),
+    ]);
+
+    return {
+      data: ncss.map(mapNcs),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1,
+    };
   }
 
   async detail(ncsId: string) {

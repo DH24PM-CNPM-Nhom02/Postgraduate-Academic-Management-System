@@ -1,5 +1,6 @@
 import { Type } from "class-transformer";
 import { ArrayNotEmpty, IsArray, IsBoolean, IsDateString, IsIn, IsOptional, IsString, IsUUID, Length, Matches, MaxLength, ValidateNested } from "class-validator";
+import { PaginationQueryDto } from './pagination.dto.js';
 
 export class XacNhanNgoaiNguDto {
   @IsBoolean() 
@@ -37,7 +38,7 @@ export class XacNhanCongNoDto {
   fileId?: string;   
 }
 
-export class ListXetTotNghiepQueryDto {
+export class ListXetTotNghiepQueryDto extends PaginationQueryDto {
   // 'true': chỉ NCS đủ điều kiện, 'false': chỉ NCS còn thiếu, bỏ trống: cả hai
   @IsOptional()
   @IsIn(['true','false'])

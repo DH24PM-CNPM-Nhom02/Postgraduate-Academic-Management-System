@@ -1,6 +1,6 @@
 import { BadRequestException, Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import type { CreateNcsItemDto, ImportNcsRow, UpdateNcsDto, UpdateNcsStatusDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
+import type { CreateNcsItemDto, ImportNcsRow, ListNcsQueryDto, UpdateNcsDto, UpdateNcsStatusDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
 import { NcsService } from './ncs.service.js';
 import { NcsImportService } from './ncs-import.service.js';
 
@@ -25,8 +25,8 @@ export class NcsController {
   }
 
   @MessagePattern({ cmd: 'phd.ncs.list' })
-  list() {
-    return this.ncs.getAllNcs();
+  list(@Payload() d: { query?: ListNcsQueryDto }) {
+    return this.ncs.getAllNcs(d?.query);
   }
 
   @MessagePattern({ cmd: 'phd.ncs.get' })

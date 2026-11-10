@@ -130,3 +130,8 @@ export type ImportGvhdRow = {
   donVi: string;           // dvi.ten / t_dvi
   donViCapTren?: string 
 };
+
+
+import { PaginationQueryDto } from './pagination.dto.js';
+
+export class ListGvhdQueryDto extends PaginationQueryDto {}

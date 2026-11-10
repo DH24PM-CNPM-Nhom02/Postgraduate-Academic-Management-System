@@ -5,6 +5,7 @@ import { goiService } from '../helpers/call-service.util.js';
 import { DeadlineService } from './deadline.service.js';
 import { layNgay } from '../helpers/date.util.js';
 import { NotificationClient } from '../notification/notification.client.js';
+import type { ListPendingMilestonesQueryDto } from '../../../../lib/contracts/src/dto/progress.dto.js';
 
 const DIEM_DAT = 7;            // điểm trung bình tối thiểu để đạt (thang 10)
 const SO_PHIEU_TOI_THIEU = 3;  // quy định của trường: tối thiểu 3 phiếu nhận xét
@@ -229,31 +230,61 @@ export class ProgressService {
     }
 
     // Giáo vụ: các mốc đang chờ duyệt, nộp trước xếp trước
-    async danhSachChoDuyet() {
-        const danhSach = await this.prisma.tienTrinhNcs.findMany({
-            where: { trangThai: 'PENDING_REVIEW' },
-            orderBy: { submittedAt: 'asc' },
-            select: {
-                id: true,
-                submittedAt: true,
-                ncs: { select: { id: true, mshv: true, hoTen: true, lop: true } },
-                moc: { select: { thuTu: true, tenMoc: true, yeuCauDiem: true } },
-                // Chỉ lấy lần nộp mới nhất, chính là lần đang chờ duyệt
-                minhChungs: {
-                    orderBy: { lanNop: 'desc' },
-                    take: 1,
-                    select: {
-                        id: true, lanNop: true, fileId: true, ghiChuNcs: true, ngayNop: true,
-                        _count: { select: { phieuNhanXets: true } },
-                    },
+    async danhSachChoDuyet(query?: ListPendingMilestonesQueryDto) {
+        const where = { trangThai: 'PENDING_REVIEW' as const };
+        const select = {
+            id: true,
+            submittedAt: true,
+            ncs: { select: { id: true, mshv: true, hoTen: true, lop: true } },
+            moc: { select: { thuTu: true, tenMoc: true, yeuCauDiem: true } },
+            // Chỉ lấy lần nộp mới nhất, chính là lần đang chờ duyệt
+            minhChungs: {
+                orderBy: { lanNop: 'desc' as const },
+                take: 1,
+                select: {
+                    id: true, lanNop: true, fileId: true, ghiChuNcs: true, ngayNop: true,
+                    _count: { select: { phieuNhanXets: true } },
                 },
             },
-        });
+        };
 
-        return danhSach.map(({ minhChungs, ...tienTrinh }) => ({
+        const mapItem = ({ minhChungs, ...tienTrinh }: any) => ({
             ...tienTrinh,
             minhChungMoiNhat: minhChungs[0] ?? null,
-        }));
+        });
+
+        const wantPagination = query?.page != null && query?.limit != null;
+        if (!wantPagination) {
+            const danhSach = await this.prisma.tienTrinhNcs.findMany({
+                where,
+                orderBy: { submittedAt: 'asc' },
+                select,
+            });
+            return danhSach.map(mapItem);
+        }
+
+        const page = Math.max(1, Number(query.page));
+        const limit = Math.min(100, Math.max(1, Number(query.limit)));
+        const skip = (page - 1) * limit;
+
+        const [danhSach, total] = await Promise.all([
+            this.prisma.tienTrinhNcs.findMany({
+                where,
+                orderBy: { submittedAt: 'asc' },
+                select,
+                skip,
+                take: limit,
+            }),
+            this.prisma.tienTrinhNcs.count({ where }),
+        ]);
+
+        return {
+            data: danhSach.map(mapItem),
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit) || 1,
+        };
     }
 
     // Lấy mốc đang chờ duyệt cùng lần nộp mới nhất, sai trạng thái thì báo lỗi
