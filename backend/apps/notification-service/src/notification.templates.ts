@@ -105,6 +105,77 @@ export const MAU_THONG_BAO: Record<string, Mau> = {
         tieuDe: () => 'Cập nhật trạng thái học tập',
         noiDung: (d) => `Trạng thái học tập của NCS ${chuoi(d.tenNcs, chuoi(d.mshv))} đã được cập nhật thành ${chuoi(d.trangThaiMoi)}.${d.ngayHieuLuc ? ` Ngày hiệu lực: ${ngayVN(d.ngayHieuLuc)}.` : ''}${d.lyDo ? ` Lý do: ${chuoi(d.lyDo)}.` : ''}`,
     },
+    NCS_DUOC_GIAO_DE_TAI: {
+        nhom: 'TIEN_DO',
+        tieuDe: () => 'Bạn đã được giao đề tài luận án',
+        noiDung: (d) => `Đề tài luận án của bạn: “${chuoi(d.tenDeTai)}”.${d.soQuyetDinh ? ` Quyết định số ${chuoi(d.soQuyetDinh)}${d.ngayQuyetDinh ? ` ngày ${ngayVN(d.ngayQuyetDinh)}` : ''}.` : ''}`,
+    },
+    GVHD_NCS_DUOC_GIAO_DE_TAI: {
+        nhom: 'TIEN_DO',
+        tieuDe: (d) => `NCS ${chuoi(d.tenNcs, chuoi(d.mshv))} đã được giao đề tài`,
+        noiDung: (d) => `NCS ${chuoi(d.tenNcs)} (${chuoi(d.mshv)}) đã được giao đề tài luận án “${chuoi(d.tenDeTai)}”.${d.soQuyetDinh ? ` Quyết định số ${chuoi(d.soQuyetDinh)}${d.ngayQuyetDinh ? ` ngày ${ngayVN(d.ngayQuyetDinh)}` : ''}.` : ''}`,
+    },
+    NCS_DE_TAI_BI_HUY: {
+        nhom: 'TIEN_DO',
+        tieuDe: () => 'Đề tài luận án đã bị hủy',
+        noiDung: (d) => `Đề tài luận án “${chuoi(d.tenDeTai)}” của bạn đã bị hủy.${d.lyDo ? ` Lý do: ${chuoi(d.lyDo)}.` : ''}`,
+    },
+    GVHD_DE_TAI_NCS_BI_HUY: {
+        nhom: 'TIEN_DO',
+        tieuDe: (d) => `Đề tài luận án của NCS ${chuoi(d.tenNcs, chuoi(d.mshv))} đã bị hủy`,
+        noiDung: (d) => `Đề tài luận án “${chuoi(d.tenDeTai)}” của NCS ${chuoi(d.tenNcs)} (${chuoi(d.mshv)}) đã bị hủy.${d.lyDo ? ` Lý do: ${chuoi(d.lyDo)}.` : ''}`,
+    },
+    DE_NGHI_GIA_HAN_CAN_XAC_NHAN: {
+        nhom: 'TIEN_DO',
+        tieuDe: (d) => `NCS ${chuoi(d.tenNcs, chuoi(d.mshv))} gửi đề nghị gia hạn học tập`,
+        noiDung: (d) => `Nghiên cứu sinh ${chuoi(d.tenNcs)} (${chuoi(d.mshv)}) đã gửi đơn đề nghị gia hạn học tập thêm ${chuoi(d.soThangGiaHan)} tháng. Vui lòng xem xét báo cáo tiến độ và xác nhận ý kiến.`,
+    },
+    DE_NGHI_GIA_HAN_GVHD_TU_CHOI: {
+        nhom: 'TIEN_DO',
+        tieuDe: () => 'Đề nghị gia hạn học tập không được GVHD chấp thuận',
+        noiDung: (d) => `Đề nghị gia hạn học tập của bạn đã bị từ chối bởi GVHD ${chuoi(d.tenGvhd)}.${d.lyDo ? ` Lý do: ${chuoi(d.lyDo)}.` : ''}`,
+    },
+    DE_NGHI_GIA_HAN_GVHD_DONG_Y: {
+        nhom: 'TIEN_DO',
+        tieuDe: () => 'Tập thể GVHD đã đồng ý đề nghị gia hạn học tập',
+        noiDung: () => 'Tập thể GVHD đã xác nhận đồng ý đề nghị gia hạn học tập của bạn. Đơn đã được chuyển đến Phòng Đào tạo để trình Ban Giám hiệu ra quyết định.',
+    },
+    DE_NGHI_DIEU_CHINH_TU_CHOI: {
+        nhom: 'TIEN_DO',
+        tieuDe: (d) => `Đề nghị ${chuoi(d.tenLoaiDeNghi, 'điều chỉnh')} đã bị từ chối`,
+        noiDung: (d) =>
+            `Đề nghị ${chuoi(d.tenLoaiDeNghi, 'điều chỉnh')}${d.tenNcs ? ` đối với NCS ${chuoi(d.tenNcs)}${d.mshv ? ` (${chuoi(d.mshv)})` : ''}` : ''} đã bị từ chối.${d.lyDo ? ` Lý do: ${chuoi(d.lyDo)}.` : ''}`,
+    },
+    DE_NGHI_DOI_DE_TAI_DUYET: {
+        nhom: 'TIEN_DO',
+        tieuDe: () => 'Đề nghị đổi đề tài luận án đã được phê duyệt',
+        noiDung: (d) =>
+            `Đề tài luận án của bạn đã được đổi thành “${chuoi(d.tenDeTaiMoi)}” theo Quyết định số ${chuoi(d.soQuyetDinh)}${d.ngayQuyetDinh ? ` ngày ${ngayVN(d.ngayQuyetDinh)}` : ''}.${d.resetTuMoc ? ` Các mốc tiến trình từ mốc ${chuoi(d.resetTuMoc)} đã được đặt lại.` : ''}`,
+    },
+    GVHD_DE_NGHI_DOI_DE_TAI_DUYET: {
+        nhom: 'TIEN_DO',
+        tieuDe: (d) => `Đề tài luận án của NCS ${chuoi(d.tenNcs, chuoi(d.mshv))} đã được thay đổi`,
+        noiDung: (d) =>
+            `Đề tài luận án của NCS ${chuoi(d.tenNcs)} (${chuoi(d.mshv)}) đã được đổi thành “${chuoi(d.tenDeTaiMoi)}” theo Quyết định số ${chuoi(d.soQuyetDinh)}${d.ngayQuyetDinh ? ` ngày ${ngayVN(d.ngayQuyetDinh)}` : ''}.${d.resetTuMoc ? ` Các mốc tiến trình từ mốc ${chuoi(d.resetTuMoc)} đã được đặt lại.` : ''}`,
+    },
+    DE_NGHI_DOI_GVHD_DUYET: {
+        nhom: 'TIEN_DO',
+        tieuDe: () => 'Đề nghị thay đổi GVHD đã được phê duyệt',
+        noiDung: (d) =>
+            `Phân công giảng viên hướng dẫn đã được cập nhật: GV ${chuoi(d.tenGvhdMoi)} thay thế GV ${chuoi(d.tenGvhdCu)} theo Quyết định số ${chuoi(d.soQuyetDinh)}${d.ngayQuyetDinh ? ` ngày ${ngayVN(d.ngayQuyetDinh)}` : ''}.`,
+    },
+    GVHD_CU_THAY_DOI_PHAN_CONG: {
+        nhom: 'TIEN_DO',
+        tieuDe: (d) => `Quyết định thay đổi phân công hướng dẫn NCS ${chuoi(d.tenNcs, chuoi(d.mshv))}`,
+        noiDung: (d) =>
+            `Bạn đã thôi hướng dẫn NCS ${chuoi(d.tenNcs)} (${chuoi(d.mshv)}) theo Quyết định số ${chuoi(d.soQuyetDinh)}${d.ngayQuyetDinh ? ` ngày ${ngayVN(d.ngayQuyetDinh)}` : ''}.`,
+    },
+    GVHD_MOI_DUOC_PHAN_CONG: {
+        nhom: 'TIEN_DO',
+        tieuDe: (d) => `Bạn được phân công hướng dẫn NCS ${chuoi(d.tenNcs, chuoi(d.mshv))}`,
+        noiDung: (d) =>
+            `Bạn đã được phân công hướng dẫn NCS ${chuoi(d.tenNcs)} (${chuoi(d.mshv)}) theo Quyết định số ${chuoi(d.soQuyetDinh)}${d.ngayQuyetDinh ? ` ngày ${ngayVN(d.ngayQuyetDinh)}` : ''}.`,
+    },
 
     // ---- Nhóm QUYET_DINH ----
     QUYET_DINH_DOI_TRANG_THAI: {

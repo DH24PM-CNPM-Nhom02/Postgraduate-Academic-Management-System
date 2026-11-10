@@ -14,6 +14,9 @@ enum DocumentType {
   QUYET_DINH
   MINH_CHUNG_NGOAI_NGU
   MINH_CHUNG_CONG_NO
+  DON_TU //đơn từ để làm chức năng đơn đề nghị điều chỉnh
+  BIEU_MAU //các biểu mẫu có sẵn cho NCS sử dụng
+  QUY_DINH //các quy định của trường
   KHAC
 }
 

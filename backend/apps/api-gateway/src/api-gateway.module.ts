@@ -13,6 +13,8 @@ import { ProgressModule } from './progress/progress.module.js';
 import { DecisionModule } from './decision/decision.module.js';
 import { NotificationModule } from './notification/notification.module.js';
 import { GraduationModule } from './graduation/graduation.module.js';
+import { ChangeRequestModule } from './change-request/change-request.module.js';
+import { ThesisModule } from './thesis/thesis.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -24,6 +26,8 @@ import { GraduationModule } from './graduation/graduation.module.js';
     DecisionModule,
     NotificationModule,
     GraduationModule,
+    ChangeRequestModule,
+    ThesisModule,
     ClientsModule.register([
       {
         name: 'AUTH_SERVICE',
