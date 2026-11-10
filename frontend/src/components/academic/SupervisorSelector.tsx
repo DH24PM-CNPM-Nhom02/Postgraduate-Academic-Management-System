@@ -59,6 +59,11 @@ export interface SupervisorSelectorProps {
   onSelect?: (supervisor: SupervisorOption) => void;
   assignmentType?: "independent" | "co_supervisor";
   disabled?: boolean;
+  supervisors?: SupervisorOption[];
+}
+
+function formatSupervisorLabel(sup: SupervisorOption): string {
+  return sup.title ? `${sup.title} ${sup.name}`.trim() : sup.name;
 }
 
 export function SupervisorSelector({
@@ -67,11 +72,16 @@ export function SupervisorSelector({
   onSelect,
   assignmentType = "independent",
   disabled = false,
+  supervisors,
 }: SupervisorSelectorProps) {
-  const [selected, setSelected] = useState<SupervisorOption>(
-    () => MOCK_SUPERVISORS.find((s) => s.id === selectedId) || MOCK_SUPERVISORS[0]
-  );
+  const list = supervisors && supervisors.length > 0 ? supervisors : MOCK_SUPERVISORS;
+  const [internalId, setInternalId] = useState<string>(selectedId || list[0]?.id || "");
   const [isOpen, setIsOpen] = useState(false);
+
+  const preferredId = onSelect && selectedId ? selectedId : internalId || selectedId;
+  const selected = list.find((s) => s.id === preferredId) || list[0];
+
+  if (!selected) return null;
 
   const additionalCost = assignmentType === "independent" ? 1.0 : 0.5;
   const currentUsed = selected.independentCount * 1.0 + selected.coCount * 0.5;
@@ -79,7 +89,7 @@ export function SupervisorSelector({
   const wouldExceed = projectedUsed > selected.maxQuota;
 
   const handleSelect = (sup: SupervisorOption) => {
-    setSelected(sup);
+    setInternalId(sup.id);
     setIsOpen(false);
     onSelect?.(sup);
   };
@@ -102,23 +112,23 @@ export function SupervisorSelector({
             disabled ? "cursor-not-allowed bg-slate-100 opacity-60" : ""
           }`}
         >
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-7 items-center justify-center rounded-full bg-[#164E9B]/10 text-xs font-bold text-[#164E9B]">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#164E9B]/10 text-xs font-bold text-[#164E9B]">
               <User className="size-4" />
             </div>
-            <div>
+            <div className="min-w-0 truncate">
               <span className="font-semibold text-slate-900">
-                {selected.title} {selected.name}
+                {formatSupervisorLabel(selected)}
               </span>
               <span className="ml-2 text-xs text-slate-500">({selected.department})</span>
             </div>
           </div>
-          <ChevronDown className={`size-4 text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+          <ChevronDown className={`size-4 shrink-0 text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
         </button>
 
         {isOpen && (
           <div className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-            {MOCK_SUPERVISORS.map((sup) => {
+            {list.map((sup) => {
               const used = sup.independentCount * 1.0 + sup.coCount * 0.5;
               const willExceed = used + additionalCost > sup.maxQuota;
 
@@ -133,7 +143,7 @@ export function SupervisorSelector({
                 >
                   <div>
                     <div className="flex items-center gap-2">
-                      <span>{sup.title} {sup.name}</span>
+                      <span>{formatSupervisorLabel(sup)}</span>
                       {sup.id === selected.id && <Check className="size-4 text-[#164E9B]" />}
                     </div>
                     <span className="text-xs text-slate-500">{sup.department}</span>

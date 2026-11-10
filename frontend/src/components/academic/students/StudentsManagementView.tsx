@@ -25,8 +25,9 @@ import {
   SupervisorAssignmentModal,
   DecisionIssueModal,
   MOCK_STUDENTS,
+  MOCK_SUPERVISORS,
 } from "@/src/components/academic";
-import { useAcademicStudents } from "@/src/hooks/use-academic";
+import { useAcademicStudents, useAcademicSupervisors } from "@/src/hooks/use-academic";
 import type { StudentDossier } from "@/src/types/academic";
 
 interface StudentsManagementViewProps {
@@ -38,6 +39,7 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
   // Chỉ gọi API NCS khi component này được mount!
   // Kết nối API NCS từ Backend qua React Query Hook
   const { data: initialData, isLoading, refetch, isFetching } = useAcademicStudents();
+  const { data: supervisorsData } = useAcademicSupervisors();
 
   // Search & Filter States
   const [studentSearchText, setStudentSearchText] = useState("");
@@ -53,6 +55,12 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
     const base = initialData && Array.isArray(initialData) && initialData.length > 0 ? initialData : MOCK_STUDENTS;
     return [...importedStudents, ...base];
   }, [initialData, importedStudents]);
+
+  const supervisorsList = useMemo(() => {
+    return supervisorsData && Array.isArray(supervisorsData) && supervisorsData.length > 0
+      ? supervisorsData
+      : MOCK_SUPERVISORS;
+  }, [supervisorsData]);
 
   // Modal State
   const [studentModalOpen, setStudentModalOpen] = useState(false);
@@ -616,12 +624,15 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
 
       {/* SUPERVISOR ASSIGNMENT MODAL */}
       <SupervisorAssignmentModal
+        key={`assign-${assignModalOpen}-${actionStudent?.id ?? "none"}`}
         isOpen={assignModalOpen}
         onClose={() => {
           setAssignModalOpen(false);
           setActionStudent(null);
         }}
         selectedStudent={actionStudent}
+        students={studentsList}
+        supervisors={supervisorsList}
         onSuccess={(msg) => {
           setToastMessage(msg);
           setTimeout(() => setToastMessage(null), 5000);
