@@ -11,9 +11,9 @@ import {
   FileEdit,
   ClipboardList,
   CalendarDays,
-  FileSpreadsheet,
-  Award,
   BookOpen,
+  Award,
+  FileSpreadsheet,
   HelpCircle,
   ChevronLeft,
   ChevronRight,
@@ -69,12 +69,28 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     href: "/academic/supervisors",
   },
   {
-    id: "evidence",
-    title: "Duyệt minh chứng học vị & Báo cáo",
+    id: "milestone-review",
+    title: "Hàng chờ duyệt 9 mốc",
     icon: FileCheck2,
     group: "main",
     badge: 5,
-    badgeColor: "bg-amber-100 text-amber-800 font-bold",
+    badgeColor: "bg-blue-100 text-[#164E9B] font-bold",
+    href: "/academic/milestone-review",
+  },
+  {
+    id: "decisions",
+    title: "Quản lý Quyết định",
+    icon: Award,
+    group: "main",
+    badge: 6,
+    badgeColor: "bg-purple-100 text-purple-800 font-bold",
+    href: "/academic/decisions",
+  },
+  {
+    id: "evidence",
+    title: "Minh chứng học vị & Báo cáo",
+    icon: FileSpreadsheet,
+    group: "main",
     href: "/academic/evidence",
   },
   {
@@ -90,7 +106,7 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
   // Nhóm nghiệp vụ học vụ
   {
     id: "procedures",
-    title: "Thủ tục học vụ",
+    title: "Thủ tục & Biểu mẫu học vụ",
     icon: ClipboardList,
     group: "academic",
     href: "/academic/procedures",
@@ -103,20 +119,6 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     badge: "Mới",
     badgeColor: "bg-indigo-100 text-indigo-700",
     href: "/academic/calendar",
-  },
-  {
-    id: "forms",
-    title: "Biểu mẫu & Đơn từ",
-    icon: FileSpreadsheet,
-    group: "academic",
-    href: "/academic/forms",
-  },
-  {
-    id: "results",
-    title: "Kết quả học tập & Tiến độ",
-    icon: Award,
-    group: "academic",
-    href: "/academic/students",
   },
 
   // Nhóm trợ giúp & văn bản

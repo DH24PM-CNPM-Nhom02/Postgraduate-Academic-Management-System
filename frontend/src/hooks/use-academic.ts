@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { NcsService } from "@/src/services/ncs";
 import {
   MOCK_STUDENTS,
@@ -24,7 +24,7 @@ export function useAcademicStudents() {
     queryKey: ["academic", "students"],
     queryFn: async () => {
       try {
-        const response = await NcsService.getAllStudentsWithPagination();
+        const response = await NcsService.getAllStudents();
         if (response && Array.isArray(response) && response.length > 0) {
           return response;
         }
@@ -39,6 +39,51 @@ export function useAcademicStudents() {
 }
 
 /**
+ * Custom hook lấy thông tin chi tiết một NCS từ Backend
+ */
+export function useStudentDetail(id: string | null) {
+  return useQuery({
+    queryKey: ["academic", "student", id],
+    queryFn: async () => {
+      if (!id) return null;
+      try {
+        return await NcsService.getStudentById(id);
+      } catch (err) {
+        console.warn(`Không thể lấy chi tiết NCS ${id} từ backend:`, err);
+        return null;
+      }
+    },
+    enabled: !!id,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/**
+ * Custom hook cập nhật trạng thái học vụ của NCS
+ */
+export function useUpdateStudentStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      trangThai,
+      lyDo,
+    }: {
+      id: string;
+      trangThai: string;
+      lyDo?: string;
+    }) => {
+      return await NcsService.updateStudentStatus(id, trangThai, lyDo);
+    },
+    onSuccess: () => {
+      // Tự động làm mới lại danh sách sau khi cập nhật thành công
+      queryClient.invalidateQueries({ queryKey: ["academic", "students"] });
+    },
+  });
+}
+
+/**
  * Custom hook lấy danh sách Giảng viên Hướng dẫn & Hạn ngạch (BR-09)
  * Chỉ fetch khi Component Bảng GVHD được mount.
  */
@@ -46,7 +91,6 @@ export function useAcademicSupervisors() {
   return useQuery<SupervisorQuotaRecord[]>({
     queryKey: ["academic", "supervisors"],
     queryFn: async () => {
-      // Giả lập hoặc gọi endpoint API thực tế khi backend sẵn sàng
       return MOCK_SUPERVISORS;
     },
     staleTime: 1000 * 60 * 5,

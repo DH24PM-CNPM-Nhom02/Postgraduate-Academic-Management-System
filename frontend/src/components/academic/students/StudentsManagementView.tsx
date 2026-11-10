@@ -16,10 +16,14 @@ import {
   Plus,
   CheckCircle2,
   Loader2,
+  UserCheck,
+  Scale,
 } from "lucide-react";
 import {
   StudentDetailModal,
   ExcelImportModal,
+  SupervisorAssignmentModal,
+  DecisionIssueModal,
   MOCK_STUDENTS,
 } from "@/src/components/academic";
 import { useAcademicStudents } from "@/src/hooks/use-academic";
@@ -32,7 +36,8 @@ interface StudentsManagementViewProps {
 
 export function StudentsManagementView({ embedded = false }: StudentsManagementViewProps) {
   // Chỉ gọi API NCS khi component này được mount!
-  const { data: initialData, isLoading } = useAcademicStudents();
+  // Kết nối API NCS từ Backend qua React Query Hook
+  const { data: initialData, isLoading, refetch, isFetching } = useAcademicStudents();
 
   // Search & Filter States
   const [studentSearchText, setStudentSearchText] = useState("");
@@ -53,6 +58,9 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
   const [studentModalOpen, setStudentModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentDossier | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [decisionModalOpen, setDecisionModalOpen] = useState(false);
+  const [actionStudent, setActionStudent] = useState<StudentDossier | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Pagination State
@@ -169,6 +177,32 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
               <span>Đang tải dữ liệu...</span>
             </div>
           )}
+
+          {/* NÚT PHÂN CÔNG GVHD */}
+          <button
+            onClick={() => {
+              setActionStudent(null);
+              setAssignModalOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/80 px-3 py-2 text-xs font-bold text-[#164E9B] hover:bg-blue-100 shadow-2xs transition-all cursor-pointer"
+            title="Phân công hoặc thay đổi Giảng viên Hướng dẫn"
+          >
+            <UserCheck className="size-4" />
+            <span className="hidden sm:inline">Phân công GVHD</span>
+          </button>
+
+          {/* NÚT BAN HÀNH QUYẾT ĐỊNH HỌC VỤ */}
+          <button
+            onClick={() => {
+              setActionStudent(null);
+              setDecisionModalOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs font-bold text-amber-900 hover:bg-amber-100 shadow-2xs transition-all cursor-pointer"
+            title="Ban hành quyết định thay đổi trạng thái (Bảo lưu, Gia hạn, Buộc thôi học...)"
+          >
+            <Scale className="size-4 text-amber-700" />
+            <span className="hidden sm:inline">Ban hành QĐ</span>
+          </button>
 
           {/* NÚT THÊM NCS (MỞ MODAL IMPORT EXCEL) */}
           <button
@@ -294,13 +328,25 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
             </h2>
           </div>
 
-          <button
-            onClick={handleResetFilters}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 self-start sm:self-auto transition-colors cursor-pointer"
-          >
-            <RefreshCw className="size-3.5" />
-            <span>Đặt lại bộ lọc</span>
-          </button>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              title="Đồng bộ dữ liệu mới nhất từ máy chủ"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#164E9B] bg-blue-50/50 hover:bg-blue-100/70 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin" : ""}`} />
+              <span>{isFetching ? "Đang đồng bộ..." : "Đồng bộ từ máy chủ"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <span>Đặt lại bộ lọc</span>
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -471,16 +517,38 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
                       </div>
                     </td>
                     <td className="py-3.5 px-3 text-right">
-                      <button
-                        onClick={() => {
-                          setSelectedStudent(std);
-                          setStudentModalOpen(true);
-                        }}
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-[#164E9B] hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
-                      >
-                        <Eye className="size-3.5" />
-                        <span>Hồ sơ chi tiết</span>
-                      </button>
+                      <div className="inline-flex items-center gap-1.5">
+                        <button
+                          onClick={() => {
+                            setActionStudent(std);
+                            setAssignModalOpen(true);
+                          }}
+                          className="rounded-lg border border-blue-200 bg-blue-50/70 p-1.5 text-[#164E9B] hover:bg-blue-100 transition-colors shadow-2xs cursor-pointer"
+                          title="Phân công hoặc thay đổi GVHD"
+                        >
+                          <UserCheck className="size-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActionStudent(std);
+                            setDecisionModalOpen(true);
+                          }}
+                          className="rounded-lg border border-amber-200 bg-amber-50/70 p-1.5 text-amber-900 hover:bg-amber-100 transition-colors shadow-2xs cursor-pointer"
+                          title="Ban hành quyết định thay đổi trạng thái"
+                        >
+                          <Scale className="size-3.5 text-amber-700" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedStudent(std);
+                            setStudentModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-[#164E9B] hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
+                        >
+                          <Eye className="size-3.5" />
+                          <span>Hồ sơ</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -544,6 +612,34 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
         onClose={() => setImportModalOpen(false)}
         entityType="student"
         onSuccess={handleImportSuccess}
+      />
+
+      {/* SUPERVISOR ASSIGNMENT MODAL */}
+      <SupervisorAssignmentModal
+        isOpen={assignModalOpen}
+        onClose={() => {
+          setAssignModalOpen(false);
+          setActionStudent(null);
+        }}
+        selectedStudent={actionStudent}
+        onSuccess={(msg) => {
+          setToastMessage(msg);
+          setTimeout(() => setToastMessage(null), 5000);
+        }}
+      />
+
+      {/* DECISION ISSUE MODAL */}
+      <DecisionIssueModal
+        isOpen={decisionModalOpen}
+        onClose={() => {
+          setDecisionModalOpen(false);
+          setActionStudent(null);
+        }}
+        selectedStudent={actionStudent}
+        onSuccess={(msg) => {
+          setToastMessage(msg);
+          setTimeout(() => setToastMessage(null), 5000);
+        }}
       />
     </div>
   );

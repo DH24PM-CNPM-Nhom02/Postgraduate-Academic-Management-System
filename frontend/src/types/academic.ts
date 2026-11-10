@@ -116,11 +116,114 @@ export interface ImportedEntityItem {
   validationNotes?: string[];
 }
 
+/** Các loại Quyết định pháp lý */
+export type DecisionType =
+  | "CAN_CU_DUYET_MOC"
+  | "GIA_HAN"
+  | "BAO_LUU"
+  | "NGUNG_HOC"
+  | "BUOC_THOI_HOC"
+  | "GIAO_DE_TAI"
+  | "PHAN_CONG_GVHD"
+  | "THANH_LAP_TIEU_BAN"
+  | "CONG_NHAN_TOT_NGHIEP"
+  | "KHAC";
+
+/** Trạng thái quyết định */
+export type DecisionStatus = "HIEU_LUC" | "VO_HIEU_HOA";
+
+/** Bản ghi Quyết định */
+export interface DecisionItem {
+  id: string;
+  soQuyetDinh: string;
+  ngayQuyetDinh: string;
+  loai: DecisionType;
+  ncsId?: string | null;
+  ncs?: {
+    id: string;
+    mshv: string;
+    hoTen: string;
+    lop?: string;
+  } | null;
+  trangThai: DecisionStatus;
+  fileId?: string | null;
+  fileName?: string | null;
+  ghiChu?: string | null;
+  hanMoi?: string | null;
+  lyDoVoHieuHoa?: string | null;
+  ngayTao?: string;
+}
+
+/** Phiếu nhận xét / chấm điểm của chuyên gia (cho mốc 2, 4, 5) */
+export interface EvaluationItem {
+  id: string;
+  tenNguoiCham: string;
+  donViNguoiCham?: string;
+  diem: number;
+  nhanXet?: string;
+  createdAt?: string;
+}
+
+/** Tổng hợp điểm đánh giá mốc */
+export interface EvaluationSummary {
+  soPhieu: number;
+  soPhieuToiThieu: number;
+  diemTrungBinh: number;
+  duPhieu: boolean;
+}
+
+/** Bản ghi mốc tiến độ đang chờ duyệt (Pending Review) */
+export interface PendingMilestoneItem {
+  id: string; // tienTrinhId
+  submittedAt: string;
+  ncs: {
+    id: string;
+    mshv: string;
+    hoTen: string;
+    lop: string;
+    nganh?: string;
+    gvhd?: string;
+  };
+  moc: {
+    thuTu: number;
+    tenMoc: string;
+    yeuCauDiem: boolean;
+  };
+  minhChungMoiNhat: {
+    id: string;
+    lanNop: number;
+    fileId: string;
+    ghiChuNcs?: string;
+    ngayNop: string;
+    _count?: {
+      phieuNhanXets: number;
+    };
+  };
+  evaluations?: EvaluationItem[];
+  evaluationSummary?: EvaluationSummary;
+  lichSuNop?: MilestoneSubmissionHistory[];
+}
+
+/** Lịch sử một lần nộp mốc */
+export interface MilestoneSubmissionHistory {
+  id: string;
+  lanNop: number;
+  ngayNop: string;
+  fileId: string;
+  fileName?: string;
+  trangThai: "PENDING_REVIEW" | "PASSED" | "REJECTED";
+  lyDoTuChoi?: string;
+  diemTrungBinh?: number;
+  soPhieu?: number;
+}
+
 /** Các Tab điều hướng trong phân hệ Học vụ */
 export type AcademicTabKey =
   | "dashboard"
   | "students"
   | "supervisors"
+  | "milestone-review"
+  | "decisions"
   | "evidence"
   | "topic-changes"
   | "procedures"
