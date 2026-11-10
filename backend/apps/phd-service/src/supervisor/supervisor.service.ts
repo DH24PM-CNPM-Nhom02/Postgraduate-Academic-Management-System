@@ -828,8 +828,55 @@ export class SupervisorService {
   }
 
   /**
-   * D1. Phân công GVHD cho NCS (có kiểm tra định mức và optimistic locking)
+   * NCS xem danh sách GVHD đang hướng dẫn mình
    */
+  async getMySupervisors(userId: string) {
+    const ncs = await this.prisma.nghienCuuSinh.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!ncs) {
+      throw new RpcException({ statusCode: 404, message: 'Bạn chưa có hồ sơ NCS' });
+    }
+
+    const phanCongs = await this.prisma.phanCongHuongDan.findMany({
+      where: {
+        ncsId: ncs.id,
+        trangThai: 'DANG_HIEU_LUC',
+      },
+      include: {
+        gvhd: {
+          select: {
+            id: true,
+            maGv: true,
+            hoTen: true,
+            email: true,
+            hocHamHocVi: true,
+            chuyenNganh: true,
+            donVi: { select: { id: true, ten: true } },
+          },
+        },
+        quyetDinh: {
+          select: {
+            id: true,
+            soQuyetDinh: true,
+            ngayQuyetDinh: true,
+          },
+        },
+      },
+      orderBy: { vaiTro: 'asc' },
+    });
+
+    return phanCongs.map((pc) => ({
+      phanCongId: pc.id,
+      vaiTro: pc.vaiTro,
+      trongSo: pc.trongSo,
+      ngayBatDau: pc.ngayBatDau,
+      quyetDinh: pc.quyetDinh,
+      gvhd: pc.gvhd,
+    }));
+  }
+
   async createAssignment(actorId: string, dto: CreateAssignmentDto) {
     //Kiểm tra NCS
     const ncs = await this.prisma.nghienCuuSinh.findUnique({
@@ -858,10 +905,10 @@ export class SupervisorService {
       throw new RpcException({ statusCode: 400, message: 'GVHD đã bị vô hiệu hóa, không thể phân công' });
     }
 
-    //Kiểm tra Quyết định
+    // Kiểm tra quyết định và bảo đảm quyết định được lập cho đúng NCS.
     const quyetDinh = await this.prisma.quyetDinh.findUnique({
       where: { id: dto.quyetDinhId },
-      select: { id: true, loai: true, trangThai: true },
+      select: { id: true, ncsId: true, loai: true, trangThai: true, ngayQuyetDinh: true },
     });
     if (!quyetDinh) {
       throw new RpcException({ statusCode: 404, message: 'Không tìm thấy quyết định' });
@@ -871,6 +918,9 @@ export class SupervisorService {
         statusCode: 400,
         message: 'Quyết định phải thuộc loại PHAN_CONG_GVHD và đang có hiệu lực',
       });
+    }
+    if (quyetDinh.ncsId !== dto.ncsId) {
+      throw new RpcException({ statusCode: 400, message: 'Quyết định không áp dụng cho NCS này' });
     }
 
     //Kiểm tra trùng phân công cùng GVHD
@@ -907,8 +957,36 @@ export class SupervisorService {
 
     const trongSoVal = dto.vaiTro === 'HUONG_DAN_CHINH' ? 1.0 : 0.5;
 
-    //Transaction kiểm tra định mức + optimistic lock
-    const phanCong= await this.prisma.$transaction(async (tx) => {
+    // Kiểm tra lại các ràng buộc có thể thay đổi đồng thời ngay trong transaction.
+    const phanCong = await this.prisma.$transaction(async (tx) => {
+      const qd = await tx.quyetDinh.findUnique({
+        where: { id: dto.quyetDinhId },
+        select: { ncsId: true, loai: true, trangThai: true, ngayQuyetDinh: true },
+      });
+      if (!qd || qd.loai !== 'PHAN_CONG_GVHD' || qd.trangThai !== 'HIEU_LUC') {
+        throw new RpcException({ statusCode: 400, message: 'Quyết định phải thuộc loại PHAN_CONG_GVHD và đang có hiệu lực' });
+      }
+      if (qd.ncsId !== dto.ncsId) {
+        throw new RpcException({ statusCode: 400, message: 'Quyết định không áp dụng cho NCS này' });
+      }
+
+      const phanCongTrung = await tx.phanCongHuongDan.findFirst({
+        where: { ncsId: dto.ncsId, gvhdId: dto.gvhdId, trangThai: 'DANG_HIEU_LUC' },
+        select: { id: true },
+      });
+      if (phanCongTrung) {
+        throw new RpcException({ statusCode: 409, message: 'GVHD này đã và đang được phân công hướng dẫn NCS này' });
+      }
+      if (dto.vaiTro === 'HUONG_DAN_CHINH') {
+        const gvhdChinh = await tx.phanCongHuongDan.findFirst({
+          where: { ncsId: dto.ncsId, vaiTro: 'HUONG_DAN_CHINH', trangThai: 'DANG_HIEU_LUC' },
+          select: { id: true },
+        });
+        if (gvhdChinh) {
+          throw new RpcException({ statusCode: 400, message: 'NCS đã có GVHD chính đang hiệu lực' });
+        }
+      }
+
       const gvhd = await tx.giangVienHuongDan.findUnique({
         where: { id: dto.gvhdId },
       });
@@ -944,7 +1022,7 @@ export class SupervisorService {
         });
       }
 
-      const ngayBatDau = dto.ngayBatDau ? new Date(dto.ngayBatDau) : new Date();
+      const ngayBatDau = new Date(qd.ngayQuyetDinh);
 
       const phanCong = await tx.phanCongHuongDan.create({
         data: {
@@ -1026,10 +1104,13 @@ export class SupervisorService {
     return phanCong;
   }
 
-  /**
-   * D2. Vô hiệu hóa (đổi) phân công GVHD và trả lại định mức
-   */
-  async deactivateAssignment(actorId: string, id: string) {
+  /** Hủy phân công do giao nhầm; không dùng thay quy trình đổi GVHD. */
+  async deactivateAssignment(actorId: string, id: string, lyDo: string) {
+    const lyDoDaChuanHoa = lyDo?.trim();
+    if (!lyDoDaChuanHoa) {
+      throw new RpcException({ statusCode: 400, message: 'Lý do hủy phân công là bắt buộc' });
+    }
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const phanCong = await tx.phanCongHuongDan.findUnique({
         where: { id },
@@ -1040,6 +1121,14 @@ export class SupervisorService {
       }
       if (phanCong.trangThai !== 'DANG_HIEU_LUC') {
         throw new RpcException({ statusCode: 400, message: 'Phân công này đã bị vô hiệu hóa trước đó' });
+      }
+
+      const deNghiDangCho = await tx.deNghiDieuChinh.findFirst({
+        where: { ncsId: phanCong.ncsId, trangThai: 'CHO_DUYET' },
+        select: { id: true },
+      });
+      if (deNghiDangCho) {
+        throw new RpcException({ statusCode: 409, message: 'NCS đang có đề nghị điều chỉnh chờ duyệt, không thể hủy phân công lúc này' });
       }
 
       const gvhd = phanCong.gvhd;
@@ -1097,7 +1186,7 @@ export class SupervisorService {
           entityType: 'PhanCongHuongDan',
           entityId: id,
           oldValue: { trangThai: phanCong.trangThai, ngayKetThuc: phanCong.ngayKetThuc },
-          newValue: { trangThai: 'DEACTIVATE', ngayKetThuc },
+          newValue: { trangThai: 'DEACTIVATE', ngayKetThuc, lyDo: lyDoDaChuanHoa },
         },
       });
 

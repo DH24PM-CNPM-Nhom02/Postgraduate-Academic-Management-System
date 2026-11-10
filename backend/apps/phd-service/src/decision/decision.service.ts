@@ -67,12 +67,11 @@ export class DecisionService {
             throw new RpcException({ statusCode: 400, message: 'Quyết định loại này phải chọn ít nhất 1 NCS' });
         }
 
-        let hanMoi: Date | undefined;
         if (loai === 'GIA_HAN') {
-            if (!d.hanMoi) {
-                throw new RpcException({ statusCode: 400, message: 'Quyết định gia hạn phải có hạn mới' });
-            }
-            hanMoi = parseNgay(d.hanMoi, 'Hạn mới');
+            throw new RpcException({
+                statusCode: 400,
+                message: 'Quyết định gia hạn học tập phải được tạo thông qua quy trình xét duyệt Đơn đề nghị gia hạn của NCS (Change Request)',
+            });
         }
 
         //  Cùng loại + cùng số: chỉ được thêm NCS khác vào, và phải cùng ngày quyết địn
@@ -120,15 +119,6 @@ export class DecisionService {
                         message: `Nghiên cứu sinh ${ncs.mshv} đang ở trạng thái ${ncs.trangThai}, không thể nhận quyết định ${loai}`,
                     });
                 }
-                if (hanMoi) {
-                    const hanHienTai = ncs.hanGiaHan ?? ncs.hanChinhQuy;
-                    if (hanMoi <= hanHienTai || hanMoi > ncs.hanBuocThoiHoc) {
-                        throw new RpcException({
-                            statusCode: 400,
-                            message: `Hạn mới của nghiên cứu sinh ${ncs.mshv} phải sau hạn hiện tại và không vượt hạn buộc thôi học`,
-                        });
-                    }
-                }
             }
         }
 
@@ -172,8 +162,6 @@ export class DecisionService {
                             trangThai: trangThaiMoi,
                             ngayChuyenTrangThai: ngay,
                             lyDoChuyenTrangThai: d.ghiChu ?? null,
-                            //bảo lưu vẫn tính 72 tháng
-                            ...(hanMoi ? { hanGiaHan: hanMoi } : {}),
                         }
                     })
                 }
@@ -199,7 +187,7 @@ export class DecisionService {
                             soQuyetDinh: d.soQuyetDinh,
                             ngayQuyetDinh: d.ngayQuyetDinh,
                             trangThai: trangThaiMoi ?? null,
-                            hanGiaHan: ngayChuoi(hanMoi ?? ncs?.hanGiaHan),
+                            hanGiaHan: ngayChuoi(ncs?.hanGiaHan),
                         },
                     },
                 });
@@ -266,7 +254,7 @@ export class DecisionService {
                             loaiQuyetDinh: loai,
                             soQuyetDinh: d.soQuyetDinh,
                             ngayQuyetDinh: d.ngayQuyetDinh,
-                            hanMoi: loai === 'GIA_HAN' ? (d.hanMoi ?? null) : null,
+                            hanMoi: null,
                             ghiChu: d.ghiChu ?? null,
                         },
                     });
@@ -283,7 +271,7 @@ export class DecisionService {
                             loaiQuyetDinh: loai,
                             soQuyetDinh: d.soQuyetDinh,
                             ngayQuyetDinh: d.ngayQuyetDinh,
-                            hanMoi: loai === 'GIA_HAN' ? (d.hanMoi ?? null) : null,
+                            hanMoi: null,
                             ghiChu: d.ghiChu ?? null,
                             tenNcs: n.hoTen,
                             mshv: n.mshv,

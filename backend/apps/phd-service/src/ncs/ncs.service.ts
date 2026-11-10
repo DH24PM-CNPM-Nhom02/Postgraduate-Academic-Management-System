@@ -615,6 +615,28 @@ export class NcsService {
           include: { moc: true },
           orderBy: { moc: { thuTu: 'asc' } },
         },
+        phanCongs: {
+          where: { trangThai: 'DANG_HIEU_LUC' },
+          include: {
+            gvhd: {
+              select: {
+                id: true,
+                maGv: true,
+                hoTen: true,
+                hocHamHocVi: true,
+                email: true,
+              },
+            },
+            quyetDinh: {
+              select: {
+                id: true,
+                soQuyetDinh: true,
+                ngayQuyetDinh: true,
+              },
+            },
+          },
+          orderBy: { vaiTro: 'asc' },
+        },
       },
     });
 

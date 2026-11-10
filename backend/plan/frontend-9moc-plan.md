@@ -94,7 +94,7 @@ Gọi API nghiệp vụ, đưa fileId vào body JSON
 | Trường | Bắt buộc | Ghi chú |
 | :---- | :---- | :---- |
 | `file` | Có | Chỉ nhận **PDF** (đuôi `.pdf` và đúng loại PDF), tối đa **15 MB** |
-| `documentType` | Có | `MINH_CHUNG_MOC`, `QUYET_DINH` hoặc `KHAC`; phải đúng loại theo bảng 3.2 |
+| `documentType` | Có | `MINH_CHUNG_MOC`, `QUYET_DINH`, `MINH_CHUNG_NGOAI_NGU`, `MINH_CHUNG_CONG_NO`, `DON_TU`, `BIEU_MAU`, `QUY_DINH`, `KHAC`; phải đúng loại theo bảng 3.2. Với NCS, chỉ được upload `MINH_CHUNG_MOC` và `DON_TU` |
 | `ncsId` | Không | Dành cho Giáo vụ khi upload file gắn với một NCS cụ thể. NCS upload thì server tự lấy từ token |
 
 Response trả metadata của file, lấy trường `id` làm `fileId`. FE nên kiểm tra phía client (đuôi `.pdf`, dung lượng ≤ 15 MB) trước khi gửi để báo lỗi sớm.
@@ -105,6 +105,7 @@ Response trả metadata của file, lấy trường `id` làm `fileId`. FE nên 
 | :---- | :---- | :---- | :---- |
 | `POST /progress/milestones/:thuTu/submit` (nộp minh chứng) | **Bắt buộc** | `MINH_CHUNG_MOC` | NCS |
 | `POST /decisions` (tạo quyết định) | Không bắt buộc (nên đính kèm bản scan) | `QUYET_DINH` | Giáo vụ |
+| `POST /change-request` (nộp đơn đề nghị điều chỉnh / gia hạn) | Bắt buộc với `GIA_HAN`, tùy chọn với loại khác | `DON_TU` hoặc `MINH_CHUNG_MOC` | NCS / GVHD |
 
 Server kiểm tra lại `fileId` ở bước 2, nên không thể gửi `fileId` bừa:
 
@@ -116,6 +117,9 @@ Server kiểm tra lại `fileId` ở bước 2, nên không thể gửi `fileId`
 | Nộp minh chứng | 409 | File đã dùng cho một lần nộp khác |
 | Tạo quyết định | 404 | File không tồn tại |
 | Tạo quyết định | 400 | File không phải loại `QUYET_DINH` |
+| Tạo đơn đề nghị | 404 | File không tồn tại |
+| Tạo đơn đề nghị | 400 | File không phải loại `DON_TU` hoặc `MINH_CHUNG_MOC` |
+| Tạo đơn đề nghị | 409 | File đã dùng cho một đơn đề nghị đang xử lý khác |
 
 > Khi tạo một quyết định cho nhiều NCS, chỉ cần **upload 1 file** và dùng chung `fileId` đó cho tất cả các dòng. Quy tắc "file chỉ dùng cho một lần" ở trên chỉ áp dụng cho minh chứng mốc, không áp dụng cho quyết định.
 
@@ -356,13 +360,15 @@ Quyết định không gắn NCS nào (ví dụ `THANH_LAP_TIEU_BAN`) vẫn tạ
 
 | Trường | Bắt buộc | Quy tắc |
 | :---- | :---- | :---- |
-| `loai` | Có | `GIAO_DE_TAI`, `PHAN_CONG_GVHD`, `THANH_LAP_TIEU_BAN`, `CAN_CU_DUYET_MOC`, `CONG_NHAN_TOT_NGHIEP`, `GIA_HAN`, `BAO_LUU`, `HOC_TIEP`, `NGUNG_HOC`, `BUOC_THOI_HOC`, `KHAC` |
+| `loai` | Có | `BAO_LUU`, `HOC_TIEP`, `NGUNG_HOC`, `BUOC_THOI_HOC`, `GIAO_DE_TAI`, `PHAN_CONG_GVHD`, `THANH_LAP_TIEU_BAN`, `CAN_CU_DUYET_MOC`, `CONG_NHAN_TOT_NGHIEP`, `KHAC`. *(Lưu ý: Không tạo trực tiếp loại `GIA_HAN` tại đây; xem lưu ý bên dưới)* |
 | `soQuyetDinh` | Có | Tối đa 50 ký tự |
 | `ngayQuyetDinh` | Có | Dạng `YYYY-MM-DD`, phải là ngày có thật (ví dụ `2026-02-31` bị từ chối) |
-| `ncsIds` | Tùy loại | **Bắt buộc, ít nhất 1 NCS** với `BAO_LUU`, `HOC_TIEP`, `NGUNG_HOC`, `BUOC_THOI_HOC`, `GIA_HAN`. Các loại khác có thể bỏ trống (quyết định chung). NCS bị chọn trùng sẽ được gộp lại |
+| `ncsIds` | Tùy loại | **Bắt buộc, ít nhất 1 NCS** với `BAO_LUU`, `HOC_TIEP`, `NGUNG_HOC`, `BUOC_THOI_HOC`. Các loại khác có thể bỏ trống (quyết định chung). NCS bị chọn trùng sẽ được gộp lại |
 | `fileId` | Không | Xem mục 3.2 |
 | `ghiChu` | Không | Văn bản tự do |
-| `hanMoi` | Chỉ với `GIA_HAN` | Dạng `YYYY-MM-DD`, áp dụng chung cho tất cả NCS trong danh sách. Với **từng** NCS, `hanMoi` phải sau hạn hiện tại (hạn gia hạn gần nhất, chưa từng gia hạn thì là hạn chính quy) và không vượt hạn buộc thôi học (72 tháng). Các loại khác bỏ qua trường này |
+
+> [!IMPORTANT]
+> **Riêng loại quyết định `GIA_HAN`:** Backend **chặn tạo trực tiếp** qua `POST /decisions` (trả về lỗi 400: *"Quyết định gia hạn học tập phải được tạo thông qua quy trình xét duyệt Đơn đề nghị gia hạn của NCS (Change Request)"*). Quyết định gia hạn sẽ được sinh tự động khi Giáo vụ duyệt đơn gia hạn học tập tại `PATCH /change-request/:id/approve` (xem chi tiết trong tài liệu `frontend-thesis-change-request-plan.md`).
 
 Response:
 
@@ -389,8 +395,8 @@ Một số loại quyết định **tự đổi trạng thái học tập** củ
 | `BAO_LUU` | `BAO_LUU` | `DANG_HOC`, `GIA_HAN` | Khóa tài khoản đăng nhập. Các hạn giữ nguyên (thời gian bảo lưu vẫn tính vào 72 tháng) |
 | `NGUNG_HOC` | `NGUNG_HOC` | `DANG_HOC`, `GIA_HAN`, `BAO_LUU` | Khóa tài khoản đăng nhập |
 | `BUOC_THOI_HOC` | `BUOC_THOI_HOC` | `DANG_HOC`, `GIA_HAN`, `BAO_LUU` | Khóa tài khoản đăng nhập |
-| `GIA_HAN` | `GIA_HAN` | `DANG_HOC`, `GIA_HAN` | Cập nhật hạn học tập mới = `hanMoi`. Hạn mới phải sau hạn hiện tại và không vượt hạn buộc thôi học (72 tháng) |
 | `HOC_TIEP` | `GIA_HAN` nếu NCS đã từng được gia hạn, ngược lại `DANG_HOC` | `BAO_LUU` (chỉ trạng thái này) | **Mở khóa** tài khoản đăng nhập. Các hạn giữ nguyên (thời gian bảo lưu vẫn tính vào 72 tháng) |
+| `GIA_HAN` | `GIA_HAN` | `DANG_HOC`, `GIA_HAN` | *Chỉ tạo qua luồng Change Request*: Cập nhật hạn mới = `hanMoi`. Không tạo qua `POST /decisions` |
 | Các loại còn lại | Không đổi | Không giới hạn | Chỉ lưu quyết định |
 
 Ngày hiệu lực của việc đổi trạng thái lấy theo `ngayQuyetDinh`, lý do lấy theo `ghiChu`.
@@ -414,7 +420,7 @@ Việc khóa hoặc mở khóa tài khoản chạy **sau khi** dữ liệu đã 
 
 | Mã | Khi nào |
 | :---- | :---- |
-| 400 | Ngày không hợp lệ; thiếu `ncsIds` với loại bắt buộc; thiếu `hanMoi` khi `GIA_HAN`, hoặc `hanMoi` không sau hạn hiện tại / vượt hạn buộc thôi học của một NCS; NCS đang ở trạng thái không được nhận loại quyết định này (ví dụ `HOC_TIEP` cho NCS không phải `BAO_LUU`); `fileId` không phải loại `QUYET_DINH` |
+| 400 | Ngày không hợp lệ; thiếu `ncsIds` với loại bắt buộc; NCS đang ở trạng thái không được nhận loại quyết định này (ví dụ `HOC_TIEP` cho NCS không phải `BAO_LUU`); `fileId` không phải loại `QUYET_DINH`; hoặc truyền `loai = 'GIA_HAN'` (loại này phải duyệt qua quy trình Change Request) |
 | 404 | Có NCS không tồn tại (message liệt kê id), hoặc file không tồn tại |
 | 409 | Số quyết định đã tồn tại với ngày khác, hoặc NCS đã gắn với số quyết định này |
 
@@ -450,7 +456,7 @@ Chia 11 loại quyết định thành 4 nhóm nghiệp vụ:
 | :---- | :---- | :---- | :---- |
 | **A. Đổi trạng thái, khóa tài khoản** | `BAO_LUU`, `NGUNG_HOC`, `BUOC_THOI_HOC` | Bắt buộc | Chọn NCS có lọc theo trạng thái + Modal cảnh báo xác nhận |
 | **B. Quay lại học** | `HOC_TIEP` | Bắt buộc | Chỉ liệt kê NCS đang `BAO_LUU` + Modal xác nhận mở khóa |
-| **C. Gia hạn đào tạo** | `GIA_HAN` | Bắt buộc | Chọn NCS + Ô "Hạn mới" chung + Bảng so sánh hạn từng NCS |
+| **C. Gia hạn đào tạo** | `GIA_HAN` | *Không tạo trực tiếp tại đây* | *Được xử lý tự động trong màn hình Xét duyệt Đơn đề nghị gia hạn (Change Request)* |
 | **D. Chỉ lưu quyết định** | `GIAO_DE_TAI`, `PHAN_CONG_GVHD`, `THANH_LAP_TIEU_BAN`, `CAN_CU_DUYET_MOC`, `CONG_NHAN_TOT_NGHIEP`, `KHAC` | Tùy chọn | Công tắc "Áp dụng cho NCS cụ thể / Chung" |
 
 **Nguồn dữ liệu danh sách NCS (`GET /ncs`):**
@@ -474,20 +480,11 @@ FE gọi `GET /ncs` để lấy toàn bộ danh sách NCS cho ô Multi-Select. A
 - **Nhóm B (`HOC_TIEP`):**
   - Multi-select chỉ liệt kê các NCS đang ở trạng thái `BAO_LUU`. Nếu không có ai thì hiển thị *"Hiện không có NCS nào đang bảo lưu"*.
   - Hộp xác nhận ghi rõ: *"N NCS sẽ trở lại học tập và được mở khóa tài khoản đăng nhập."*
-  - Hiện kèm dòng nhắc: *"Thời hạn học tập của NCS được giữ nguyên (không tự động gia hạn thêm). Nếu cần gia hạn thêm thời gian, vui lòng lập quyết định Gia hạn riêng."*
+  - Hiện kèm dòng nhắc: *"Thời hạn học tập của NCS được giữ nguyên (không tự động gia hạn thêm). Nếu cần gia hạn thêm thời gian, NCS phải nộp đơn gia hạn để tập thể GVHD và Giáo vụ thẩm định."*
 
 - **Nhóm C (`GIA_HAN`):**
-  - Chỉ cho phép chọn NCS đang `DANG_HOC` hoặc `GIA_HAN`.
-  - Ô "Hạn mới" (date picker `YYYY-MM-DD`) áp dụng chung cho cả lô được chọn.
-  - Dưới ô chọn NCS, hiển thị ngay **Bảng kiểm tra hạn:**
-
-| MSHV | Họ tên | Hạn hiện tại | Hạn tối đa (72 tháng) | Hạn mới | Đánh giá |
-| :---- | :---- | :---- | :---- | :---- | :---- |
-| DPM2001 | Nguyễn Văn A | 2026-10-31 | 2029-09-30 | 2027-04-30 | <span style="color:green">✔ Hợp lệ</span> |
-| DPM2002 | Trần Thị B | 2027-06-30 | 2029-09-30 | 2027-04-30 | <span style="color:red">✘ Trước hạn hiện tại</span> |
-
-  - FE kiểm tra client-side cho từng NCS: `hanMoi > hanHienTai` VÀ `hanMoi <= hanBuocThoiHoc`. Nếu có bất kỳ dòng nào vi phạm, tô đỏ và vô hiệu hóa nút "Tạo quyết định" (vì server chạy transaction: 1 người sai sẽ từ chối toàn bộ).
-  - Hộp xác nhận ghi: *"Gia hạn học tập đến ngày dd/mm/yyyy cho N NCS."*
+  - **Không cho tạo trực tiếp ở form này.** Quyết định gia hạn đào tạo bắt buộc phải có quy trình: NCS nộp đơn gia hạn kèm báo cáo tiến độ -> Tập thể GVHD xác nhận đồng ý -> Giáo vụ phê duyệt.
+  - Nếu Giáo vụ chọn mục "Gia hạn" trên giao diện tạo quyết định, FE hiển thị hộp hướng dẫn: *"Quyết định Gia hạn đào tạo phải được ban hành thông qua quy trình xét duyệt Đơn đề nghị gia hạn của NCS. Vui lòng chuyển sang trang 'Quản lý Đề nghị điều chỉnh' để phê duyệt và ban hành quyết định."* kèm nút bấm điều hướng nhanh sang `/admin/change-requests`.
 
 - **Nhóm D (Chỉ lưu quyết định):**
   - Trên đầu khối có công tắc Toggle: **"Áp dụng cho: ◉ NCS cụ thể ○ Chung (không gắn NCS)"**.
@@ -569,14 +566,15 @@ export const CAU_HINH_QUYET_DINH: Record<string, {
     mauSac: 'info',
   },
   GIA_HAN: {
-    nhan: 'Gia hạn',
+    nhan: 'Gia hạn (qua đơn đề nghị)',
     nhom: 'C',
     batBuocNcs: true,
     trangThaiHopLe: ['DANG_HOC', 'GIA_HAN'],
     canHanMoi: true,
     canXacNhan: true,
-    canhBao: 'sẽ được gia hạn học tập',
+    canhBao: 'sẽ được gia hạn học tập thông qua quy trình xét duyệt Change Request',
     mauSac: 'primary',
+    chiTaoQuaChangeRequest: true,
   },
   GIAO_DE_TAI: { nhan: 'Giao đề tài', nhom: 'D', batBuocNcs: false },
   PHAN_CONG_GVHD: { nhan: 'Phân công GVHD', nhom: 'D', batBuocNcs: false },
@@ -881,9 +879,11 @@ Admin có toàn bộ quyền. Việc phân quyền và ẩn menu theo role ở F
 
 ---
 
-## 10. Ngoài phạm vi luồng này
+## 10. Các luồng nghiệp vụ liên quan
 
-Các phần sau **chưa có** trong giai đoạn này, FE chưa cần dựng màn hình:
+Tài liệu này tập trung vào **luồng 9 mốc tiến độ và quản lý quyết định hành chính chung**. Các phân hệ nghiệp vụ liên quan khác đã có đầy đủ API ở backend và được tài liệu hóa chi tiết tại:
 
-- Giảng viên hướng dẫn (GVHD) theo dõi tiến trình trực quan của toàn bộ NCS do mình hướng dẫn.
-- Quản lý định mức giờ hướng dẫn của GVHD và thủ tục điều chỉnh thay đổi đề tài/cán bộ hướng dẫn.
+- **[Tài liệu API Frontend: Phân hệ Đề tài, Phân công GVHD và Đơn đề nghị điều chỉnh (Change Request)](./frontend-thesis-change-request-plan.md):**
+  - Quản lý phân công Giảng viên hướng dẫn (`/gvhd/assignments`, `/gvhd/my-supervisors`).
+  - Quản lý giao đề tài luận án (`/thesis`).
+  - Quy trình nộp, tập thể GVHD thẩm định và Giáo vụ phê duyệt Đơn đề nghị điều chỉnh (`/change-request`): Đổi đề tài, Đổi GVHD, và Đơn xin gia hạn học tập (kèm tự động ban hành quyết định gia hạn `GIA_HAN`).

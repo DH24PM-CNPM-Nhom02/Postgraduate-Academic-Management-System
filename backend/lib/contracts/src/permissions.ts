@@ -36,6 +36,12 @@ export const PERMISSIONS = {
     ASSIGNMENT_READ: 'assignment.read',
     ASSIGNMENT_CREATE: 'assignment.create',
     ASSIGNMENT_UPDATE: 'assignment.update',
+
+    CHANGE_REQUEST_CREATE: 'changerequest.create',
+    CHANGE_REQUEST_READ: 'changerequest.read',
+    CHANGE_REQUEST_REVIEW: 'changerequest.review',
+    CHANGE_REQUEST_SUPERVISOR_REVIEW: 'changerequest.supervisor_review',
+    CHANGE_REQUEST_CANCEL: 'changerequest.cancel',
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

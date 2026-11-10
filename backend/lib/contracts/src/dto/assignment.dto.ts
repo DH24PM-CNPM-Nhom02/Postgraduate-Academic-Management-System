@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, IsUUID, Matches } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
 
 export const VAI_TRO_HUONG_DAN = ['HUONG_DAN_CHINH', 'DONG_HUONG_DAN'] as const;
 export type VaiTroHuongDanValue = (typeof VAI_TRO_HUONG_DAN)[number];
@@ -17,9 +17,6 @@ export class CreateAssignmentDto {
   @IsUUID()
   quyetDinhId!: string;
 
-  @IsOptional()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'ngayBatDau phải có dạng YYYY-MM-DD' })
-  ngayBatDau?: string;
 }
 
 // export class DeactivateAssignmentDto {
@@ -27,6 +24,12 @@ export class CreateAssignmentDto {
 //   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'ngayKetThuc phải có dạng YYYY-MM-DD' })
 //   ngayKetThuc?: string;
 // }
+
+export class DeactivateAssignmentDto {
+  @IsString()
+  @MinLength(1)
+  lyDo!: string;
+}
 
 export class ListAssignmentQueryDto {
   @IsOptional()

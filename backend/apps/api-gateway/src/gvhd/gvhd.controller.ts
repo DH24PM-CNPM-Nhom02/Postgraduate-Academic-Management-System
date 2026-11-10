@@ -7,7 +7,7 @@ import { RequirePermissions } from '../common/decorators/require-permissions.dec
 import { PHD_SERVICE } from '../common/constants/service.js';
 import type { AuthUser } from '../common/interface/auth-user.interface.js';
 import { CreateGvhdBatchDto, UpdateGvhdDto, UpdateGvhdStatusDto } from '../../../../lib/contracts/src/dto/gvhd.dto.js';
-import { CreateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
+import { CreateAssignmentDto, DeactivateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
 import { buildGvhdTemplate, parseGvhdExcel } from './gvhd-excel.js';
 
@@ -92,6 +92,12 @@ export class GvhdController {
     return this.send('phd.gvhd.my-ncs-detail', { userId: u.id, ncsId });
   }
 
+  // NCS xem danh sách các GVHD đang hướng dẫn mình (kèm phanCongId để đổi GVHD)
+  @Get('my-supervisors')
+  mySupervisors(@CurrentUser() u: AuthUser) {
+    return this.send('phd.gvhd.my-supervisors', { userId: u.id });
+  }
+
   @Post('assignments')
   @RequirePermissions(PERMISSIONS.ASSIGNMENT_CREATE)
   createAssignment(@CurrentUser() u: AuthUser, @Body() dto: CreateAssignmentDto) {
@@ -103,8 +109,9 @@ export class GvhdController {
   deactivateAssignment(
     @CurrentUser() u: AuthUser,
     @Param('id') id: string,
+    @Body() dto: DeactivateAssignmentDto,
   ) {
-    return this.send('phd.gvhd.assignment-deactivate', { actorId: u.id, id });
+    return this.send('phd.gvhd.assignment-deactivate', { actorId: u.id, id, data: dto });
   }
 
   @Get('assignments')

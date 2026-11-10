@@ -95,6 +95,7 @@ enum TrangThaiPhanCong {
 enum TrangThaiDeTai {
   HIEU_LUC
   DA_THAY_THE
+  DA_HUY
 }
 
 enum LoaiDeNghiDieuChinh {
@@ -105,9 +106,11 @@ enum LoaiDeNghiDieuChinh {
 }
 
 enum TrangThaiDeNghi {
+  CHO_GVHD_XAC_NHAN
   CHO_DUYET
   DA_DUYET
   TU_CHOI
+  DA_HUY
 }
 
 enum TrangThaiTotNghiep {
@@ -431,9 +434,10 @@ model GiangVienHuongDan {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
-  phanCongs PhanCongHuongDan[]
-  deNghis   DeNghiDieuChinh[]  @relation("DeNghiGvhdMoi")
-  donVi     DonVi?             @relation(fields: [donViId], references: [id], onDelete: Restrict)
+  phanCongs      PhanCongHuongDan[]
+  deNghis        DeNghiDieuChinh[]   @relation("DeNghiGvhdMoi")
+  xacNhanDeNghis XacNhanGvhdDeNghi[]
+  donVi          DonVi?              @relation(fields: [donViId], references: [id], onDelete: Restrict)
 
   @@index([donViId])
   @@map("giang_vien_huong_dan")
@@ -473,6 +477,7 @@ model DeTai {
   tenDeTai    String         @map("ten_de_tai") @db.VarChar(500)
   trangThai   TrangThaiDeTai @default(HIEU_LUC) @map("trang_thai")
   quyetDinhId String?        @map("quyet_dinh_id")
+  ngayKetThuc DateTime?      @map("ngay_ket_thuc") @db.Date
   createdAt   DateTime       @default(now()) @map("created_at")
   updatedAt   DateTime       @updatedAt @map("updated_at")
 
@@ -493,10 +498,16 @@ model DeNghiDieuChinh {
   ncsId         String              @map("ncs_id")
   loai          LoaiDeNghiDieuChinh
   lyDo          String              @map("ly_do") @db.Text
+  /// File đơn đề nghị (document-service.documents.id)
+  fileId        String?             @map("file_id") // MỚI
+  /// Gửi quá hạn 12 tháng nhưng thuộc trường hợp bất khả kháng (Giáo vụ xem khi duyệt)
+  batKhaKhang   Boolean             @default(false) @map("bat_kha_khang") // MỚI
   /// DOI_DE_TAI
   tenDeTaiMoi   String?             @map("ten_de_tai_moi") @db.VarChar(500)
   /// GIA_HAN: hạn học tập mới đề nghị
   hanMoiDeNghi  DateTime?           @map("han_moi_de_nghi") @db.Date
+  /// Số tháng xin gia hạn (loại GIA_HAN, tối đa 24 tháng tích lũy)
+  soThangGiaHan Int?                @map("so_thang_gia_han")
   /// DOI_GVHD: phân công bị thay và GVHD mới
   phanCongCuId  String?             @map("phan_cong_cu_id")
   gvhdMoiId     String?             @map("gvhd_moi_id")
@@ -510,45 +521,67 @@ model DeNghiDieuChinh {
   createdAt     DateTime            @default(now()) @map("created_at")
   updatedAt     DateTime            @updatedAt @map("updated_at")
 
-  ncs        NghienCuuSinh      @relation(fields: [ncsId], references: [id], onDelete: Restrict)
-  quyetDinh  QuyetDinh?         @relation(fields: [quyetDinhId], references: [id], onDelete: Restrict)
-  phanCongCu PhanCongHuongDan?  @relation("DeNghiPhanCongCu", fields: [phanCongCuId], references: [id], onDelete: Restrict)
-  gvhdMoi    GiangVienHuongDan? @relation("DeNghiGvhdMoi", fields: [gvhdMoiId], references: [id], onDelete: Restrict)
+  ncs          NghienCuuSinh       @relation(fields: [ncsId], references: [id], onDelete: Restrict)
+  quyetDinh    QuyetDinh?          @relation(fields: [quyetDinhId], references: [id], onDelete: Restrict)
+  phanCongCu   PhanCongHuongDan?   @relation("DeNghiPhanCongCu", fields: [phanCongCuId], references: [id], onDelete: Restrict)
+  gvhdMoi      GiangVienHuongDan?  @relation("DeNghiGvhdMoi", fields: [gvhdMoiId], references: [id], onDelete: Restrict)
+  xacNhanGvhds XacNhanGvhdDeNghi[]
 
   @@index([ncsId, trangThai])
   @@map("de_nghi_dieu_chinh")
+}
+
+/// Ý kiến xác nhận của từng GVHD trong tập thể GVHD cho đơn đề nghị gia hạn (GIA_HAN).
+/// Tất cả GVHD phải đồng ý thì đơn mới chuyển sang Giáo vụ duyệt; nếu bất kỳ GVHD nào từ chối thì đơn chuyển TU_CHOI.
+model XacNhanGvhdDeNghi {
+  id          String            @id @default(uuid())
+  deNghiId    String            @map("de_nghi_id")
+  gvhdId      String            @map("gvhd_id")
+  /// null = chưa xác nhận, true = đồng ý, false = từ chối
+  dongY       Boolean?          @map("dong_y")
+  nhanXet     String?           @map("nhan_xet") @db.Text
+  ngayXacNhan DateTime?         @map("ngay_xac_nhan")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  deNghi DeNghiDieuChinh   @relation(fields: [deNghiId], references: [id], onDelete: Cascade)
+  gvhd   GiangVienHuongDan @relation(fields: [gvhdId], references: [id], onDelete: Restrict)
+
+  @@unique([deNghiId, gvhdId])
+  @@index([gvhdId])
+  @@map("xac_nhan_gvhd_de_nghi")
 }
 
 // ----------------------------------------------------------------------------
 // 5. XÉT TỐT NGHIỆP TỰ ĐỘNG (UC-PHD-12)
 // ----------------------------------------------------------------------------
 model XetTotNghiep {
-  id                     String             @id @default(uuid())
-  ncsId                  String             @unique @map("ncs_id")
+  id                     String    @id @default(uuid())
+  ncsId                  String    @unique @map("ncs_id")
   // Chuẩn đầu ra ngoại ngữ (Giáo vụ xác nhận)
-  datNgoaiNgu            Boolean            @default(false) @map("dat_ngoai_ngu")
-  chuanDauRaNgoaiNgu     String?            @map("chuan_dau_ra_ngoai_ngu") @db.VarChar(100)
-  ngayCongNhanNgoaiNgu   DateTime?          @map("ngay_cong_nhan_ngoai_ngu") @db.Date
-  ngoaiNguGhiChu         String?            @map("ngoai_ngu_ghi_chu") @db.VarChar(500)
-  ngoaiNguNguoiXacNhanId String?            @map("ngoai_ngu_nguoi_xac_nhan_id")
-  ngoaiNguNgayXacNhan    DateTime?          @map("ngoai_ngu_ngay_xac_nhan")
-  ngoaiNguDocumentId     String?            @map("ngoai_ngu_document_id")
+  datNgoaiNgu            Boolean   @default(false) @map("dat_ngoai_ngu")
+  chuanDauRaNgoaiNgu     String?   @map("chuan_dau_ra_ngoai_ngu") @db.VarChar(100)
+  ngayCongNhanNgoaiNgu   DateTime? @map("ngay_cong_nhan_ngoai_ngu") @db.Date
+  ngoaiNguGhiChu         String?   @map("ngoai_ngu_ghi_chu") @db.VarChar(500)
+  ngoaiNguNguoiXacNhanId String?   @map("ngoai_ngu_nguoi_xac_nhan_id")
+  ngoaiNguNgayXacNhan    DateTime? @map("ngoai_ngu_ngay_xac_nhan")
+  ngoaiNguDocumentId     String?   @map("ngoai_ngu_document_id")
   // Nghĩa vụ tài chính / công nợ (Giáo vụ xác nhận)
-  khongConCongNo         Boolean            @default(false) @map("khong_con_cong_no")
-  congNoGhiChu           String?            @map("cong_no_ghi_chu") @db.VarChar(500)
-  congNoNguoiXacNhanId   String?            @map("cong_no_nguoi_xac_nhan_id")
-  congNoNgayXacNhan      DateTime?          @map("cong_no_ngay_xac_nhan")
-  congNoDocumentId       String?            @map("cong_no_document_id")
+  khongConCongNo         Boolean   @default(false) @map("khong_con_cong_no")
+  congNoGhiChu           String?   @map("cong_no_ghi_chu") @db.VarChar(500)
+  congNoNguoiXacNhanId   String?   @map("cong_no_nguoi_xac_nhan_id")
+  congNoNgayXacNhan      DateTime? @map("cong_no_ngay_xac_nhan")
+  congNoDocumentId       String?   @map("cong_no_document_id")
 
-  kiemTraLuc             DateTime?          @map("kiem_tra_luc")
-  trangThai              TrangThaiTotNghiep @default(CHUA_DU_DIEU_KIEN) @map("trang_thai")
-  nguoiDuyetId           String?            @map("nguoi_duyet_id")
-  ngayDuyet              DateTime?          @map("ngay_duyet")
+  kiemTraLuc    DateTime?          @map("kiem_tra_luc")
+  trangThai     TrangThaiTotNghiep @default(CHUA_DU_DIEU_KIEN) @map("trang_thai")
+  nguoiDuyetId  String?            @map("nguoi_duyet_id")
+  ngayDuyet     DateTime?          @map("ngay_duyet")
   /// Ngày hiệu lực công nhận tốt nghiệp theo quyết định (khác ngày Giáo vụ bấm duyệt)
-  ngayTotNghiep          DateTime?          @map("ngay_tot_nghiep") @db.Date
-  quyetDinhId            String?            @map("quyet_dinh_id")
-  createdAt              DateTime           @default(now()) @map("created_at")
-  updatedAt              DateTime           @updatedAt @map("updated_at")
+  ngayTotNghiep DateTime?          @map("ngay_tot_nghiep") @db.Date
+  quyetDinhId   String?            @map("quyet_dinh_id")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
 
   ncs       NghienCuuSinh @relation(fields: [ncsId], references: [id], onDelete: Restrict)
   quyetDinh QuyetDinh?    @relation(fields: [quyetDinhId], references: [id], onDelete: Restrict)

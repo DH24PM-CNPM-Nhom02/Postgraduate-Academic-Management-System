@@ -43,3 +43,30 @@ export function chuanHoaChuoi(chuoi: string): string {
     .replace(/đ/g, 'd')
     .trim();
 }
+
+/** Trừ n tháng khỏi một ngày */
+export function truThang(ngay: Date, n: number): Date {
+  const d = new Date(ngay);
+  const ngayGoc = d.getDate();
+  d.setMonth(d.getMonth() - n);
+  if (d.getDate() !== ngayGoc) {
+    d.setDate(0);
+  }
+  return d;
+}
+
+/** Cộng n tháng vào một ngày */
+export function congThang(ngay: Date, n: number): Date {
+  const d = new Date(ngay);
+  const ngayGoc = d.getDate();
+  d.setMonth(d.getMonth() + n);
+  if (d.getDate() !== ngayGoc) {
+    d.setDate(0);
+  }
+  return d;
+}
+
+/** So sánh tên đề tài: bỏ khoảng trắng thừa, không phân biệt hoa thường, vẫn giữ dấu */
+export function chuanHoa(s: string): string {
+  return s.trim().replace(/\s+/g, ' ').toLowerCase();
+}

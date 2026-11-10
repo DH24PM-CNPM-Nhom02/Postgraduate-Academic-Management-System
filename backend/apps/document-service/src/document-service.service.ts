@@ -46,8 +46,8 @@ export class DocumentServiceService {
         throw new RpcException({ statusCode: 400, message: 'Minh chứng phải kèm ncsId của NCS' });
       }
     } else {
-      if (d.documentType !== 'MINH_CHUNG_MOC') {
-        throw new RpcException({ statusCode: 403, message: 'NCS chỉ được tải lên minh chứng' });
+      if (d.documentType !== 'MINH_CHUNG_MOC' && d.documentType !== 'DON_TU') {
+        throw new RpcException({ statusCode: 403, message: 'NCS chỉ được tải lên minh chứng, đơn từ' });
       }
       if (!d.nguoiDung.ncsId) {
         throw new RpcException({ statusCode: 403, message: 'Bạn chưa có hồ sơ NCS' });

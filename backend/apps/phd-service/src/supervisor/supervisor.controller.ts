@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import type { ImportGvhdRow, UpdateGvhdDto, UpdateGvhdStatusDto } from '../../../../lib/contracts/src/dto/gvhd.dto.js';
-import type { CreateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
+import type { CreateAssignmentDto, DeactivateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
 import { SupervisorService } from './supervisor.service.js';
 // import { GvhdImportService } from './gvhd-import.service.js';
 
@@ -45,14 +45,19 @@ export class SupervisorController {
     return this.gvhd.getMyNcsDetail(d.userId, d.ncsId);
   }
 
+  @MessagePattern({ cmd: 'phd.gvhd.my-supervisors' })
+  getMySupervisors(@Payload() d: { userId: string }) {
+    return this.gvhd.getMySupervisors(d.userId);
+  }
+
   @MessagePattern({ cmd: 'phd.gvhd.assignment-create' })
   createAssignment(@Payload() d: { actorId: string; data: CreateAssignmentDto }) {
     return this.gvhd.createAssignment(d.actorId, d.data);
   }
 
   @MessagePattern({ cmd: 'phd.gvhd.assignment-deactivate' })
-  deactivateAssignment(@Payload() d: { actorId: string; id: string }) {
-    return this.gvhd.deactivateAssignment(d.actorId, d.id);
+  deactivateAssignment(@Payload() d: { actorId: string; id: string; data: DeactivateAssignmentDto }) {
+    return this.gvhd.deactivateAssignment(d.actorId, d.id, d.data.lyDo);
   }
 
   @MessagePattern({ cmd: 'phd.gvhd.assignment-list' })
