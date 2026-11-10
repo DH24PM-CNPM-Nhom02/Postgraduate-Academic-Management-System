@@ -53,6 +53,23 @@ Cờ `coTheNop` do server tính sẵn (`true` khi mốc là `UNLOCKED` hoặc `R
 
 `PENDING_REVIEW` (đang chờ duyệt), `PASSED` (đã được duyệt), `REJECTED` (bị từ chối, kèm `lyDoTuChoi`).
 
+### 1.3 Cơ chế Phân trang Linh hoạt (Hybrid Pagination) cho các API danh sách
+
+Nhằm hỗ trợ tốt nhất cho Frontend sử dụng **TanStack Table** và tối ưu hiệu năng:
+- **Mặc định (khi FE KHÔNG truyền `page` và `limit`):** Backend trả về **mảng thuần `T[]`** chứa toàn bộ dữ liệu. FE sử dụng tính năng phân trang, tìm kiếm, lọc trực tiếp tại Client-side (TanStack Table client-side row models) với tốc độ phản hồi 0ms.
+- **Khi truyền `page` và `limit` (ví dụ `?page=1&limit=20`):** Backend tự động chuyển sang phân trang Server-side và trả về định dạng chuẩn:
+  ```json
+  {
+    "data": [ ... ],
+    "total": 120,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 6
+  }
+  ```
+- Cơ chế này áp dụng cho: `GET /ncs`, `GET /progress/pending`, `GET /decisions`, `GET /graduation`.
+- **Lưu ý quan trọng cho FE khi gọi Dropdown / Modal chọn dữ liệu:** Tuyệt đối không truyền `page`/`limit` (để nhận toàn bộ danh sách) khi nạp danh sách chọn NCS hoặc danh sách chọn Quyết định.
+
 ---
 
 ## 2. Bản đồ ID
@@ -208,6 +225,8 @@ Lỗi thường gặp:
 ### 5.1 Hàng chờ duyệt: `GET /progress/pending`
 
 Danh sách các mốc đang `PENDING_REVIEW`, sắp **nộp trước xếp trước**.
+- **Query parameters (tùy chọn):** `page`, `limit` (mặc định không truyền để FE nhận toàn bộ mảng cho TanStack Table client-side, hoặc truyền `?page=1&limit=20` để phân trang server-side).
+- **Cấu trúc dữ liệu mặc định (mảng `T[]`):**
 
 ```json
 [
@@ -224,6 +243,7 @@ Danh sách các mốc đang `PENDING_REVIEW`, sắp **nộp trước xếp trư�
   }
 ]
 ```
+*(Nếu truyền `page` và `limit`, dữ liệu sẽ được bọc trong object chuẩn `{ data, total, page, limit, totalPages }`)*.
 
 Cột gợi ý: MSHV, họ tên, lớp, mốc, lần nộp, ngày nộp. Nếu `moc.yeuCauDiem` thì thêm cột "Phiếu: 2/3" (đọc từ `minhChungMoiNhat._count.phieuNhanXets`, tối thiểu 3). Bấm vào dòng thì mở màn chi tiết duyệt.
 
@@ -330,7 +350,7 @@ Sau khi duyệt hoặc từ chối, quay về hàng chờ và gọi lại `GET /
 | Việc | API |
 | :---- | :---- |
 | Tạo (một hoặc nhiều NCS) | (Không bắt buộc) upload PDF `documentType = QUYET_DINH` để lấy `fileId`, rồi `POST /decisions` |
-| Danh sách | `GET /decisions?ncsId=&loai=&trangThai=&soQuyetDinh=` (cả 4 tham số đều tùy chọn) |
+| Danh sách | `GET /decisions?ncsId=&loai=&trangThai=&soQuyetDinh=&page=&limit=` (Hybrid pagination: không truyền `page/limit` để nhận mảng `T[]` phục vụ TanStack Table hoặc Dropdown căn cứ mốc; truyền `page/limit` để nhận `{ data, total, page, limit, totalPages }`) |
 | Chi tiết | `GET /decisions/:id` |
 | Vô hiệu hóa | `PATCH /decisions/:id/deactivate` với body `{ "lyDo": "…" }` (một số loại có hoàn tác trạng thái NCS, xem mục h) |
 
@@ -460,7 +480,8 @@ Chia 11 loại quyết định thành 4 nhóm nghiệp vụ:
 | **D. Chỉ lưu quyết định** | `GIAO_DE_TAI`, `PHAN_CONG_GVHD`, `THANH_LAP_TIEU_BAN`, `CAN_CU_DUYET_MOC`, `CONG_NHAN_TOT_NGHIEP`, `KHAC` | Tùy chọn | Công tắc "Áp dụng cho NCS cụ thể / Chung" |
 
 **Nguồn dữ liệu danh sách NCS (`GET /ncs`):**
-FE gọi `GET /ncs` để lấy toàn bộ danh sách NCS cho ô Multi-Select. API trả về các trường cần thiết:
+FE gọi `GET /ncs` để lấy toàn bộ danh sách NCS cho ô Multi-Select (lưu ý: **không truyền `page`/`limit`** để API trả về toàn bộ mảng `T[]` phục vụ tìm kiếm/chọn nhiều NCS trên client-side). Nếu dùng cho màn hình bảng danh sách lớn, API hỗ trợ thêm các query tùy chọn: `trangThai`, `khoaHocId`, `nganhId`, `page`, `limit`.
+API trả về các trường cần thiết:
 - `id`, `mshv`, `hoTen`, `lop`, `trangThai`
 - `hanChinhQuy`, `hanGiaHan`, `hanBuocThoiHoc`
 - **Hạn hiện tại** = `hanGiaHan ?? hanChinhQuy`
@@ -709,7 +730,7 @@ Server đánh giá 6 điều kiện dựa trên hồ sơ NCS (`tinhKetQuaTotNghi
 
 | Phương thức & Endpoint | Quyền | Mục đích |
 | :---- | :---- | :---- |
-| `GET /graduation` | `GRADUATION_CHECK` | Danh sách NCS đã hoàn tất các mốc. Query `?duDieuKien=true` hoặc `?duDieuKien=false` |
+| `GET /graduation` | `GRADUATION_CHECK` | Danh sách NCS đã hoàn tất các mốc. Query: `duDieuKien` (`true`/`false`), `page`, `limit` (Hybrid pagination) |
 | `GET /graduation/ncs/:ncsId` | `GRADUATION_CHECK` | Xem chi tiết kết quả 6 điều kiện xét tốt nghiệp của 1 NCS |
 | `PUT /graduation/ncs/:ncsId/ngoai-ngu` | `GRADUATION_CHECK` | Giáo vụ xác nhận kết quả chuẩn đầu ra ngoại ngữ |
 | `PUT /graduation/ncs/:ncsId/cong-no` | `GRADUATION_CHECK` | Giáo vụ xác nhận tình trạng công nợ của NCS |
@@ -837,17 +858,17 @@ Xác nhận cho 1 hoặc nhiều NCS cùng lúc:
 | **NCS, GVHD, Giáo vụ** | `GET /notifications/unread-count` | Mọi user đã đăng nhập | Số lượng thông báo chưa đọc (cho Badge chuông) |
 | **NCS, GVHD, Giáo vụ** | `PATCH /notifications/:id/read` | Mọi user đã đăng nhập | Đánh dấu 1 thông báo đã đọc |
 | **NCS, GVHD, Giáo vụ** | `PATCH /notifications/read-all` | Mọi user đã đăng nhập | Đánh dấu tất cả thông báo đã đọc |
-| **Giáo vụ** | `GET /ncs` | `NCS_READ` | Danh sách NCS kèm trạng thái, hạn chính quy, gia hạn, hạn 72 tháng |
+| **Giáo vụ** | `GET /ncs` | `NCS_READ` | Danh sách NCS (Hybrid pagination: query `trangThai`, `khoaHocId`, `nganhId`, `page`, `limit`) |
 | **Giáo vụ** | `DELETE /documents/:id` | `DOCUMENT_DELETE` | Xóa file PDF rác chưa gắn nghiệp vụ |
-| **Giáo vụ** | `GET /progress/pending` | `MILESTONE_APPROVE` | Hàng đợi mốc chờ duyệt |
+| **Giáo vụ** | `GET /progress/pending` | `MILESTONE_APPROVE` | Hàng đợi mốc chờ duyệt (Hybrid pagination: query `page`, `limit`) |
 | **Giáo vụ** | `GET /progress/ncs/:ncsId` | `MILESTONE_APPROVE` | Xem lịch sử 9 mốc của 1 NCS |
 | **Giáo vụ** | `GET, POST /progress/evidences/:minhChungId/evaluations` | `MILESTONE_APPROVE` | Xem / Nhập phiếu nhận xét chấm điểm (mốc 2, 4, 5) |
 | **Giáo vụ** | `POST /progress/reviews/:tienTrinhId/approve` | `MILESTONE_APPROVE` | Duyệt đạt mốc tiến trình (kèm quyetDinhId) |
 | **Giáo vụ** | `POST /progress/reviews/:tienTrinhId/reject` | `MILESTONE_REJECT` | Từ chối mốc tiến trình (kèm lý do) |
 | **Giáo vụ** | `POST /decisions` | `DECISION_CREATE` | Tạo quyết định (1 hoặc nhiều NCS, có thể đổi trạng thái NCS) |
-| **Giáo vụ** | `GET /decisions`, `GET /decisions/:id` | `DECISION_READ` | Danh sách quyết định (lọc số QĐ, loại, NCS...) / Chi tiết |
+| **Giáo vụ** | `GET /decisions`, `GET /decisions/:id` | `DECISION_READ` | Danh sách quyết định (Hybrid pagination: query `ncsId`, `loai`, `trangThai`, `soQuyetDinh`, `page`, `limit`) / Chi tiết |
 | **Giáo vụ** | `PATCH /decisions/:id/deactivate` | `DECISION_UPDATE` | Vô hiệu hóa quyết định (hoàn tác trạng thái hồ sơ NCS nếu có) |
-| **Giáo vụ** | `GET /graduation` | `GRADUATION_CHECK` | Danh sách NCS xét tốt nghiệp (lọc `duDieuKien`) |
+| **Giáo vụ** | `GET /graduation` | `GRADUATION_CHECK` | Danh sách NCS xét tốt nghiệp (Hybrid pagination: query `duDieuKien`, `page`, `limit`) |
 | **Giáo vụ** | `GET /graduation/ncs/:ncsId` | `GRADUATION_CHECK` | Chi tiết kết quả 6 điều kiện xét tốt nghiệp của 1 NCS |
 | **Giáo vụ** | `PUT /graduation/ncs/:ncsId/ngoai-ngu` | `GRADUATION_CHECK` | Xác nhận chuẩn đầu ra ngoại ngữ |
 | **Giáo vụ** | `PUT /graduation/ncs/:ncsId/cong-no` | `GRADUATION_CHECK` | Xác nhận tình trạng công nợ tài chính |

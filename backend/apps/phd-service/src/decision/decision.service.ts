@@ -5,6 +5,8 @@ import { goiService } from '../helpers/call-service.util.js';
 import type { LoaiQuyetDinh, TrangThaiQuyetDinh, TrangThaiHocTap } from '../generated/prisma/index.js';
 import { ngayChuoi, parseNgay } from '../helpers/validateData.util.js';
 import { NotificationClient } from '../notification/notification.client.js';
+import type { ListDecisionQueryDto } from '../../../../lib/contracts/src/dto/decision.dto.js';
+import { paginatePrisma } from '../helpers/pagination.util.js';
 
 // Loại quyết định làm đổi trạng thái học tập của NCS -> trạng thái mới
 const TRANG_THAI_MOI: Partial<Record<LoaiQuyetDinh, TrangThaiHocTap>> = {
@@ -293,8 +295,10 @@ export class DecisionService {
 
     }
 
-    getListDecision(f: { ncsId?: string; soQuyetDinh?: string; loai?: string; trangThai?: string }) {
-        return this.prisma.quyetDinh.findMany({
+    getListDecision(f: ListDecisionQueryDto) {
+        return paginatePrisma(this.prisma.quyetDinh, {
+            page: f.page,
+            limit: f.limit,
             // Giá trị undefined thì Prisma bỏ qua điều kiện đó
             where: {
                 ncsId: f.ncsId,

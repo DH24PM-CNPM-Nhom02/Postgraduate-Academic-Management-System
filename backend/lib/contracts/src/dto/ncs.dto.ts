@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
-import { ArrayMinSize, ArrayMaxSize, IsDateString, IsEmail, IsIn, IsOptional, IsString, Length, Matches, ValidateNested } from 'class-validator';
+import { ArrayMinSize, ArrayMaxSize, IsDateString, IsEmail, IsIn, IsOptional, IsString, IsUUID, Length, Matches, ValidateNested } from 'class-validator';
+import { PaginationQueryDto } from './pagination.dto.js';
 export const TRINH_DO_DAU_VAO = ['THAC_SI', 'DAI_HOC'] as const;
 export const PHUONG_THUC_DAO_TAO = ['PHUONG_THUC_1', 'PHUONG_THUC_2'] as const;
 export const GIOI_TINH = ['NAM', 'NU'] as const;
@@ -139,3 +140,18 @@ export type ImportNcsRow = {
   trinhDoDauVao: string;   // THAC_SI | DAI_HOC
   phuongThucDaoTao: string; // PHUONG_THUC_1 | PHUONG_THUC_2
 };
+
+
+export class ListNcsQueryDto extends PaginationQueryDto {
+  @IsOptional()
+  @IsString()
+  trangThai?: string;
+
+  @IsOptional()
+  @IsUUID()
+  khoaHocId?: string;
+
+  @IsOptional()
+  @IsString()
+  nganhId?: string;
+}

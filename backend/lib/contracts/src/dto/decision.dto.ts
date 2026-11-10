@@ -1,4 +1,5 @@
 import { IsArray, IsIn, IsOptional, IsString, IsUUID, Length, Matches, MaxLength } from 'class-validator';
+import { PaginationQueryDto } from './pagination.dto.js';
 
 export const LOAI_QUYET_DINH = [
   'GIAO_DE_TAI', 'PHAN_CONG_GVHD', 'THANH_LAP_TIEU_BAN', 'CAN_CU_DUYET_MOC',
@@ -42,7 +43,7 @@ export class CreateDecisionDto {
   hanMoi?: string;
 }
 
-export class ListDecisionQueryDto {
+export class ListDecisionQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsUUID()
   ncsId?: string;

@@ -1,5 +1,6 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
+import type { ListDecisionQueryDto } from '../../../../lib/contracts/src/dto/decision.dto.js';
 import { DecisionService } from './decision.service.js';
 
 @Controller()
@@ -15,7 +16,7 @@ export class DecisionController {
   }
 
   @MessagePattern({ cmd: 'phd.decision.list' })
-  getListDecision(@Payload() d: { ncsId?: string; loai?: string; trangThai?: string }) {
+  getListDecision(@Payload() d: ListDecisionQueryDto) {
     return this.decision.getListDecision(d);
   }
 

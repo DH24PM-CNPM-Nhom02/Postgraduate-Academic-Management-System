@@ -56,3 +56,8 @@ export class SetPlanDeadlineDto {
   @IsDateString({ strict: true })
   hanKeHoach!: string | null;
 }
+
+
+import { PaginationQueryDto } from './pagination.dto.js';
+
+export class ListPendingMilestonesQueryDto extends PaginationQueryDto {}

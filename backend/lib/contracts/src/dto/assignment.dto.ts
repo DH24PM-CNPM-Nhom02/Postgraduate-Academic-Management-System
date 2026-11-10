@@ -1,4 +1,5 @@
 import { IsIn, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import { PaginationQueryDto } from './pagination.dto.js';
 
 export const VAI_TRO_HUONG_DAN = ['HUONG_DAN_CHINH', 'DONG_HUONG_DAN'] as const;
 export type VaiTroHuongDanValue = (typeof VAI_TRO_HUONG_DAN)[number];
@@ -31,7 +32,7 @@ export class DeactivateAssignmentDto {
   lyDo!: string;
 }
 
-export class ListAssignmentQueryDto {
+export class ListAssignmentQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsUUID()
   ncsId?: string;

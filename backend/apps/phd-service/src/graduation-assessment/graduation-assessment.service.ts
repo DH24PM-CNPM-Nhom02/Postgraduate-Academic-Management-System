@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { ClientProxy, RpcException } from "@nestjs/microservices";
 import { PrismaService } from "../prisma/prisma.service.js";
-import { XacNhanCongNoDto, XacNhanNgoaiNguDto } from "../../../../lib/contracts/src/dto/graduation-assessment.dto.js";
+import { ListXetTotNghiepQueryDto, XacNhanCongNoDto, XacNhanNgoaiNguDto } from "../../../../lib/contracts/src/dto/graduation-assessment.dto.js";
 import { goiService } from "../helpers/call-service.util.js";
 import { tinhKetQuaTotNghiep, TRANG_THAI_DUOC_XET } from "./confirm-graduation.js";
 import { ngayChuoi, parseNgay } from "../helpers/validateData.util.js";
@@ -73,7 +73,7 @@ export class GraduationAssessmentService {
 
     // ===== Danh sách NCS đã xong các mốc để Giáo vụ xét tốt nghiệp =====
     // duDieuKien = 'true' chỉ lấy NCS đủ điều kiện, 'false' chỉ lấy NCS còn thiếu, bỏ trống thì lấy cả hai
-    async danhSach(d: { duDieuKien?: string }) {
+    async danhSach(d: ListXetTotNghiepQueryDto) {
         const tongMoc = await this.prisma.mocTienTrinh.count();
 
         // Chỉ lấy NCS đang học (hoặc gia hạn) mà tất cả mốc đã PASSED
@@ -108,7 +108,24 @@ export class GraduationAssessmentService {
         let ketQua = dsNcs.map((ncs) => tinhKetQuaTotNghiep(ncs, tongMoc, soDeNghiCho.get(ncs.id) ?? 0));
         if (d.duDieuKien === 'true') ketQua = ketQua.filter((k) => k.duDieuKien);
         if (d.duDieuKien === 'false') ketQua = ketQua.filter((k) => !k.duDieuKien);
-        return ketQua;
+
+        const wantPagination = d.page != null && d.limit != null;
+        if (!wantPagination) {
+            return ketQua;
+        }
+
+        const total = ketQua.length;
+        const page = Math.max(1, Number(d.page));
+        const limit = Math.min(100, Math.max(1, Number(d.limit)));
+        const data = ketQua.slice((page - 1) * limit, page * limit);
+
+        return {
+            data,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit) || 1,
+        };
     }
 
     async xacNhanNgoaiNgu(ncsId: string, dto: XacNhanNgoaiNguDto, nguoiXacNhanId: string) {

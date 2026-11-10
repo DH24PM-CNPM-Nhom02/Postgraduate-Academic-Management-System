@@ -1,11 +1,11 @@
-import { BadRequestException, Body, Controller, Get, Inject, Param, ParseIntPipe, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Inject, Param, ParseIntPipe, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator.js';
 import { PHD_SERVICE } from '../common/constants/service.js';
 import type { AuthUser } from '../common/interface/auth-user.interface.js';
-import { SubmitMilestoneDto, ApproveMilestoneDto, RejectMilestoneDto, CreateEvaluationDto, SetPlanDeadlineDto } from '../../../../lib/contracts/src/dto/progress.dto.js';
+import { SubmitMilestoneDto, ApproveMilestoneDto, RejectMilestoneDto, CreateEvaluationDto, SetPlanDeadlineDto, ListPendingMilestonesQueryDto } from '../../../../lib/contracts/src/dto/progress.dto.js';
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
 
 @Controller('progress')
@@ -46,8 +46,8 @@ export class ProgressController {
   // Giáo vụ: danh sách mốc chờ duyệt
   @Get('pending')
   @RequirePermissions(PERMISSIONS.MILESTONE_APPROVE)
-  pending() {
-    return this.send('phd.progress.pending', {});
+  pending(@Query() query: ListPendingMilestonesQueryDto) {
+    return this.send('phd.progress.pending', { query });
   }
 
   // Giáo vụ: tiến trình của một NCS

@@ -6,7 +6,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator.js';
 import { PHD_SERVICE } from '../common/constants/service.js';
 import type { AuthUser } from '../common/interface/auth-user.interface.js';
-import { CreateGvhdBatchDto, UpdateGvhdDto, UpdateGvhdStatusDto } from '../../../../lib/contracts/src/dto/gvhd.dto.js';
+import { CreateGvhdBatchDto, ListGvhdQueryDto, UpdateGvhdDto, UpdateGvhdStatusDto } from '../../../../lib/contracts/src/dto/gvhd.dto.js';
 import { CreateAssignmentDto, DeactivateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
 import { buildGvhdTemplate, parseGvhdExcel } from './gvhd-excel.js';
@@ -73,8 +73,8 @@ export class GvhdController {
 
   @Get()
   @RequirePermissions(PERMISSIONS.GVHD_READ)
-  list() {
-    return this.send('phd.gvhd.list', {});
+  list(@Query() query: ListGvhdQueryDto) {
+    return this.send('phd.gvhd.list', { query });
   }
 
   @Get('me')

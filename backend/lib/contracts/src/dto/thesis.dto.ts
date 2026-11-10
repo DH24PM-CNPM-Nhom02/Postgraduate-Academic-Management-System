@@ -1,4 +1,5 @@
 import { IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { PaginationQueryDto } from './pagination.dto.js';
 
 export class AssignThesisDto {
   @IsUUID()
@@ -19,7 +20,7 @@ export class DeactivateThesisAssignmentDto {
   lyDo!: string;
 }
 
-export class ThesisListQueryDto {
+export class ThesisListQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsUUID()
   khoaHocId?: string;
