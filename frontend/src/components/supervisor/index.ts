@@ -11,3 +11,5 @@ export { StudentListTable } from "./student-list-table";
 export { StudentProgressDrawer } from "./student-progress-drawer";
 export { SupervisorDashboardContainer } from "./supervisor-dashboard-container";
 export type { SupervisorDashboardContainerProps } from "./supervisor-dashboard-container";
+export { MySupervisorList } from "./MySupervisorList";
+export type { MySupervisorListProps } from "./MySupervisorList";

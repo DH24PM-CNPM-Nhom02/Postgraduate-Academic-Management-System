@@ -2,16 +2,15 @@
 
 import React, { useState } from "react";
 import {
-  Award,
-  FileText,
-  CheckCircle2,
   AlertCircle,
+  Award,
+  CheckCircle2,
+  FileText,
   ShieldCheck,
-  X,
-  Loader2,
   UserCheck,
 } from "lucide-react";
-import { PhieuNhanXetItem } from "@/src/types/progress";
+import { PdfViewer } from "@/src/components/upload/PdfViewer";
+import type { PhieuNhanXetItem } from "@/src/types/ui/progress";
 
 interface EvaluationReviewsSectionProps {
   yeuCauDiem: boolean;
@@ -29,10 +28,7 @@ export function EvaluationReviewsSection({
   const [selectedPhieu, setSelectedPhieu] = useState<PhieuNhanXetItem | null>(
     null
   );
-  const [isLoadingFile, setIsLoadingFile] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
 
-  // Chỉ hiển thị cho các mốc có cờ yeuCauDiem = true (Mốc 2, 4, 5...)
   if (!yeuCauDiem) {
     return null;
   }
@@ -40,141 +36,131 @@ export function EvaluationReviewsSection({
   const numericScore = diemTrungBinh ? Number(diemTrungBinh) : null;
   const isPassedScore = numericScore !== null && numericScore >= 7.0;
 
-  const handleOpenPdf = (phieu: PhieuNhanXetItem) => {
-    setSelectedPhieu(phieu);
-    setIsLoadingFile(true);
-    setPreviewOpen(true);
-    setTimeout(() => {
-      setIsLoadingFile(false);
-    }, 300);
-  };
-
   return (
-    <div className="mt-3.5 pt-3.5 border-t border-slate-200/80 space-y-3">
-      {/* 1. Header Section Kết quả đánh giá */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
-        <div className="flex items-center gap-2">
-          <div className="size-7 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center shrink-0">
-            <Award className="size-4" />
+    <div className="mt-4 space-y-3 border-t border-border pt-4">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-[#164E9B]">
+            <Award className="size-4" aria-hidden="true" />
           </div>
           <div>
-            <h4 className="text-xs sm:text-sm font-bold text-slate-900 tracking-tight">
+            <h4 className="text-xs font-bold tracking-tight text-[#0F2744] sm:text-sm">
               Kết quả đánh giá / Phiếu nhận xét (Mốc {thuTuMoc})
             </h4>
-            <p className="text-[11px] text-slate-500 font-normal">
+            <p className="text-xs text-muted-foreground">
               Biên bản và phiếu đánh giá chính thức của Hội đồng chuyên môn
             </p>
           </div>
         </div>
 
-        {/* 2. Badge nổi bật Điểm trung bình: X/10 */}
         {numericScore !== null ? (
           <div
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border shadow-2xs font-mono transition-all ${
+            className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 font-mono ${
               isPassedScore
-                ? "bg-emerald-50 text-emerald-950 border-emerald-300 ring-1 ring-emerald-500/20"
-                : "bg-rose-50 text-rose-950 border-rose-300 ring-1 ring-rose-500/20"
+                ? "border-emerald-300 bg-emerald-50 text-emerald-950"
+                : "border-rose-300 bg-rose-50 text-rose-950"
             }`}
           >
             <div className="flex items-center gap-1.5">
               {isPassedScore ? (
-                <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
+                <CheckCircle2
+                  className="size-4 shrink-0 text-emerald-600"
+                  aria-hidden="true"
+                />
               ) : (
-                <AlertCircle className="size-4 text-rose-600 shrink-0" />
+                <AlertCircle
+                  className="size-4 shrink-0 text-rose-600"
+                  aria-hidden="true"
+                />
               )}
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+              <span className="text-xs font-semibold text-foreground">
                 Điểm trung bình:
               </span>
             </div>
             <span
-              className={`text-sm sm:text-base font-black ${
+              className={`text-sm font-bold tabular-nums sm:text-base ${
                 isPassedScore ? "text-emerald-700" : "text-rose-700"
               }`}
             >
               {numericScore.toFixed(1)} / 10.0
             </span>
             <span
-              className={`text-[10px] font-bold px-1.5 py-0.2 rounded-md ${
+              className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${
                 isPassedScore
                   ? "bg-emerald-200/70 text-emerald-900"
                   : "bg-rose-200/70 text-rose-900"
               }`}
             >
-              {isPassedScore ? "ĐẠT (≥ 7.0)" : "CHƯA ĐẠT (< 7.0)"}
+              {isPassedScore ? "ĐẠT (>= 7.0)" : "CHƯA ĐẠT (< 7.0)"}
             </span>
           </div>
         ) : (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold">
+          <div className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
             <span>Chờ Hội đồng chấm điểm</span>
           </div>
         )}
       </div>
 
-      {/* 3. Danh sách Phiếu nhận xét của Hội đồng (Tối thiểu 3 phiếu) */}
       {phieuNhanXets.length > 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs">
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full border-collapse text-left text-xs">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th scope="col" className="py-2.5 px-3 sm:px-4">
+                <tr className="border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground">
+                  <th scope="col" className="px-3 py-2.5 sm:px-4">
                     Thành viên Hội đồng / Người chấm
                   </th>
-                  <th scope="col" className="py-2.5 px-3 text-center">
+                  <th scope="col" className="px-3 py-2.5 text-center">
                     Điểm số
                   </th>
-                  <th scope="col" className="py-2.5 px-3 hidden sm:table-cell">
+                  <th scope="col" className="hidden px-3 py-2.5 sm:table-cell">
                     Thời gian chấm
                   </th>
-                  <th scope="col" className="py-2.5 px-3 sm:px-4 text-right">
+                  <th scope="col" className="px-3 py-2.5 text-right sm:px-4">
                     Tệp đính kèm
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-border">
                 {phieuNhanXets.map((phieu, idx) => (
                   <tr
                     key={phieu.id || idx}
-                    className="hover:bg-slate-50/70 transition-colors"
+                    className="transition-colors hover:bg-muted/30"
                   >
-                    {/* Cột 1: Tên & Chức danh người chấm */}
-                    <td className="py-2.5 px-3 sm:px-4">
+                    <td className="px-3 py-2.5 sm:px-4">
                       <div className="flex items-center gap-2.5">
-                        <div className="size-7 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
+                        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 font-mono text-xs font-bold text-[#164E9B]">
                           {idx + 1}
                         </div>
                         <div>
-                          <p className="font-bold text-slate-900">
+                          <p className="font-bold text-foreground">
                             {phieu.tenNguoiCham}
                           </p>
-                          <p className="text-[11px] font-medium text-slate-500">
+                          <p className="text-xs text-muted-foreground">
                             {phieu.chucDanh}
                           </p>
                         </div>
                       </div>
                     </td>
 
-                    {/* Cột 2: Điểm số */}
-                    <td className="py-2.5 px-3 text-center">
-                      <span className="font-mono font-black text-xs sm:text-sm px-2 py-0.5 rounded-md bg-slate-100 text-slate-900 border border-slate-200">
+                    <td className="px-3 py-2.5 text-center">
+                      <span className="rounded-md border border-border bg-muted/40 px-2 py-0.5 font-mono text-xs font-bold tabular-nums text-foreground sm:text-sm">
                         {phieu.diem.toFixed(1)}
                       </span>
                     </td>
 
-                    {/* Cột 3: Thời gian */}
-                    <td className="py-2.5 px-3 text-slate-500 font-mono text-[11px] hidden sm:table-cell">
+                    <td className="hidden px-3 py-2.5 font-mono text-xs tabular-nums text-muted-foreground sm:table-cell">
                       {phieu.ngayDanhGia || "Đã nghiệm thu"}
                     </td>
 
-                    {/* Cột 4: Nút Xem phiếu (PDF) */}
-                    <td className="py-2.5 px-3 sm:px-4 text-right">
+                    <td className="px-3 py-2.5 text-right sm:px-4">
                       <button
                         type="button"
-                        onClick={() => handleOpenPdf(phieu)}
+                        onClick={() => setSelectedPhieu(phieu)}
                         title={`Xem ${phieu.fileName || "Phiếu nhận xét"}`}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-[#164E9B] font-semibold text-xs transition-colors border border-indigo-200/60 shadow-2xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#164E9B]"
+                        className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/70 px-3 py-1.5 text-xs font-semibold text-[#164E9B] transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] cursor-pointer"
                       >
-                        <FileText className="size-3.5 text-[#164E9B]" />
+                        <FileText className="size-3.5" aria-hidden="true" />
                         <span>Xem phiếu (PDF)</span>
                       </button>
                     </td>
@@ -184,130 +170,51 @@ export function EvaluationReviewsSection({
             </table>
           </div>
 
-          <div className="px-3.5 py-2 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-muted/25 px-3.5 py-2 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <ShieldCheck className="size-3.5 text-emerald-600" />
+              <ShieldCheck
+                className="size-3.5 text-[#164E9B]"
+                aria-hidden="true"
+              />
               <span>Chế độ xem tài liệu lưu trữ chính thức (Read-only)</span>
             </span>
-            <span className="font-mono">
+            <span className="font-mono tabular-nums">
               Tổng số: {phieuNhanXets.length} phiếu đánh giá
             </span>
           </div>
         </div>
       ) : (
-        <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-500 flex items-center gap-2">
-          <UserCheck className="size-4 text-slate-400 shrink-0" />
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-3.5 text-xs text-muted-foreground">
+          <UserCheck className="size-4 shrink-0" aria-hidden="true" />
           <span>
-            Hội đồng chấm điểm mốc này đang trong quá trình tổng hợp và số hóa phiếu nhận xét.
+            Hội đồng chấm điểm mốc này đang trong quá trình tổng hợp và số hóa
+            phiếu nhận xét.
           </span>
         </div>
       )}
 
-      {/* Modal Preview PDF cho Phiếu nhận xét */}
-      {previewOpen && selectedPhieu && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs animate-in fade-in duration-200"
-          onClick={() => setPreviewOpen(false)}
-        >
-          <div
-            className="relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header modal */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-slate-50/80">
-              <div className="flex items-center gap-3">
-                <div className="size-9 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center shrink-0">
-                  <FileText className="size-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">
-                    {selectedPhieu.fileName || "Phiếu nhận xét đánh giá"}
-                  </h3>
-                  <p className="text-[11px] text-slate-500">
-                    Người chấm: <strong>{selectedPhieu.tenNguoiCham}</strong> ({selectedPhieu.chucDanh}) • Điểm: <strong>{selectedPhieu.diem.toFixed(1)}/10.0</strong>
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setPreviewOpen(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors"
-                aria-label="Đóng xem trước"
-              >
-                <X className="size-4.5" />
-              </button>
-            </div>
-
-            {/* Nội dung xem trước mô phỏng chuẩn Form đánh giá học thuật */}
-            <div className="flex-1 p-6 overflow-y-auto bg-slate-100/60 flex flex-col items-center justify-center min-h-[340px]">
-              {isLoadingFile ? (
-                <div className="flex flex-col items-center gap-2">
-                  <Loader2 className="size-8 animate-spin text-[#164E9B]" />
-                  <p className="text-xs text-slate-500">Đang chuẩn bị bản xem trước...</p>
-                </div>
-              ) : (
-                <div className="w-full max-w-lg bg-white rounded-2xl shadow-xs border border-slate-200 p-6 space-y-4">
-                  <div className="text-center border-b border-slate-100 pb-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      ĐẠI HỌC QUỐC GIA TP. HỒ CHÍ MINH
-                    </p>
-                    <p className="text-xs font-black text-slate-900 uppercase">
-                      TRƯỜNG ĐẠI HỌC AN GIANG • PHÒNG ĐÀO TẠO SĐH
-                    </p>
-                    <h4 className="text-sm font-bold text-[#164E9B] mt-2">
-                      PHIẾU ĐÁNH GIÁ CHUYÊN MÔN TIẾN TIẾN SĨ
-                    </h4>
-                    <p className="text-[11px] text-slate-500 font-mono">
-                      Biểu mẫu số: BM-SDH-04/BR-08
-                    </p>
-                  </div>
-
-                  <div className="space-y-2 text-xs text-slate-700 leading-relaxed bg-slate-50/70 p-3.5 rounded-xl border border-slate-200/60">
-                    <p>
-                      <strong className="text-slate-900">Thành viên chấm:</strong>{" "}
-                      {selectedPhieu.tenNguoiCham}
-                    </p>
-                    <p>
-                      <strong className="text-slate-900">Vai trò Hội đồng:</strong>{" "}
-                      {selectedPhieu.chucDanh}
-                    </p>
-                    <p>
-                      <strong className="text-slate-900">Điểm đánh giá:</strong>{" "}
-                      <span className="font-mono font-black text-sm text-[#164E9B]">
-                        {selectedPhieu.diem.toFixed(1)} / 10.0
-                      </span>
-                    </p>
-                    <p>
-                      <strong className="text-slate-900">Nhận xét tóm tắt:</strong>{" "}
-                      <span className="italic text-slate-600">
-                        {selectedPhieu.nhanXet ||
-                          "NCS nắm vững phương pháp nghiên cứu, tài liệu tổng quan phong phú và đạt chuẩn theo khung chương trình đào tạo tiến sĩ."}
-                      </span>
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs pt-2">
-                    <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
-                      <ShieldCheck className="size-3.5" />
-                      Chữ ký số hợp lệ
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setPreviewOpen(false)}
-                      className="px-4 py-2 bg-[#164E9B] text-white rounded-xl text-xs font-bold hover:bg-blue-800 transition-colors shadow-2xs"
-                    >
-                      Đóng
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <PdfViewer
+        isOpen={Boolean(selectedPhieu)}
+        onClose={() => setSelectedPhieu(null)}
+        fileUrl={
+          selectedPhieu
+            ? selectedPhieu.fileUrl ||
+              `mock://phieu-nhan-xet/${encodeURIComponent(
+                selectedPhieu.fileName || "phieu-nhan-xet.pdf"
+              )}`
+            : null
+        }
+        fileName={selectedPhieu?.fileName || "phieu-nhan-xet.pdf"}
+        title={selectedPhieu?.fileName || "Phiếu nhận xét đánh giá"}
+        subtitle={
+          selectedPhieu
+            ? `Người chấm: ${selectedPhieu.tenNguoiCham} (${selectedPhieu.chucDanh}) • Điểm: ${selectedPhieu.diem.toFixed(
+                1
+              )}/10.0`
+            : undefined
+        }
+        allowDownload={true}
+      />
     </div>
   );
 }

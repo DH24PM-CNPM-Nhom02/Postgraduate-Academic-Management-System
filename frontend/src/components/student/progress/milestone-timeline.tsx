@@ -10,9 +10,9 @@ import {
   ChevronRight,
   ChevronLeft,
 } from "lucide-react";
-import { MilestoneProgressItem } from "@/src/types/progress";
+import type { MilestoneProgressItem } from "@/src/types/ui/progress";
 
-interface MilestoneTimelineProps {
+export interface MilestoneTimelineProps {
   milestones: MilestoneProgressItem[];
   activeMilestoneOrder?: number;
 }
@@ -23,7 +23,6 @@ export function MilestoneTimeline({
 }: MilestoneTimelineProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Cuộn mượt đến thẻ mốc khi click hoặc ấn Enter
   const handleStepClick = (thuTu: number) => {
     const el = document.getElementById(`milestone-card-${thuTu}`);
     if (el) {
@@ -45,168 +44,184 @@ export function MilestoneTimeline({
     }
   };
 
-  // Icon và style cho từng trạng thái
   const getStepVisuals = (milestone: MilestoneProgressItem) => {
     const status = milestone.trangThai;
 
     switch (status) {
       case "PASSED":
         return {
-          icon: <Check className="w-4 h-4 stroke-[2.5]" />,
+          icon: <Check className="h-4 w-4 stroke-[2.5]" />,
           circleClasses:
             "bg-emerald-600 text-white border-emerald-600 shadow-2xs hover:bg-emerald-700",
-          textClasses: "text-emerald-950 font-semibold",
+          textClasses: "text-emerald-900 font-semibold",
           badgeText: "Hoàn thành",
           badgeClasses: "bg-emerald-50 text-emerald-700 border-emerald-200",
           isPulsing: false,
         };
       case "REJECTED":
         return {
-          icon: <AlertCircle className="w-4 h-4 stroke-[2.5]" />,
+          icon: <AlertCircle className="h-4 w-4 stroke-[2.5]" />,
           circleClasses:
             "bg-rose-600 text-white border-rose-600 shadow-sm shadow-rose-500/20 hover:bg-rose-700 ring-4 ring-rose-500/20",
-          textClasses: "text-rose-950 font-bold",
+          textClasses: "text-rose-900 font-bold",
           badgeText: "Cần nộp lại",
           badgeClasses: "bg-rose-50 text-rose-700 border-rose-200",
           isPulsing: true,
         };
       case "PENDING_REVIEW":
         return {
-          icon: <Clock className="w-4 h-4 stroke-[2.5]" />,
+          icon: <Clock className="h-4 w-4 stroke-[2.5]" />,
           circleClasses:
             "bg-amber-500 text-white border-amber-500 shadow-sm shadow-amber-500/20 hover:bg-amber-600 ring-4 ring-amber-500/20",
-          textClasses: "text-amber-950 font-bold",
+          textClasses: "text-amber-900 font-bold",
           badgeText: "Chờ duyệt",
-          badgeClasses: "bg-amber-50 text-amber-700 border-amber-200",
+          badgeClasses: "bg-amber-50 text-amber-800 border-amber-200",
           isPulsing: true,
         };
       case "UNLOCKED":
         return {
-          icon: <Unlock className="w-4 h-4 stroke-[2.5]" />,
+          icon: <Unlock className="h-4 w-4 stroke-[2.5]" />,
           circleClasses:
-            "bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/20 hover:bg-blue-700 ring-4 ring-blue-500/20",
-          textClasses: "text-blue-950 font-bold",
+            "bg-[#164E9B] text-white border-[#164E9B] shadow-sm shadow-[#164E9B]/20 hover:bg-[#113E7D] ring-4 ring-[#164E9B]/20",
+          textClasses: "text-[#0F2744] font-bold",
           badgeText: "Sẵn sàng",
-          badgeClasses: "bg-blue-50 text-blue-700 border-blue-200",
+          badgeClasses: "bg-[#164E9B]/10 text-[#164E9B] border-[#164E9B]/25",
           isPulsing: true,
         };
       case "LOCKED":
       default:
         return {
-          icon: <Lock className="w-3.5 h-3.5" />,
+          icon: <Lock className="h-3.5 w-3.5" />,
           circleClasses:
-            "bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200/80 hover:text-slate-600",
-          textClasses: "text-slate-500 font-medium",
+            "bg-muted text-muted-foreground border-border hover:bg-muted/80 hover:text-foreground",
+          textClasses: "text-muted-foreground font-medium",
           badgeText: "Khóa",
-          badgeClasses: "bg-slate-100 text-slate-500 border-slate-200",
+          badgeClasses: "bg-muted text-muted-foreground border-border",
           isPulsing: false,
         };
     }
   };
 
   return (
-    <div className="relative rounded-2xl bg-white border border-slate-200 p-5 sm:p-6 shadow-2xs">
+    <section
+      aria-label="Sơ đồ các mốc đào tạo"
+      className="relative rounded-xl border border-border bg-card p-5 sm:p-6 shadow-2xs"
+    >
       {/* Tiêu đề Stepper và nút cuộn nhanh */}
-      <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+      <div className="mb-4 flex items-center justify-between gap-3 border-b border-border pb-3">
         <div>
-          <h2 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <span>Tiến trình 9 mốc đào tạo NCS</span>
-            <span className="text-[11px] font-normal text-slate-400">
+          <h2 className="flex flex-wrap items-center gap-2 text-sm font-bold tracking-tight text-foreground">
+            <span>
+              Tiến trình {milestones.length > 0 ? `${milestones.length} ` : ""}
+              mốc đào tạo NCS
+            </span>
+            <span className="text-[11px] font-normal text-muted-foreground">
               (Nhấn hoặc Tab + Enter để cuộn đến mốc tương ứng)
             </span>
           </h2>
         </div>
 
-        {/* Nút điều hướng cuộn ngang trên màn hình nhỏ/trung */}
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => handleScroll("left")}
-            aria-label="Cuộn stepper sang trái"
-            className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => handleScroll("right")}
-            aria-label="Cuộn stepper sang phải"
-            className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 transition-colors"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
+        {/* Nút điều hướng cuộn ngang với vùng chạm tối thiểu 40x40px */}
+        {milestones.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleScroll("left")}
+              aria-label="Cuộn stepper sang trái"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]/50"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleScroll("right")}
+              aria-label="Cuộn stepper sang phải"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]/50"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Container cuộn ngang stepper */}
-      <div
-        ref={scrollContainerRef}
-        className="overflow-x-auto pb-4 pt-2 -mx-2 px-2 scrollbar-thin scrollbar-thumb-slate-200"
-      >
-        <div className="min-w-[880px] flex items-start justify-between relative">
-          {milestones.map((m, index) => {
-            const visual = getStepVisuals(m);
-            const isLast = index === milestones.length - 1;
-            const isLineActive = m.trangThai === "PASSED";
-            const isCurrentActive = activeMilestoneOrder === m.thuTu;
+      {milestones.length === 0 ? (
+        <div className="rounded-lg bg-muted/40 px-4 py-6 text-center text-sm text-muted-foreground">
+          Chưa có dữ liệu mốc đào tạo để hiển thị trên sơ đồ tiến trình.
+        </div>
+      ) : (
+        <div
+          ref={scrollContainerRef}
+          className="-mx-2 overflow-x-auto px-2 pb-4 pt-2"
+        >
+          <div className="relative flex min-w-[880px] items-start justify-between">
+            {milestones.map((m, index) => {
+              const visual = getStepVisuals(m);
+              const isLast = index === milestones.length - 1;
+              const isLineActive = m.trangThai === "PASSED";
+              const isCurrentActive = activeMilestoneOrder === m.thuTu;
 
-            return (
-              <div
-                key={m.id || m.thuTu}
-                tabIndex={0}
-                role="button"
-                aria-label={`Mốc ${m.thuTu}: ${m.tenMoc} - ${visual.badgeText}`}
-                onKeyDown={(e) => handleKeyDown(e, m.thuTu)}
-                onClick={() => handleStepClick(m.thuTu)}
-                className="flex-1 flex flex-col items-center text-center relative group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:rounded-xl p-1"
-              >
-                {/* Đường nối giữa các node */}
-                {!isLast && (
-                  <div
-                    className={`absolute top-5 left-1/2 w-full h-[2px] transition-colors duration-300 z-0 ${
-                      isLineActive ? "bg-emerald-600" : "bg-slate-200"
-                    }`}
-                  />
-                )}
-
-                {/* Node hình tròn icon */}
+              return (
                 <div
-                  className={`relative z-10 w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-200 ${
-                    visual.circleClasses
-                  } ${visual.isPulsing ? "animate-pulse" : "group-hover:scale-105"} ${
-                    isCurrentActive
-                      ? "ring-2 ring-offset-2 ring-slate-400 shadow-xs"
-                      : ""
-                  }`}
-                  title={`Mốc ${m.thuTu}: ${m.tenMoc}${isCurrentActive ? " (Mốc hiện tại)" : ""}`}
+                  key={m.id || m.thuTu}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Mốc ${m.thuTu}: ${m.tenMoc} - ${visual.badgeText}`}
+                  onKeyDown={(e) => handleKeyDown(e, m.thuTu)}
+                  onClick={() => handleStepClick(m.thuTu)}
+                  className="group relative flex flex-1 cursor-pointer flex-col items-center rounded-xl p-1.5 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
                 >
-                  {visual.icon}
-                </div>
+                  {!isLast && (
+                    <div
+                      aria-hidden="true"
+                      className={`absolute left-1/2 top-5 z-0 h-[2px] w-full transition-colors duration-300 ${
+                        isLineActive ? "bg-[#164E9B]" : "bg-border"
+                      }`}
+                    />
+                  )}
 
-                {/* Nhãn mốc & tên rút gọn */}
-                <div className="mt-2.5 px-1 max-w-[105px] space-y-1">
-                  <div className="flex items-center justify-center gap-1">
-                    <span className="text-[11px] font-bold text-slate-900 tracking-tight">
-                      Mốc {m.thuTu}
+                  <div
+                    className={`relative z-10 flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all duration-200 ${
+                      visual.circleClasses
+                    } ${
+                      visual.isPulsing
+                        ? "animate-pulse motion-reduce:animate-none"
+                        : "group-hover:scale-105 motion-reduce:group-hover:scale-100"
+                    } ${
+                      isCurrentActive
+                        ? "ring-2 ring-[#164E9B] ring-offset-2 shadow-xs"
+                        : ""
+                    }`}
+                    title={`Mốc ${m.thuTu}: ${m.tenMoc}${
+                      isCurrentActive ? " (Mốc hiện tại)" : ""
+                    }`}
+                  >
+                    {visual.icon}
+                  </div>
+
+                  <div className="mt-2.5 max-w-[108px] space-y-1 px-1">
+                    <div className="flex items-center justify-center gap-1">
+                      <span className="text-[11px] font-bold tracking-tight text-foreground">
+                        Mốc {m.thuTu}
+                      </span>
+                    </div>
+                    <p
+                      className={`line-clamp-2 text-[11px] leading-tight ${visual.textClasses}`}
+                      title={m.tenMoc}
+                    >
+                      {m.tenMoc.replace(/^Mốc \d+:\s*/, "")}
+                    </p>
+                    <span
+                      className={`inline-block rounded-full border px-1.5 py-0.5 text-[10px] font-medium ${visual.badgeClasses}`}
+                    >
+                      {visual.badgeText}
                     </span>
                   </div>
-                  <p
-                    className={`text-[11px] leading-tight line-clamp-2 ${visual.textClasses}`}
-                    title={m.tenMoc}
-                  >
-                    {m.tenMoc.replace(/^Mốc \d+:\s*/, "")}
-                  </p>
-                  <span
-                    className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${visual.badgeClasses}`}
-                  >
-                    {visual.badgeText}
-                  </span>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </section>
   );
 }
