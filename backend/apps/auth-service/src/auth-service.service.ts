@@ -424,9 +424,14 @@ export class AuthService {
   }
 
   // ---------- Helpers ----------
-  private generateTokenPair(user: { id: string; username: string; roles: { role: { name: string } }[] }): TokenPair {
+  private generateTokenPair(user: { id: string; username: string; roles: { role: { name: string } }[]; mustChangePassword?: boolean }): TokenPair {
     const access_token = this.jwt.sign(
-      { sub: user.id, username: user.username, roles: user.roles.map((r) => r.role.name) },
+      {
+        sub: user.id,
+        username: user.username,
+        roles: user.roles.map((r) => r.role.name),
+        mustChangePassword: user.mustChangePassword ?? false,
+      },
       {
         secret: this.config.getOrThrow('JWT_ACCESS_SECRET'),
         expiresIn: this.config.getOrThrow('JWT_ACCESS_EXPIRES') as StringValue,

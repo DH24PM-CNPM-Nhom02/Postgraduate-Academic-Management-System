@@ -13,7 +13,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       secretOrKey: config.getOrThrow<string>('JWT_ACCESS_SECRET'),
     });
   }
-  validate(p: { sub: string; username: string; roles: string[] }): AuthUser {
-    return { id: p.sub, username: p.username, roles: p.roles };
+  validate(p: { sub: string; username: string; roles: string[]; mustChangePassword: boolean }): AuthUser {
+    return { id: p.sub, username: p.username, roles: p.roles, mustChangePassword: p.mustChangePassword };
   }
 }

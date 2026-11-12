@@ -10,6 +10,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { AuthController } from './auth.controller.js';
 import { PermissionGuard } from './guards/permission.guard.js';
 import { PermissionsService } from './services/permissions.service.js';
+import { MustChangePasswordGuard } from './guards/mustChangePassword.guard.js';
 
 
 @Module({
@@ -33,8 +34,9 @@ import { PermissionsService } from './services/permissions.service.js';
   providers: [
     JwtStrategy,
     PermissionsService,
-    { provide: APP_GUARD, useClass: JwtAuthGuard },    // 1. xác thực
-    { provide: APP_GUARD, useClass: PermissionGuard }, // 2. phân quyền
+    { provide: APP_GUARD, useClass: JwtAuthGuard },            // 1. Xác thực JWT (gán req.user)
+    { provide: APP_GUARD, useClass: MustChangePasswordGuard }, // 2. Chặn ngay nếu chưa đổi mật khẩu
+    { provide: APP_GUARD, useClass: PermissionGuard },         // 3. Phân quyền chi tiết (sau khi user đã hợp lệ)
   ],
 })
 export class AuthModule {}
