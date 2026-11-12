@@ -17,7 +17,7 @@ import { useAuth } from "@/src/hooks/use-auth";
 import { NotificationBellPopover } from "@/src/components/notification";
 import { mockSupervisorProfile, mockSupervisorQuota } from "@/src/mocks/supervisor";
 import type { SupervisorProfile, SupervisorQuota } from "@/src/types/ui/supervisor";
-import { NotificationBellPopover } from "@/src/components/notification";
+
 
 export interface SupervisorHeaderProps {
   onToggleSidebar?: () => void;
