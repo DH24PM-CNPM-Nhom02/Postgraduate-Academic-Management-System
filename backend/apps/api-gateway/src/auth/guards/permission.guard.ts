@@ -4,6 +4,7 @@ import { ClientProxy } from "@nestjs/microservices";
 import { PERMISSIONS_KEY } from "../../common/decorators/require-permissions.decorator.js";
 import { AuthUser } from "../../common/interface/auth-user.interface.js";
 import { firstValueFrom, timeout } from "rxjs";
+import { ROLES } from "../../../../../lib/contracts/src/permissions.js";
 
 @Injectable()
 export class PermissionGuard implements CanActivate {
@@ -20,6 +21,8 @@ export class PermissionGuard implements CanActivate {
 
     const user: AuthUser | undefined = ctx.switchToHttp().getRequest().user;
     if (!user?.id) throw new UnauthorizedException();
+
+    if (user.roles?.includes(ROLES.ADMIN)) return true;
 
     const perms = await this.getPermissions(user.id);
     if (!required.every((p) => perms.includes(p))) {

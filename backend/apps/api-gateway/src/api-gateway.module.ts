@@ -15,6 +15,7 @@ import { NotificationModule } from './notification/notification.module.js';
 import { GraduationModule } from './graduation/graduation.module.js';
 import { ChangeRequestModule } from './change-request/change-request.module.js';
 import { ThesisModule } from './thesis/thesis.module.js';
+import { AuditModule } from './audit/audit.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -28,6 +29,7 @@ import { ThesisModule } from './thesis/thesis.module.js';
     GraduationModule,
     ChangeRequestModule,
     ThesisModule,
+    AuditModule,
     ClientsModule.register([
       {
         name: 'AUTH_SERVICE',

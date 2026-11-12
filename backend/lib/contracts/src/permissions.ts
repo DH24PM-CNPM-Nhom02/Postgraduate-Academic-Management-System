@@ -43,6 +43,8 @@ export const PERMISSIONS = {
     CHANGE_REQUEST_REVIEW: 'changerequest.review',
     CHANGE_REQUEST_SUPERVISOR_REVIEW: 'changerequest.supervisor_review',
     CHANGE_REQUEST_CANCEL: 'changerequest.cancel',
+
+    AUDIT_READ: 'audit.read',
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

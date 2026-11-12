@@ -48,6 +48,11 @@ export class AuthController {
     return this.auth.findUsers(d.usernames);
   }
 
+  @MessagePattern({ cmd: 'auth.find-users-by-ids' })
+  findUsersByIds(@Payload() d: { ids: string[] }) {
+    return this.auth.findUsersByIds(d.ids);
+  }
+
   @MessagePattern({ cmd: 'auth.list-users' })
   listUsers(@Payload() query: ListUsersQueryDto) {
     return this.auth.listUsers(query);
