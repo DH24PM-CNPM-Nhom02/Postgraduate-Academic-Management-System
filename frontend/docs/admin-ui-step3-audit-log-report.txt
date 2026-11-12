@@ -1,0 +1,51 @@
+BÁO CÁO KẾT QUẢ BƯỚC 3 - MÀN HÌNH NHẬT KÝ KIỂM TOÁN THAO TÁC (/audit-log)
+=============================================================================
+
+1. Bộ Component đã xây dựng tại frontend/src/components/admin/audit/
+- audit-meta.ts:
+  + Định nghĩa kiểu mở rộng AuditLogViewItem (tương thích 100% với AuditLogItem trong src/types/ui/admin.ts và hỗ trợ các trường biên actor: null, actorId, clientIp, correlationId, ncs.hoTen).
+  + Bảng ánh xạ nhãn thực thể ENTITY_TYPE_LABELS & getEntityTypeLabel(), helper rút gọn ID shortenEntityId(), định dạng ngày giờ formatAuditDateTime(), thời gian tương đối formatRelativeAuditTime(), và trích xuất clientIp / correlationId / tên NCS.
+- audit-badge.tsx (AuditBadge & AUDIT_ACTION_META):
+  + Ánh xạ đầy đủ 19 mã AuditActionType sang nhãn Tiếng Việt và màu Badge trực quan:
+    * Hồ sơ NCS: NCS_CREATE, NCS_IMPORT, NCS_UPDATE, NCS_STATUS_UPDATE
+    * Đề tài Luận án: THESIS_ASSIGN, THESIS_CANCEL
+    * Phân công GVHD: ASSIGNMENT_CREATE, ASSIGNMENT_DEACTIVATE
+    * Tiến độ 9 Mốc: SUBMIT_PROGRESS, APPROVE_PROGRESS, REJECT_PROGRESS
+    * Quyết định: TAO_QUYET_DINH, VO_HIEU_QUYET_DINH
+    * Đơn đề nghị: CHANGE_REQUEST_CREATE, CHANGE_REQUEST_GVHD_APPROVE, CHANGE_REQUEST_APPROVE, CHANGE_REQUEST_REJECT, CHANGE_REQUEST_CANCEL
+    * Tốt nghiệp: XAC_NHAN_TOT_NGHIEP
+  + Có fallback an toàn khi gặp mã hành động lạ.
+- audit-filters.tsx (AuditFilters):
+  + Thanh tìm kiếm tự do (tìm theo mã hành động, loại thực thể, ID thực thể, tóm tắt, tên/username người thao tác, hoặc họ tên/MSHV của NCS).
+  + Dropdown lọc theo Hành động (action), Dropdown lọc theo Loại đối tượng (entityType), bộ chọn khoảng ngày (fromDate - toDate).
+  + Nút "Đặt lại lọc", nút "Làm mới" (Refresh) và nút "Xuất CSV".
+- audit-diff-viewer.tsx (AuditDiffViewer):
+  + So sánh 2 cột song song (Side-by-Side Visual Diff):
+    * Cột trái (Giá trị cũ - oldValue): Nền hồng/đỏ nhạt, chữ đỏ gạch ngang cho các trường bị sửa/xóa.
+    * Cột phải (Giá trị mới - newValue): Nền xanh lá nhạt, chữ xanh đậm cho các trường mới thêm hoặc vừa cập nhật.
+  + Tự động hợp nhất keys giữa oldValue và newValue, hỗ trợ lọc nhanh "Hiện tất cả" / "Chỉ trường thay đổi".
+  + Xử lý ngoại lệ an toàn khi oldValue hoặc newValue là null hoặc {} (hiển thị nhãn "Không có dữ liệu trước đó / Không có dữ liệu thay đổi").
+- audit-detail-dialog.tsx (AuditDetailDialog):
+  + Modal xem chi tiết bản ghi kiểm toán (role="dialog", đóng bằng phím Escape), gồm 2 Tab:
+    * Tab 1 — Tổng quan & Ngữ cảnh: ID bản ghi, Thời gian chi tiết, Địa chỉ IP (clientIp), Mã truy vết (correlationId kèm nút Copy), Đối tượng tác động (entityType/entityId kèm nút Copy), Người thực hiện (actor, xử lý an toàn khi actor === null) và Hồ sơ NCS liên quan (ncs).
+    * Tab 2 — So sánh thay đổi (oldValue vs newValue): Nhúng trực tiếp AuditDiffViewer.
+- audit-table.tsx (AuditTable) & index.ts:
+  + Hiển thị đầy đủ các cột: Thời gian (chuẩn + tương đối), Người thao tác (xử lý khi actor === null: hiển thị actorId rút gọn kèm badge "Tài khoản người dùng này không còn tồn tại trên hệ thống"), Hành động (AuditBadge), Đối tượng (entityType + entityId rút gọn + nút Copy UUID), NCS liên quan, và nút "Xem chi tiết" / "Diff".
+  + Hỗ trợ đầy đủ phân trang (page, limit, total, totalPages, onPageChange) cùng các trạng thái isLoading (skeleton), error và empty.
+
+2. Hoàn thiện Thin Page tại frontend/src/app/(admin)/audit-log/page.tsx
+- Kết nối đầy đủ bộ component trong components/admin/audit/ với mockAuditLogs từ src/mocks/admin.ts.
+- Hỗ trợ tương tác tìm kiếm, lọc theo hành động/loại đối tượng/khoảng ngày, phân trang, làm mới, xuất CSV (UTF-8 BOM) và mở Modal xem chi tiết / Visual Diff.
+
+3. Kết quả kiểm tra màn hình /audit-log
+- frontend\node_modules\.bin\next typegen frontend: Thành công (Types generated successfully, exit code 0).
+- frontend\node_modules\.bin\tsc -p frontend\tsconfig.json --noEmit: Thành công, 0 lỗi TypeScript (exit code 0).
+- .agent\skills\impeccable\scripts\impeccable.cmd detect --json (trên 7 file UI đã tạo/sửa): Trả về [] (0 cảnh báo).
+
+4. Ghi chú cập nhật định tuyến (Fix Parallel Pages & /admin)
+- Đã xóa các file xung đột route gốc "/":
+  + frontend/src/app/(admin)/page.tsx
+  + frontend/src/app/(supervisor)/page.tsx
+- Đã tạo trang chuyển hướng /admin -> /users:
+  + frontend/src/app/(admin)/admin/page.tsx
+- Kiểm tra trùng lặp route toàn bộ frontend/src/app/: NO DUPLICATE ROUTES FOUND (58 routes hợp lệ), next typegen và tsc --noEmit đạt 0 lỗi.

@@ -1,0 +1,41 @@
+BÁO CÁO KẾT QUẢ BƯỚC 2 - MÀN HÌNH QUẢN LÝ NGƯỜI DÙNG & PHÂN QUYỀN (/users)
+=============================================================================
+
+1. Cập nhật điều hướng Admin
+- frontend/src/components/admin/sidebar.tsx:
+  + Đã gỡ mục điều hướng /system theo kế hoạch mới, thanh menu gọn lại còn 2 mục chính: Quản lý người dùng (/users) và Nhật ký kiểm toán (/audit-log).
+- frontend/src/components/admin/header.tsx:
+  + Đã gỡ liên kết /system khỏi menu dropdown tài khoản góc phải để đồng bộ với AdminSidebar.
+
+2. Bộ Component đã xây dựng tại frontend/src/components/admin/users/
+- user-meta.ts:
+  + Định nghĩa SYSTEM_ROLE_META (ADMIN, GIAO_VU, GVHD, NCS), USER_STATUS_META (ACTIVE, LOCKED), kiểu mở rộng AdminUserViewItem (hỗ trợ cờ mustChangePassword), helper generateStrongPassword() và formatAdminDateTime().
+- user-stats.tsx (UserStatsOverview):
+  + Hiển thị 4 thẻ số liệu tóm tắt từ UserStatsSummary: Tổng số tài khoản, Nghiên cứu sinh (NCS), Giảng viên & Giáo vụ (GVHD + GIAO_VU), và Tài khoản bị khóa (LOCKED). Hỗ trợ click lọc nhanh và trạng thái isLoading skeleton.
+- user-filters.tsx (UserFilters):
+  + Thanh tìm kiếm từ khóa (username, họ tên, email, MSHV, đơn vị), dropdown lọc Vai trò, dropdown lọc Trạng thái (ACTIVE/LOCKED), đếm kết quả và nút Đặt lại bộ lọc.
+- user-table.tsx (UserTable):
+  + Nhận dữ liệu và callbacks qua props (users, currentUserId, isLoading, error, onToggleStatus, onResetPassword, onViewDetail, pagination props).
+  + Role Badge phân màu trực quan: ADMIN (Rose), GIAO_VU (Indigo), GVHD (Sky), NCS (Emerald).
+  + Trạng thái: Chấm xanh đang hoạt động / chấm đỏ đã khóa, kèm cờ "Yêu cầu đổi MK lần đầu" khi mustChangePassword = true.
+  + Self-lock Prevention: So sánh user.id === currentUserId để vô hiệu hóa (disabled, aria-disabled) nút Khóa đối với chính tài khoản Admin đang đăng nhập kèm chú thích "Bảo vệ chống tự khóa".
+  + Đầy đủ trạng thái isLoading (skeleton), error + nút thử lại, empty + nút đặt lại bộ lọc, và thanh phân trang dưới chân bảng.
+- create-user-modal.tsx (CreateUserModal):
+  + Modal 2 tab với A11y chuẩn (role="dialog", Escape, tablist/tabpanel, htmlFor):
+    * Tab 1 (Thêm tài khoản đơn lẻ): Nhập Username (kiểm tra trùng), Họ tên, Email, chọn Vai trò, Đơn vị/MSHV/Học hàm, Mật khẩu khởi tạo kèm nút tạo nhanh mật khẩu ngẫu nhiên.
+    * Tab 2 (Nhập hàng loạt theo đợt NCS): Kéo-thả hoặc chọn tệp CSV/Excel danh sách tân NCS trúng tuyển (hỗ trợ đọc CSV hoặc nạp danh sách mẫu xem trước), tự động gán role = "NCS" và mustChangePassword = true.
+- user-status-dialog.tsx (UserStatusConfirmDialog):
+  + Hộp thoại alertdialog xác nhận trước khi Khóa/Mở khóa tài khoản kèm cảnh báo tác động đăng nhập và ô nhập lý do khóa tùy chọn.
+- reset-password-dialog.tsx (ResetPasswordDialog):
+  + Hộp thoại xác nhận đặt lại mật khẩu; sau khi xác nhận hiển thị mật khẩu tạm thời mới 1 lần duy nhất kèm nút Sao chép (Copy to Clipboard) và lưu ý bắt buộc đổi mật khẩu ở lần đăng nhập kế tiếp.
+- user-detail-dialog.tsx (UserDetailDialog) & index.ts:
+  + Dialog xem chi tiết hồ sơ tài khoản và barrel exports.
+
+3. Hoàn thiện Thin Page tại frontend/src/app/(admin)/users/page.tsx
+- Kết nối đầy đủ các component trong components/admin/users/ với mockAdminUsers và mockUserStatsSummary từ src/mocks/admin.ts.
+- Hỗ trợ tương tác thử nghiệm đầy đủ trên UI: tìm kiếm, lọc theo vai trò/trạng thái, phân trang, tạo mới đơn lẻ, nhập hàng loạt NCS, xem chi tiết, khóa/mở khóa tài khoản (với bảo vệ chống tự khóa) và đặt lại mật khẩu.
+
+4. Kết quả kiểm tra
+- frontend\node_modules\.bin\next typegen frontend: Thành công (Types generated successfully, exit code 0).
+- frontend\node_modules\.bin\tsc -p frontend\tsconfig.json --noEmit: Thành công, 0 lỗi TypeScript trên toàn bộ dự án (exit code 0).
+- .agent\skills\impeccable\scripts\impeccable.cmd detect --json (trên 10 file UI đã tạo/sửa): Trả về [] (0 cảnh báo).

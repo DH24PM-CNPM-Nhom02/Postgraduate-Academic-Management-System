@@ -1,0 +1,31 @@
+BÁO CÁO KẾT QUẢ BƯỚC 1 - KHỞI TẠO NỀN TẢNG ADMIN CONSOLE
+==========================================================
+
+1. Rà soát hiện trạng trước khi chỉnh sửa
+- frontend/src/app/(admin)/layout.tsx: Trước đó là stub cơ bản, chưa tích hợp AdminHeader, AdminSidebar, AdminFooter và chưa quản lý trạng thái đóng/mở sidebar responsive.
+- frontend/src/app/(admin)/users/page.tsx, system/page.tsx, audit-log/page.tsx: Đang là các trang stub placeholder.
+- frontend/src/components/admin/header.tsx: Đã có giao diện AdminHeader nhưng nút chuông thông báo là nút tĩnh (<Bell />), chưa tích hợp NotificationBellPopover.
+- frontend/src/components/admin/sidebar.tsx: Đã có 3 link (/users, /system, /audit-log) và cơ chế drawer mobile; đã tinh chỉnh logic active-route cho /users/*, hỗ trợ đóng bằng phím Escape và bổ sung focus-visible/aria-current.
+- frontend/src/components/admin/footer.tsx: Đã hoàn thiện, giữ nguyên.
+
+2. Các file đã tạo mới / cập nhật
+- frontend/src/components/admin/header.tsx: Tích hợp <NotificationBellPopover /> từ @/src/components/notification/NotificationBellPopover, bổ sung đóng menu bằng phím Escape, thuộc tính ARIA (aria-expanded, aria-haspopup, role="menu"), type="button", focus-visible rings và liên kết /audit-log trong dropdown.
+- frontend/src/components/admin/sidebar.tsx: Đảm bảo 3 liên kết điều hướng (/users, /system, /audit-log), sửa logic isActive cho sub-route, thêm aria-current="page", đóng drawer mobile bằng phím Escape, chuyển động 200ms ease-out.
+- frontend/src/components/admin/admin-shell.tsx (tạo mới): Client shell kết nối trạng thái sidebarOpen giữa AdminHeader, AdminSidebar và AdminFooter.
+- frontend/src/app/(admin)/layout.tsx: Cập nhật bọc nội dung bằng <AdminShell>{children}</AdminShell>.
+- frontend/src/types/ui/admin.ts (tạo mới): Khai báo đầy đủ UI types cho:
+  + /users: SystemRole, AdminUserStatus, AdminUserItem, UserStatsSummary, CreateUserFormValues.
+  + /system: JournalCategory, JournalQuartile, JournalCatalogItem, SystemParametersConfig, InstitutionInfoConfig.
+  + /audit-log: AuditActionType (đủ cả 19 mã action theo đặc tả), AuditActorView, AuditNcsView, AuditLogItem.
+- frontend/src/types/ui/index.ts: Re-export `./admin`.
+- frontend/src/mocks/admin.ts (tạo mới):
+  + mockAdminUsers (12 tài khoản đủ 4 role ADMIN/GIAO_VU/GVHD/NCS, trạng thái ACTIVE/LOCKED) & mockUserStatsSummary.
+  + mockJournalCatalog (10 tạp chí/ấn phẩm thuộc đủ 4 nhóm WOS_Q1_Q2, WOS_SCOPUS_KHAC, CHUONG_SACH_QUOC_TE, HDGSNN_075).
+  + mockSystemParametersConfig (36/48 tháng, gia hạn 24 tháng, tối đa 72 tháng, định mức GS: 5, PGS: 4, TS: 3, điểm công bố: 2.0) & mockInstitutionInfoConfig.
+  + mockAuditLogs (14 bản ghi có oldValue/newValue thực tế phục vụ so sánh Visual Diff).
+
+3. Kết quả kiểm tra
+- TypeScript (frontend\node_modules\.bin\tsc -p frontend\tsconfig.json --noEmit):
+  + Không có lỗi TypeScript nào trong toàn bộ `frontend/src/`.
+  + Ghi chú: Lệnh tsc chỉ báo 1 lỗi có sẵn từ file cache sinh tự động của Next.js (`frontend/.next/types/validator.ts` dòng 332 tham chiếu `../../src/app/(student)/progress/page.js`), không thuộc mã nguồn `src/`.
+- Impeccable design detector (`impeccable.cmd detect --json` trên 4 file UI Admin): Trả về `[]` (không có cảnh báo).
