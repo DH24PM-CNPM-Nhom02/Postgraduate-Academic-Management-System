@@ -11,10 +11,6 @@ import type {
   NotificationRole,
 } from "@/src/types/notification";
 
-interface SessionUserWithToken {
-  accessToken?: string;
-}
-
 /**
  * Helper tự động phát hiện role từ đường dẫn URL hiện tại
  */
@@ -27,12 +23,13 @@ export function useDetectedRole(): Exclude<NotificationRole, "all"> {
 
 export function useNotifications(filter?: NotificationQueryFilter) {
   const { data: session } = useSession();
-  const accessToken = (session?.user as SessionUserWithToken | undefined)?.accessToken;
+  const accessToken = session?.access_token;
+  const userId = session?.user?.id ?? "anonymous";
   const detectedRole = useDetectedRole();
   const effectiveRole = filter?.role || detectedRole;
 
   return useQuery<NotificationListResponse>({
-    queryKey: ["notifications", effectiveRole, filter, accessToken],
+    queryKey: ["notifications", userId, effectiveRole, filter],
     queryFn: () =>
       notificationService.getNotifications(
         { ...filter, role: effectiveRole },
@@ -46,12 +43,13 @@ export function useNotifications(filter?: NotificationQueryFilter) {
 
 export function useUnreadNotificationCount(roleOverride?: Exclude<NotificationRole, "all">) {
   const { data: session } = useSession();
-  const accessToken = (session?.user as SessionUserWithToken | undefined)?.accessToken;
+  const accessToken = session?.access_token;
+  const userId = session?.user?.id ?? "anonymous";
   const detectedRole = useDetectedRole();
   const effectiveRole = roleOverride || detectedRole;
 
   return useQuery<{ soLuong: number }>({
-    queryKey: ["notifications", "unread-count", effectiveRole, accessToken],
+    queryKey: ["notifications", "unread-count", userId, effectiveRole],
     queryFn: () => notificationService.getUnreadCount(effectiveRole, accessToken),
     staleTime: 1000 * 10,
     refetchInterval: 1000 * 25,
@@ -62,7 +60,7 @@ export function useUnreadNotificationCount(roleOverride?: Exclude<NotificationRo
 export function useMarkNotificationAsRead() {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
-  const accessToken = (session?.user as SessionUserWithToken | undefined)?.accessToken;
+  const accessToken = session?.access_token;
 
   return useMutation({
     mutationFn: (id: string) => notificationService.markAsRead(id, accessToken),
@@ -91,19 +89,19 @@ export function useMarkNotificationAsRead() {
 export function useMarkAllNotificationsAsRead(roleOverride?: Exclude<NotificationRole, "all">) {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
-  const accessToken = (session?.user as SessionUserWithToken | undefined)?.accessToken;
+  const accessToken = session?.access_token;
   const detectedRole = useDetectedRole();
   const effectiveRole = roleOverride || detectedRole;
 
   return useMutation({
     mutationFn: () => notificationService.markAllAsRead(effectiveRole, accessToken),
     onSuccess: () => {
-      queryClient.setQueryData<{ soLuong: number }>(
-        ["notifications", "unread-count", effectiveRole, accessToken],
-        { soLuong: 0 }
+      queryClient.setQueriesData<{ soLuong: number }>(
+        { queryKey: ["notifications", "unread-count"] },
+        () => ({ soLuong: 0 })
       );
       queryClient.setQueriesData<NotificationListResponse>(
-        { queryKey: ["notifications", effectiveRole] },
+        { queryKey: ["notifications"] },
         (old) => {
           if (!old) return old;
           return {

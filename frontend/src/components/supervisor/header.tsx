@@ -14,6 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import { useAuth } from "@/src/hooks/use-auth";
+import { NotificationBellPopover } from "@/src/components/notification";
 import { mockSupervisorProfile, mockSupervisorQuota } from "@/src/mocks/supervisor";
 import type { SupervisorProfile, SupervisorQuota } from "@/src/types/ui/supervisor";
 import { NotificationBellPopover } from "@/src/components/notification";
@@ -111,7 +112,7 @@ export function SupervisorHeader({
           <span>Thẩm định gia hạn</span>
         </Link>
 
-        {/* Chuông thông báo dành riêng cho Giảng viên Hướng dẫn */}
+        {/* Chuông thông báo Real-time */}
         <NotificationBellPopover role="supervisor" />
 
         <div className="relative" ref={menuContainerRef}>

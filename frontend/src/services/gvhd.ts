@@ -1,4 +1,4 @@
-import { apiClient } from "@/src/lib/api";
+import { apiClient, throwApiError } from "@/src/lib/api";
 import type { SupervisorQuotaRecord } from "@/src/types/academic";
 
 export type VaiTroHuongDan = "HUONG_DAN_CHINH" | "DONG_HUONG_DAN";
@@ -245,8 +245,12 @@ export const GvhdService = {
    * Endpoint: GET /gvhd/:id
    */
   getSupervisorById: async (id: string): Promise<BackendGvhdRaw> => {
-    const response = await apiClient.get<BackendGvhdRaw>(`/gvhd/${id}`);
-    return response.data;
+    try {
+      const response = await apiClient.get<BackendGvhdRaw>(`/gvhd/${id}`);
+      return response.data;
+    } catch (error) {
+      throwApiError(error);
+    }
   },
 
   /**
