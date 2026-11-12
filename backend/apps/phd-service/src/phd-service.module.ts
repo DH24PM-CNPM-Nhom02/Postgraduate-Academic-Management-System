@@ -11,9 +11,10 @@ import { PhdCronModule } from './cron/phd-cron.module.js';
 import { GraduationAssessmentModule } from './graduation-assessment/graduation-assessment.module.js';
 import { ChangeRequestModule } from './change-request/change-request.module.js';
 import { ThesisModule } from './thesis/thesis.module.js';
+import { AuditModule } from './audit/audit.module.js';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, NcsModule, SupervisorModule, ProgressModule, DecisionModule, PhdCronModule, GraduationAssessmentModule, ChangeRequestModule, ThesisModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, NcsModule, SupervisorModule, ProgressModule, DecisionModule, PhdCronModule, GraduationAssessmentModule, ChangeRequestModule, ThesisModule, AuditModule],
   controllers: [PhdServiceController],
 })
 export class PhdServiceModule { }

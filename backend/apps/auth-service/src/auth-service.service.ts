@@ -270,6 +270,26 @@ export class AuthService {
     }));
   }
 
+  // ---------- Find users by IDs (dùng nội bộ cho audit-logs / phd-service) ----------
+  async findUsersByIds(ids: string[]) {
+    if (!ids || ids.length === 0) return [];
+    const users = await this.prisma.user.findMany({
+      where: {
+        id: { in: ids },
+        deletedAt: null,
+      },
+      include: WITH_ROLES,
+    });
+    return users.map((u) => ({
+      id: u.id,
+      username: u.username,
+      fullName: u.fullName,
+      email: u.email,
+      isActive: u.isActive,
+      roles: u.roles.map((r: any) => r.role.name),
+    }));
+  }
+
   // ---------- Find user list (Hybrid pagination) ----------
   async listUsers(q?: ListUsersQueryDto) {
     const where: any = { deletedAt: null };

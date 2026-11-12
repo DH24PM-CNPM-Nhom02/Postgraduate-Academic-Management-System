@@ -182,7 +182,14 @@ Dựng 9 thẻ hoặc một timeline từ `tienTrinhs` (server đã sắp theo `
         {
           "id": "…", "lanNop": 1, "fileId": "…", "ghiChuNcs": "…",
           "trangThai": "REJECTED", "diemTrungBinh": null,
-          "lyDoTuChoi": "Thiếu dấu xác nhận", "ngayNop": "…", "ngayDuyet": "…"
+          "lyDoTuChoi": "Thiếu dấu xác nhận", "ngayNop": "…", "ngayDuyet": "…",
+          "phieuNhanXets": [
+            {
+              "id": "…", "minhChungId": "…", "tenNguoiCham": "PGS.TS Nguyễn Văn A",
+              "donViNguoiCham": "Đại học Cần Thơ", "diem": "8.5",
+              "nhanXet": "…", "nhapBoiId": "…", "createdAt": "…"
+            }
+          ]
         }
       ]
     }
@@ -195,6 +202,7 @@ Lưu ý:
 - `diemTrungBinh` có thể về dạng chuỗi (ví dụ `"7.33"`), FE cần `Number()` trước khi hiển thị hoặc so sánh.
 - Mốc 1 có `minhChungs: []`, hiển thị "Đã nhập học".
 - Với mốc `REJECTED`, hiển thị `lyDoTuChoi` của lần nộp có `lanNop` lớn nhất ở vị trí nổi bật.
+- **`phieuNhanXets`**: Mỗi lần nộp minh chứng (`minhChungs[]`) giờ kèm mảng `phieuNhanXets` (sắp theo `createdAt` tăng dần). Mảng rỗng nếu mốc không yêu cầu điểm hoặc chưa có phiếu. Với mốc yêu cầu điểm (2, 4, 5), NCS có thể xem danh sách phiếu nhận xét đã chấm (tên người chấm, đơn vị, điểm, nhận xét) ngay trên timeline mà không cần gọi API riêng. `diem` trả về dạng chuỗi (ví dụ `"8.5"`), FE cần `Number()` khi so sánh hoặc tính toán.
 
 ### 4.2 Nộp minh chứng
 
@@ -251,7 +259,7 @@ Cột gợi ý: MSHV, họ tên, lớp, mốc, lần nộp, ngày nộp. Nếu `
 
 **Khối lịch sử**
 
-`GET /progress/ncs/{ncsId}` trả cùng dạng dữ liệu với `/progress/me`. Cho Giáo vụ thấy các mốc trước và các lần nộp trước của NCS, kèm lý do từ chối.
+`GET /progress/ncs/{ncsId}` trả cùng dạng dữ liệu với `/progress/me` (bao gồm `phieuNhanXets` trong mỗi lần nộp). Cho Giáo vụ thấy các mốc trước và các lần nộp trước của NCS, kèm lý do từ chối và các phiếu nhận xét đã chấm.
 
 **Khối minh chứng**
 
