@@ -1,3 +1,5 @@
-export default function SupervisorStudentsPage() {
-  return <div className="min-h-screen bg-white" />;
+import { redirect } from "next/navigation";
+
+export default function LegacySupervisorStudentsRedirectPage() {
+  redirect("/supervisor/students");
 }

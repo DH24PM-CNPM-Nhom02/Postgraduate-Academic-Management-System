@@ -1,314 +1,434 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  Search,
-  Filter,
-  ChevronRight,
   AlertCircle,
-  Clock,
-  CheckCircle2,
   BookOpen,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Filter,
   Layers,
+  RefreshCw,
+  Search,
 } from "lucide-react";
-import { SupervisorStudentItem } from "@/src/lib/mockData";
+import type {
+  SupervisedStudent,
+  StudentListTableProps,
+} from "@/src/types/ui/supervisor";
 
-interface StudentListTableProps {
-  students: SupervisorStudentItem[];
-  selectedStudentId?: string | null;
-  onSelectStudent: (student: SupervisorStudentItem) => void;
+function renderStatusBadge(student: SupervisedStudent) {
+  if (student.trangThaiHocTap === "CAN_HOAN_THIEN" || student.coMocCanHoanThien) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
+        <AlertCircle className="size-3.5 shrink-0 text-rose-600" aria-hidden="true" />
+        <span>Mốc {student.mocHienTai}: Cần nộp lại</span>
+      </span>
+    );
+  }
+  if (student.trangThaiHocTap === "CHO_DUYET") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+        <Clock className="size-3.5 shrink-0 text-amber-600" aria-hidden="true" />
+        <span>Mốc {student.mocHienTai}: Chờ duyệt</span>
+      </span>
+    );
+  }
+  if (student.trangThaiHocTap === "TOT_NGHIEP") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+        <CheckCircle2 className="size-3.5 shrink-0 text-emerald-600" aria-hidden="true" />
+        <span>Đã tốt nghiệp</span>
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#164E9B]/25 bg-[#164E9B]/10 px-2.5 py-1 text-xs font-semibold text-[#164E9B]">
+      <Layers className="size-3.5 shrink-0 text-[#164E9B]" aria-hidden="true" />
+      <span>Mốc {student.mocHienTai}: Đang thực hiện</span>
+    </span>
+  );
 }
 
+/**
+ * StudentListTable
+ *
+ * Hiển thị danh sách Nghiên cứu sinh đang hướng dẫn nhận qua Props.
+ * Hỗ trợ đầy đủ trạng thái Loading, Error (có nút thử lại), Empty, tìm kiếm và lọc vai trò/trạng thái.
+ */
 export function StudentListTable({
   students,
   selectedStudentId,
   onSelectStudent,
+  isLoading = false,
+  error = null,
+  onRetry,
+  title = "Danh sách Nghiên cứu sinh đang hướng dẫn",
+  subtitle = "Chọn từng dòng hoặc nhấn nút Chi tiết 9 mốc để theo dõi lộ trình và minh chứng học tập.",
 }: StudentListTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
-  // Lọc dữ liệu theo search và filter status
   const filteredStudents = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
     return students.filter((s) => {
       const matchSearch =
-        s.hoTen.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.mshv.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.tenDeTai.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.chuyenNganh.toLowerCase().includes(searchQuery.toLowerCase());
+        query === "" ||
+        s.hoTen.toLowerCase().includes(query) ||
+        s.mshv.toLowerCase().includes(query) ||
+        s.tenDeTai.toLowerCase().includes(query) ||
+        s.chuyenNganh.toLowerCase().includes(query);
 
       if (!matchSearch) return false;
 
-      if (statusFilter === "ERROR") return s.hasRejectedMilestone;
-      if (statusFilter === "WARNING") return s.trangThaiChung === "WARNING";
-      if (statusFilter === "GOOD") return s.trangThaiChung === "GOOD";
-      if (statusFilter === "CHINH") return s.vaiTroHuongDan === "CHINH";
-      if (statusFilter === "DONG_HUONG_DAN")
-        return s.vaiTroHuongDan === "DONG_HUONG_DAN";
+      if (statusFilter === "CAN_HOAN_THIEN") {
+        return s.trangThaiHocTap === "CAN_HOAN_THIEN" || s.coMocCanHoanThien;
+      }
+      if (statusFilter === "CHO_DUYET") {
+        return s.trangThaiHocTap === "CHO_DUYET";
+      }
+      if (statusFilter === "DANG_THUC_HIEN") {
+        return s.trangThaiHocTap === "DANG_THUC_HIEN";
+      }
+      if (statusFilter === "HUONG_DAN_CHINH") {
+        return s.vaiTro === "HUONG_DAN_CHINH";
+      }
+      if (statusFilter === "DONG_HUONG_DAN") {
+        return s.vaiTro === "DONG_HUONG_DAN";
+      }
 
       return true;
     });
   }, [students, searchQuery, statusFilter]);
 
-  // Render badge trạng thái
-  const renderStatusBadge = (student: SupervisorStudentItem) => {
-    if (student.hasRejectedMilestone) {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">
-          <AlertCircle className="size-3.5 text-rose-600 shrink-0" />
-          <span>Mốc {student.mocHienTai}: Cần nộp lại</span>
-        </span>
-      );
-    }
-    if (student.trangThaiChung === "WARNING") {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-2xs">
-          <Clock className="size-3.5 text-amber-600 shrink-0" />
-          <span>Mốc {student.mocHienTai}: Chờ duyệt</span>
-        </span>
-      );
-    }
-    if (student.trangThaiChung === "GOOD") {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
-          <CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" />
-          <span>Mốc {student.mocHienTai}: Tiến độ tốt</span>
-        </span>
-      );
-    }
+  if (isLoading) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 shadow-2xs">
-        <Layers className="size-3.5 text-blue-600 shrink-0" />
-        <span>Mốc {student.mocHienTai}: Đang thực hiện</span>
-      </span>
+      <section
+        role="status"
+        aria-label="Đang tải danh sách nghiên cứu sinh"
+        className="animate-pulse motion-reduce:animate-none overflow-hidden rounded-xl border border-border bg-card shadow-2xs"
+      >
+        <div className="border-b border-border bg-muted/35 p-5">
+          <div className="h-5 w-64 rounded bg-muted" />
+          <div className="mt-2 h-3.5 w-96 rounded bg-muted" />
+        </div>
+        <div className="divide-y divide-border p-5">
+          {[0, 1, 2].map((idx) => (
+            <div key={idx} className="flex items-center justify-between py-4">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-xl bg-muted" />
+                <div className="space-y-1.5">
+                  <div className="h-4 w-44 rounded bg-muted" />
+                  <div className="h-3 w-32 rounded bg-muted" />
+                </div>
+              </div>
+              <div className="h-9 w-28 rounded-lg bg-muted" />
+            </div>
+          ))}
+        </div>
+      </section>
     );
-  };
+  }
+
+  if (error) {
+    return (
+      <section
+        role="alert"
+        className="rounded-xl border border-rose-200 bg-rose-50/70 p-6 text-rose-950"
+      >
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 size-5 shrink-0 text-rose-600" aria-hidden="true" />
+            <div className="space-y-1">
+              <h2 className="text-sm font-bold text-rose-900">
+                Không thể tải danh sách nghiên cứu sinh
+              </h2>
+              <p className="text-xs leading-relaxed text-rose-800">{error}</p>
+            </div>
+          </div>
+
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-lg bg-[#164E9B] px-4 text-xs font-semibold text-white transition-colors hover:bg-[#113E7D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] focus-visible:ring-offset-2"
+            >
+              <RefreshCw className="size-3.5" aria-hidden="true" />
+              <span>Thử lại</span>
+            </button>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  const hasActiveFilter = searchQuery.trim() !== "" || statusFilter !== "ALL";
 
   return (
-    <div className="rounded-2xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
-      {/* Header thanh công cụ (Tìm kiếm & Bộ lọc) */}
-      <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/50 flex flex-col md:flex-row md:items-center md:justify-between gap-3.5">
+    <section
+      aria-label={title}
+      className="overflow-hidden rounded-xl border border-border bg-card shadow-2xs"
+    >
+      {/* Header thanh công cụ */}
+      <div className="flex flex-col gap-3.5 border-b border-border bg-muted/30 p-4 sm:p-5 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <span>Danh sách Nghiên cứu sinh</span>
-            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-[#164E9B]">
+          <h2 className="flex flex-wrap items-center gap-2 text-base font-bold tracking-tight text-foreground">
+            <span>{title}</span>
+            <span className="rounded-full bg-[#164E9B]/10 px-2.5 py-0.5 font-mono text-xs font-semibold tabular-nums text-[#164E9B]">
               {filteredStudents.length} / {students.length} NCS
             </span>
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Click vào dòng hoặc nút chi tiết để xem chi tiết luồng 9 mốc đào tạo của NCS.
-          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
         </div>
 
-        {/* Toolbar: Search + Filter */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          {/* Ô tìm kiếm */}
+        {/* Search & Filter */}
+        <div className="flex flex-wrap items-center gap-2.5">
           <div className="relative min-w-[220px] sm:min-w-[260px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Tìm kiếm nghiên cứu sinh"
               placeholder="Tìm theo tên, MSHV, đề tài..."
-              className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#164E9B] focus:ring-2 focus:ring-[#164E9B]/15 transition-all shadow-2xs"
+              className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus-visible:border-[#164E9B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]/20"
             />
           </div>
 
-          {/* Bộ lọc dropdown */}
-          <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs text-xs text-slate-700">
-            <Filter className="size-3.5 text-slate-400" />
+          <div className="flex h-10 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs text-foreground">
+            <Filter className="size-3.5 text-muted-foreground" aria-hidden="true" />
             <select
+              aria-label="Lọc theo trạng thái hoặc vai trò hướng dẫn"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-transparent focus:outline-none text-xs font-semibold text-slate-700 cursor-pointer"
+              className="h-full cursor-pointer bg-transparent text-xs font-semibold text-foreground focus:outline-none"
             >
-              <option value="ALL">Tất cả trạng thái</option>
-              <option value="ERROR">Mốc cần hoàn thiện (Lỗi)</option>
-              <option value="WARNING">Đang chờ duyệt</option>
-              <option value="GOOD">Tiến độ xuất sắc</option>
-              <option value="CHINH">Hướng dẫn chính</option>
-              <option value="DONG_HUONG_DAN">Đồng hướng dẫn</option>
+              <option value="ALL">Tất cả NCS</option>
+              <option value="CAN_HOAN_THIEN">Cần nộp lại minh chứng</option>
+              <option value="CHO_DUYET">Đang chờ duyệt</option>
+              <option value="DANG_THUC_HIEN">Đang thực hiện</option>
+              <option value="HUONG_DAN_CHINH">Hướng dẫn chính (1.0)</option>
+              <option value="DONG_HUONG_DAN">Đồng hướng dẫn (0.5)</option>
             </select>
           </div>
         </div>
       </div>
 
-      {/* Bảng dữ liệu NCS (Table) */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-100/75 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-              <th scope="col" className="py-3.5 px-4 sm:px-5">
-                Nghiên cứu sinh
-              </th>
-              <th scope="col" className="py-3.5 px-4 hidden md:table-cell">
-                Đề tài Luận án & Chuyên ngành
-              </th>
-              <th scope="col" className="py-3.5 px-4 text-center">
-                Mốc hiện tại
-              </th>
-              <th scope="col" className="py-3.5 px-4">
-                Tiến độ đào tạo
-              </th>
-              <th scope="col" className="py-3.5 px-4">
-                Tình trạng mốc
-              </th>
-              <th scope="col" className="py-3.5 px-4 sm:px-5 text-right">
-                Hành động
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 text-xs">
-            {filteredStudents.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="py-12 text-center text-slate-400">
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <BookOpen className="size-8 text-slate-300" />
-                    <p className="text-sm font-medium">Không tìm thấy Nghiên cứu sinh phù hợp</p>
-                    <p className="text-xs text-slate-400">
-                      Hãy thử thay đổi từ khóa tìm kiếm hoặc bỏ bớt bộ lọc.
-                    </p>
-                  </div>
-                </td>
+      {/* Bảng dữ liệu NCS */}
+      {students.length === 0 ? (
+        <div className="px-6 py-12 text-center">
+          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+            <BookOpen className="size-6" aria-hidden="true" />
+          </div>
+          <p className="text-sm font-bold text-foreground">
+            Chưa có Nghiên cứu sinh nào được phân công
+          </p>
+          <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
+            Hệ thống chưa ghi nhận Quyết định phân công hướng dẫn nào cho tài khoản
+            giảng viên hiện tại.
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr className="border-b border-border bg-muted/45 text-xs font-semibold text-muted-foreground">
+                <th scope="col" className="px-4 py-3.5 sm:px-5">
+                  Nghiên cứu sinh &amp; Vai trò
+                </th>
+                <th scope="col" className="hidden px-4 py-3.5 md:table-cell">
+                  Đề tài Luận án
+                </th>
+                <th scope="col" className="px-4 py-3.5 text-center">
+                  Mốc hiện tại
+                </th>
+                <th scope="col" className="px-4 py-3.5">
+                  Tiến độ 9 mốc
+                </th>
+                <th scope="col" className="px-4 py-3.5">
+                  Trạng thái
+                </th>
+                <th scope="col" className="px-4 py-3.5 text-right sm:px-5">
+                  Thao tác
+                </th>
               </tr>
-            ) : (
-              filteredStudents.map((student) => {
-                const isSelected = selectedStudentId === student.id;
+            </thead>
 
-                return (
-                  <tr
-                    key={student.id}
-                    onClick={() => onSelectStudent(student)}
-                    className={`cursor-pointer transition-colors group ${
-                      isSelected
-                        ? "bg-blue-50/70 hover:bg-blue-50"
-                        : student.hasRejectedMilestone
-                        ? "bg-rose-50/25 hover:bg-rose-50/50"
-                        : "hover:bg-slate-50/80"
-                    }`}
-                  >
-                    {/* Cột 1: Thông tin NCS */}
-                    <td className="py-3.5 px-4 sm:px-5">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`size-10 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs ${
-                            student.hasRejectedMilestone
-                              ? "bg-rose-100 text-rose-700 border border-rose-200"
-                              : isSelected
-                              ? "bg-[#164E9B] text-white"
-                              : "bg-blue-100 text-[#164E9B]"
-                          }`}
+            <tbody className="divide-y divide-border text-xs">
+              {filteredStudents.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center">
+                    <div className="flex flex-col items-center justify-center gap-2 px-4">
+                      <BookOpen className="size-8 text-muted-foreground" aria-hidden="true" />
+                      <p className="text-sm font-semibold text-foreground">
+                        Không tìm thấy Nghiên cứu sinh phù hợp
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Thử đổi từ khóa tìm kiếm hoặc xóa bộ lọc hiện tại.
+                      </p>
+                      {hasActiveFilter && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchQuery("");
+                            setStatusFilter("ALL");
+                          }}
+                          className="mt-2 inline-flex h-9 cursor-pointer items-center rounded-lg border border-border bg-card px-3 text-xs font-semibold text-[#164E9B] transition-colors hover:bg-muted"
                         >
-                          {student.hoTen.charAt(0)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-slate-900 text-sm group-hover:text-[#164E9B] transition-colors">
-                            {student.hoTen}
-                          </p>
-                          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                            <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 font-semibold">
-                              {student.mshv}
-                            </span>
-                            <span className="text-[11px] text-slate-500 font-medium">
-                              {student.lop}
-                            </span>
-                            <span
-                              className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                                student.vaiTroHuongDan === "CHINH"
-                                  ? "bg-blue-50 text-[#164E9B]"
-                                  : "bg-indigo-50 text-indigo-700"
-                              }`}
-                            >
-                              {student.vaiTroHuongDan === "CHINH"
-                                ? "HD Chính"
-                                : "Đồng HD"}
-                            </span>
+                          Xóa bộ lọc
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredStudents.map((student) => {
+                  const isSelected = selectedStudentId === student.id;
+                  const isMain = student.vaiTro === "HUONG_DAN_CHINH";
+                  const progressSafe =
+                    student.tongSoMoc > 0
+                      ? Math.min(Math.max(student.tienDoPhanTram, 0), 100)
+                      : 0;
+
+                  return (
+                    <tr
+                      key={student.id}
+                      onClick={() => onSelectStudent(student)}
+                      className={`group cursor-pointer transition-colors ${
+                        isSelected
+                          ? "bg-[#164E9B]/8 hover:bg-[#164E9B]/10"
+                          : student.coMocCanHoanThien
+                            ? "bg-rose-50/35 hover:bg-rose-50/60"
+                            : "hover:bg-muted/35"
+                      }`}
+                    >
+                      <td className="px-4 py-3.5 sm:px-5">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`flex size-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${
+                              student.coMocCanHoanThien
+                                ? "bg-rose-100 text-rose-700"
+                                : isSelected
+                                  ? "bg-[#164E9B] text-white"
+                                  : "bg-[#164E9B]/10 text-[#164E9B]"
+                            }`}
+                          >
+                            {student.hoTen.trim().charAt(0)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-foreground transition-colors group-hover:text-[#164E9B]">
+                              {student.hoTen}
+                            </p>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                              <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-foreground">
+                                {student.mshv}
+                              </span>
+                              <span className="text-[11px] font-medium text-muted-foreground">
+                                {student.lop}
+                              </span>
+                              <span
+                                className={`rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold ${
+                                  isMain
+                                    ? "bg-[#164E9B]/10 text-[#164E9B]"
+                                    : "bg-slate-100 text-slate-700"
+                                }`}
+                              >
+                                {isMain ? "Chính (1.0)" : "Đồng HD (0.5)"}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Cột 2: Đề tài Luận án */}
-                    <td className="py-3.5 px-4 hidden md:table-cell max-w-[280px]">
-                      <p
-                        className="font-medium text-slate-800 line-clamp-2 leading-relaxed"
-                        title={student.tenDeTai}
-                      >
-                        {student.tenDeTai}
-                      </p>
-                      <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                        Chuyên ngành: <strong>{student.chuyenNganh}</strong>
-                      </p>
-                    </td>
+                      <td className="hidden max-w-[290px] px-4 py-3.5 md:table-cell">
+                        <p
+                          className="line-clamp-2 font-medium leading-relaxed text-foreground"
+                          title={student.tenDeTai}
+                        >
+                          {student.tenDeTai}
+                        </p>
+                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                          Chuyên ngành:{" "}
+                          <strong className="font-semibold text-foreground">
+                            {student.chuyenNganh}
+                          </strong>
+                        </p>
+                      </td>
 
-                    {/* Cột 3: Mốc hiện tại */}
-                    <td className="py-3.5 px-4 text-center">
-                      <div className="inline-flex flex-col items-center">
-                        <span className="inline-flex items-center justify-center font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 border border-slate-200">
-                          Mốc {student.mocHienTai} / {student.tongSoMoc}
-                        </span>
-                        <span className="text-[10px] text-slate-400 mt-0.5">
-                          {student.tenMocHienTai.replace(/^Báo cáo\s*/, "")}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Cột 4: Tiến độ đào tạo */}
-                    <td className="py-3.5 px-4 min-w-[130px]">
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between items-center text-[11px]">
-                          <span className="font-bold text-slate-700">
-                            {student.tienDoPhanTram}%
+                      <td className="px-4 py-3.5 text-center">
+                        <div className="inline-flex flex-col items-center">
+                          <span className="inline-flex items-center justify-center rounded-md bg-muted px-2.5 py-1 font-mono text-xs font-bold tabular-nums text-foreground">
+                            Mốc {student.mocHienTai}/{student.tongSoMoc}
                           </span>
-                          <span className="text-slate-500">
-                            {student.soMocHoanThanh}/{student.tongSoMoc} mốc
+                          <span className="mt-1 max-w-[140px] truncate text-[11px] text-muted-foreground">
+                            {student.tenMocHienTai.replace(/^Mốc \d+:\s*/, "")}
                           </span>
                         </div>
-                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden flex border border-slate-200/60">
+                      </td>
+
+                      <td className="min-w-[140px] px-4 py-3.5">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="font-mono font-bold tabular-nums text-foreground">
+                              {progressSafe}%
+                            </span>
+                            <span className="font-mono tabular-nums text-muted-foreground">
+                              {student.soMocHoanThanh}/{student.tongSoMoc} mốc
+                            </span>
+                          </div>
                           <div
-                            className={`rounded-full transition-all duration-300 ${
-                              student.hasRejectedMilestone
-                                ? "bg-rose-500"
-                                : student.tienDoPhanTram >= 70
-                                ? "bg-emerald-600"
-                                : "bg-[#164E9B]"
-                            }`}
-                            style={{ width: `${student.tienDoPhanTram}%` }}
-                          />
+                            role="progressbar"
+                            aria-valuenow={progressSafe}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-label={`Tiến độ ${student.hoTen}: ${progressSafe}%`}
+                            className="flex h-2 w-full overflow-hidden rounded-full bg-muted"
+                          >
+                            <div
+                              className={`rounded-full transition-all duration-300 motion-reduce:transition-none ${
+                                student.coMocCanHoanThien
+                                  ? "bg-rose-500"
+                                  : progressSafe >= 70
+                                    ? "bg-emerald-600"
+                                    : "bg-[#164E9B]"
+                              }`}
+                              style={{ width: `${progressSafe}%` }}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Cột 5: Tình trạng mốc */}
-                    <td className="py-3.5 px-4">
-                      {renderStatusBadge(student)}
-                    </td>
+                      <td className="px-4 py-3.5">{renderStatusBadge(student)}</td>
 
-                    {/* Cột 6: Nút xem chi tiết */}
-                    <td className="py-3.5 px-4 sm:px-5 text-right">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectStudent(student);
-                        }}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
-                          isSelected
-                            ? "bg-[#164E9B] text-white shadow-xs"
-                            : "bg-slate-100 text-[#164E9B] hover:bg-[#164E9B] hover:text-white"
-                        }`}
-                      >
-                        <span>Chi tiết 9 mốc</span>
-                        <ChevronRight className="size-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+                      <td className="px-4 py-3.5 text-right sm:px-5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectStudent(student);
+                          }}
+                          className={`inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] ${
+                            isSelected
+                              ? "bg-[#164E9B] text-white"
+                              : "bg-muted text-[#164E9B] hover:bg-[#164E9B] hover:text-white"
+                          }`}
+                        >
+                          <span>Chi tiết 9 mốc</span>
+                          <ChevronRight className="size-3.5" aria-hidden="true" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 

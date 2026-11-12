@@ -4,3 +4,4 @@ export * from "./thesis";
 export * from "./change-request";
 export * from "./graduation";
 export * from "./progress";
+export * from "./supervisor";

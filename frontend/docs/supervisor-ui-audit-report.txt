@@ -1,0 +1,426 @@
+================================================================================
+BÁO CÁO KIỂM TRA NHANH (AUDIT) PHÂN HỆ GIẢNG VIÊN HƯỚNG DẪN (GVHD - SUPERVISOR)
+Áp dụng ngữ cảnh thiết kế Impeccable (.agent/skills/impeccable)
+================================================================================
+
+--------------------------------------------------------------------------------
+1. NGỮ CẢNH IMPECCABLE (.agent/skills/impeccable) & PHẠM VI KIỂM TRA
+--------------------------------------------------------------------------------
+- Skill đã cài đặt: `impeccable` v4.8.0 tại `.agent/skills/impeccable/SKILL.md`.
+- Kết quả chạy `.agent/skills/impeccable/scripts/impeccable.cmd context --target frontend\src\components\supervisor\supervisor-dashboard-container.tsx`:
+  + `NO_PRODUCT_MD` / `PRODUCT_INIT_REQUIRED` (`productPath: null`, `designPath: null`,
+    `surfaceBriefPath: null`).
+  + Bề mặt GVHD thuộc chế độ **Operate mode** (`SKILL.md` / `operate.md`): ưu tiên
+    khả năng quét nhanh bảng dữ liệu, phân tách vai trò rõ ràng, biểu diễn định mức
+    chính xác và đầy đủ 8 trạng thái tương tác.
+- Kết quả chạy `.agent/skills/impeccable/scripts/impeccable.cmd detect --json` trên
+  10 file UI GVHD hiện có (`components/supervisor/sidebar.tsx`, `header.tsx`,
+  `supervisor-dashboard-container.tsx`, `supervisor-stats-banner.tsx`,
+  `student-list-table.tsx`, `student-progress-drawer.tsx`, `QuotaBar.tsx`,
+  `SupervisorSelector.tsx`, `app/(supervisor)/layout.tsx`,
+  `app/(supervisor)/supervisor/dashboard/page.tsx`):
+  + Exit code `0`, output `[]` (không ghi nhận lỗi máy móc tự động).
+- Ghi chú kiểm tra thủ công theo Craft floor (`operate.md` / `craft-floor.md`):
+  + `supervisor-stats-banner.tsx` có dải gradient đầu thẻ (`bg-gradient-to-r`),
+    eyebrow `uppercase tracking-wider` trước số liệu và card lồng viền.
+  + `student-progress-drawer.tsx` có dải accent top, `animate-pulse` thiếu
+    `motion-reduce:animate-none`, nút đóng `p-2` chưa đạt chuẩn vùng chạm 40x40px,
+    eyebrow `uppercase tracking-wider`.
+  + `sidebar.tsx` & `header.tsx`: thiếu xử lý phím `Escape`, nút menu/đóng trên
+    mobile chưa đạt `size-10`. `footer.tsx` có liên kết chết `href="#"` ở `"Quy chế GVHD"`.
+
+--------------------------------------------------------------------------------
+2. GHI CHÚ CÁC THAY ĐỔI ĐÃ CHỈNH LIÊN QUAN THƯ MỤC `components/supervisor/` TỪ PHÂN HỆ NCS
+--------------------------------------------------------------------------------
+Trong quá trình hoàn thiện phân hệ Nghiên cứu sinh (NCS) trước đó, KHÔNG có file nào
+của màn hình GVHD bị chỉnh sửa ngoài hai mục phục vụ cổng NCS sau đây:
+1) `frontend/src/components/supervisor/MySupervisorList.tsx` & `index.ts`:
+   - Tạo mới `MySupervisorList.tsx` và export trong `components/supervisor/index.ts`.
+   - Component này phục vụ trực tiếp trang **Giảng viên hướng dẫn của tôi** bên
+     phân hệ NCS (`/student/supervisors`), tái sử dụng `PdfViewer` dùng chung,
+     KHÔNG thuộc các màn hình nghiệp vụ của cổng GVHD `(supervisor)`.
+2) Gián tiếp qua `frontend/src/components/student/progress/`:
+   - `student-progress-drawer.tsx` (của GVHD) đang import `DocumentViewButton` và
+     `EvaluationReviewsSection` từ `components/student/progress/`. Ở Bước 4 của NCS,
+     hai component này đã được chuẩn hóa sang dùng `PdfViewer` dùng chung và UI types
+     `@src/types/ui/progress`, giúp phần xem PDF trong Drawer GVHD ổn định hơn nhưng
+     bản thân `student-progress-drawer.tsx` vẫn đang dùng `@/src/types/progress` và
+     `@/src/lib/mockData`.
+
+--------------------------------------------------------------------------------
+3. KIỂM TRA KIẾN TRÚC TÁCH LỚP & TÌNH TRẠNG ROUTE SIDEBAR GVHD
+--------------------------------------------------------------------------------
+3.1. Tầng UI Types (`frontend/src/types/ui/`) & Mock Data (`frontend/src/mocks/`):
+- Thư mục `src/types/ui/` hiện mới có 6 module của NCS (`upload`, `shared`, `thesis`,
+  `change-request`, `graduation`, `progress`) và `index.ts`; CHƯA CÓ types riêng cho
+  phân hệ GVHD (ví dụ `supervisor.ts` cho Quota, danh sách NCS của GVHD, thẩm định
+  gia hạn, đề xuất đổi đề tài/GVHD thay NCS).
+- Thư mục `src/mocks/` mới có `thesis.ts`, `change-request.ts`, `graduation.ts`,
+  `progress.ts`; CHƯA CÓ mock data tách riêng cho GVHD.
+- Toàn bộ component GVHD hiện có (`supervisor-dashboard-container.tsx`,
+  `supervisor-stats-banner.tsx`, `student-list-table.tsx`,
+  `student-progress-drawer.tsx`) đang import trực tiếp từ `@/src/lib/mockData` và
+  `@/src/types/progress`.
+
+3.2. Kiểm tra Sidebar (`frontend/src/components/supervisor/sidebar.tsx`), Header & Footer:
+- Nhóm "Quản lý Nghiên cứu sinh" trên `SupervisorSidebar` hiện trỏ 4 link:
+  1) `"Bàn làm việc GVHD"`     -> `/supervisor/dashboard`  (Đã có Thin Page + UI)
+  2) `"Danh sách NCS"`         -> `/students`              (STUB TRẮNG, thiếu prefix `/supervisor/`)
+  3) `"Báo cáo định kỳ"`       -> `/progress-reports`      (STUB TRẮNG, thiếu prefix `/supervisor/`)
+  4) `"Định mức hướng dẫn"`    -> `/quota`                 (STUB TRẮNG, thiếu prefix `/supervisor/`)
+- Nhóm "Văn bản & Trợ giúp" trên `SupervisorSidebar` trỏ 3 link:
+  + `/supervisor/procedures`, `/supervisor/regulations`, `/supervisor/faq` (đã có).
+- `SupervisorHeader` (`components/supervisor/header.tsx`):
+  + Nút `"Duyệt báo cáo NCS"` trỏ `/progress-reports` (đang là trang trắng).
+  + Dropdown `"Quy định hạn ngạch GVHD"` trỏ `/quota` (đang là trang trắng).
+  + Hiển thị cứng badge `"Hạn ngạch: 3/5 NCS"` (không tính từ trọng số 1.0/0.5).
+- `SupervisorFooter` (`components/supervisor/footer.tsx`):
+  + Link `"Quy chế GVHD"` đang đặt `href="#"`.
+- CHƯA CÓ đường dẫn hay mục menu nào cho **Thẩm định đơn gia hạn** và **Nộp đơn thay NCS**.
+
+--------------------------------------------------------------------------------
+4. PHÁT HIỆN XUNG ĐỘT ROUTE & TRỘN LẪN VỚI CỔNG GIÁO VỤ `(academic)` (TIÊU CHÍ C)
+--------------------------------------------------------------------------------
+1) Xung đột trực tiếp URL `/students` và `/students/[id]` giữa GVHD & Giáo vụ:
+   - `app/(supervisor)/students/page.tsx` chiếm route `/students` dưới `SupervisorLayout`.
+   - Trong khi đó `app/(academic)/students/[id]/page.tsx` (Hồ sơ NCS của Giáo vụ) lại
+     nằm trong `(academic)` chiếm route `/students/[id]` dưới `AcademicLayout`, còn
+     trang danh sách của Giáo vụ nằm tại `/academic/students`.
+   - Hai cổng khác quyền hạn & layout đang dùng chung gốc `/students`.
+
+2) Chồng lấn Route gốc `/` (`(supervisor)/page.tsx` vs `app/page.tsx`):
+   - `app/(supervisor)/page.tsx` định nghĩa `redirect("/supervisor")` tại route `/`
+     (vì route group `(supervisor)` không tạo URL segment), trong khi `src/app/page.tsx`
+     là trang chủ cổng thông tin chung `/`.
+   - Cần thống nhất toàn bộ route GVHD nằm gọn dưới prefix `/supervisor/...`
+     (`/supervisor/dashboard`, `/supervisor/students`, `/supervisor/quota`,
+     `/supervisor/progress-reports`, `/supervisor/extensions`, `/supervisor/requests`),
+     tránh để route trần `/students`, `/quota`, `/progress-reports` gây lẫn với Giáo vụ
+     và phải liệt kê rời trong `PUBLIC_ROUTES` ở `src/middleware.ts`.
+
+3) Trùng lặp / Trộn lẫn Component giữa `components/supervisor/` & `components/academic/`:
+   - `components/supervisor/QuotaBar.tsx` và `components/supervisor/SupervisorSelector.tsx`
+     đều đang là file stub `TODO`, trong khi bản triển khai thật lại nằm ở
+     `components/academic/QuotaBar.tsx` và `components/academic/SupervisorSelector.tsx`
+     (đang dùng tại màn hình Giáo vụ `/academic/supervisors`).
+   - `SupervisorSelector` vốn là nghiệp vụ phân công GVHD toàn trường của Giáo vụ; phía
+     GVHD không tự phân công GVHD mà chỉ có nhu cầu xem định mức cá nhân (BR-09) và
+     nộp đơn đề xuất đổi đề tài / đổi GVHD thay NCS (chuyển về Giáo vụ duyệt).
+   - Cần tránh nhầm lẫn giữa màn hình **GVHD theo dõi tiến độ / đề xuất thay NCS** với
+     màn hình **Giáo vụ thẩm định & phê duyệt** (`/academic/milestone-review`,
+     `/academic/topic-changes`, `/academic/supervisors`).
+
+--------------------------------------------------------------------------------
+5. BẢNG AUDIT 5 MÀN HÌNH CHÍNH PHÂN HỆ GVHD (THEO TIÊU CHÍ A / B / C)
+--------------------------------------------------------------------------------
+Quy ước đánh giá:
+- (A) Đã có chưa?
+- (B) Đã tách Thin Page (`page.tsx` chỉ gọi component, tách UI types/mocks) chưa?
+- (C) Có đang bị trộn lẫn với cổng Giáo vụ `(academic)` không?
+
++------------------------------------+--------------------------------------------------+--------------------------------------------------------+
+| Hạng mục / Màn hình                | File đã có                                       | Tình trạng chi tiết (A / B / C)                        |
++------------------------------------+--------------------------------------------------+--------------------------------------------------------+
+| 1. Danh sách NCS đang hướng dẫn    | - app/(supervisor)/students/page.tsx             | - (A) CÓ MỘT PHẦN: Bảng `StudentListTable` đã chạy     |
+|    (Tên, Mã, Đề tài, Trạng thái,   |   (route `/students`, stub trắng 3 dòng)         |   bên trong `/supervisor/dashboard`; nhưng trang riêng |
+|     Tiến độ 9 mốc)                 | - app/(supervisor)/supervisor/dashboard/page.tsx |   `/students` hoàn toàn rỗng. Thiếu Loading/Error.     |
+|                                    | - components/supervisor/                         | - (B) CHƯA ĐẠT: `students/page.tsx` chưa có component; |
+|                                    |   supervisor-dashboard-container.tsx             |   `SupervisorDashboardContainer` dùng mặc định từ      |
+|                                    |   student-list-table.tsx                         |   `@/src/lib/mockData`, chưa tách `types/ui/` & `mocks/`.|
+|                                    |                                                  | - (C) TRỘN LẪN ROUTE: Dùng URL `/students` (trùng gốc  |
+|                                    |                                                  |   với `(academic)/students/[id]`), thiếu `/supervisor/`.|
++------------------------------------+--------------------------------------------------+--------------------------------------------------------+
+| 2. Định mức hướng dẫn (Quota)      | - app/(supervisor)/quota/page.tsx                | - (A) CHƯA HOÀN THIỆN: `/quota` là trang trắng 3 dòng; |
+|    (Dashboard quy đổi trọng số     |   (route `/quota`, stub trắng 3 dòng)            |   `components/supervisor/QuotaBar.tsx` mới là `TODO`.  |
+|     Chính = 1.0, Phụ = 0.5 vs max) | - components/supervisor/QuotaBar.tsx (stub TODO) |   `SupervisorStatsBanner` trên dashboard chỉ đếm slot  |
+|                                    | - components/supervisor/SupervisorSelector.tsx   |   nguyên (`3/5` chính, `1/3` phụ), CHƯA quy đổi trọng  |
+|                                    |   (stub TODO)                                    |   số `Chính = 1.0`, `Phụ = 0.5` so với hạn mức tối đa. |
+|                                    | - components/supervisor/                         | - (B) CHƯA ĐẠT: `quota/page.tsx` chưa tách Thin Page;  |
+|                                    |   supervisor-stats-banner.tsx                    |   `header.tsx` vẫn hardcode `"Hạn ngạch: 3/5 NCS"`.    |
+|                                    |                                                  | - (C) TRỘN LẪN: Bản `QuotaBar.tsx` & `SupervisorSelector`|
+|                                    |                                                  |   thật nằm ở `components/academic/` phục vụ Giáo vụ;   |
+|                                    |                                                  |   route `/quota` thiếu prefix `/supervisor/`.          |
++------------------------------------+--------------------------------------------------+--------------------------------------------------------+
+| 3. Báo cáo tiến độ (của NCS)       | - app/(supervisor)/progress-reports/page.tsx     | - (A) CÓ MỘT PHẦN: Mới có `StudentProgressDrawer` xem  |
+|    (Theo dõi chi tiết các mốc      |   (route `/progress-reports`, stub trắng 3 dòng) |   read-only 9 mốc khi click NCS trên Dashboard; trang  |
+|     NCS đã nộp)                    | - components/supervisor/                         |   `/progress-reports` rỗng (chưa có danh sách/bộ lọc   |
+|                                    |   student-progress-drawer.tsx                    |   báo cáo & minh chứng các mốc NCS đã nộp).            |
+|                                    |   (import `DocumentViewButton`,                  | - (B) CHƯA ĐẠT: `progress-reports/page.tsx` rỗng;      |
+|                                    |   `EvaluationReviewsSection` từ `student/progress`) | Drawer còn dính `lib/mockData` & `types/progress`.   |
+|                                    |                                                  | - (C) TRỘN NGỮ CẢNH: Route `/progress-reports` thiếu   |
+|                                    |                                                  |   prefix `/supervisor/`; nút header `"Duyệt báo cáo"`  |
+|                                    |                                                  |   dễ nhầm với quyền duyệt cuối của Giáo vụ.            |
++------------------------------------+--------------------------------------------------+--------------------------------------------------------+
+| 4. Thẩm định đơn gia hạn           | (Chưa có file nào)                               | - (A) CHƯA CÓ: Không có UI, modal hay tab cho GVHD xem |
+|    (Khu vực riêng xem báo cáo &    |                                                  |   báo cáo tiến độ và chọn Đồng ý / Từ chối đơn gia hạn |
+|     đồng ý / từ chối đơn gia hạn)  |                                                  |   của NCS (`CHO_GVHD_XAC_NHAN`).                       |
+|                                    |                                                  | - (B) CHƯA CÓ Thin Page, `types/ui/` hay `mocks/` riêng.|
+|                                    |                                                  | - (C) Chưa xuất hiện trên Sidebar/Header GVHD; cần tách|
+|                                    |                                                  |   biệt luồng xác nhận chuyên môn GVHD với Giáo vụ duyệt.|
++------------------------------------+--------------------------------------------------+--------------------------------------------------------+
+| 5. Nộp đơn thay NCS                | (Chưa có file nào)                               | - (A) CHƯA CÓ: Chưa có nút trên dòng NCS/Drawer hay    |
+|    (Đề xuất đổi đề tài / đổi GVHD  |                                                  |   form để GVHD nộp đề xuất đổi đề tài / đổi GVHD thay  |
+|     thay cho học viên)             |                                                  |   cho học viên.                                        |
+|                                    |                                                  | - (B) CHƯA CÓ Thin Page, component hay mock data.      |
+|                                    |                                                  | - (C) Không được trộn với `/academic/topic-changes`    |
+|                                    |                                                  |   (màn hình duyệt của Giáo vụ) hay `SupervisorSelector`.|
++------------------------------------+--------------------------------------------------+--------------------------------------------------------+
+
+--------------------------------------------------------------------------------
+6. KẾ HOẠCH ĐỀ XUẤT CHO CÁC BƯỚC TIẾP THEO (BƯỚC 2 - BƯỚC 3)
+--------------------------------------------------------------------------------
+1) Chuẩn hóa Routing GVHD & Dọn xung đột:
+   - Đưa toàn bộ màn hình GVHD về prefix chuẩn `/supervisor/...`:
+     + `/supervisor/dashboard`
+     + `/supervisor/students` (kèm redirect từ `(supervisor)/students/page.tsx` nếu
+       cần giữ tương thích link cũ, đồng thời báo rõ tránh đụng `(academic)/students/[id]`)
+     + `/supervisor/quota` (chuyển hướng từ `(supervisor)/quota/page.tsx`)
+     + `/supervisor/progress-reports` (chuyển hướng từ `(supervisor)/progress-reports/page.tsx`)
+     + `/supervisor/extensions` (Thẩm định đơn gia hạn)
+     + `/supervisor/requests` (Nộp đơn đề xuất đổi đề tài / đổi GVHD thay NCS)
+   - Rà soát bỏ/chỉnh `(supervisor)/page.tsx` để không chồng lấn route `/` của `app/page.tsx`.
+   - Cập nhật `SupervisorSidebar`, `SupervisorHeader`, `SupervisorFooter` khớp 100% route mới.
+
+2) Tách tầng `src/types/ui/` & `src/mocks/` riêng cho GVHD:
+   - `src/types/ui/supervisor.ts`: định nghĩa rõ kiểu dữ liệu cho Hồ sơ & Quota trọng số
+     (1.0 / 0.5 theo BR-09), Danh sách NCS, Báo cáo tiến độ, Đơn gia hạn chờ GVHD thẩm định,
+     Đơn đề xuất thay NCS (`DOI_DE_TAI`, `DOI_GVHD`).
+   - `src/mocks/supervisor.ts`: dữ liệu mẫu đầy đủ cho các kịch bản quota (hợp lệ / gần trần /
+     đạt trần), các mốc NCS đã nộp, đơn gia hạn chờ xác nhận và danh sách đơn đề xuất thay NCS.
+
+3) Xây dựng & Chuẩn hóa Components + Thin Pages:
+   - Hoàn thiện `components/supervisor/QuotaBar.tsx` (tính toán `1.0` & `0.5`, màu theo
+     ngưỡng, A11y), tách bỏ phụ thuộc trực tiếp vào `lib/mockData` ở Dashboard/Drawer.
+   - Tái sử dụng triệt để `PdfViewer`, `PdfUploader`, `UploadProgress`, `ConfirmDialog`,
+     `DeadlineCountdown`, `DeadlineWarningBanner` đã có ở `components/upload/` & `shared/`.
+   - Bổ sung đầy đủ trạng thái `Loading / Empty / Error` và tuân thủ Impeccable
+     (tông `#164E9B` / `#0F2744` + semantic tokens, không strip gradient/eyebrow,
+     `size-10` touch target, `Escape` modal/drawer, `motion-reduce:animate-none`).
+================================================================================
+
+
+
+================================================================================
+CẬP NHẬT TIẾN ĐỘ BƯỚC 2 (2026-11-11)
+Chuẩn hóa Route GVHD (/supervisor/), Tách UI Types/Mocks & Hoàn thiện
+Danh sách NCS đang hướng dẫn + Định mức hướng dẫn (BR-09)
+================================================================================
+
+--------------------------------------------------------------------------------
+7. TỔNG HỢP HẠNG MỤC ĐÃ HOÀN THÀNH TRONG BƯỚC 2
+--------------------------------------------------------------------------------
+Quy ước tuân thủ:
+- Chỉ tạo/sửa mã nguồn trong: `frontend/src/app/(supervisor)/`,
+  `frontend/src/components/supervisor/`, `frontend/src/mocks/`,
+  `frontend/src/types/ui/` (và cập nhật tệp báo cáo `.txt` theo yêu cầu).
+- Không sửa `package.json`, `package-lock.json`, `src/services/`, `src/hooks/`,
+  `src/lib/api/`, `src/types/api/`; xác nhận 0 lệnh `fetch(`, `axios` hoặc phụ thuộc
+  `src/lib/mockData`.
+- Tuân thủ chuẩn Impeccable (Operate mode & Craft floor): tông học thuật
+  `#164E9B` / `#0F2744` kết hợp semantic tokens (`bg-card`, `text-foreground`,
+  `border-border`), không dải gradient hay eyebrow trước tiêu đề, phím `Escape`
+  đóng Sidebar/Menu/Drawer, touch target `size-10`/`min-h-10`, `motion-reduce:animate-none`.
+
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| Hạng mục                             | File đã tạo / cập nhật                           | Trạng thái & Nội dung triển khai                     |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 1. Chuẩn hóa Route & Thin Pages      | - src/app/(supervisor)/layout.tsx                | - `layout.tsx`: thêm skip link `#supervisor-main-    |
+|    (`frontend/src/app/(supervisor)/`)| - src/app/(supervisor)/supervisor/dashboard/     |   content`, nền `#F0F5FA`, truyền `profile` & `quota`|
+|                                      |   page.tsx                                       |   từ `mocks/supervisor` vào Sidebar & Header.        |
+|                                      | - src/app/(supervisor)/supervisor/students/      | - Thin Pages mới dưới `/supervisor/`:                |
+|                                      |   page.tsx                                       |   + `/supervisor/dashboard`: truyền dữ liệu mẫu vào  |
+|                                      | - src/app/(supervisor)/supervisor/quota/page.tsx |     `SupervisorDashboardContainer`.                  |
+|                                      | - src/app/(supervisor)/supervisor/               |   + `/supervisor/students`: truyền dữ liệu mẫu vào   |
+|                                      |   progress-reports/page.tsx                      |     `SupervisorStudentsWorkspace`.                   |
+|                                      | - src/app/(supervisor)/students/page.tsx         |   + `/supervisor/quota`: truyền `profile`, `quota`,  |
+|                                      | - src/app/(supervisor)/quota/page.tsx            |     `students`, `scenarios` vào                      |
+|                                      | - src/app/(supervisor)/progress-reports/page.tsx |     `SupervisorQuotaWorkspace`.                      |
+|                                      | - src/app/(supervisor)/page.tsx                  |   + `/supervisor/progress-reports`: trang placeholder|
+|                                      |                                                  |     sạch chờ Bước 3 (liên kết `/supervisor/students` |
+|                                      |                                                  |     & `/supervisor/dashboard`, tránh lỗi 404).       |
+|                                      |                                                  | - Redirect các route cũ sang `/supervisor/...`:      |
+|                                      |                                                  |   `/students` -> `/supervisor/students`,             |
+|                                      |                                                  |   `/quota` -> `/supervisor/quota`,                   |
+|                                      |                                                  |   `/progress-reports` -> `/supervisor/progress-reports`,|
+|                                      |                                                  |   `(supervisor)/page.tsx` -> `/supervisor/dashboard` |
+|                                      |                                                  |   (lưu ý `src/app/page.tsx` vẫn tồn tại ở `/`).      |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 2. UI Types & Mock Data GVHD         | - src/types/ui/supervisor.ts                     | - `src/types/ui/supervisor.ts`: định nghĩa           |
+|    (`types/ui/` & `mocks/`)          | - src/types/ui/index.ts (re-export)              |   `SupervisorRole`, `SUPERVISOR_ROLE_WEIGHTS`        |
+|                                      | - src/mocks/supervisor.ts                        |   (`HUONG_DAN_CHINH: 1.0`, `DONG_HUONG_DAN: 0.5`),   |
+|                                      |                                                  |   `QuotaWarningLevel`, `SupervisedStudentStatus`,    |
+|                                      |                                                  |   `SupervisorQuota`, `SupervisorProfile`,            |
+|                                      |                                                  |   `SupervisedStudent`, `QuotaScenarioOption` và đủ   |
+|                                      |                                                  |   prop interfaces cho các component/workspace.       |
+|                                      |                                                  | - `src/mocks/supervisor.ts`: cung cấp helper thuần UI|
+|                                      |                                                  |   `computeSupervisorQuota`, `mockSupervisorProfile`, |
+|                                      |                                                  |   `mockSupervisedStudents` (4 NCS: `3×1.0 + 1×0.5 =  |
+|                                      |                                                  |   3.5 / 5.0`, kèm file `mock://...`),                |
+|                                      |                                                  |   `mockSupervisorQuota` & 4 kịch bản                 |
+|                                      |                                                  |   `mockSupervisorQuotaScenarios` (3.5/2.5/4.5/5.0).  |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 3. Màn hình Bàn làm việc,            | - src/components/supervisor/                     | - `SupervisorDashboardContainer`: nhận props chuẩn   |
+|    Danh sách NCS & Định mức BR-09    |   supervisor-dashboard-container.tsx             |   `SupervisorDashboardContainerProps` (hỗ trợ        |
+|                                      | - src/components/supervisor/                     |   `isLoading`, `error`, `onRetry`), điều hướng nhanh |
+|                                      |   supervisor-students-workspace.tsx              |   `/supervisor/students` & `/supervisor/quota`,      |
+|                                      | - src/components/supervisor/                     |   mở `StudentProgressDrawer`.                        |
+|                                      |   supervisor-quota-workspace.tsx                 | - `SupervisorStudentsWorkspace`: màn hình riêng cho  |
+|                                      |                                                  |   `/supervisor/students` với 4 KPI tóm tắt (`Tổng`,  |
+|                                      |                                                  |   `Chính ×1.0`, `Đồng HD ×0.5`, `Cần bổ sung gấp`),  |
+|                                      |                                                  |   `StudentListTable` & `StudentProgressDrawer`.      |
+|                                      |                                                  | - `SupervisorQuotaWorkspace`: màn hình riêng cho     |
+|                                      |                                                  |   `/supervisor/quota` với bộ chọn kịch bản ngưỡng    |
+|                                      |                                                  |   (`SAFE` / `WARNING` / `FULL`), `QuotaBar` chi tiết,|
+|                                      |                                                  |   bảng kê trọng số từng NCS kèm số QĐ & giải thích   |
+|                                      |                                                  |   quy tắc BR-09 (`1.0` / `0.5`, trần `5.0`).         |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 4. Nâng cấp Component, Shell         | - src/components/supervisor/QuotaBar.tsx         | - Thay thế hoàn toàn stub `TODO` ở `QuotaBar.tsx`    |
+|    & Đồng bộ Export                  | - src/components/supervisor/SupervisorSelector   |   (`role="progressbar"`, màu theo ngưỡng) và         |
+|                                      | - src/components/supervisor/                     |   `SupervisorSelector.tsx` (`Escape`, kiểm tra BR-09).|
+|                                      |   supervisor-stats-banner.tsx                    | - Chuẩn hóa `supervisor-stats-banner.tsx`,           |
+|                                      | - src/components/supervisor/                     |   `student-list-table.tsx` (Loading/Error/Empty),    |
+|                                      |   student-list-table.tsx                         |   `student-progress-drawer.tsx` (`PdfViewer` dùng    |
+|                                      | - src/components/supervisor/                     |   chung, `Escape`, `size-10`, ngày UTC).             |
+|                                      |   student-progress-drawer.tsx                    | - `sidebar.tsx` & `header.tsx`: đồng bộ 100% URL     |
+|                                      | - src/components/supervisor/sidebar.tsx          |   `/supervisor/*`, badge động `3.5/5.0 (70%)` trên   |
+|                                      | - src/components/supervisor/header.tsx           |   header dropdown, phím `Escape`, nút `size-10`.     |
+|                                      | - src/components/supervisor/footer.tsx           | - `footer.tsx`: thay link chết `#` trên `"Quy chế    |
+|                                      | - src/components/supervisor/index.ts             |   GVHD"` bằng `/supervisor/regulations`.             |
+|                                      |                                                  | - `index.ts`: export đủ workspace/component mới và   |
+|                                      |                                                  |   giữ nguyên `MySupervisorList` cho `/student/...`.  |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+
+--------------------------------------------------------------------------------
+8. KẾT QUẢ KIỂM TRA SAU BƯỚC 2
+--------------------------------------------------------------------------------
+1) TypeScript & Next.js Route Types (chạy sau lần sửa code cuối):
+   - `npx next typegen; npx tsc --noEmit` (tại `frontend/`): Exit code `0`
+     (`Generating route types...`, `✓ Types generated successfully`, 0 lỗi type).
+   - Kiểm tra `routes.d.ts`: đã ghi nhận đủ `/supervisor`, `/supervisor/dashboard`,
+     `/supervisor/students`, `/supervisor/quota`, `/supervisor/progress-reports`,
+     `/supervisor/regulations`, `/supervisor/procedures`, `/supervisor/faq`.
+
+2) ESLint (chạy sau lần sửa code cuối):
+   - `npx eslint` trên toàn bộ 24 file đã tạo/cập nhật trong Bước 2: Exit code `0`
+     (0 lỗi, 0 cảnh báo).
+
+3) Impeccable Mechanical Detector:
+   - `.agent/skills/impeccable/scripts/impeccable.cmd detect --json` quét 29 file
+     `.ts`/`.tsx` trong `components/supervisor`, `app/(supervisor)`,
+     `mocks/supervisor.ts`, `types/ui/supervisor.ts`: Exit code `0`, output `[]`.
+
+4) Rà soát Guardrails:
+   - `Select-String` tìm `fetch(|axios|TODO|lib/mockData` trên toàn bộ file Bước 2:
+     0 kết quả.
+   - `git status --short` xác nhận toàn bộ thay đổi code chỉ nằm trong 4 thư mục
+     được phép (`app/(supervisor)/`, `components/supervisor/`, `mocks/`, `types/ui/`).
+   - Phạm vi chưa kiểm tra: chưa chạy `npm run build` và chưa kiểm thử hiển thị
+     trực tiếp trên trình duyệt.
+
+--------------------------------------------------------------------------------
+9. PHẠM VI CÒN LẠI CHO BƯỚC TIẾP THEO (BƯỚC 3)
+--------------------------------------------------------------------------------
+- Xây dựng màn hình **Báo cáo tiến độ của NCS** (`/supervisor/progress-reports`)
+  thay thế placeholder hiện tại: danh sách/bộ lọc các mốc NCS đã nộp, xem chi tiết
+  báo cáo và minh chứng PDF qua `PdfViewer`.
+- Xây dựng khu vực **Thẩm định đơn gia hạn** (`/supervisor/extensions`): xem báo cáo
+  tiến độ đính kèm và cho phép GVHD chọn Đồng ý / Từ chối đơn gia hạn của NCS.
+- Xây dựng chức năng **Nộp đơn thay NCS** (`/supervisor/requests` hoặc tích hợp
+  từ danh sách NCS/Drawer): đề xuất đổi đề tài (`DOI_DE_TAI`) / đổi GVHD
+  (`DOI_GVHD`) thay cho học viên, tách biệt với màn hình duyệt của Giáo vụ.
+================================================================================
+
+
+
+================================================================================
+CẬP NHẬT TIẾN ĐỘ BƯỚC 3 (2026-11-11)
+Hoàn thiện Báo cáo tiến độ NCS, Thẩm định đơn gia hạn & Nộp đơn thay NCS
+================================================================================
+
+--------------------------------------------------------------------------------
+10. TỔNG HỢP BƯỚC 3 & XÁC NHẬN HOÀN THÀNH 100% PHÂN HỆ GVHD
+--------------------------------------------------------------------------------
+Quy ước tuân thủ:
+- Chỉ tạo/sửa mã nguồn trong: `frontend/src/app/(supervisor)/`,
+  `frontend/src/components/supervisor/`, `frontend/src/mocks/`,
+  `frontend/src/types/ui/` và cập nhật tệp báo cáo `supervisor-ui-audit-report.txt`.
+- Không sửa `package.json`, `package-lock.json`, `src/services/`, `src/hooks/`,
+  `src/lib/api/`, `src/types/api/`; xác nhận 0 lệnh `fetch(`, `axios` hoặc phụ thuộc
+  `src/lib/mockData`.
+- Tái sử dụng trực tiếp shared components (`PdfViewer`, `PdfUploader`,
+  `UploadProgress`, `ConfirmDialog`, `DeadlineWarningBanner`) và UI types
+  (`@/src/types/ui/progress`, `@/src/types/ui/change-request`).
+- Tuân thủ chuẩn Impeccable (Operate mode & Craft floor): tông học thuật
+  `#164E9B` / `#0F2744` + semantic tokens, đầy đủ phím `Escape`, vùng chạm
+  `size-10`/`min-h-10`, `motion-reduce:animate-none`.
+
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| Hạng mục / Màn hình                  | File đã tạo / cập nhật                           | Nội dung triển khai & Kiểm chứng                     |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 1. UI Types & Mock Data Bước 3       | - src/types/ui/supervisor.ts                     | - Bổ sung `SupervisorProgressReportItem`,            |
+|    (`types/ui/` & `mocks/`)          | - src/mocks/supervisor.ts                        |   `SupervisorExtensionRequestItem`,                  |
+|                                      | - src/components/supervisor/                     |   `SupervisorExtensionDecisionAction`,               |
+|                                      |   supervisor-ui-helpers.ts                       |   `SupervisorProxyRequestType`,                      |
+|                                      |                                                  |   `SupervisorProxyRequestItem`,                      |
+|                                      |                                                  |   `SupervisorProxyRequestFormValues` & prop types.   |
+|                                      |                                                  | - Bổ sung `mockSupervisorProgressReports` (7 hồ sơ   |
+|                                      |                                                  |   minh chứng gồm Mốc 2, 4, 5, 8 chờ xem & đã duyệt), |
+|                                      |                                                  |   `mockSupervisorExtensionRequests` (4 đơn gồm 2 đơn |
+|                                      |                                                  |   `CHO_GVHD_XAC_NHAN`), `mockSupervisorProxyRequests`|
+|                                      |                                                  |   (4 đơn `DOI_DE_TAI` / `DOI_GVHD`).                 |
+|                                      |                                                  | - Tách helper dùng chung `supervisor-ui-helpers.ts`. |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 2. Màn hình Báo cáo tiến độ NCS      | - src/components/supervisor/                     | - Hiển thị 4 KPI trạng thái & bảng danh sách toàn bộ |
+|    (`/supervisor/progress-reports`)  |   supervisor-progress-reports-workspace.tsx      |   minh chứng các mốc (Mốc 1-9) do NCS phụ trách nộp. |
+|                                      | - src/app/(supervisor)/supervisor/               | - Bộ lọc nhanh theo: Tìm kiếm, Tên NCS, Mốc (1-9),   |
+|                                      |   progress-reports/page.tsx                      |   Trạng thái (`PENDING_REVIEW`, `PASSED`, `REJECTED`).|
+|                                      |                                                  | - Nút "Xem minh chứng" mở `PdfViewer` + xem ghi chú. |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 3. Màn hình Thẩm định Đơn gia hạn    | - src/components/supervisor/                     | - Tabs lọc đơn (`Chờ tôi thẩm định` mặc định cho     |
+|    (`/supervisor/extensions`)        |   SupervisorExtensionsWorkspace.tsx              |   `CHO_GVHD_XAC_NHAN`, `Chờ Giáo vụ`, `Đã hoàn tất`).|
+|                                      | - src/app/(supervisor)/supervisor/               | - Drawer thẩm định chi tiết: thời hạn, tiến độ 9 mốc,|
+|                                      |   extensions/page.tsx                            |   báo cáo PDF (`PdfViewer`), ý kiến Tập thể GVHD, ô  |
+|                                      |                                                  |   nhập nhận xét và 2 nút "Đồng ý gia hạn" / "Từ chối |
+|                                      |                                                  |   gia hạn" đi qua `ConfirmDialog` trước khi cập nhật.|
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 4. Chức năng Nộp đơn thay NCS        | - src/components/supervisor/                     | - `SupervisorRequestForm`: Dropdown chọn NCS CHỈ lọc |
+|    (`/supervisor/requests`)          |   SupervisorRequestForm.tsx                      |   trong danh sách NCS GVHD đang phụ trách; hỗ trợ    |
+|                                      | - src/components/supervisor/                     |   2 loại `DOI_DE_TAI` & `DOI_GVHD` (lọc GVHD trùng,  |
+|                                      |   SupervisorRequestsWorkspace.tsx                |   cảnh báo bất khả kháng, đính kèm PDF với           |
+|                                      | - src/app/(supervisor)/supervisor/               |   `PdfUploader` + `UploadProgress`, xác nhận qua     |
+|                                      |   requests/page.tsx                              |   `ConfirmDialog`).                                  |
+|                                      |                                                  | - `SupervisorRequestsWorkspace`: Bảng theo dõi, tìm  |
+|                                      |                                                  |   kiếm/lọc loại đơn, Drawer xem PDF tờ trình/QĐ và   |
+|                                      |                                                  |   thu hồi đề xuất khi còn `CHO_DUYET`.               |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 5. Đồng bộ Sidebar, Header & Exports | - src/components/supervisor/sidebar.tsx          | - Bổ sung 2 route `/supervisor/extensions` &         |
+|                                      | - src/components/supervisor/header.tsx           |   `/supervisor/requests` vào Sidebar và Header menu. |
+|                                      | - src/components/supervisor/index.ts             | - Re-export toàn bộ workspace & form mới tại `index`.|
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+
+Kết quả kiểm tra sau Bước 3 (chạy sau lần sửa code cuối):
+1) Next.js Route Types & TypeScript:
+   - `npx next typegen; npx tsc --noEmit` (tại `frontend/`): Exit code `0` (0 lỗi type).
+   - `routes.d.ts`: đã xác nhận đủ `/supervisor/dashboard`, `/supervisor/students`,
+     `/supervisor/quota`, `/supervisor/progress-reports`, `/supervisor/extensions`,
+     `/supervisor/requests`.
+2) ESLint:
+   - `npx eslint` trên 13 file tạo/cập nhật trong Bước 3: Exit code `0` (0 lỗi, 0 cảnh báo).
+3) Impeccable Mechanical Detector:
+   - `.agent/skills/impeccable/scripts/impeccable.cmd detect --json` quét
+     `components/supervisor`, `app/(supervisor)`, `mocks/supervisor.ts`,
+     `types/ui/supervisor.ts`: Exit code `0`, output `[]`.
+4) Rà soát Guardrails:
+   - `Select-String` tìm `fetch(|axios|TODO|lib/mockData`: 0 kết quả.
+   - `git status --short` xác nhận toàn bộ thay đổi code chỉ nằm trong 4 thư mục
+     được phép (`app/(supervisor)/`, `components/supervisor/`, `mocks/`, `types/ui/`).
+   - Phạm vi chưa kiểm tra: chưa chạy `npm run build` và chưa kiểm thử hiển thị
+     trực tiếp trên trình duyệt.
+
+Trạng thái tổng kết phân hệ GVHD:
+-> Đã hoàn thành 100% cả 5/5 màn hình chính của phân hệ Giảng viên Hướng dẫn
+   (1. Danh sách NCS đang hướng dẫn, 2. Định mức hướng dẫn BR-09, 3. Báo cáo
+   tiến độ của NCS, 4. Thẩm định đơn gia hạn, 5. Nộp đơn đề xuất thay NCS),
+   tách lớp hoàn chỉnh UI types (`src/types/ui/`), mocks (`src/mocks/`) và Thin Pages
+   dưới prefix `/supervisor/`.
+================================================================================
