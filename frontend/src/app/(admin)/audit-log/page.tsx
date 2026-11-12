@@ -1,9 +1,5 @@
-export default function AuditLogPage() {
-  return (
-    <div>
-      <h1>Nhật ký thao tác</h1>
-      {/* TODO: AuditLogTable, FilterPanel */}
-      {/* NFR-Security */}
-    </div>
-  );
+import { redirect } from "next/navigation";
+
+export default function LegacyAuditLogRedirectPage() {
+  redirect("/admin/audit-log");
 }

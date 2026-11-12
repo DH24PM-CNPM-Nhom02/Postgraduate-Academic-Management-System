@@ -16,6 +16,7 @@ import {
 import { useAuth } from "@/src/hooks/use-auth";
 import { mockSupervisorProfile, mockSupervisorQuota } from "@/src/mocks/supervisor";
 import type { SupervisorProfile, SupervisorQuota } from "@/src/types/ui/supervisor";
+import { NotificationBellPopover } from "@/src/components/notification";
 
 export interface SupervisorHeaderProps {
   onToggleSidebar?: () => void;
@@ -109,6 +110,9 @@ export function SupervisorHeader({
           <CalendarClock className="size-4 text-[#164E9B]" aria-hidden="true" />
           <span>Thẩm định gia hạn</span>
         </Link>
+
+        {/* Chuông thông báo dành riêng cho Giảng viên Hướng dẫn */}
+        <NotificationBellPopover role="supervisor" />
 
         <div className="relative" ref={menuContainerRef}>
           <button
