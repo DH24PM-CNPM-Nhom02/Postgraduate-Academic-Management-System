@@ -7,7 +7,8 @@ import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from './prisma/prisma.service.js';
-import { ChangePasswordDto, CreateUsersDto, LoginDto } from './dto/auth.dto.js';
+import { ChangePasswordDto, CreateUsersDto, ListUsersQueryDto, LoginDto } from '../../../lib/contracts/src/dto/auth.dto.js';
+import { paginatePrisma } from './helpers/pagination.util.js';
 import type { StringValue } from 'ms';
 import { ROLES } from '../../../lib/contracts/src/permissions.js';
 type TokenPair = { access_token: string; refresh_token: string };
@@ -19,7 +20,7 @@ const WITH_RBAC = {
 
 const hashToken = (t: string) => createHash('sha256').update(t).digest('hex');
 const unauthorized = (message: string) => new RpcException({ statusCode: 401, message });
-
+const toUserView = (u: any) => ({ ...u, roles: u.roles.map((r: any) => r.role.name) });
 @Injectable()
 export class AuthService {
   // Grace period: nhiều request cùng lúc mang cùng 1 refresh token sẽ nhận chung kết quả
@@ -181,7 +182,7 @@ export class AuthService {
         userIds: [userId],
         loai: 'TAI_KHOAN_DOI_MAT_KHAU',
         khoaTrung: `DOI_MK:${userId}:${Date.now()}`,
-      }).subscribe({ error: () => {} });
+      }).subscribe({ error: () => { } });
     } catch {
       // ignore notification errors
     }
@@ -251,14 +252,12 @@ export class AuthService {
     return prepared.map(({ u, plain }) => ({ username: u.username, initialPassword: plain }));
   }
 
-  // ---------- Find user list ----------
+  // ---------- Find users by usernames (dùng nội bộ cho phd-service) ----------
   async findUsers(usernames: string[]) {
     const users = await this.prisma.user.findMany({
       where: {
-        username: {
-          in: usernames
-        },
-        deletedAt: null
+        username: { in: usernames },
+        deletedAt: null,
       },
       include: WITH_ROLES,
     });
@@ -267,9 +266,116 @@ export class AuthService {
       username: u.username,
       fullName: u.fullName,
       isActive: u.isActive,
-      roles: u.roles.map((r) => r.role.name),
+      roles: u.roles.map((r: any) => r.role.name),
     }));
   }
+
+  // ---------- Find user list (Hybrid pagination) ----------
+  async listUsers(q?: ListUsersQueryDto) {
+    const where: any = { deletedAt: null };
+    if (q?.role) where.roles = { some: { role: { name: q.role } } };
+    if (q?.status === 'active') where.isActive = true;
+    if (q?.status === 'locked') where.isActive = false;
+    if (q?.keyword) {
+      where.OR = [
+        { username: { contains: q.keyword } },
+        { fullName: { contains: q.keyword } },
+        { email: { contains: q.keyword } },
+      ];
+    }
+
+    return paginatePrisma(this.prisma.user, {
+      page: q?.page,
+      limit: q?.limit,
+      where,
+      select: {
+        id: true,
+        username: true,
+        fullName: true,
+        email: true,
+        isActive: true,
+        mustChangePassword: true,
+        createdAt: true,
+        roles: {
+          select: {
+            role: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      transform: toUserView,
+    });
+  }
+
+  // ---------- Get detail user ---------
+  async getUser(id: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id, deletedAt: null },
+      select: {
+        id: true, username: true, fullName: true, email: true,
+        isActive: true, mustChangePassword: true, createdAt: true,
+        roles: {
+          select: {
+            role: {
+              select: {
+                name: true
+              }
+            }
+          }
+        },
+      },
+    });
+    if (!user) throw new RpcException({ statusCode: 404, message: 'Không tìm thấy tài khoản' });
+    return toUserView(user);
+  }
+
+  // ---------- Set user status --------
+  async setUserStatus(actorId: string, targetId: string, isActive: boolean) {
+    if (actorId === targetId) throw new RpcException({ statusCode: 400, message: 'Không thể tự khóa tài khoản của mình' });
+
+    const target = await this.getUser(targetId);
+    if (target.roles.includes(ROLES.NCS) || target.roles.includes(ROLES.GVHD)) {
+      throw new RpcException({ statusCode: 400, message: 'Tài khoản NCS/GVHD: hãy đổi trạng thái ở hồ sơ NCS/GVHD' });
+    }
+    return this.setActive(targetId, isActive);
+  }
+
+  // ---------- Reset pass ------------
+  async resetPassword(actorRoles: string[], targetId: string) {
+    const target = await this.getUser(targetId);
+
+    // Giáo vụ chỉ được reset NCS/GVHD
+    const targetIsStaff = target.roles.includes(ROLES.ADMIN) || target.roles.includes(ROLES.GIAO_VU);
+    if (targetIsStaff && !actorRoles.includes(ROLES.ADMIN)) {
+      throw new RpcException({ statusCode: 403, message: 'Chỉ admin mới được reset mật khẩu admin/giáo vụ' });
+    }
+
+    const plain = randomBytes(6).toString('base64url');
+    const hash = await bcrypt.hash(plain, 10);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: targetId },
+        data: {
+          password: hash,
+          mustChangePassword: true
+        },
+      }),
+      // thu hồi mọi phiên cũ
+      this.prisma.refreshToken.updateMany({
+        where: { userId: targetId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+
+    // Chỉ trả một lần, giống createUsers
+    return { username: target.username, initialPassword: plain };
+  }
+
   // ---------- Set active  ----------
   async setActive(userId: string, isActive: boolean) {
     const user = await this.prisma.user.findFirst({ where: { id: userId, deletedAt: null } });

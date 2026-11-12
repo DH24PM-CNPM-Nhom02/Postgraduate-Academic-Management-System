@@ -2,10 +2,11 @@ import type { PaginatedResult } from '../../../../lib/contracts/src/dto/paginati
 
 /**
  * Hybrid Pagination Helper cho Prisma.
- * - page VÀ limit đều được truyền → trả PaginatedResult<T> (server-side pagination).
- * - Không truyền page/limit → trả T[] thuần (toàn bộ dữ liệu, cho TanStack Table client-side).
+ * - page VÀ limit đều được truyền → trả PaginatedResult<R> (server-side pagination).
+ * - Không truyền page/limit → trả R[] thuần (toàn bộ dữ liệu, cho TanStack Table client-side).
+ * - Hỗ trợ tùy chọn transform: (item) => ... để định dạng lại dữ liệu trước khi trả về.
  */
-export async function paginatePrisma<T>(
+export async function paginatePrisma<T, R = T>(
   model: any,
   params: {
     page?: number;
@@ -14,9 +15,10 @@ export async function paginatePrisma<T>(
     orderBy?: any;
     select?: any;
     include?: any;
+    transform?: (item: T) => R;
   },
-): Promise<T[] | PaginatedResult<T>> {
-  const { where, orderBy, select, include } = params;
+): Promise<R[] | PaginatedResult<R>> {
+  const { where, orderBy, select, include, transform } = params;
   const wantPagination = params.page != null && params.limit != null;
 
   const queryBase: any = {
@@ -28,7 +30,8 @@ export async function paginatePrisma<T>(
 
   if (!wantPagination) {
     // Trả toàn bộ mảng — giữ nguyên hành vi hiện tại cho TanStack Table
-    return model.findMany(queryBase);
+    const data = await model.findMany(queryBase);
+    return transform ? data.map(transform) : data;
   }
 
   // Server-side pagination
@@ -42,7 +45,7 @@ export async function paginatePrisma<T>(
   ]);
 
   return {
-    data,
+    data: transform ? data.map(transform) : data,
     total,
     page,
     limit,

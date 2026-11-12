@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { AuthService } from './auth-service.service.js';
-import { ChangePasswordDto, CreateUsersDto, LoginDto, RefreshDto } from './dto/auth.dto.js';
+import { ChangePasswordDto, CreateUsersDto, ListUsersQueryDto, LoginDto, RefreshDto } from './dto/auth.dto.js';
 
 @Controller()
 export class AuthController {
@@ -46,6 +46,26 @@ export class AuthController {
   @MessagePattern({ cmd: 'auth.find-users' })
   findUsers(@Payload() d: { usernames: string[] }) {
     return this.auth.findUsers(d.usernames);
+  }
+
+  @MessagePattern({ cmd: 'auth.list-users' })
+  listUsers(@Payload() query: ListUsersQueryDto) {
+    return this.auth.listUsers(query);
+  }
+
+  @MessagePattern({ cmd: 'auth.get-user' })
+  getUser(@Payload() d: { id: string }) {
+    return this.auth.getUser(d.id);
+  }
+
+  @MessagePattern({ cmd: 'auth.set-user-status' })
+  setUserStatus(@Payload() d: { actorId: string; targetId: string; isActive: boolean }) {
+    return this.auth.setUserStatus(d.actorId, d.targetId, d.isActive);
+  }
+
+  @MessagePattern({ cmd: 'auth.reset-password' })
+  resetPassword(@Payload() d: { actorRoles: string[]; targetId: string }) {
+    return this.auth.resetPassword(d.actorRoles, d.targetId);
   }
 
   @MessagePattern({ cmd: 'auth.set-active' })
