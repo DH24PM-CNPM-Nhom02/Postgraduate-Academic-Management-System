@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { PdfUploader } from "@/src/components/upload/PdfUploader";
 import { UploadProgress } from "@/src/components/upload/UploadProgress";
+import { useSubmitMilestoneWithFile } from "@/src/hooks/api/use-progress";
+import { ApiClientError } from "@/src/lib/api";
 import type { MilestoneProgressItem } from "@/src/types/ui/progress";
 
 export interface SubmitEvidenceDialogProps {
@@ -18,11 +20,13 @@ export interface SubmitEvidenceDialogProps {
   milestone: MilestoneProgressItem;
   lanNopTiepTheo?: number;
   onSubmitSuccess?: (submission: {
+    id?: string;
     fileName: string;
     fileSize: number;
     ghiChuNcs: string;
     lanNop: number;
     fileId?: string;
+    ngayNop?: string;
   }) => void;
 }
 
@@ -41,15 +45,22 @@ function SubmitEvidenceDialogInner({
 
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
-  const intervalRef = useRef<number | null>(null);
-  const timeoutRef = useRef<number | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
+
+  const submitMutation = useSubmitMilestoneWithFile();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [note, setNote] = useState("");
-  const [isUploading, setIsUploading] = useState(false);
+  const [showProgress, setShowProgress] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadStatus, setUploadStatus] = useState<"uploading" | "success" | "error">("uploading");
+  const [uploadStatus, setUploadStatus] = useState<
+    "uploading" | "success" | "error"
+  >("uploading");
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isCompleting, setIsCompleting] = useState(false);
+
+  const isUploading = submitMutation.isPending || isCompleting;
 
   const nextLanNop =
     lanNopTiepTheo ||
@@ -57,14 +68,10 @@ function SubmitEvidenceDialogInner({
       ? milestone.lichSuMinhChung.length + 1
       : 1);
 
-  const clearTimers = () => {
-    if (intervalRef.current !== null) {
-      window.clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    if (timeoutRef.current !== null) {
-      window.clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
+  const clearCloseTimer = () => {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
     }
   };
 
@@ -83,7 +90,7 @@ function SubmitEvidenceDialogInner({
 
     return () => {
       window.clearTimeout(focusTimer);
-      clearTimers();
+      clearCloseTimer();
       document.body.style.overflow = previousOverflow;
       previousFocusRef.current?.focus();
     };
@@ -100,54 +107,68 @@ function SubmitEvidenceDialogInner({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isUploading, onClose]);
 
-  const handleCancelUpload = () => {
-    clearTimers();
-    setIsUploading(false);
-    setUploadProgress(0);
-    setUploadStatus("uploading");
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedFile || isUploading || note.length > MAX_NOTE_LENGTH) {
+  const executeSubmit = async () => {
+    if (
+      !selectedFile ||
+      isUploading ||
+      !milestone.coTheNop ||
+      note.length > MAX_NOTE_LENGTH
+    ) {
       if (!selectedFile) {
         setFileError("Vui lòng chọn tệp minh chứng định dạng .PDF trước khi gửi.");
       }
       return;
     }
 
-    clearTimers();
-    setIsUploading(true);
+    clearCloseTimer();
+    setFileError(null);
+    setSubmitError(null);
+    setShowProgress(true);
     setUploadStatus("uploading");
-    setUploadProgress(20);
+    setUploadProgress(5);
 
-    let current = 20;
-    intervalRef.current = window.setInterval(() => {
-      current = Math.min(90, current + 25);
-      setUploadProgress(current);
-      if (current >= 90 && intervalRef.current !== null) {
-        window.clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    }, 120);
+    try {
+      const createdEvidence = await submitMutation.mutateAsync({
+        thuTu: milestone.thuTu,
+        file: selectedFile,
+        ghiChu: note.trim() || undefined,
+        onUploadProgress: (percent) => {
+          setUploadProgress(Math.max(5, percent));
+        },
+      });
 
-    timeoutRef.current = window.setTimeout(() => {
-      clearTimers();
       setUploadProgress(100);
       setUploadStatus("success");
+      setIsCompleting(true);
 
-      timeoutRef.current = window.setTimeout(() => {
-        setIsUploading(false);
+      closeTimerRef.current = window.setTimeout(() => {
+        closeTimerRef.current = null;
+        setIsCompleting(false);
         onSubmitSuccess?.({
+          id: createdEvidence.id,
           fileName: selectedFile.name,
           fileSize: selectedFile.size,
-          ghiChuNcs: note.trim(),
-          lanNop: nextLanNop,
-          fileId: `file-${Date.now()}`,
+          ghiChuNcs: createdEvidence.ghiChuNcs ?? note.trim(),
+          lanNop: createdEvidence.lanNop,
+          fileId: createdEvidence.fileId,
+          ngayNop: createdEvidence.ngayNop,
         });
         onClose();
-      }, 250);
-    }, 450);
+      }, 300);
+    } catch (err) {
+      setIsCompleting(false);
+      setUploadStatus("error");
+      setSubmitError(
+        err instanceof ApiClientError
+          ? err.message
+          : "Không thể nộp minh chứng. Vui lòng thử lại."
+      );
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    void executeSubmit();
   };
 
   const isResubmit = milestone.trangThai === "REJECTED";
@@ -229,7 +250,7 @@ function SubmitEvidenceDialogInner({
             </div>
           )}
 
-          {!milestone.coTheNop && (
+          {!milestone.coTheNop && uploadStatus !== "success" && (
             <div
               role="alert"
               className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50/75 p-3.5 text-xs font-medium text-rose-800"
@@ -254,20 +275,42 @@ function SubmitEvidenceDialogInner({
             error={fileError}
             onFileSelect={(file) => {
               setSelectedFile(file);
+              setShowProgress(false);
+              setSubmitError(null);
+              setUploadProgress(0);
+              setUploadStatus("uploading");
               if (file) setFileError(null);
             }}
             onValidationError={(msg) => setFileError(msg)}
             helperText="Chỉ nhận tệp định dạng .PDF • Dung lượng tối đa 15 MB"
           />
 
-          {/* Tiến trình upload dùng chung UploadProgress */}
-          {selectedFile && isUploading && (
+          {/* Tiến trình upload & thông báo lỗi dùng chung UploadProgress */}
+          {selectedFile && showProgress && (
             <UploadProgress
               fileName={selectedFile.name}
               fileSize={selectedFile.size}
               progress={uploadProgress}
               status={uploadStatus}
-              onCancel={handleCancelUpload}
+              errorMessage={submitError ?? undefined}
+              onRetry={
+                uploadStatus === "error"
+                  ? () => {
+                      void executeSubmit();
+                    }
+                  : undefined
+              }
+              onRemove={
+                uploadStatus === "error"
+                  ? () => {
+                      setSelectedFile(null);
+                      setShowProgress(false);
+                      setSubmitError(null);
+                      setUploadProgress(0);
+                      setUploadStatus("uploading");
+                    }
+                  : undefined
+              }
             />
           )}
 
@@ -329,7 +372,11 @@ function SubmitEvidenceDialogInner({
                     className="size-4 animate-spin motion-reduce:animate-none"
                     aria-hidden="true"
                   />
-                  <span>Đang xử lý ({uploadProgress}%)...</span>
+                  <span>
+                    {uploadProgress >= 100 && submitMutation.isPending
+                      ? "Đang lưu minh chứng..."
+                      : `Đang xử lý (${uploadProgress}%)...`}
+                  </span>
                 </>
               ) : (
                 <>

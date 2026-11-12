@@ -48,29 +48,41 @@ export function MilestoneCard({
   };
 
   const handleSubmitSuccess = (submission: {
+    id?: string;
     fileName: string;
     fileSize: number;
     ghiChuNcs: string;
     lanNop: number;
     fileId?: string;
+    ngayNop?: string;
   }) => {
+    const fallbackTimestamp = Date.now();
+    const resolvedId = submission.id ?? `ev-${fallbackTimestamp}`;
+    const resolvedFileId = submission.fileId ?? `file-${fallbackTimestamp}`;
+    const resolvedNgayNop = submission.ngayNop ?? new Date().toISOString();
+
     const newEvidence: EvidenceItem = {
-      id: `ev-${Date.now()}`,
+      id: resolvedId,
       lanNop: submission.lanNop,
-      fileId: submission.fileId || `file-${Date.now()}`,
+      fileId: resolvedFileId,
       fileName: submission.fileName,
       fileSize: submission.fileSize,
       ghiChuNcs: submission.ghiChuNcs,
       trangThai: "PENDING_REVIEW",
-      ngayNop: new Date().toISOString(),
+      ngayNop: resolvedNgayNop,
     };
+
+    const existingHistory = milestone.lichSuMinhChung || [];
+    const hasAlready = existingHistory.some((ev) => ev.id === newEvidence.id);
 
     const updated: MilestoneProgressItem = {
       ...milestone,
       trangThai: "PENDING_REVIEW",
       coTheNop: false,
       minhChungHienTai: newEvidence,
-      lichSuMinhChung: [newEvidence, ...(milestone.lichSuMinhChung || [])],
+      lichSuMinhChung: hasAlready
+        ? existingHistory
+        : [...existingHistory, newEvidence],
     };
 
     onUpdateMilestone?.(updated);
