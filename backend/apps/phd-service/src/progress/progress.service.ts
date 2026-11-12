@@ -212,6 +212,9 @@ export class ProgressService {
                         lyDoTuChoi: true,
                         ngayNop: true,
                         ngayDuyet: true,
+                        phieuNhanXets: {
+                            orderBy: { createdAt: 'asc' },
+                        }
                     }
                 }
             }
