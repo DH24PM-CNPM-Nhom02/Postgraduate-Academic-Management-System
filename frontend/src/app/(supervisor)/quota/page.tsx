@@ -1,3 +1,5 @@
-export default function SupervisorQuotaPage() {
-  return <div className="min-h-screen bg-white" />;
+import { redirect } from "next/navigation";
+
+export default function LegacySupervisorQuotaRedirectPage() {
+  redirect("/supervisor/quota");
 }

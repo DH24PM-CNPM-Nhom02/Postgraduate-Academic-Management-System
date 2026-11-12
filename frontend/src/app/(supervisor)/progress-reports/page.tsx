@@ -1,3 +1,5 @@
-export default function ProgressReportsPage() {
-  return <div className="min-h-screen bg-white" />;
+import { redirect } from "next/navigation";
+
+export default function LegacySupervisorProgressReportsRedirectPage() {
+  redirect("/supervisor/progress-reports");
 }
