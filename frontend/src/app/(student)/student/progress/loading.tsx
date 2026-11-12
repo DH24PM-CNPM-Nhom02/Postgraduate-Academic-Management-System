@@ -2,7 +2,7 @@ import React from "react";
 
 export default function StudentProgressLoading() {
   return (
-    <div className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto animate-pulse" aria-busy="true" aria-label="Đang tải dữ liệu tiến trình đào tạo...">
+    <div className="space-y-6 sm:space-y-8 pb-12 max-w-7xl mx-auto animate-pulse motion-reduce:animate-none" aria-busy="true" aria-label="Đang tải dữ liệu tiến trình đào tạo...">
       {/* 1. Skeleton Header hồ sơ NCS */}
       <section className="rounded-2xl bg-card border border-border p-6 sm:p-7 shadow-2xs">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -23,7 +23,7 @@ export default function StudentProgressLoading() {
             </div>
           </div>
 
-          <div className="lg:w-72 rounded-xl bg-muted/40 border border-border p-4 shrink-0 space-y-3">
+          <div className="lg:w-72 rounded-xl bg-muted/40 p-4 shrink-0 space-y-3">
             <div className="flex justify-between items-center">
               <div className="h-4 w-28 bg-muted rounded-md" />
               <div className="h-4 w-10 bg-muted rounded-md" />
@@ -42,8 +42,8 @@ export default function StudentProgressLoading() {
         <div className="flex justify-between items-center mb-5 pb-3 border-b border-border">
           <div className="h-4 w-48 bg-muted rounded-md" />
           <div className="flex gap-2">
-            <div className="w-7 h-7 bg-muted rounded-lg" />
-            <div className="w-7 h-7 bg-muted rounded-lg" />
+            <div className="w-10 h-10 bg-muted rounded-lg" />
+            <div className="w-10 h-10 bg-muted rounded-lg" />
           </div>
         </div>
 

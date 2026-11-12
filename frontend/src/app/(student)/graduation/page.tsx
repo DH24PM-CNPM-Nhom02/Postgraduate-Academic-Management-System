@@ -1,9 +1,8 @@
-export default function GraduationPage() {
-  return (
-    <div>
-      <h1>Xét hoàn tất tốt nghiệp</h1>
-      {/* TODO: GraduationChecklist, FileUploader */}
-      {/* UC-PHD-11,12 */}
-    </div>
-  );
+import { redirect } from "next/navigation";
+
+/**
+ * Chuyển hướng route `/graduation` về route chuẩn phân hệ NCS `/student/graduation`.
+ */
+export default function GraduationRedirectPage() {
+  redirect("/student/graduation");
 }

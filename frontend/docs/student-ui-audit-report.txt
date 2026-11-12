@@ -1,0 +1,508 @@
+================================================================================
+BÁO CÁO KIỂM TRA NHANH (AUDIT) PHÂN HỆ NGHIÊN CỨU SINH (NCS)
+Áp dụng ngữ cảnh thiết kế Impeccable (.agent/skills/impeccable)
+================================================================================
+
+--------------------------------------------------------------------------------
+1. NGỮ CẢNH IMPECCABLE (.agent/skills/impeccable)
+--------------------------------------------------------------------------------
+- Skill đã cài đặt: impeccable v4.8.0 tại `.agent/skills/impeccable/SKILL.md`
+  (gồm các tài liệu hướng dẫn trong `reference/` và CLI `.agent/skills/impeccable/scripts/impeccable.cmd`).
+- Kết quả chạy `.agent/skills/impeccable/scripts/impeccable.cmd context`:
+  + `NO_PRODUCT_MD` / `PRODUCT_INIT_REQUIRED`: Dự án hiện CHƯA có `PRODUCT.md` và `DESIGN.md`
+    (`productPath: null`, `designPath: null`, `surfaceBriefPath: null`).
+  + Phân loại bề mặt theo Impeccable: Phân hệ NCS thuộc chế độ **Operate mode**
+    (`reference/operate.md`): giao diện tác nghiệp học vụ, ưu tiên tính rõ ràng,
+    khả năng quét thông tin nhanh, nhất quán thành phần và đầy đủ các trạng thái
+    (`default`, `hover`, `focus`, `active`, `disabled`, `loading`, `error`, `empty`).
+- Kết quả chạy mechanical detector (`.agent/skills/impeccable/scripts/impeccable.cmd detect --json`)
+  trên các file UI NCS hiện có (`(student)/layout.tsx`, `components/student/progress/*`,
+  `components/student/profile/*`, `components/student/header.tsx`, `sidebar.tsx`,
+  `components/notification/NotificationBellPopover.tsx`):
+  + Kết quả: `[]` (không ghi nhận lỗi máy móc từ detector).
+
+--------------------------------------------------------------------------------
+2. KIỂM TRA KIẾN TRÚC TÁCH LỚP CHUNG
+--------------------------------------------------------------------------------
+- `frontend/src/types/ui/`: CHƯA CÓ thư mục này.
+  (Types hiện nằm tại `frontend/src/types/progress.ts`, `notification.ts`, `academic.ts`, `index.ts`).
+- `frontend/src/mocks/`: CHƯA CÓ thư mục này.
+  (Mock data hiện nằm cục bộ trong thư mục component:
+  `components/student/progress/mock-data.ts`, `components/student/profile/mock-data.ts`).
+
+--------------------------------------------------------------------------------
+3. BẢNG AUDIT 6 HẠNG MỤC GIAO DIỆN PHÂN HỆ NCS
+--------------------------------------------------------------------------------
+
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| Hạng mục                             | File đã có                                       | File còn thiếu / Điểm cần sửa                        |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 1. Component dùng chung              | - components/upload/PdfUploader.tsx              | - Cả 6 file đều mới là stub rỗng (`TODO`), chưa có   |
+|    (upload/ & shared/)               | - components/upload/PdfViewer.tsx                |   props, UI, UI types (`src/types/ui/`) hay mocks.   |
+|                                      | - components/upload/UploadProgress.tsx           | - Logic upload & xem PDF hiện đang viết cục bộ trong |
+|                                      | - components/shared/ConfirmDialog.tsx            |   `components/student/progress/submit-evidence-      |
+|                                      | - components/shared/DeadlineCountdown.tsx        |   dialog.tsx` và `document-view-button.tsx`, chưa    |
+|                                      | - components/shared/DeadlineWarningBanner.tsx    |   dùng chung qua `components/upload/`.               |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 2. Đề tài luận án của tôi            | (Chưa có)                                        | - Thiếu route `(student)/thesis/page.tsx`            |
+|                                      |                                                  |   (hoặc `(student)/student/thesis/page.tsx`).        |
+|                                      |                                                  | - Thiếu `components/thesis/MyThesisCard.tsx`,        |
+|                                      |                                                  |   `components/thesis/ThesisHistory.tsx`.             |
+|                                      |                                                  | - Thiếu UI Types (`src/types/ui/`) & Mock Data       |
+|                                      |                                                  |   (`src/mocks/`).                                    |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 3. Giảng viên hướng dẫn của tôi      | (Chưa có; `components/supervisor/` hiện chỉ có   | - Thiếu route `(student)/supervisors/page.tsx`       |
+|                                      |  UI cho cổng GVHD như `QuotaBar.tsx`,            |   (hoặc `(student)/student/supervisors/page.tsx`).   |
+|                                      |  `SupervisorSelector.tsx`, dashboard...)         | - Thiếu `components/supervisor/MySupervisorList.tsx` |
+|                                      |                                                  |   (hiển thị GVHD chính/phụ, trọng số, số QĐ).        |
+|                                      |                                                  | - Thiếu UI Types (`src/types/ui/`) & Mock Data       |
+|                                      |                                                  |   (`src/mocks/`).                                    |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 4. Đơn đề nghị của tôi               | - app/(student)/extensions/page.tsx              | - `extensions/page.tsx` mới là stub 9 dòng (`TODO`), |
+|    (Đổi đề tài, Đổi GVHD, Gia hạn)   |   (URL `/extensions`, stub 9 dòng)               |   chưa tách Thin Page gọi component thực tế; chưa có |
+|                                      |                                                  |   dưới prefix `/student/extensions`.                 |
+|                                      |                                                  | - Thiếu thư mục `components/change-request/` và 4    |
+|                                      |                                                  |   component: `ChangeRequestForm.tsx`,                |
+|                                      |                                                  |   `ChangeRequestTable.tsx`, `ChangeRequestDetail.tsx`|
+|                                      |                                                  |   và `CancelRequestDialog.tsx`.                      |
+|                                      |                                                  | - Thiếu UI Types (`src/types/ui/`) & Mock Data       |
+|                                      |                                                  |   (`src/mocks/`).                                    |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 5. Xét tốt nghiệp cá nhân            | - app/(student)/graduation/page.tsx              | - `graduation/page.tsx` mới là stub 9 dòng (`TODO`), |
+|    (Xem 6 điều kiện tốt nghiệp)      |   (URL `/graduation`, stub 9 dòng)               |   chưa tách Thin Page gọi component thực tế; chưa có |
+|                                      |                                                  |   dưới prefix `/student/graduation`.                 |
+|                                      |                                                  | - Thiếu component hiển thị 6 điều kiện tốt nghiệp.   |
+|                                      |                                                  | - Thiếu UI Types (`src/types/ui/`) & Mock Data       |
+|                                      |                                                  |   (`src/mocks/`).                                    |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 6. Tiến trình 9 mốc & Thông báo NCS  | - Thin Page:                                     | - Chưa tách `src/types/ui/` & `src/mocks/`:          |
+|                                      |   + app/(student)/student/progress/page.tsx      |   đang dùng `src/types/progress.ts` và               |
+|                                      |   + app/(student)/student/progress/loading.tsx   |   `components/student/progress/mock-data.ts`.        |
+|                                      | - Components tiến trình:                         | - Cờ điều khiển (`coTheNop`):                        |
+|                                      |   + student-progress-container.tsx               |   `MilestoneCard` nhận qua `milestone.coTheNop`,     |
+|                                      |   + milestone-timeline.tsx                       |   nhưng đang copy `initialMilestone` vào `useState`  |
+|                                      |   + milestone-card.tsx                           |   cục bộ nên không tự đồng bộ khi prop cha đổi;      |
+|                                      |   + submit-evidence-dialog.tsx                   |   dòng "Mốc 3 đang chờ nộp lại" trong                |
+|                                      |   + evidence-history.tsx (có Empty state)        |   `student-progress-container.tsx` đang hardcode.    |
+|                                      |   + evaluation-reviews-section.tsx (có Empty)    | - Thiếu trạng thái Loading/Empty/Error:              |
+|                                      |   + document-view-button.tsx                     |   + `StudentProgressContainer`: thiếu prop           |
+|                                      | - Thông báo:                                     |     `isLoading` / `error`, chưa có Empty state khi   |
+|                                      |   + NotificationBellPopover.tsx gắn trong        |     `milestones.length === 0` (`tongSoMoc = 0` gây   |
+|                                      |     `components/student/header.tsx`              |     `NaN`), chưa có `error.tsx`.                     |
+|                                      |                                                  |   + `NotificationBellPopover`: gọi trực tiếp hooks   |
+|                                      |                                                  |     API (`useNotifications`, `useUnreadNotification  |
+|                                      |                                                  |     Count`, ...), đã có Loading & Empty nhưng THIẾU  |
+|                                      |                                                  |     Error state (`isError`).                         |
+|                                      |                                                  |   + `DocumentViewButton`: lỗi chỉ `console.error`,   |
+|                                      |                                                  |     chưa hiển thị thông báo lỗi trên UI.             |
+|                                      |                                                  | - Stub trùng lặp chưa dọn/đồng bộ:                   |
+|                                      |                                                  |   `components/notification/NotificationBell.tsx`,    |
+|                                      |                                                  |   `NotificationList.tsx` và `components/milestone/*` |
+|                                      |                                                  |   vẫn là file stub `TODO`.                           |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+
+--------------------------------------------------------------------------------
+4. PHÁT HIỆN BỔ SUNG THEO TIÊU CHUẨN IMPECCABLE (audit.md / operate.md / craft-floor.md)
+--------------------------------------------------------------------------------
+1) Theming & Hệ thống Token (`globals.css` vs Components NCS):
+   - `frontend/src/app/globals.css`, `student/progress/loading.tsx` và `profile-layout.tsx`
+     sử dụng semantic tokens (`bg-card`, `text-foreground`, `text-muted-foreground`,
+     `border-border`, hỗ trợ `.dark`).
+   - Ngược lại, `StudentLayout`, `StudentHeader`, `StudentSidebar`, `NotificationBellPopover`
+     dùng màu cứng `#164E9B`, `#0F2744` trên nền trắng/slate; còn màn hình
+     `StudentProgressContainer`, `MilestoneTimeline`, `MilestoneCard`, `SubmitEvidenceDialog`
+     lại chuyển sang bảng màu chính `emerald-600/700` kèm dải gradient
+     `from-emerald-600 via-teal-600 to-indigo-600` -> gây lệch nhận diện màu giữa
+     Header/Sidebar và vùng nội dung Tiến trình 9 mốc, đồng thời chưa đồng bộ dark mode.
+
+2) States & Liên kết (`operate.md` / `craft-floor.md`):
+   - `StudentHeader`: Nút "Sổ tay Nghiên cứu sinh" đang trỏ `href="#"` (liên kết rỗng).
+   - Chưa có `error.tsx` ở cấp `(student)` hoặc `(student)/student/progress/`.
+   - Các modal tự dựng (`SubmitEvidenceDialog`, `DocumentViewButton`,
+     `EvaluationReviewsSection`) dùng `<div role="dialog">` nhưng chưa bắt phím `Escape`,
+     chưa khóa cuộn trang nền và chưa có focus trap.
+
+3) Accessibility (A11y) & Motion (`audit.md` / `craft-floor.md`):
+   - `MilestoneTimeline`: Dùng `animate-pulse` liên tục trên các mốc `UNLOCKED`,
+     `PENDING_REVIEW`, `REJECTED` nhưng chưa thêm `motion-reduce:animate-none` cho
+     người dùng bật `prefers-reduced-motion`.
+   - `SubmitEvidenceDialog`: Label "Tệp minh chứng đính kèm (PDF)" chưa gắn `htmlFor`
+     với `<input type="file">`; vùng kéo-thả dùng `<div onClick>` chưa có `role="button"`,
+     `tabIndex={0}` và xử lý `onKeyDown` (Enter/Space).
+   - Kích thước nút chạm (touch target): nút cuộn stepper `w-7 h-7` (28x28px) trong
+     `MilestoneTimeline` và nút đóng `w-8 h-8` (32x32px) nhỏ hơn mức khuyến nghị 44x44px
+     trên màn hình cảm ứng.
+
+4) Khuyến nghị quy trình Impeccable:
+   - Nên chạy `/impeccable init` để tạo `PRODUCT.md` (và `/impeccable document` cho
+     `DESIGN.md`) nhằm chốt bảng màu, typography và token thống nhất cho cả 3 cổng
+     trước khi build các màn hình NCS mới.
+   - Sau khi chuẩn hóa, sử dụng các lệnh Impeccable theo thứ tự ưu tiên:
+     `harden` (bổ sung Error/Empty/Loading & validation) -> `audit` -> `polish`.
+================================================================================
+
+
+================================================================================
+CẬP NHẬT TIẾN ĐỘ BƯỚC 2 (2026-11-11)
+Hoàn thiện tầng UI Types, Mocks, 6 Shared Components & 2 Màn hình Đề tài / GVHD
+================================================================================
+
+--------------------------------------------------------------------------------
+5. TỔNG HỢP HẠNG MỤC ĐÃ HOÀN THÀNH TRONG BƯỚC 2
+--------------------------------------------------------------------------------
+Quy ước tuân thủ:
+- Chỉ tạo/sửa file trong: `frontend/src/app/(student)/`, `frontend/src/components/`,
+  `frontend/src/mocks/`, `frontend/src/types/ui/` (và cập nhật tệp báo cáo `.txt`
+  này theo yêu cầu của người dùng).
+- Không sửa `package.json`, `package-lock.json`, `src/services/`, `src/hooks/`,
+  `src/lib/api/`, `src/types/api/`; không viết `fetch` hay `axios`.
+- Áp dụng Impeccable (Operate mode & Craft floor): đồng bộ bảng màu học thuật
+  `#164E9B` / `#0F2744` với semantic tokens (`bg-card`, `text-foreground`,
+  `border-border`, `bg-muted`), đảm bảo A11y (`Escape`, `role="button"`,
+  `tabIndex`, `htmlFor`, `motion-reduce:animate-none`).
+
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| Hạng mục                             | File đã tạo / hoàn thiện                         | Trạng thái & Điểm lưu ý                              |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 1. Tầng UI Types                     | - src/types/ui/upload.ts                         | - Đã tạo đầy đủ UI types:                            |
+|    (`frontend/src/types/ui/`)        | - src/types/ui/shared.ts                         |   + `upload.ts`: `UploadStatus`, `PdfUploaderProps`, |
+|                                      | - src/types/ui/thesis.ts                         |     `UploadProgressProps`, `PdfViewerProps`.         |
+|                                      | - src/types/ui/index.ts                          |   + `shared.ts`: `ConfirmDialogVariant`,             |
+|                                      |                                                  |     `ConfirmDialogProps`, `DeadlineUrgency`,         |
+|                                      |                                                  |     `DeadlineCountdownProps`,                        |
+|                                      |                                                  |     `DeadlineBannerSeverity`,                        |
+|                                      |                                                  |     `DeadlineWarningBannerProps`.                    |
+|                                      |                                                  |   + `thesis.ts`: `ThesisStatus` (`HIEU_LUC`,         |
+|                                      |                                                  |     `DA_THAY_THE`, `DA_HUY`),                        |
+|                                      |                                                  |     `ThesisDecisionDocument`, `ThesisItem`,          |
+|                                      |                                                  |     `StudentThesisOverview`, `SupervisorRoleType`    |
+|                                      |                                                  |     (`HUONG_DAN_CHINH`, `DONG_HUONG_DAN`),           |
+|                                      |                                                  |     `SupervisorAssignmentStatus` (`DANG_HUONG_DAN`,  |
+|                                      |                                                  |     `DA_KET_THUC`), `SupervisorAssignmentItem`       |
+|                                      |                                                  |     (`trongSo: 1.0 | 0.5`),                          |
+|                                      |                                                  |     `StudentSupervisorsOverview`.                    |
+|                                      |                                                  |   + `index.ts`: re-export `./upload`, `./shared`,    |
+|                                      |                                                  |     `./thesis`.                                      |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 2. Tầng Mock Data                    | - src/mocks/thesis.ts                            | - Đã tách mock data cho Đề tài & GVHD:               |
+|    (`frontend/src/mocks/`)           |                                                  |   + `mockStudentThesisOverview`: đề tài hiệu lực     |
+|                                      |                                                  |     `dt-2025-01` (QĐ `248/QĐ-ĐHAG`) + 2 bản ghi cũ   |
+|                                      |                                                  |     (`DA_THAY_THE` `dt-2024-01`, `DA_HUY`            |
+|                                      |                                                  |     `dt-2023-draft`).                                |
+|                                      |                                                  |   + `mockStudentSupervisorsOverview`: `PGS.TS. Trần  |
+|                                      |                                                  |     Quốc Tuấn` (`HUONG_DAN_CHINH`, trọng số `1.0`)   |
+|                                      |                                                  |     và `TS. Vũ Đức Đam` (`DONG_HUONG_DAN`, `0.5`).   |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 3. 6 Component dùng chung            | - src/components/upload/PdfUploader.tsx          | - Đã thay thế toàn bộ 6 file stub `TODO`:            |
+|    (`upload/` & `shared/`)           | - src/components/upload/UploadProgress.tsx       |   + `PdfUploader`: kéo-thả/chọn PDF (`.pdf`, <=15MB),|
+|                                      | - src/components/upload/PdfViewer.tsx            |     `htmlFor`+`useId()`, `role="button"`, `tabIndex`, |
+|                                      | - src/components/upload/index.ts                 |     `onKeyDown` (Enter/Space), `onFileSelect`,       |
+|                                      | - src/components/shared/ConfirmDialog.tsx        |     `onValidationError`, `error`, `disabled`,        |
+|                                      | - src/components/shared/DeadlineCountdown.tsx    |     `helperText`.                                    |
+|                                      | - src/components/shared/DeadlineWarningBanner.tsx|   + `UploadProgress`: `progress`, `fileName`,        |
+|                                      | - src/components/shared/index.ts                 |     `fileSize`, `status` (`uploading`/`success`/     |
+|                                      |                                                  |     `error`), `role="progressbar"`, `onCancel`/      |
+|                                      |                                                  |     `onRetry`/`onRemove`, `motion-reduce:animate-    |
+|                                      |                                                  |     none`.                                           |
+|                                      |                                                  |   + `PdfViewer`: modal thuần UI (`isOpen`, `onClose`,|
+|                                      |                                                  |     `fileUrl`, `fileName`, `title`, `subtitle`,      |
+|                                      |                                                  |     `isLoading`, `error`, `onRetry`, `allowDownload`),|
+|                                      |                                                  |     đóng `Escape`, khóa cuộn, khôi phục focus,       |
+|                                      |                                                  |     Loading/Empty/Error, `print:hidden` khi          |
+|                                      |                                                  |     `!allowDownload`, `<iframe>` cho URL thực và     |
+|                                      |                                                  |     trang A4 mô phỏng cho `mock://` (tải Blob PDF).  |
+|                                      |                                                  |   + `ConfirmDialog`: `info`/`warning`/`destructive`, |
+|                                      |                                                  |     tùy chọn `requireAcknowledgement`, `Escape`,     |
+|                                      |                                                  |     khôi phục focus, khóa cuộn, inline `error`,      |
+|                                      |                                                  |     `isLoading`.                                     |
+|                                      |                                                  |   + `DeadlineCountdown`: `badge`/`card`, tính ngày   |
+|                                      |                                                  |     theo UTC (`suppressHydrationWarning`), phân mức  |
+|                                      |                                                  |     `normal`/`warning`/`critical`/`overdue`.         |
+|                                      |                                                  |   + `DeadlineWarningBanner`: `info`/`warning`/       |
+|                                      |                                                  |     `critical`, tự ẩn khi `remainingMonths >= 12`    |
+|                                      |                                                  |     (trừ `alwaysShow`/`severity`), hỗ trợ hành động  |
+|                                      |                                                  |     và `dismissible`.                                |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 4. Đề tài luận án của tôi            | - src/components/thesis/MyThesisCard.tsx         | - Nhận dữ liệu qua props, hỗ trợ `isLoading`/`error`/|
+|                                      | - src/components/thesis/ThesisHistory.tsx        |   `empty`:                                           |
+|                                      | - src/components/thesis/index.ts                 |   + `MyThesisCard`: tên đề tài tiếng Việt/tiếng Anh, |
+|                                      | - src/app/(student)/student/thesis/page.tsx      |     số QĐ/ngày giao, badge trạng thái,               |
+|                                      |                                                  |     `DeadlineCountdown`, nút "Xem PDF Quyết định" mở |
+|                                      |                                                  |     `PdfViewer`, nút/link "Đề nghị điều chỉnh đề     |
+|                                      |                                                  |     tài".                                            |
+|                                      |                                                  |   + `ThesisHistory`: lịch sử `DA_THAY_THE`/`DA_HUY`, |
+|                                      |                                                  |     xem PDF QĐ qua `PdfViewer`.                      |
+|                                      |                                                  |   + `page.tsx`: Thin Page (`StudentThesisPage`) tại  |
+|                                      |                                                  |     route `/student/thesis`, truyền mock từ          |
+|                                      |                                                  |     `src/mocks/thesis.ts`.                           |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 5. Giảng viên hướng dẫn của tôi      | - src/components/supervisor/MySupervisorList.tsx | - Nhận dữ liệu qua props, hỗ trợ `isLoading`/`error`/|
+|                                      | - src/components/supervisor/index.ts             |   `empty`:                                           |
+|                                      | - src/app/(student)/student/supervisors/page.tsx |   + `MySupervisorList`: tổng hợp số GVHD đang hướng  |
+|                                      |                                                  |     dẫn & tổng trọng số (BR-09), danh sách thẻ GVHD  |
+|                                      |                                                  |     (`HUONG_DAN_CHINH` 1.0, `DONG_HUONG_DAN` 0.5),   |
+|                                      |                                                  |     email/điện thoại, đơn vị, lĩnh vực, số QĐ/ngày   |
+|                                      |                                                  |     ký & nút xem PDF QĐ qua `PdfViewer`.             |
+|                                      |                                                  |   + `page.tsx`: Thin Page (`StudentSupervisorsPage`) |
+|                                      |                                                  |     tại route `/student/supervisors` (đồng bộ        |
+|                                      |                                                  |     `/student/progress` và tránh xung đột với        |
+|                                      |                                                  |     `app/(academic)/supervisors/page.tsx` đang chiếm |
+|                                      |                                                  |     route `/supervisors`).                           |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 6. Điều hướng Sidebar NCS            | - src/components/student/sidebar.tsx             | - Bổ sung 2 mục điều hướng trong `StudentSidebar`:   |
+|                                      |                                                  |   "Đề tài luận án" (`/student/thesis`) và            |
+|                                      |                                                  |   "Giảng viên hướng dẫn" (`/student/supervisors`).   |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+
+--------------------------------------------------------------------------------
+6. KẾT QUẢ KIỂM TRA SAU BƯỚC 2
+--------------------------------------------------------------------------------
+1) TypeScript & Next.js Route Types:
+   - `npx next typegen; npx tsc --noEmit` (chạy tại `frontend/`): Exit code `0`
+     (`Generating route types...`, `✓ Types generated successfully`).
+   - `Select-String -Path "frontend\.next\types\routes.d.ts" -Pattern '"/student/(thesis|supervisors)"'`:
+     Xác nhận `"/student/supervisors"` và `"/student/thesis"` đã tồn tại trong `AppRoutes`.
+
+2) ESLint:
+   - `npx eslint` trên các file: `src/types/ui/*.ts`, `src/mocks/*.ts`,
+     `src/components/upload/*.ts`, `src/components/upload/*.tsx`,
+     `src/components/shared/ConfirmDialog.tsx`, `DeadlineCountdown.tsx`,
+     `DeadlineWarningBanner.tsx`, `src/components/thesis/*.ts`,
+     `src/components/thesis/*.tsx`, `src/components/supervisor/MySupervisorList.tsx`,
+     `src/components/supervisor/index.ts`, `src/components/student/sidebar.tsx`,
+     `src/app/(student)/student/thesis/page.tsx`,
+     `src/app/(student)/student/supervisors/page.tsx`:
+     Exit code `0` (không có lỗi hay cảnh báo).
+
+3) Impeccable Mechanical Detector:
+   - `.agent/skills/impeccable/scripts/impeccable.cmd detect --json` trên 12 file
+     UI component, `sidebar.tsx` và 2 `page.tsx` đã tạo/sửa: Exit code `0`, output `[]`.
+
+4) Phạm vi chưa kiểm tra:
+   - Chưa chạy `npm run build` và chưa kiểm thử hiển thị thực tế trên trình duyệt.
+
+--------------------------------------------------------------------------------
+7. PHẠM VI CÒN LẠI CHO BƯỚC TIẾP THEO (BƯỚC 3)
+--------------------------------------------------------------------------------
+- Xây dựng giao diện "Đơn đề nghị của tôi" (tách Thin Page dưới prefix `/student/`,
+  `components/change-request/` gồm `ChangeRequestForm.tsx`, `ChangeRequestTable.tsx`,
+  `ChangeRequestDetail.tsx`, `CancelRequestDialog.tsx`, UI types & mocks).
+- Xây dựng giao diện "Xét tốt nghiệp cá nhân" (tách Thin Page dưới prefix `/student/`,
+  component hiển thị 6 điều kiện tốt nghiệp, UI types & mocks).
+- Chuẩn hóa & đồng bộ mục 6 (Tiến trình 9 mốc & Thông báo NCS): truyền dữ liệu và cờ
+  `coTheNop` qua props, tách sang `src/types/ui/` & `src/mocks/`, bổ sung đủ trạng thái
+  Loading/Empty/Error, đồng bộ bảng màu và xử lý các điểm A11y/UX đã ghi nhận ở mục 4.
+================================================================================
+
+
+================================================================================
+CẬP NHẬT TIẾN ĐỘ BƯỚC 3 (2026-11-11)
+Hoàn thiện bộ giao diện "Đơn đề nghị điều chỉnh & Gia hạn học tập" (NCS)
+================================================================================
+
+--------------------------------------------------------------------------------
+8. TỔNG HỢP HẠNG MỤC ĐÃ HOÀN THÀNH TRONG BƯỚC 3
+--------------------------------------------------------------------------------
+Quy ước tuân thủ:
+- Chỉ tạo/sửa file trong: `frontend/src/app/(student)/`, `frontend/src/components/`,
+  `frontend/src/mocks/`, `frontend/src/types/ui/` (và cập nhật tệp báo cáo `.txt`
+  theo yêu cầu người dùng).
+- Không sửa `package.json`, `package-lock.json`, `src/services/`, `src/hooks/`,
+  `src/lib/api/`, `src/types/api/`; xác nhận 0 lệnh `fetch(` hay `axios`.
+- Tái sử dụng trực tiếp component dùng chung Bước 2: `PdfUploader`,
+  `UploadProgress`, `PdfViewer`, `ConfirmDialog`, `DeadlineWarningBanner`,
+  `DeadlineCountdown`.
+- Tuân thủ Impeccable (Operate mode & Craft floor): `#164E9B` / `#0F2744` kết hợp
+  semantic tokens (`bg-card`, `text-foreground`, `border-border`), A11y đầy đủ
+  (`Escape`, `role`, `tabIndex`, `htmlFor`, `motion-reduce:animate-none`).
+
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| Hạng mục                             | File đã tạo / cập nhật                           | Trạng thái & Điểm lưu ý                              |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 1. UI Types Đơn đề nghị              | - src/types/ui/change-request.ts                 | - Định nghĩa đầy đủ types & prop interfaces:         |
+|    (`frontend/src/types/ui/`)        | - src/types/ui/index.ts (re-export)              |   + `ChangeRequestType` (`DOI_DE_TAI` | `DOI_GVHD` | |
+|                                      |                                                  |     `GIA_HAN`).                                      |
+|                                      |                                                  |   + `ChangeRequestStatus` (`CHO_GVHD_XAC_NHAN` |     |
+|                                      |                                                  |     `CHO_DUYET` | `DA_DUYET` | `TU_CHOI` | `DA_HUY`).|
+|                                      |                                                  |   + `SupervisorOpinionItem` (`xacNhanGvhds`: `dongY`,|
+|                                      |                                                  |     `nhanXet`, `thoiGianPhanHoi`, `vaiTro`).         |
+|                                      |                                                  |   + `TrainingTimeSummary` (`hanChinhQuy`, `hanGiaHan`|
+|                                      |                                                  |     `hanHienTai`, `hanBuocThoiHoc`,                  |
+|                                      |                                                  |     `tongThangDaGiaHan`, `toiDaThangTichLuy`,        |
+|                                      |                                                  |     `soThangToiDaConDuocXin`, `daDatMoc2`,           |
+|                                      |                                                  |     `conTruocHanToiThieu2Thang`, `daDatMoc8`,        |
+|                                      |                                                  |     `conDuoi12ThangKhoaHoc`).                        |
+|                                      |                                                  |   + `CandidateSupervisorOption`, `ChangeRequestItem`,|
+|                                      |                                                  |     `ChangeRequestFormValues`,                       |
+|                                      |                                                  |     `StudentChangeRequestsOverview`.                 |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 2. Mock Data Đơn đề nghị             | - src/mocks/change-request.ts                    | - Tạo `mockCandidateSupervisors`,                    |
+|    (`frontend/src/mocks/`)           |                                                  |   `mockChangeRequestList`,                           |
+|                                      |                                                  |   `mockStudentChangeRequestsOverview`:               |
+|                                      |                                                  |   + `DN-2026-004` (`GIA_HAN`, `CHO_GVHD_XAC_NHAN`,   |
+|                                      |                                                  |     kèm tiến độ `xacNhanGvhds` 1 đồng ý / 1 chờ).    |
+|                                      |                                                  |   + `DN-2026-001` (`GIA_HAN`, `DA_DUYET`, QĐ `115`). |
+|                                      |                                                  |   + `DN-2025-002` (`DOI_DE_TAI`, `DA_DUYET`, QĐ`248`).|
+|                                      |                                                  |   + `DN-2024-001` (`DOI_GVHD`, `TU_CHOI` + lý do).   |
+|                                      |                                                  |   + `DN-2024-000` (`DOI_DE_TAI`, `DA_HUY`).          |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 3. Bộ Component `change-request/`    | - src/components/change-request/helpers.ts       | - `ChangeRequestForm`: chọn 1/3 loại đơn;            |
+|                                      | - src/components/change-request/                 |   + `DOI_DE_TAI`: đề tài hiện tại read-only,         |
+|                                      |   ChangeRequestForm.tsx                          |     `tenDeTaiMoi` <= 500 ký tự + bộ đếm, `lyDo`,     |
+|                                      | - src/components/change-request/                 |     `PdfUploader` tùy chọn, cảnh báo & checkbox      |
+|                                      |   ChangeRequestTable.tsx                         |     `batKhaKhang` bắt buộc nếu `daDatMoc8 === true`. |
+|                                      | - src/components/change-request/                 |   + `DOI_GVHD`: dropdown `phanCongCuId`, dropdown    |
+|                                      |   ChangeRequestDetail.tsx                        |     `gvhdMoiId` tự loại trừ GVHD đang hướng dẫn,     |
+|                                      | - src/components/change-request/                 |     `lyDo`, `PdfUploader`, tự bật & yêu cầu xác nhận |
+|                                      |   CancelRequestDialog.tsx                        |     `batKhaKhang` + `DeadlineWarningBanner` khi      |
+|                                      | - src/components/change-request/                 |     `conDuoi12ThangKhoaHoc === true`.                |
+|                                      |   ChangeRequestWorkspace.tsx                     |   + `GIA_HAN`: 4 chỉ số thời gian, kiểm tra          |
+|                                      | - src/components/change-request/index.ts         |     `daDatMoc2` & `conTruocHanToiThieu2Thang` (khóa  |
+|                                      |                                                  |     nút gửi nếu thiếu), nhập `soThangGiaHan` (1-24), |
+|                                      |                                                  |     tự tính "Hạn mới dự kiến" & báo lỗi đỏ nếu vượt  |
+|                                      |                                                  |     72 tháng hoặc trần 24 tháng, `lyDo`, bắt buộc PDF|
+|                                      |                                                  |     báo cáo tiến độ + hiển thị `UploadProgress`.     |
+|                                      |                                                  | - `ChangeRequestTable`: lọc loại đơn & trạng thái,   |
+|                                      |                                                  |   Loading/Error/Empty, khóa nút "Tạo đơn đề nghị mới"|
+|                                      |                                                  |   khi đang có 01 đơn chờ xử lý + nút "Hủy đơn".      |
+|                                      |                                                  | - `ChangeRequestDetail`: drawer xem chi tiết, PDF    |
+|                                      |                                                  |   đính kèm & QĐ (`PdfViewer`), `lyDoTuChoi`, bảng    |
+|                                      |                                                  |   xác nhận Tập thể GVHD (`xacNhanGvhds`).            |
+|                                      |                                                  | - `CancelRequestDialog`: tái sử dụng `ConfirmDialog`.|
+|                                      |                                                  | - `ChangeRequestWorkspace`: kết nối state UI đầy đủ  |
+|                                      |                                                  |   (mở form, upload, tạo đơn mới, xem PDF, hủy đơn).  |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 4. Thin Page, Redirect & Sidebar     | - src/app/(student)/student/extensions/page.tsx  | - `student/extensions/page.tsx`: Thin Page truyền    |
+|                                      | - src/app/(student)/extensions/page.tsx          |   `mockStudentChangeRequestsOverview` vào Workspace. |
+|                                      | - src/components/student/sidebar.tsx             | - `extensions/page.tsx`: cập nhật thành `redirect`   |
+|                                      | - src/components/thesis/MyThesisCard.tsx         |   tới `/student/extensions`.                         |
+|                                      |                                                  | - `sidebar.tsx`: bổ sung mục "Đơn đề nghị & Gia hạn" |
+|                                      |                                                  |   trỏ tới `/student/extensions`.                     |
+|                                      |                                                  | - `MyThesisCard.tsx`: đồng bộ `changeRequestHref`    |
+|                                      |                                                  |   mặc định sang `/student/extensions`.               |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+
+--------------------------------------------------------------------------------
+9. KẾT QUẢ KIỂM TRA SAU BƯỚC 3
+--------------------------------------------------------------------------------
+1) TypeScript & Next.js Route Types:
+   - `npx next typegen; npx tsc --noEmit` (tại `frontend/`): Exit code `0`
+     (`Generating route types...`, `✓ Types generated successfully`).
+   - `Select-String -Path "frontend\.next\types\routes.d.ts" -Pattern '"/student/extensions"|"/extensions"'`:
+     Xác nhận route `"/extensions"` và `"/student/extensions"` có trong `AppRoutes`.
+
+2) ESLint:
+   - `npx eslint` trên tất cả file UI types, mocks, `components/change-request/*`,
+     `MyThesisCard.tsx`, `sidebar.tsx`, `student/extensions/page.tsx`,
+     `extensions/page.tsx`: Exit code `0` (không có lỗi hay cảnh báo).
+
+3) Impeccable Mechanical Detector:
+   - `.agent/skills/impeccable/scripts/impeccable.cmd detect --json` trên 9 file UI
+     component & page mới/sửa: Exit code `0`, output `[]`.
+
+4) Rà soát Guardrails:
+   - `Select-String` tìm `fetch(|axios` trong các file Bước 3: Exit code `0` (0 kết quả).
+   - Chưa chạy `npm run build` hoặc kiểm thử thao tác trực tiếp trên trình duyệt.
+
+--------------------------------------------------------------------------------
+10. PHẠM VI CÒN LẠI CHO BƯỚC TIẾP THEO (BƯỚC 4)
+--------------------------------------------------------------------------------
+- Xây dựng giao diện "Xét tốt nghiệp cá nhân" (Thin Page dưới `/student/graduation`,
+  component hiển thị 6 điều kiện tốt nghiệp, UI types & mocks).
+- Chuẩn hóa & đồng bộ Tiến trình 9 mốc & Thông báo NCS (mục 6 của Audit Bước 1):
+  truyền `coTheNop` qua props, tách sang `src/types/ui/` & `src/mocks/`, bổ sung đủ
+  Loading/Empty/Error, đồng bộ bảng màu và xử lý các điểm A11y/UX ở mục 4.
+================================================================================
+
+
+--------------------------------------------------------------------------------
+11. CẬP NHẬT SAU BƯỚC 4 (XÉT TỐT NGHIỆP, TIẾN TRÌNH 9 MỐC & DỌN STUB TODO)
+--------------------------------------------------------------------------------
+Trong Bước 4, hệ thống đã hoàn thiện Hạng mục 5 ("Xét tốt nghiệp cá nhân"),
+chuẩn hóa triệt để Hạng mục 6 ("Tiến trình 9 mốc đào tạo" & Thông báo NCS),
+đồng bộ Header/Sidebar và thay thế toàn bộ file stub `TODO` thuộc 6 hạng mục NCS:
+
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| Thành phần                           | File đã tạo / cập nhật                           | Nội dung triển khai chi tiết                         |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 1. UI Types & Mock Data              | - src/types/ui/graduation.ts                     | - Định nghĩa 6 mã điều kiện tốt nghiệp               |
+|                                      | - src/types/ui/progress.ts                       |   (`GraduationConditionCode`), trạng thái từng tiêu  |
+|                                      | - src/types/ui/index.ts                          |   chí & tổng hợp `StudentGraduationOverview`.        |
+|                                      | - src/mocks/graduation.ts                        | - Di chuyển `StudentProgressData`,                   |
+|                                      | - src/mocks/progress.ts                          |   `MilestoneProgressItem`, `EvidenceItem`... sang    |
+|                                      | - src/components/student/progress/mock-data.ts   |   `src/types/ui/progress.ts` & `src/mocks/progress`. |
+|                                      |                                                  | - Tạo 2 kịch bản xét tốt nghiệp: Đủ 6/6 điều kiện    |
+|                                      |                                                  |   và Chưa đạt 4/6 (hết hạn ngoại ngữ + đơn ĐN-2026). |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 2. Giao diện Xét tốt nghiệp          | - src/components/graduation/                     | - `GraduationOverviewCard`: badge trạng thái chung,  |
+|    (GraduationWorkspace)             |   GraduationOverviewCard.tsx                     |   progressbar x/6, ghi chú Hội đồng, màu `#164E9B`.  |
+|                                      | - src/components/graduation/                     | - `GraduationConditions`: lưới 6 điều kiện đối chiếu |
+|                                      |   GraduationConditions.tsx                       |   quy chế, giá trị thực tế, link thao tác, nút xem   |
+|                                      | - src/components/graduation/                     |   PDF chứng minh qua `PdfViewer`.                    |
+|                                      |   GraduationWorkspace.tsx                        | - `GraduationWorkspace`: đổi kịch bản 6/6 <-> 4/6,   |
+|                                      | - src/components/graduation/index.ts             |   đầy đủ trạng thái Loading/Error/Retry/Empty.       |
+|                                      | - src/app/(student)/student/graduation/page.tsx  | - Thin Page `/student/graduation` & redirect từ      |
+|                                      | - src/app/(student)/graduation/page.tsx          |   `/graduation` -> `/student/graduation`.            |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 3. Chuẩn hóa Tiến trình 9 mốc        | - src/components/student/progress/               | - Xóa chuỗi cứng "Mốc 3 đang chờ nộp lại", tính động |
+|    & Upload / Xem PDF dùng chung     |   student-progress-container.tsx                 |   trạng thái từ `milestones`; chặn chia 0            |
+|                                      | - src/components/student/progress/               |   (`tongSoMoc === 0`); thêm Loading/Error/Empty.     |
+|                                      |   milestone-card.tsx                             | - Bỏ `useState(initialMilestone)` gây stale state;   |
+|                                      | - src/components/student/progress/               |   nối trực tiếp `disabled={!milestone.coTheNop}`.    |
+|                                      |   milestone-timeline.tsx                         | - Thay upload/preview cũ ở `submit-evidence-dialog`, |
+|                                      | - src/components/student/progress/               |   `document-view-button`, `evaluation-reviews` bằng  |
+|                                      |   submit-evidence-dialog.tsx                     |   `PdfUploader`, `UploadProgress`, `PdfViewer`.      |
+|                                      | - src/components/student/progress/               | - `milestone-timeline.tsx` & `loading.tsx`: bổ sung  |
+|                                      |   document-view-button.tsx                       |   `motion-reduce:animate-none`, nút `40x40px`, màu   |
+|                                      | - src/components/student/progress/               |   `#164E9B` / `#0F2744` & semantic tokens `bg-card`. |
+|                                      |   evaluation-reviews-section.tsx                 | - `student/progress/page.tsx`: Thin Page truyền      |
+|                                      | - src/components/student/progress/               |   `initialData={mockProgressData}` qua props.        |
+|                                      |   evidence-history.tsx                           |                                                      |
+|                                      | - src/app/(student)/student/progress/page.tsx    |                                                      |
+|                                      | - src/app/(student)/student/progress/loading.tsx |                                                      |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+| 4. Header, Sidebar, Thông báo        | - src/components/student/sidebar.tsx             | - Thêm mục "Xét tốt nghiệp" -> `/student/graduation`,|
+|    & Dọn các file stub TODO          | - src/components/student/header.tsx              |   nút đóng `size-10`, đóng bằng phím `Escape`.       |
+|                                      | - src/components/notification/NotificationBell   | - `header.tsx`: thay `href="#"` trên nút "Sổ tay     |
+|                                      | - src/components/notification/NotificationList   |   Nghiên cứu sinh" bằng `StudentHandbookDialog`      |
+|                                      | - src/components/notification/                   |   (`Escape`, liên kết quy chế/biểu mẫu/gia hạn).     |
+|                                      |   NotificationBellPopover.tsx                    | - Hoàn thiện `NotificationBell`, `NotificationList`  |
+|                                      | - src/components/notification/index.ts           |   và bổ sung trạng thái `isError` + `refetch()` cho  |
+|                                      | - src/components/milestone/MilestoneCard.tsx     |   `NotificationBellPopover.tsx`.                     |
+|                                      | - src/components/milestone/MilestoneTimeline.tsx | - `milestone/*`: re-export component tiến trình 9    |
+|                                      | - src/components/milestone/StatusBadge.tsx       |   mốc chuẩn hóa và hoàn thiện `StatusBadge` WCAG AA. |
+|                                      | - src/components/milestone/index.ts              |                                                      |
++--------------------------------------+--------------------------------------------------+------------------------------------------------------+
+
+--------------------------------------------------------------------------------
+12. KẾT QUẢ KIỂM TRA SAU BƯỚC 4 & TỔNG KẾT PHÂN HỆ NCS
+--------------------------------------------------------------------------------
+1) TypeScript & Next.js Route Types (chạy sau lần sửa code cuối):
+   - `npx next typegen; npx tsc --noEmit` (tại `frontend/`): Exit code `0`
+     (`Generating route types...`, `✓ Types generated successfully`).
+   - `Select-String -Path "frontend\.next\types\routes.d.ts" -Pattern '"/student/graduation"|"/graduation"'`:
+     Xác nhận `"/graduation"` và `"/student/graduation"` đã có trong `AppRoutes`.
+
+2) ESLint (chạy sau lần sửa code cuối):
+   - `npx eslint` trên toàn bộ 31 file tạo/cập nhật trong Bước 4: Exit code `0`
+     (0 lỗi, 0 cảnh báo).
+
+3) Impeccable Mechanical Detector:
+   - `.agent/skills/impeccable/scripts/impeccable.cmd detect --json` trên toàn bộ
+     20 file UI component & page mới/cập nhật trong Bước 4: Exit code `0`, output `[]`.
+
+4) Rà soát Guardrails & Dọn Stub TODO:
+   - `Select-String` tìm `\bfetch\s*\(|axios` trên các file Bước 4: Exit code `0`
+     (0 kết quả gọi API trực tiếp trong tầng UI/mock).
+   - Quét `TODO` trên 8 thư mục component thuộc phân hệ NCS (`upload/`, `shared/`,
+     `thesis/`, `change-request/`, `graduation/`, `notification/`, `milestone/`,
+     `student/`): 0 kết quả còn sót.
+   - Các file stub ngoài phạm vi 6 hạng mục kiểm tra (như `dashboard/`, `defense/`,
+     `milestones/[id]/`, `my-publications/`, `review/`, `publication/`, `QuotaBar`,
+     `SupervisorSelector`) được giữ nguyên theo guardrail phạm vi.
+   - Trạng thái hiện tại: Toàn bộ 6/6 hạng mục UI của phân hệ Nghiên cứu sinh
+     (1. Component dùng chung, 2. Đề tài luận án, 3. Giảng viên hướng dẫn,
+     4. Đơn đề nghị điều chỉnh & Gia hạn, 5. Xét tốt nghiệp cá nhân,
+     6. Tiến trình 9 mốc & Thông báo NCS) đã hoàn tất tầng UI, `src/types/ui/`,
+     `src/mocks/` và Thin Pages. Chưa chạy `npm run build` hoặc kiểm thử trên trình duyệt.
+================================================================================
