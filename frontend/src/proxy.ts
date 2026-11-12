@@ -1,6 +1,7 @@
 import { auth } from "@/src/auth";
 import { NextResponse } from "next/server";
 import type { UserRole } from "@/src/lib/auth/constants";
+import type { IUser } from "@/types/next-auth";
 
 export const config = {
   matcher: [
@@ -112,22 +113,21 @@ export default auth((req) => {
   }
 
   // ── 3. ĐÃ ĐĂNG NHẬP MÀ TRUY CẬP TRANG AUTH ──────────────────────
+  const user = req.auth?.user;
+  const userRole = user?.role;
+
   if (isAuthPage) {
-    const role = (req.auth?.user as any)?.role as UserRole | undefined;
-    const home = role ? ROLE_HOME[role] : "/";
+    const home = userRole ? ROLE_HOME[userRole] : "/";
     return NextResponse.redirect(new URL(home, req.nextUrl.origin));
   }
 
   // ── 4. TRANG CHỦ "/" → REDIRECT VỀ TRANG MẶC ĐỊNH CỦA ROLE ───────
   if (pathname === "/") {
-    const role = (req.auth?.user as any)?.role as UserRole | undefined;
-    const home = role ? ROLE_HOME[role] : "/student/progress";
+    const home = userRole ? ROLE_HOME[userRole] : "/student/progress";
     return NextResponse.redirect(new URL(home, req.nextUrl.origin));
   }
 
   // ── 5. KIỂM TRA QUYỀN TRUY CẬP (RBAC) ────────────────────────────
-  const userRole = (req.auth?.user as any)?.role as UserRole | undefined;
-
   // Tìm rule đầu tiên khớp với pathname hiện tại
   const matchedRule = ROUTE_RBAC.find((rule) => pathname.startsWith(rule.prefix));
 

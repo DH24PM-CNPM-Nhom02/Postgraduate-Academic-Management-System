@@ -25,6 +25,15 @@ declare module "next-auth" {
     }
 }
 
+declare module "@auth/core/types" {
+    interface Session {
+        user: IUser;
+        access_token: string;
+        access_expire: number;
+        error?: string;
+    }
+}
+
 declare module "next-auth/jwt" {
     interface JWT extends DefaultJWT {
         access_token: string;
