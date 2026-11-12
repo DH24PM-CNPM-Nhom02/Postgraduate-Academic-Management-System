@@ -22,17 +22,47 @@ export function UserStatusConfirmDialog({
   onConfirm,
   isLoading = false,
 }: UserStatusConfirmDialogProps) {
+  if (!isOpen || !user) return null;
+
+  return (
+    <UserStatusConfirmDialogContent
+      key={user.id}
+      user={user}
+      onClose={onClose}
+      onConfirm={onConfirm}
+      isLoading={isLoading}
+    />
+  );
+}
+
+interface UserStatusConfirmDialogContentProps {
+  user: AdminUserViewItem;
+  onClose: () => void;
+  onConfirm: (
+    user: AdminUserViewItem,
+    reason?: string
+  ) => void | Promise<void>;
+  isLoading: boolean;
+}
+
+function UserStatusConfirmDialogContent({
+  user,
+  onClose,
+  onConfirm,
+  isLoading,
+}: UserStatusConfirmDialogContentProps) {
   const titleId = useId();
   const descriptionId = useId();
   const reasonInputId = useId();
   const [reason, setReason] = useState("");
 
-  useEffect(() => {
+  const handleClose = () => {
+    if (isLoading) return;
     setReason("");
-  }, [user?.id, isOpen]);
+    onClose();
+  };
 
   useEffect(() => {
-    if (!isOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !isLoading) {
         onClose();
@@ -40,21 +70,21 @@ export function UserStatusConfirmDialog({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, isLoading, onClose]);
-
-  if (!isOpen || !user) return null;
+  }, [isLoading, onClose]);
 
   const isLockAction = user.status === "ACTIVE";
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    await onConfirm(user, reason.trim() || undefined);
+    const trimmedReason = reason.trim() || undefined;
+    setReason("");
+    await onConfirm(user, trimmedReason);
   };
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={() => !isLoading && onClose()}
+      onClick={handleClose}
     >
       <div
         role="alertdialog"
@@ -94,7 +124,7 @@ export function UserStatusConfirmDialog({
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={isLoading}
             aria-label="Đóng hộp thoại"
             className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:opacity-40"
@@ -163,7 +193,7 @@ export function UserStatusConfirmDialog({
           <div className="flex items-center justify-end gap-2 pt-1">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={isLoading}
               className="inline-flex h-9 items-center rounded-lg border border-border bg-background px-4 text-xs font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:opacity-45"
             >

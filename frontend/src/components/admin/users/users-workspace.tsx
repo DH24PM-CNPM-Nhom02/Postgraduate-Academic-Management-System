@@ -51,15 +51,14 @@ export function UsersWorkspace() {
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
   // Xác định ID tài khoản đang đăng nhập để áp dụng Self-lock Prevention
-  const currentUserId = useMemo(() => {
-    const matched = authUser?.username
-      ? users.find(
-          (item) =>
-            item.username.toLowerCase() === authUser.username.toLowerCase()
-        )
-      : undefined;
-    return matched?.id ?? mockAdminUsers[0]?.id ?? "usr-admin-01";
-  }, [authUser?.username, users]);
+  const matchedCurrentUser = authUser?.username
+    ? users.find(
+        (item) =>
+          item.username.toLowerCase() === authUser.username.toLowerCase()
+      )
+    : undefined;
+  const currentUserId =
+    matchedCurrentUser?.id ?? mockAdminUsers[0]?.id ?? "usr-admin-01";
 
   // Tính lại thống kê động khi state users thay đổi (khớp cấu trúc mockUserStatsSummary)
   const statsSummary = useMemo<UserStatsSummary>(() => {

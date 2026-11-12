@@ -37,6 +37,29 @@ export function AuditDetailDialog({
   onClose,
   initialTab = "overview",
 }: AuditDetailDialogProps) {
+  if (!isOpen || !log) return null;
+
+  return (
+    <AuditDetailDialogContent
+      key={`${log.id}-${initialTab}`}
+      log={log}
+      onClose={onClose}
+      initialTab={initialTab}
+    />
+  );
+}
+
+interface AuditDetailDialogContentProps {
+  log: AuditLogViewItem;
+  onClose: () => void;
+  initialTab: "overview" | "diff";
+}
+
+function AuditDetailDialogContent({
+  log,
+  onClose,
+  initialTab,
+}: AuditDetailDialogContentProps) {
   const titleId = useId();
   const overviewTabId = useId();
   const diffTabId = useId();
@@ -46,15 +69,13 @@ export function AuditDetailDialog({
   const [activeTab, setActiveTab] = useState<"overview" | "diff">(initialTab);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isOpen) {
-      setActiveTab(initialTab);
-      setCopiedField(null);
-    }
-  }, [isOpen, initialTab, log?.id]);
+  const handleClose = () => {
+    setActiveTab(initialTab);
+    setCopiedField(null);
+    onClose();
+  };
 
   useEffect(() => {
-    if (!isOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
@@ -62,9 +83,7 @@ export function AuditDetailDialog({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
-
-  if (!isOpen || !log) return null;
+  }, [onClose]);
 
   const correlationId = getAuditCorrelationId(log);
   const clientIp = getAuditClientIp(log);
@@ -83,7 +102,7 @@ export function AuditDetailDialog({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         role="dialog"
@@ -112,7 +131,7 @@ export function AuditDetailDialog({
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Đóng chi tiết bản ghi kiểm toán"
             className="rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40"
           >
@@ -389,7 +408,7 @@ export function AuditDetailDialog({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="inline-flex h-9 items-center rounded-lg border border-border bg-background px-4 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40"
           >
             Đóng

@@ -19,21 +19,46 @@ export function ResetPasswordDialog({
   onConfirmReset,
   isLoading = false,
 }: ResetPasswordDialogProps) {
+  if (!isOpen || !user) return null;
+
+  return (
+    <ResetPasswordDialogContent
+      key={user.id}
+      user={user}
+      onClose={onClose}
+      onConfirmReset={onConfirmReset}
+      isLoading={isLoading}
+    />
+  );
+}
+
+interface ResetPasswordDialogContentProps {
+  user: AdminUserViewItem;
+  onClose: () => void;
+  onConfirmReset: (user: AdminUserViewItem) => Promise<string> | string;
+  isLoading: boolean;
+}
+
+function ResetPasswordDialogContent({
+  user,
+  onClose,
+  onConfirmReset,
+  isLoading,
+}: ResetPasswordDialogContentProps) {
   const titleId = useId();
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(
     null
   );
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    if (!isOpen) {
-      setGeneratedPassword(null);
-      setCopied(false);
-    }
-  }, [isOpen, user?.id]);
+  const handleClose = () => {
+    if (isLoading) return;
+    setGeneratedPassword(null);
+    setCopied(false);
+    onClose();
+  };
 
   useEffect(() => {
-    if (!isOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !isLoading) {
         onClose();
@@ -41,9 +66,7 @@ export function ResetPasswordDialog({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, isLoading, onClose]);
-
-  if (!isOpen || !user) return null;
+  }, [isLoading, onClose]);
 
   const handleConfirm = async () => {
     const newPassword = await onConfirmReset(user);
@@ -65,7 +88,7 @@ export function ResetPasswordDialog({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={() => !isLoading && onClose()}
+      onClick={handleClose}
     >
       <div
         role="dialog"
@@ -94,7 +117,7 @@ export function ResetPasswordDialog({
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={isLoading}
             aria-label="Đóng hộp thoại đặt lại mật khẩu"
             className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:opacity-40"
@@ -127,7 +150,7 @@ export function ResetPasswordDialog({
               <div className="flex items-center justify-end gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleClose}
                   disabled={isLoading}
                   className="inline-flex h-9 items-center rounded-lg border border-border bg-background px-4 text-xs font-medium text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:opacity-45"
                 >
@@ -190,7 +213,7 @@ export function ResetPasswordDialog({
               <div className="flex justify-end pt-1">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-xs font-semibold text-background transition-opacity duration-150 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40"
                 >
                   Hoàn tất &amp; Đóng
