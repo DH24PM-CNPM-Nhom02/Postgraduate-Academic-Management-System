@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Post } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
 import { ClientProxy } from "@nestjs/microservices";
 import { firstValueFrom, timeout } from "rxjs";
 import { Public } from "../common/decorators/public.decorator.js";
@@ -8,6 +8,8 @@ import {
   RefreshDto,
   ChangePasswordDto,
   CreateUsersDto,
+  ListUsersQueryDto,
+  SetUserStatusDto,
 } from '../../../../lib/contracts/src/dto/auth.dto.js';
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
@@ -47,5 +49,31 @@ export class AuthController {
 
   @Post('users')
   @RequirePermissions(PERMISSIONS.USER_CREATE)
-  createUsers(@Body() dto: CreateUsersDto) { return this.send('auth.create-users', dto); }
+  createUsers(@Body() dto: CreateUsersDto) { 
+    return this.send('auth.create-users', dto); 
+  }
+
+  @Get('users')
+  @RequirePermissions(PERMISSIONS.USER_READ)
+  listUsers(@Query() query: ListUsersQueryDto) {
+    return this.send('auth.list-users', query);
+  }
+
+  @Get('users/:id')
+  @RequirePermissions(PERMISSIONS.USER_READ)
+  getUser(@Param('id', ParseUUIDPipe) id: string) {
+    return this.send('auth.get-user', { id });
+  }
+
+  @Patch('users/:id/status')
+  @RequirePermissions(PERMISSIONS.USER_UPDATE)
+  setUserStatus(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: SetUserStatusDto) {
+    return this.send('auth.set-user-status', { actorId: u.id, targetId: id, isActive: dto.isActive });
+  }
+
+  @Patch('users/:id/reset-password')
+  @RequirePermissions(PERMISSIONS.USER_RESET_PASSWORD)
+  resetPassword(@CurrentUser() u: AuthUser, @Param('id') id: string) {
+    return this.send('auth.reset-password', { actorRoles: u.roles, targetId: id });
+  }
 }

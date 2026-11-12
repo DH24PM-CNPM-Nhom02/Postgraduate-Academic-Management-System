@@ -1,6 +1,7 @@
 // auth/dto/auth.dto.ts
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsNotEmpty, IsOptional, IsString, MinLength, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsBoolean, IsNotEmpty, IsOptional, IsString, MinLength, ValidateNested } from 'class-validator';
+import { PaginationQueryDto } from './pagination.dto.js';
 
 export class LoginDto {
   @IsString()
@@ -34,8 +35,8 @@ export class CreateUserItemDto {
   @IsNotEmpty()
   fullName: string;
 
-  @IsOptional() 
-  @IsString() 
+  @IsOptional()
+  @IsString()
   email?: string;
 
   @IsString()
@@ -50,4 +51,23 @@ export class CreateUserItemDto {
 export class CreateUsersDto {
   @ValidateNested({ each: true }) @Type(() => CreateUserItemDto) @ArrayMinSize(1)
   users: CreateUserItemDto[];
+}
+
+export class ListUsersQueryDto extends PaginationQueryDto {
+  @IsOptional()
+  @IsString()
+  role?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: 'active' | 'locked';
+
+  @IsOptional()
+  @IsString()
+  keyword?: string;
+}
+
+export class SetUserStatusDto {
+  @IsBoolean()
+  isActive: boolean;
 }
