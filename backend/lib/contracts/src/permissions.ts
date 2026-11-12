@@ -3,6 +3,7 @@ export const PERMISSIONS = {
     USER_CREATE: 'user.create',
     USER_UPDATE: 'user.update',
     USER_DELETE: 'user.delete',
+    USER_RESET_PASSWORD: 'user.reset_password',
     ROLE_READ: 'role.read',
     ROLE_UPDATE: 'role.update',
 
