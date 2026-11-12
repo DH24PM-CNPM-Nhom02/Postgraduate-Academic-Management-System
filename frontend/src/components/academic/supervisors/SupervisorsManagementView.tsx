@@ -24,7 +24,16 @@ import {
   MOCK_STUDENTS,
 } from "@/src/components/academic";
 import type { SupervisorOption } from "@/src/components/academic/SupervisorSelector";
-import { useAcademicSupervisors, useAcademicStudents } from "@/src/hooks/use-academic";
+import {
+  useAcademicSupervisors,
+  useAcademicStudents,
+  useAcademicSupervisorDetail,
+} from "@/src/hooks/use-academic";
+import {
+  formatSupervisorDisplayName,
+  formatDegreeLabel,
+  mapBackendGvhdToSupervisorQuota,
+} from "@/src/services/gvhd";
 import type { SupervisorQuotaRecord } from "@/src/types/academic";
 
 interface SupervisorsManagementViewProps {
@@ -64,13 +73,33 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
     [supervisorsList, selectedSupervisorId]
   );
 
+  // Hook gọi API GET /gvhd/:id khi người dùng chọn giảng viên trong bảng
+  const {
+    data: supervisorDetail,
+    isLoading: isLoadingDetail,
+    isError: isErrorDetail,
+    error: detailError,
+    refetch: refetchDetail,
+  } = useAcademicSupervisorDetail(selectedSupervisorId);
+
+  // Dữ liệu GVHD chuẩn hóa dùng cho QuotaBar và modal phân công (ưu tiên dữ liệu live từ API)
+  const selectedQuotaSupervisor = useMemo(() => {
+    if (supervisorDetail) {
+      return mapBackendGvhdToSupervisorQuota(
+        supervisorDetail,
+        supervisorDetail.phanCongs || []
+      );
+    }
+    return selectedSupervisor;
+  }, [supervisorDetail, selectedSupervisor]);
+
   const rightQuotaSupervisor = useMemo(
     () =>
-      selectedSupervisor ||
+      selectedQuotaSupervisor ||
       supervisorsList.find((sv) => sv.id === previewSupervisorId) ||
       supervisorsList[0] ||
       null,
-    [selectedSupervisor, supervisorsList, previewSupervisorId]
+    [selectedQuotaSupervisor, supervisorsList, previewSupervisorId]
   );
 
   const departmentOptions = useMemo(
@@ -444,53 +473,168 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
             </table>
           </div>
 
-          {/* Modal / Dialog showing detailed assigned students */}
-          {selectedSupervisor && (
-            <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 space-y-2.5 text-xs animate-in fade-in duration-200">
+          {/* Sub-panel chi tiết GVHD & danh sách NCS phân công kết nối API GET /gvhd/:id */}
+          {selectedSupervisorId && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 space-y-3 text-xs animate-in fade-in duration-200">
+              {/* Header chung của Sub-panel */}
               <div className="flex items-center justify-between border-b border-blue-200 pb-2">
-                <div>
+                <div className="flex items-center gap-2">
+                  <UserCheck className="size-4 text-[#164E9B]" />
                   <h4 className="font-bold text-[#0F2744]">
-                    NCS đang được hướng dẫn bởi {selectedSupervisor.name}:
+                    {supervisorDetail
+                      ? `Hồ sơ chi tiết: ${formatSupervisorDisplayName(supervisorDetail.hoTen, supervisorDetail.hocHamHocVi)}`
+                      : selectedSupervisor
+                      ? `Hồ sơ chi tiết: ${selectedSupervisor.name}`
+                      : "Chi tiết Giảng viên Hướng dẫn"}
                   </h4>
-                  <span className="text-[11px] text-slate-500">{selectedSupervisor.department}</span>
                 </div>
                 <div className="flex items-center gap-2">
+                  {selectedQuotaSupervisor && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAssignSupervisor(selectedQuotaSupervisor);
+                        setAssignModalOpen(true);
+                      }}
+                      className="rounded-lg bg-[#164E9B] px-2.5 py-1 text-white hover:bg-[#123E7C] text-[11px] font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
+                    >
+                      <UserCheck className="size-3.5" />
+                      <span>Phân công thêm NCS</span>
+                    </button>
+                  )}
                   <button
-                    onClick={() => {
-                      setAssignSupervisor(selectedSupervisor);
-                      setAssignModalOpen(true);
-                    }}
-                    className="rounded-lg bg-[#164E9B] px-2.5 py-1 text-white hover:bg-[#123E7C] text-[11px] font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
-                  >
-                    <UserCheck className="size-3.5" />
-                    <span>Phân công thêm NCS</span>
-                  </button>
-                  <button
+                    type="button"
                     onClick={() => setSelectedSupervisorId(null)}
                     className="rounded p-1 text-slate-400 hover:text-slate-700 hover:bg-white text-xs font-bold cursor-pointer"
+                    aria-label="Đóng bảng chi tiết"
                   >
                     ✕ Đóng
                   </button>
                 </div>
               </div>
 
-              {selectedSupervisor.assignedStudents.length === 0 ? (
-                <p className="text-[11px] italic text-slate-500 py-1">
-                  Giảng viên hiện chưa được phân công hướng dẫn nghiên cứu sinh nào.
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                  {selectedSupervisor.assignedStudents.map((std, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center gap-2 rounded-lg bg-white p-2 border border-blue-100 shadow-2xs"
-                    >
-                      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[#164E9B] font-bold text-[10px]">
-                        {idx + 1}
-                      </span>
-                      <span className="font-medium text-slate-800 text-[11px] truncate">{std}</span>
+              {/* 1. Trạng thái Loading */}
+              {isLoadingDetail && (
+                <div role="status" className="py-6 text-center text-xs text-slate-500 space-y-2">
+                  <Loader2 className="size-5 animate-spin mx-auto text-[#164E9B]" />
+                  <p>Đang tải thông tin chi tiết giảng viên từ máy chủ (GET /gvhd/{selectedSupervisorId})...</p>
+                </div>
+              )}
+
+              {/* 2. Trạng thái Error (kèm nút Thử lại) */}
+              {!isLoadingDetail && isErrorDetail && (
+                <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-rose-800 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="size-4 shrink-0 text-rose-600 mt-0.5" />
+                    <div className="space-y-0.5 flex-1">
+                      <p className="font-bold text-xs text-rose-900">
+                        Không thể tải thông tin chi tiết giảng viên từ API
+                      </p>
+                      <p className="text-[11px] text-rose-700 leading-relaxed">
+                        {detailError instanceof Error ? detailError.message : "Đã xảy ra lỗi khi kết nối máy chủ API."}
+                      </p>
                     </div>
-                  ))}
+                    <button
+                      type="button"
+                      onClick={() => void refetchDetail()}
+                      className="inline-flex items-center gap-1 rounded bg-[#164E9B] px-2.5 py-1 text-white hover:bg-[#123E7C] text-[11px] font-semibold cursor-pointer shrink-0"
+                    >
+                      <RefreshCw className="size-3" />
+                      <span>Thử lại</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. Trạng thái Empty (Không tìm thấy bản ghi GVHD) */}
+              {!isLoadingDetail && !isErrorDetail && !supervisorDetail && (
+                <div className="py-4 text-center text-slate-500 space-y-1">
+                  <Info className="size-5 mx-auto text-slate-400" />
+                  <p className="text-[11px]">Không tìm thấy thông tin giảng viên hướng dẫn yêu cầu.</p>
+                </div>
+              )}
+
+              {/* 4. Trạng thái Success */}
+              {!isLoadingDetail && !isErrorDetail && supervisorDetail && (
+                <div className="space-y-3 pt-1">
+                  {/* Thẻ tóm tắt thông tin hồ sơ GVHD từ API */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 bg-white p-3 rounded-lg border border-blue-100 text-[11px]">
+                    <div>
+                      <span className="text-slate-400 block text-[10px] font-medium">Mã giảng viên</span>
+                      <span className="font-mono font-bold text-slate-800">{supervisorDetail.maGv || "N/A"}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px] font-medium">Học hàm / Học vị</span>
+                      <span className="font-semibold text-slate-800">{formatDegreeLabel(supervisorDetail.hocHamHocVi)}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px] font-medium">Đơn vị công tác</span>
+                      <span className="font-medium text-slate-800 truncate block" title={supervisorDetail.donVi?.ten || ""}>
+                        {supervisorDetail.donVi?.ten || supervisorDetail.donVi?.parent?.ten || supervisorDetail.chuyenNganh || "Chưa cập nhật"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px] font-medium">Email liên hệ</span>
+                      <span className="text-slate-700 truncate block font-mono" title={supervisorDetail.email || ""}>
+                        {supervisorDetail.email || "Chưa cập nhật"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Danh sách phân công NCS từ phanCongs */}
+                  <div>
+                    <h5 className="font-bold text-[#0F2744] text-[11px] mb-1.5 flex items-center justify-between">
+                      <span>Nghiên cứu sinh đang được phân công:</span>
+                      <span className="text-[10px] font-normal text-slate-500">
+                        {supervisorDetail.phanCongs?.length ?? 0} phân công
+                      </span>
+                    </h5>
+
+                    {(!supervisorDetail.phanCongs || supervisorDetail.phanCongs.length === 0) ? (
+                      <div className="rounded-lg bg-white/70 p-3 text-center border border-dashed border-blue-200">
+                        <p className="text-[11px] italic text-slate-500">
+                          Giảng viên hiện chưa được phân công hướng dẫn nghiên cứu sinh nào.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {supervisorDetail.phanCongs.map((assignment, idx) => {
+                          const isMain = assignment.vaiTro === "HUONG_DAN_CHINH";
+                          const roleLabel = isMain ? "Hướng dẫn chính (1.0)" : "Đồng hướng dẫn (0.5)";
+                          const roleBadgeStyle = isMain
+                            ? "bg-blue-50 text-[#164E9B] border-blue-200"
+                            : "bg-slate-100 text-slate-700 border-slate-200";
+
+                          return (
+                            <div
+                              key={assignment.id || idx}
+                              className="flex items-start gap-2.5 rounded-lg bg-white p-2.5 border border-blue-100 shadow-2xs"
+                            >
+                              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[#164E9B] font-bold text-[10px] mt-0.5">
+                                {idx + 1}
+                              </span>
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="font-bold text-slate-900 text-[11px] truncate">
+                                    {assignment.ncs?.hoTen || "NCS chưa cập nhật tên"}
+                                  </span>
+                                  <span className={`inline-flex rounded-full px-1.5 py-0.2 text-[9px] font-bold border ${roleBadgeStyle}`}>
+                                    {roleLabel}
+                                  </span>
+                                </div>
+                                <div className="text-[10px] text-slate-500 flex flex-wrap gap-x-2 gap-y-0.5 font-mono">
+                                  {assignment.ncs?.mshv && <span>MSHV: {assignment.ncs.mshv}</span>}
+                                  {assignment.quyetDinh?.soQuyetDinh && (
+                                    <span>QĐ: {assignment.quyetDinh.soQuyetDinh}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

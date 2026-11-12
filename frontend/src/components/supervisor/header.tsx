@@ -14,6 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import { useAuth } from "@/src/hooks/use-auth";
+import { NotificationBellPopover } from "@/src/components/notification";
 import { mockSupervisorProfile, mockSupervisorQuota } from "@/src/mocks/supervisor";
 import type { SupervisorProfile, SupervisorQuota } from "@/src/types/ui/supervisor";
 
@@ -109,6 +110,9 @@ export function SupervisorHeader({
           <CalendarClock className="size-4 text-[#164E9B]" aria-hidden="true" />
           <span>Thẩm định gia hạn</span>
         </Link>
+
+        {/* Chuông thông báo Real-time */}
+        <NotificationBellPopover role="supervisor" />
 
         <div className="relative" ref={menuContainerRef}>
           <button
