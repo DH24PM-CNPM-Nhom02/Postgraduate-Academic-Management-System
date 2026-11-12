@@ -1,3 +1,4 @@
+import { apiClient, throwApiError } from "@/src/lib/api";
 import {
   NotificationItem,
   NotificationListResponse,
@@ -8,181 +9,105 @@ import {
   saveLocalNotifications,
 } from "./mock-notifications";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-
 class NotificationService {
   /**
    * Lấy danh sách thông báo phân trang và lọc theo nhóm / chưa đọc / role
+   * Endpoint: GET /notifications
    */
   async getNotifications(
     filter?: NotificationQueryFilter,
     accessToken?: string
   ): Promise<NotificationListResponse> {
     try {
-      const params = new URLSearchParams();
+      const params: Record<string, string | number | boolean> = {};
       if (filter?.unread !== undefined) {
-        params.append("unread", String(filter.unread));
+        params.unread = filter.unread;
       }
       if (filter?.group && filter.group !== "ALL") {
-        params.append("group", filter.group);
+        params.group = filter.group;
       }
       if (filter?.page) {
-        params.append("page", String(filter.page));
+        params.page = filter.page;
       }
       if (filter?.limit) {
-        params.append("limit", String(filter.limit));
+        params.limit = filter.limit;
       }
       if (filter?.role) {
-        params.append("role", filter.role);
+        params.role = filter.role;
       }
 
-      const url = `${API_BASE_URL}/notifications?${params.toString()}`;
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (accessToken) {
-        headers["Authorization"] = `Bearer ${accessToken}`;
-      }
+      const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
 
-      const res = await fetch(url, {
-        method: "GET",
+      const res = await apiClient.get<NotificationListResponse>("/notifications", {
+        params,
         headers,
-        cache: "no-store",
       });
 
-      if (!res.ok) {
-        throw new Error(`API error: ${res.status}`);
-      }
-
-      const data = await res.json();
-      return data;
-    } catch {
-      // Fallback thông minh sang Mock notifications khi backend chưa bật hoặc fetch fail
-      return this.getMockNotifications(filter);
+      return res.data;
+    } catch (error) {
+      throwApiError(error);
     }
   }
 
   /**
    * Lấy số lượng thông báo chưa đọc theo role để hiển thị Badge đỏ
+   * Endpoint: GET /notifications/unread-count
    */
   async getUnreadCount(role?: string, accessToken?: string): Promise<{ soLuong: number }> {
     try {
-      const params = role ? `?role=${role}` : "";
-      const url = `${API_BASE_URL}/notifications/unread-count${params}`;
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (accessToken) {
-        headers["Authorization"] = `Bearer ${accessToken}`;
-      }
+      const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
 
-      const res = await fetch(url, {
-        method: "GET",
+      const res = await apiClient.get<{ soLuong: number }>("/notifications/unread-count", {
+        params: role ? { role } : undefined,
         headers,
-        cache: "no-store",
       });
 
-      if (!res.ok) {
-        throw new Error(`API error: ${res.status}`);
-      }
-
-      return await res.json();
-    } catch {
-      let all = getLocalNotifications();
-      if (role) {
-        all = all.filter(
-          (n) => n.targetRole === role || n.targetRole === "all" || !n.targetRole
-        );
-      }
-      const unreadCount = all.filter((n) => !n.daDoc).length;
-      return { soLuong: unreadCount };
+      return res.data;
+    } catch (error) {
+      throwApiError(error);
     }
   }
 
   /**
    * Đánh dấu 1 thông báo là đã đọc
+   * Endpoint: PATCH /notifications/:id/read
    */
   async markAsRead(id: string, accessToken?: string): Promise<NotificationItem> {
     try {
-      const url = `${API_BASE_URL}/notifications/${id}/read`;
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (accessToken) {
-        headers["Authorization"] = `Bearer ${accessToken}`;
-      }
+      const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
 
-      const res = await fetch(url, {
-        method: "PATCH",
-        headers,
-      });
-
-      if (!res.ok) {
-        throw new Error(`API error: ${res.status}`);
-      }
-
-      return await res.json();
-    } catch {
-      const all = getLocalNotifications();
-      const updated = all.map((item) =>
-        item.id === id ? { ...item, daDoc: true, readAt: new Date().toISOString() } : item
+      const res = await apiClient.patch<NotificationItem>(
+        `/notifications/${id}/read`,
+        null,
+        { headers }
       );
-      saveLocalNotifications(updated);
-      const found = updated.find((item) => item.id === id);
-      return (
-        found || {
-          id,
-          nhom: "TIEN_DO",
-          loai: "HE_THONG_CHUNG",
-          tieuDe: "Đã đọc",
-          noiDung: "",
-          daDoc: true,
-          createdAt: new Date().toISOString(),
-        }
-      );
+
+      return res.data;
+    } catch (error) {
+      throwApiError(error);
     }
   }
 
   /**
    * Đánh dấu tất cả thông báo của 1 role là đã đọc
+   * Endpoint: PATCH /notifications/read-all
    */
   async markAllAsRead(role?: string, accessToken?: string): Promise<{ soLuong: number }> {
     try {
-      const url = `${API_BASE_URL}/notifications/read-all`;
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (accessToken) {
-        headers["Authorization"] = `Bearer ${accessToken}`;
-      }
+      const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
 
-      const res = await fetch(url, {
-        method: "PATCH",
-        headers,
-      });
-
-      if (!res.ok) {
-        throw new Error(`API error: ${res.status}`);
-      }
-
-      return await res.json();
-    } catch {
-      const all = getLocalNotifications();
-      let count = 0;
-      const updated = all.map((item) => {
-        const matchesRole = !role || item.targetRole === role || item.targetRole === "all" || !item.targetRole;
-        if (matchesRole && !item.daDoc) {
-          count++;
-          return {
-            ...item,
-            daDoc: true,
-            readAt: new Date().toISOString(),
-          };
+      const res = await apiClient.patch<{ soLuong: number }>(
+        "/notifications/read-all",
+        null,
+        {
+          params: role ? { role } : undefined,
+          headers,
         }
-        return item;
-      });
-      saveLocalNotifications(updated);
-      return { soLuong: count };
+      );
+
+      return res.data;
+    } catch (error) {
+      throwApiError(error);
     }
   }
 
@@ -197,13 +122,17 @@ class NotificationService {
       daDoc: false,
       targetRole: newItem.targetRole || "all",
       createdAt: new Date().toISOString(),
+      duLieu: {
+        ...newItem.duLieu,
+        _isMockFallback: true,
+      },
     };
     saveLocalNotifications([created, ...all]);
     return created;
   }
 
   /**
-   * Bộ lọc giả lập cho mock data theo role và tab
+   * Bộ lọc giả lập cho mock data theo role và tab khi backend không khả dụng
    */
   private getMockNotifications(filter?: NotificationQueryFilter): NotificationListResponse {
     let all = getLocalNotifications();
@@ -229,7 +158,13 @@ class NotificationService {
     const limit = filter?.limit || 20;
     const total = all.length;
     const startIndex = (page - 1) * limit;
-    const paginated = all.slice(startIndex, startIndex + limit);
+    const paginated = all.slice(startIndex, startIndex + limit).map((item) => ({
+      ...item,
+      duLieu: {
+        ...item.duLieu,
+        _isMockFallback: true,
+      },
+    }));
 
     return {
       items: paginated,
