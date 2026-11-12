@@ -7,6 +7,7 @@ import {
   type BackendAssignmentRaw,
   type BackendAssignmentDecisionRaw,
   type CreateAssignmentPayload,
+  type BackendGvhdRaw,
 } from "@/src/services/gvhd";
 import {
   MOCK_STUDENTS,
@@ -115,6 +116,28 @@ export function useAcademicSupervisors() {
 }
 
 /**
+ * Custom hook lấy thông tin chi tiết 1 Giảng viên Hướng dẫn theo ID (GET /gvhd/:id)
+ * Chỉ kích hoạt khi có supervisorId hợp lệ. Query key phân biệt theo supervisorId, không chứa accessToken.
+ */
+export function useAcademicSupervisorDetail(
+  supervisorId: string | null | undefined,
+  enabled = true
+) {
+  return useQuery<BackendGvhdRaw>({
+    queryKey: ["academic", "supervisor-detail", supervisorId ?? "none"],
+    queryFn: async () => {
+      if (!supervisorId) {
+        throw new Error("Không có ID giảng viên hướng dẫn hợp lệ.");
+      }
+      return await GvhdService.getSupervisorById(supervisorId);
+    },
+    enabled: Boolean(supervisorId) && enabled,
+    staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/**
  * Custom hook lấy danh sách phân công GVHD hiện hành từ Backend
  */
 export function useAcademicAssignments(
@@ -179,6 +202,7 @@ export function useCreateAssignment() {
       queryClient.invalidateQueries({ queryKey: ["academic", "supervisors"] });
       queryClient.invalidateQueries({ queryKey: ["academic", "assignments"] });
       queryClient.invalidateQueries({ queryKey: ["academic", "students"] });
+      queryClient.invalidateQueries({ queryKey: ["academic", "supervisor-detail"] });
     },
   });
 }
@@ -197,6 +221,7 @@ export function useDeactivateAssignment() {
       queryClient.invalidateQueries({ queryKey: ["academic", "supervisors"] });
       queryClient.invalidateQueries({ queryKey: ["academic", "assignments"] });
       queryClient.invalidateQueries({ queryKey: ["academic", "students"] });
+      queryClient.invalidateQueries({ queryKey: ["academic", "supervisor-detail"] });
     },
   });
 }
