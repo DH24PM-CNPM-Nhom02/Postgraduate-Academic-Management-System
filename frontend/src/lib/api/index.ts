@@ -1,5 +1,5 @@
 /**
- * lib/api — Barrel Export cho API Clients
+ * lib/api — Barrel Export cho API Clients & Error Helpers
  *
  * Cung cấp 2 client chuẩn hóa:
  * - publicApiClient: Dùng cho các API công khai (login, refresh token, public metadata...)
@@ -8,3 +8,10 @@
 
 export { publicApiClient } from "./axios-public";
 export { apiClient } from "./axios";
+export {
+  ApiClientError,
+  parseApiError,
+  parseApiErrorAsync,
+  throwApiError,
+  type NormalizedApiErrorInfo,
+} from "./error";

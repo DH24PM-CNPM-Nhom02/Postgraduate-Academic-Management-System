@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AlertCircle, Eye } from "lucide-react";
 import { PdfViewer } from "@/src/components/upload/PdfViewer";
+import { useDocumentPreviewUrl } from "@/src/hooks/api/use-documents";
 
 export interface DocumentViewButtonProps {
   fileId: string;
@@ -18,8 +19,10 @@ export interface DocumentViewButtonProps {
 /**
  * DocumentViewButton
  *
- * Nút mở trình xem trước PDF dùng chung (`PdfViewer`), thay thế modal tự dựng
- * trước đây. Hỗ trợ `Escape`, Loading/Empty/Error và xem mô phỏng cho dữ liệu mẫu.
+ * Nút mở trình xem trước PDF dùng chung (`PdfViewer`).
+ * Khi dùng với dữ liệu thật (chưa có `fileUrl` trực tiếp), component sẽ tự tải PDF
+ * kèm Bearer Token qua `useDocumentPreviewUrl` (`GET /documents/:id/download`)
+ * và tự giải phóng `blob:` URL khi đóng modal để tránh rò rỉ bộ nhớ.
  */
 export function DocumentViewButton({
   fileId,
@@ -33,19 +36,92 @@ export function DocumentViewButton({
 }: DocumentViewButtonProps) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
 
-  const resolvedError = error ?? localError;
-  const resolvedUrl =
-    fileUrl || `mock://minh-chung/${encodeURIComponent(fileId)}/${encodeURIComponent(fileName)}`;
+  const objectUrlRef = useRef<string | null>(null);
+  const isOpenRef = useRef(false);
+  const requestIdRef = useRef(0);
+
+  const previewMutation = useDocumentPreviewUrl();
+
+  const revokeCurrentObjectUrl = () => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+    setObjectUrl(null);
+  };
+
+  useEffect(() => {
+    return () => {
+      isOpenRef.current = false;
+      requestIdRef.current += 1;
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
+    };
+  }, []);
+
+  const fetchRealPreview = async () => {
+    if (!fileId) {
+      setLocalError("Không tìm thấy mã tài liệu để hiển thị.");
+      return;
+    }
+
+    const currentRequestId = ++requestIdRef.current;
+    setLocalError(null);
+    revokeCurrentObjectUrl();
+
+    try {
+      const result = await previewMutation.mutateAsync(fileId);
+      // Nếu người dùng đã đóng popup hoặc bấm lại trước khi tải xong -> giải phóng Blob ngay
+      if (!isOpenRef.current || currentRequestId !== requestIdRef.current) {
+        URL.revokeObjectURL(result.objectUrl);
+        return;
+      }
+      objectUrlRef.current = result.objectUrl;
+      setObjectUrl(result.objectUrl);
+    } catch {
+      // Thông báo lỗi đã chuẩn hóa nằm trong `previewMutation.error`
+    }
+  };
+
+  const resolvedError =
+    error ?? localError ?? previewMutation.error?.message ?? null;
+  const resolvedUrl = fileUrl || objectUrl;
 
   const handleOpen = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!fileName && !fileUrl) {
-      setLocalError("Không tìm thấy thông tin tệp minh chứng để hiển thị.");
-    } else {
-      setLocalError(null);
-    }
+    isOpenRef.current = true;
     setIsPreviewOpen(true);
+
+    if (fileUrl) {
+      if (!fileName && !fileUrl) {
+        setLocalError("Không tìm thấy thông tin tệp minh chứng để hiển thị.");
+      } else {
+        setLocalError(null);
+      }
+      return;
+    }
+
+    void fetchRealPreview();
+  };
+
+  const handleClose = () => {
+    isOpenRef.current = false;
+    requestIdRef.current += 1;
+    setIsPreviewOpen(false);
+    setLocalError(null);
+    previewMutation.reset();
+    revokeCurrentObjectUrl();
+  };
+
+  const handleRetry = () => {
+    setLocalError(null);
+    if (!fileUrl) {
+      void fetchRealPreview();
+    }
   };
 
   const baseStyles =
@@ -94,13 +170,14 @@ export function DocumentViewButton({
 
       <PdfViewer
         isOpen={isPreviewOpen}
-        onClose={() => setIsPreviewOpen(false)}
+        onClose={handleClose}
         fileUrl={resolvedUrl}
         fileName={fileName}
         title={fileName || "Xem minh chứng PDF"}
         subtitle={`Mã tài liệu: ${fileId} • Định dạng PDF`}
+        isLoading={!fileUrl && previewMutation.isPending}
         error={resolvedError}
-        onRetry={() => setLocalError(null)}
+        onRetry={handleRetry}
         allowDownload={true}
       />
     </div>

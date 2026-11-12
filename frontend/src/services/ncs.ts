@@ -1,5 +1,6 @@
-import { apiClient } from "@/src/lib/api";
+import { apiClient, throwApiError } from "@/src/lib/api";
 import type { StudentDossier } from "@/src/types/academic";
+import type { BackendNcsMeResponse } from "@/src/types/api/progress";
 
 /**
  * Cấu trúc dữ liệu thô nhận về từ Backend API
@@ -119,7 +120,20 @@ export const NcsService = {
   },
 
   /**
-   * 2. Lấy thông tin chi tiết của 1 NCS (kèm 9 mốc tiến trình & ngành học)
+   * 2. Lấy thông tin hồ sơ chi tiết của chính NCS đang đăng nhập
+   * Endpoint: GET /ncs/me
+   */
+  getMyProfile: async (): Promise<BackendNcsMeResponse> => {
+    try {
+      const response = await apiClient.get<BackendNcsMeResponse>("/ncs/me");
+      return response.data;
+    } catch (error) {
+      throwApiError(error);
+    }
+  },
+
+  /**
+   * 3. Lấy thông tin chi tiết của 1 NCS (kèm 9 mốc tiến trình & ngành học)
    * Endpoint: GET /ncs/:id
    */
   getStudentById: async (id: string): Promise<BackendNcsRaw> => {

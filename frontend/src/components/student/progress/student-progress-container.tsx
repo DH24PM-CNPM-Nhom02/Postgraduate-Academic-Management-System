@@ -14,7 +14,6 @@ import type {
   MilestoneProgressItem,
   StudentProgressData,
 } from "@/src/types/ui/progress";
-import { mockProgressData } from "@/src/mocks/progress";
 import { MilestoneTimeline } from "./milestone-timeline";
 import { MilestoneCard } from "./milestone-card";
 
@@ -85,15 +84,19 @@ function getActiveMilestoneOrder(
  * Nhận dữ liệu và trạng thái Loading / Error qua props, hỗ trợ cập nhật minh chứng cục bộ.
  */
 export function StudentProgressContainer({
-  initialData = mockProgressData,
+  initialData,
   isLoading = false,
   error = null,
   onRetry,
   onUpdateMilestone,
 }: StudentProgressContainerProps) {
-  const [localUpdates, setLocalUpdates] = useState<
-    Record<string, MilestoneProgressItem>
-  >({});
+  const [localOverride, setLocalOverride] = useState<{
+    baseData: StudentProgressData | undefined;
+    updates: Record<string, MilestoneProgressItem>;
+  }>({
+    baseData: initialData,
+    updates: {},
+  });
 
   if (isLoading) {
     return (
@@ -143,7 +146,36 @@ export function StudentProgressContainer({
     );
   }
 
-  const milestones = initialData.milestones.map((m) => localUpdates[m.id] ?? m);
+  if (!initialData) {
+    return (
+      <div className="mx-auto max-w-7xl rounded-xl border border-dashed border-border bg-card p-8 text-center">
+        <p className="text-sm font-semibold text-foreground">
+          Chưa có dữ liệu tiến trình đào tạo
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Hệ thống chưa ghi nhận thông tin tiến trình cho tài khoản nghiên cứu
+          sinh hiện tại.
+        </p>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-4 inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg bg-[#164E9B] px-4 text-xs font-semibold text-white transition-colors hover:bg-[#113E7D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] focus-visible:ring-offset-2"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            <span>Tải lại dữ liệu</span>
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  const activeLocalUpdates =
+    localOverride.baseData === initialData ? localOverride.updates : {};
+
+  const milestones = initialData.milestones.map(
+    (m) => activeLocalUpdates[m.id] ?? m
+  );
   const { ncs } = initialData;
   const tongSoMoc = milestones.length;
   const soMocHoanThanh = milestones.filter(
@@ -163,10 +195,13 @@ export function StudentProgressContainer({
   );
 
   const handleUpdateMilestone = (updated: MilestoneProgressItem) => {
-    setLocalUpdates((prev) => ({
-      ...prev,
-      [updated.id]: updated,
-    }));
+    setLocalOverride({
+      baseData: initialData,
+      updates: {
+        ...activeLocalUpdates,
+        [updated.id]: updated,
+      },
+    });
     onUpdateMilestone?.(updated);
   };
 

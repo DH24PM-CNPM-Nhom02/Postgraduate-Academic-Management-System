@@ -1,7 +1,6 @@
 import React from "react";
 import type { Metadata } from "next";
-import { StudentProgressContainer } from "@/src/components/student/progress";
-import { mockProgressData } from "@/src/mocks/progress";
+import { StudentProgressLiveView } from "@/src/components/student/progress";
 
 export const metadata: Metadata = {
   title: "Theo dõi tiến trình 9 mốc | Cổng thông tin Nghiên cứu sinh AGU",
@@ -11,8 +10,8 @@ export const metadata: Metadata = {
 
 /**
  * Thin Page cho Phân hệ Tiến trình 9 mốc NCS (/student/progress).
- * Truyền dữ liệu tiến trình qua props và ủy thác toàn bộ tương tác UI cho Container Component.
+ * Giữ Server Metadata và ủy thác kết nối API + tương tác UI cho Container Live View.
  */
 export default function StudentProgressPage() {
-  return <StudentProgressContainer initialData={mockProgressData} />;
+  return <StudentProgressLiveView />;
 }
