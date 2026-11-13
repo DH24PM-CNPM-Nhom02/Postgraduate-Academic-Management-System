@@ -19,14 +19,12 @@ export type MilestoneStatus =
   | "REJECTED"
   | "PASSED";
 
-/** Vai trò người dùng */
+/** Vai trò người dùng (4 role chính theo hệ thống) */
 export type UserRole =
-  | "NCS"
-  | "GVHD"
+  | "ADMIN"
   | "GIAO_VU"
-  | "DON_VI_CHUYEN_MON"
-  | "HOI_DONG"
-  | "ADMIN";
+  | "GVHD"
+  | "NCS";
 
 /** Thông tin người dùng cơ bản */
 export interface User {

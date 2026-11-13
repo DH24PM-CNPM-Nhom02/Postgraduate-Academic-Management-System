@@ -3,6 +3,18 @@
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { UserRole } from "@/src/lib/auth/constants";
+
+/**
+ * Trang mặc định sau khi đăng nhập thành công, tùy theo vai trò.
+ * Giữ đồng bộ với ROLE_HOME trong proxy.ts (middleware).
+ */
+const ROLE_HOME: Record<UserRole, string> = {
+    NCS: "/student/progress",
+    GVHD: "/supervisor",
+    GIAO_VU: "/academic",
+    ADMIN: "/admin",
+};
 
 export function useAuth() {
     const { data: session, status } = useSession();
@@ -45,7 +57,11 @@ export function useAuth() {
                     return false;
                 }
 
-                router.push("/dashboard");
+                // Middleware sẽ redirect "/" về ROLE_HOME, nhưng ở đây
+                // push thẳng để không flicker qua trang "/" rồi mới redirect.
+                // Sau signIn, session chưa cập nhật ngay nên dùng fallback "/" —
+                // middleware bắt và chuyển đúng về trang chủ của role.
+                router.push("/");
                 return true;
             } finally {
                 setIsSubmitting(false);
