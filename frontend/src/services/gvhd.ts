@@ -1,5 +1,9 @@
 import { apiClient, throwApiError } from "@/src/lib/api";
 import type { SupervisorQuotaRecord } from "@/src/types/academic";
+import type {
+  SupervisorAssignmentItem,
+  SupervisorRoleType,
+} from "@/src/types/ui/thesis";
 
 export type VaiTroHuongDan = "HUONG_DAN_CHINH" | "DONG_HUONG_DAN";
 
@@ -69,6 +73,34 @@ export interface BackendGvhdRaw {
   trangThai?: boolean;
   donVi?: BackendDonViRaw | null;
   phanCongs?: BackendAssignmentRaw[];
+}
+
+/**
+ * Cấu trúc bản ghi Giảng viên hướng dẫn của chính NCS nhận từ GET /gvhd/my-supervisors
+ */
+export interface BackendMySupervisorRaw {
+  phanCongId: string;
+  vaiTro: "HUONG_DAN_CHINH" | "DONG_HUONG_DAN" | string;
+  trongSo: number | string;
+  ngayBatDau?: string | null;
+  gvhd: {
+    id: string;
+    maGv?: string | null;
+    hoTen: string;
+    hocHamHocVi?: string;
+    email?: string | null;
+    soDienThoai?: string | null;
+    donVi?: BackendDonViRaw | string | null;
+    chuyenNganh?: string | null;
+    linhVucNghienCuu?: string | null;
+  };
+  quyetDinh?: {
+    id?: string;
+    soQuyetDinh?: string;
+    ngayQuyetDinh?: string;
+    fileUrl?: string;
+    fileName?: string;
+  } | null;
 }
 
 /**
@@ -216,6 +248,50 @@ export function mapBackendGvhdToSupervisorQuota(
 }
 
 /**
+ * Chuẩn hóa dữ liệu thô từ GET /gvhd/my-supervisors sang SupervisorAssignmentItem dùng cho UI
+ */
+export function mapBackendMySupervisorToItem(
+  raw: BackendMySupervisorRaw
+): SupervisorAssignmentItem {
+  const gvhd = raw.gvhd || ({} as Partial<BackendMySupervisorRaw["gvhd"]>);
+  const vaiTro: SupervisorRoleType =
+    raw.vaiTro === "DONG_HUONG_DAN" ? "DONG_HUONG_DAN" : "HUONG_DAN_CHINH";
+  const rawWeight = Number(raw.trongSo);
+  const trongSo: 1.0 | 0.5 = rawWeight === 0.5 ? 0.5 : 1.0;
+
+  const donViCongTac =
+    typeof gvhd.donVi === "string"
+      ? gvhd.donVi
+      : gvhd.donVi?.ten ||
+        gvhd.donVi?.parent?.ten ||
+        gvhd.chuyenNganh ||
+        "Trường Đại học An Giang";
+
+  return {
+    id: raw.phanCongId || gvhd.id || "",
+    giangVienId: gvhd.id || "",
+    hoTen: gvhd.hoTen || "Chưa cập nhật tên GVHD",
+    hocHamHocVi: formatDegreeLabel(gvhd.hocHamHocVi) || gvhd.hocHamHocVi || "TS.",
+    vaiTro,
+    trongSo,
+    email: gvhd.email || "",
+    soDienThoai: gvhd.soDienThoai || undefined,
+    donViCongTac,
+    linhVucNghienCuu: gvhd.linhVucNghienCuu || gvhd.chuyenNganh || undefined,
+    trangThai: "DANG_HUONG_DAN",
+    soQuyetDinh: raw.quyetDinh?.soQuyetDinh || "Chưa cập nhật số QĐ",
+    ngayKyQuyetDinh: raw.quyetDinh?.ngayQuyetDinh || raw.ngayBatDau || "",
+    ngayBatDau: raw.ngayBatDau || "",
+    fileNameQuyetDinh:
+      raw.quyetDinh?.fileName ||
+      (raw.quyetDinh?.soQuyetDinh
+        ? `Quyet-dinh-${raw.quyetDinh.soQuyetDinh}.pdf`
+        : undefined),
+    fileUrlQuyetDinh: raw.quyetDinh?.fileUrl || undefined,
+  };
+}
+
+/**
  * Service kết nối API Phân hệ Quản lý Giảng viên Hướng dẫn & Hạn ngạch (BR-09).
  * Gọi qua apiClient (tự động đính kèm Bearer Token từ NextAuth session).
  */
@@ -357,5 +433,20 @@ export const GvhdService = {
       }
     );
     return response.data;
+  },
+
+  /**
+   * 10. NCS xem danh sách GVHD đang hướng dẫn mình
+   * Endpoint: GET /gvhd/my-supervisors
+   */
+  getMySupervisors: async (): Promise<BackendMySupervisorRaw[]> => {
+    try {
+      const response = await apiClient.get<BackendMySupervisorRaw[]>(
+        "/gvhd/my-supervisors"
+      );
+      return unwrapArrayResponse<BackendMySupervisorRaw>(response.data);
+    } catch (error) {
+      throwApiError(error);
+    }
   },
 };

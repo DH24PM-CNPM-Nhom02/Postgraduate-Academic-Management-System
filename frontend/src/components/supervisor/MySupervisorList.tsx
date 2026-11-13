@@ -18,11 +18,12 @@ import type {
   SupervisorAssignmentItem,
   SupervisorRoleType,
 } from "@/src/types/ui/thesis";
+import { useMyNcsProfile, useMySupervisors } from "@/src/hooks/api";
 import { PdfViewer } from "@/src/components/upload/PdfViewer";
 
 export interface MySupervisorListProps {
-  /** Danh sách Giảng viên hướng dẫn được phân công cho NCS */
-  supervisors: SupervisorAssignmentItem[];
+  /** Danh sách Giảng viên hướng dẫn được phân công cho NCS (tùy chọn, nếu không truyền sẽ tự động kết nối API) */
+  supervisors?: SupervisorAssignmentItem[];
   /** Trạng thái đang tải dữ liệu */
   isLoading?: boolean;
   /** Thông báo lỗi nếu tải dữ liệu thất bại */
@@ -31,6 +32,8 @@ export interface MySupervisorListProps {
   onRetry?: () => void;
   /** Class CSS bổ sung */
   className?: string;
+  /** Hiển thị phần header trang (tiêu đề + thông tin NCS) - mặc định true */
+  showPageHeader?: boolean;
 }
 
 function formatDateVi(iso?: string): string {
@@ -66,102 +69,161 @@ function getRoleMeta(role: SupervisorRoleType) {
  * Hỗ trợ đầy đủ trạng thái `isLoading`, `error` và `empty`.
  */
 export function MySupervisorList({
-  supervisors,
-  isLoading = false,
-  error = null,
-  onRetry,
+  supervisors: propSupervisors,
+  isLoading: propIsLoading,
+  error: propError,
+  onRetry: propOnRetry,
   className = "",
+  showPageHeader = true,
 }: MySupervisorListProps) {
   const [selectedDecision, setSelectedDecision] =
     useState<SupervisorAssignmentItem | null>(null);
 
+  const isSelfManaged = propSupervisors === undefined;
+  const {
+    data: querySupervisors,
+    isLoading: queryLoading,
+    isError: queryIsError,
+    error: queryError,
+    refetch: queryRefetch,
+  } = useMySupervisors({ enabled: isSelfManaged });
+
+  const { data: ncsProfile } = useMyNcsProfile();
+
+  const supervisors = isSelfManaged ? (querySupervisors ?? []) : propSupervisors;
+  const isLoading = isSelfManaged ? queryLoading : (propIsLoading ?? false);
+  const error = isSelfManaged
+    ? queryIsError
+      ? queryError?.message ||
+        "Không thể tải danh sách giảng viên hướng dẫn. Vui lòng thử lại sau."
+      : null
+    : (propError ?? null);
+  const onRetry = isSelfManaged
+    ? () => {
+        void queryRefetch();
+      }
+    : propOnRetry;
+
+  const renderHeader = () => {
+    if (!showPageHeader) return null;
+    return (
+      <header className="border-b border-border pb-4">
+        <h1 className="text-xl font-bold tracking-tight text-[#0F2744] sm:text-2xl">
+          Giảng viên hướng dẫn của tôi
+        </h1>
+        <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+          Danh sách người hướng dẫn khoa học được phân công cho NCS
+          {ncsProfile?.hoTen ? (
+            <>
+              {" "}
+              <strong className="font-semibold text-foreground">
+                {ncsProfile.hoTen}
+              </strong>{" "}
+              (<span className="font-mono">{ncsProfile.mshv}</span>)
+            </>
+          ) : (
+            " của bạn"
+          )}
+          .
+        </p>
+      </header>
+    );
+  };
+
   if (isLoading) {
     return (
-      <section
-        aria-busy="true"
-        aria-label="Đang tải danh sách giảng viên hướng dẫn"
-        className={`space-y-4 animate-pulse motion-reduce:animate-none ${className}`}
-      >
-        <div className="h-16 rounded-2xl border border-border bg-card" />
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {[0, 1].map((idx) => (
-            <div
-              key={idx}
-              className="space-y-4 rounded-2xl border border-border bg-card p-6"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="size-11 rounded-xl bg-muted" />
-                  <div className="space-y-1.5">
-                    <div className="h-4 w-44 rounded bg-muted" />
-                    <div className="h-3 w-32 rounded bg-muted/70" />
+      <div className={`space-y-6 ${className}`}>
+        {renderHeader()}
+        <section
+          aria-busy="true"
+          aria-label="Đang tải danh sách giảng viên hướng dẫn"
+          className="space-y-4 animate-pulse motion-reduce:animate-none"
+        >
+          <div className="h-16 rounded-2xl border border-border bg-card" />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {[0, 1].map((idx) => (
+              <div
+                key={idx}
+                className="space-y-4 rounded-2xl border border-border bg-card p-6"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="size-11 rounded-xl bg-muted" />
+                    <div className="space-y-1.5">
+                      <div className="h-4 w-44 rounded bg-muted" />
+                      <div className="h-3 w-32 rounded bg-muted/70" />
+                    </div>
                   </div>
+                  <div className="h-6 w-24 rounded-full bg-muted" />
                 </div>
-                <div className="h-6 w-24 rounded-full bg-muted" />
+                <div className="space-y-2 border-t border-border pt-4">
+                  <div className="h-3.5 w-4/5 rounded bg-muted/70" />
+                  <div className="h-3.5 w-3/5 rounded bg-muted/70" />
+                </div>
               </div>
-              <div className="space-y-2 border-t border-border pt-4">
-                <div className="h-3.5 w-4/5 rounded bg-muted/70" />
-                <div className="h-3.5 w-3/5 rounded bg-muted/70" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <section
-        role="alert"
-        className={`rounded-2xl border border-rose-200 bg-card p-6 ${className}`}
-      >
-        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-700">
-              <AlertCircle className="size-5" aria-hidden="true" />
+      <div className={`space-y-6 ${className}`}>
+        {renderHeader()}
+        <section
+          role="alert"
+          className="rounded-2xl border border-rose-200 bg-card p-6"
+        >
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-700">
+                <AlertCircle className="size-5" aria-hidden="true" />
+              </div>
+              <div className="space-y-1">
+                <h2 className="text-base font-bold text-foreground">
+                  Không thể tải danh sách giảng viên hướng dẫn
+                </h2>
+                <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                  {error}
+                </p>
+              </div>
             </div>
-            <div className="space-y-1">
-              <h2 className="text-base font-bold text-foreground">
-                Không thể tải danh sách giảng viên hướng dẫn
-              </h2>
-              <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                {error}
-              </p>
-            </div>
-          </div>
 
-          {onRetry && (
-            <button
-              type="button"
-              onClick={onRetry}
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-[#164E9B] px-4 text-xs font-semibold text-white transition-colors hover:bg-[#113E7D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] cursor-pointer"
-            >
-              <RefreshCw className="size-3.5" aria-hidden="true" />
-              <span>Thử lại</span>
-            </button>
-          )}
-        </div>
-      </section>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-[#164E9B] px-4 text-xs font-semibold text-white transition-colors hover:bg-[#113E7D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] cursor-pointer"
+              >
+                <RefreshCw className="size-3.5" aria-hidden="true" />
+                <span>Thử lại</span>
+              </button>
+            )}
+          </div>
+        </section>
+      </div>
     );
   }
 
   if (supervisors.length === 0) {
     return (
-      <section
-        className={`rounded-2xl border border-dashed border-border bg-card p-8 text-center ${className}`}
-      >
-        <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-          <Users className="size-6" aria-hidden="true" />
-        </div>
-        <h2 className="mt-3 text-base font-bold text-foreground">
-          Chưa có giảng viên hướng dẫn được phân công
-        </h2>
-        <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-muted-foreground sm:text-sm">
-          Hệ thống chưa ghi nhận Quyết định phân công người hướng dẫn cho hồ sơ của bạn.
-          Vui lòng liên hệ Phòng Đào tạo Sau Đại học nếu cần hỗ trợ kiểm tra.
-        </p>
-      </section>
+      <div className={`space-y-6 ${className}`}>
+        {renderHeader()}
+        <section className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+            <Users className="size-6" aria-hidden="true" />
+          </div>
+          <h2 className="mt-3 text-base font-bold text-foreground">
+            Chưa có giảng viên hướng dẫn được phân công
+          </h2>
+          <p className="mx-auto mt-1.5 max-w-md text-xs leading-relaxed text-muted-foreground sm:text-sm">
+            Hệ thống chưa ghi nhận Quyết định phân công người hướng dẫn cho hồ sơ của bạn.
+            Vui lòng liên hệ Phòng Đào tạo Sau Đại học nếu cần hỗ trợ kiểm tra.
+          </p>
+        </section>
+      </div>
     );
   }
 
@@ -175,7 +237,8 @@ export function MySupervisorList({
 
   return (
     <>
-      <div className={`space-y-5 ${className}`}>
+      <div className={`space-y-6 ${className}`}>
+        {renderHeader()}
         {/* Thanh tóm tắt phân công & trọng số định mức BR-09 */}
         <section
           aria-label="Tóm tắt phân công hướng dẫn"
