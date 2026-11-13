@@ -3,16 +3,14 @@
  *
  * - JWT 15 phút lưu trong HttpOnly Cookie — không lưu localStorage
  * - Auto-refresh: route handler /api/auth/refresh gọi ngầm trước khi token hết hạn
- * - RBAC 6 role: NCS, GVHD, GIAO_VU, DON_VI_CHUYEN_MON, HOI_DONG, ADMIN
+ * - RBAC 4 role: ADMIN, GIAO_VU, GVHD, NCS
  */
 
 export type UserRole =
-  | "NCS"
-  | "GVHD"
+  | "ADMIN"
   | "GIAO_VU"
-  | "DON_VI_CHUYEN_MON"
-  | "HOI_DONG"
-  | "ADMIN";
+  | "GVHD"
+  | "NCS";
 
 /**
  * Role-based route mapping
@@ -22,8 +20,6 @@ export const ROLE_ROUTES: Record<UserRole, string> = {
   NCS: "/(student)",
   GVHD: "/(supervisor)",
   GIAO_VU: "/(academic)",
-  DON_VI_CHUYEN_MON: "/(academic)",
-  HOI_DONG: "/(committee)",
   ADMIN: "/(admin)",
 };
 
@@ -33,7 +29,7 @@ export const ROLE_ROUTES: Record<UserRole, string> = {
 export const ROUTE_GROUP_ROLES: Record<string, UserRole[]> = {
   "(student)": ["NCS"],
   "(supervisor)": ["GVHD"],
-  "(academic)": ["GIAO_VU", "DON_VI_CHUYEN_MON"],
-  "(committee)": ["HOI_DONG"],
+  "(academic)": ["GIAO_VU"],
+  "(committee)": ["GIAO_VU"],
   "(admin)": ["ADMIN"],
 };

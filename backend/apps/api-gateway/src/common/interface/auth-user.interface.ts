@@ -1,1 +1,1 @@
-export interface AuthUser { id: string; username: string; roles: string[] }
+export interface AuthUser { id: string; username: string; roles: string[]; mustChangePassword: boolean; }

@@ -18,6 +18,7 @@ import { NotificationBellPopover } from "@/src/components/notification";
 import { mockSupervisorProfile, mockSupervisorQuota } from "@/src/mocks/supervisor";
 import type { SupervisorProfile, SupervisorQuota } from "@/src/types/ui/supervisor";
 
+
 export interface SupervisorHeaderProps {
   onToggleSidebar?: () => void;
   profile?: SupervisorProfile;

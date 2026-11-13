@@ -14,6 +14,7 @@ import {
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import type { AuthUser } from "../common/interface/auth-user.interface.js";
+import { AllowMustChange } from "../common/decorators/must-change-password.decorator.js";
 
 @Controller('auth')
 export class AuthController {
@@ -30,18 +31,22 @@ export class AuthController {
   }
 
   @Public() 
+  @AllowMustChange()
   @Post('refresh')
   refresh(@Body() dto: RefreshDto) { 
     return this.send('auth.refresh', dto); 
   }
 
   @Public() 
+  @AllowMustChange()
   @Post('logout')
   logout(@Body() dto: RefreshDto) { return this.send('auth.logout', dto); }
 
+  @AllowMustChange()
   @Get('me')
   me(@CurrentUser() u: AuthUser) { return this.send('auth.me', { userId: u.id }); }
 
+  @AllowMustChange()
   @Post('change-password')
   changePassword(@CurrentUser() u: AuthUser, @Body() dto: ChangePasswordDto) {
     return this.send('auth.change-password', { userId: u.id, ...dto });
