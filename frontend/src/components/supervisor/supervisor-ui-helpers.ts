@@ -31,7 +31,9 @@ export function formatFileSizeBytes(bytes?: number): string | null {
 }
 
 export function getRoleShortLabel(role: SupervisorRole): string {
-  return role === "HUONG_DAN_CHINH" ? "Hướng dẫn chính (1.0)" : "Đồng hướng dẫn (0.5)";
+  if (role === "HUONG_DAN_CHINH") return "Hướng dẫn chính (1.0)";
+  if (role === "DONG_HUONG_DAN") return "Đồng hướng dẫn (0.5)";
+  return "Chưa xác định";
 }
 
 export function getMilestoneEvidenceStatusMeta(status: EvidenceStatus): {

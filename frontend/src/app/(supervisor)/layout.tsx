@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   SupervisorFooter,
   SupervisorHeader,
   SupervisorSidebar,
 } from "@/src/components/supervisor";
 import {
-  mockSupervisorProfile,
-  mockSupervisorQuota,
-} from "@/src/mocks/supervisor";
+  useMySupervisorProfile,
+  useMySupervisedStudents,
+} from "@/src/hooks/use-academic";
+import { computeSupervisorQuota } from "@/src/services/gvhd";
 
 export default function SupervisorLayout({
   children,
@@ -17,6 +18,12 @@ export default function SupervisorLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { data: profile } = useMySupervisorProfile();
+  const { data: students } = useMySupervisedStudents();
+
+  const quota = useMemo(() => {
+    return computeSupervisorQuota(students || [], profile?.hanMucToiDa ?? 3.0);
+  }, [students, profile?.hanMucToiDa]);
 
   return (
     <div className="flex min-h-screen bg-[#F0F5FA] text-foreground">
@@ -30,15 +37,15 @@ export default function SupervisorLayout({
       <SupervisorSidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        profile={mockSupervisorProfile}
-        quota={mockSupervisorQuota}
+        profile={profile}
+        quota={quota}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <SupervisorHeader
           onToggleSidebar={() => setSidebarOpen(true)}
-          profile={mockSupervisorProfile}
-          quota={mockSupervisorQuota}
+          profile={profile}
+          quota={quota}
         />
 
         <main

@@ -15,18 +15,71 @@ import type {
   SupervisedStudent,
   SupervisorStudentsWorkspaceProps,
 } from "@/src/types/ui/supervisor";
+import {
+  useMySupervisorProfile,
+  useMySupervisedStudents,
+} from "@/src/hooks/use-academic";
+import { computeSupervisorQuota } from "@/src/services/gvhd";
 import { StudentListTable } from "./student-list-table";
 import { StudentProgressDrawer } from "./student-progress-drawer";
 
 export type { SupervisorStudentsWorkspaceProps };
 
 export function SupervisorStudentsWorkspace({
-  students,
-  quota,
-  isLoading = false,
-  error = null,
-  onRetry,
+  students: propStudents,
+  quota: propQuota,
+  isLoading: propIsLoading = false,
+  error: propError = null,
+  onRetry: propOnRetry,
 }: SupervisorStudentsWorkspaceProps) {
+  const {
+    data: liveProfile,
+    isLoading: isProfileLoading,
+    refetch: refetchProfile,
+  } = useMySupervisorProfile();
+
+  const {
+    data: liveStudents,
+    isLoading: isStudentsLoading,
+    isError: isStudentsError,
+    error: studentsError,
+    refetch: refetchStudents,
+  } = useMySupervisedStudents();
+
+  const students = useMemo(
+    () => propStudents || liveStudents || [],
+    [propStudents, liveStudents]
+  );
+
+  const quota = useMemo(
+    () =>
+      propQuota ||
+      computeSupervisorQuota(students, liveProfile?.hanMucToiDa ?? 3.0),
+    [propQuota, students, liveProfile?.hanMucToiDa]
+  );
+
+  const isDataLoading =
+    (!propStudents && !liveStudents && isStudentsLoading) ||
+    (!propQuota && isProfileLoading);
+
+  const isLoading = propIsLoading || isDataLoading;
+
+  const dataError =
+    !propStudents && isStudentsError
+      ? studentsError instanceof Error
+        ? studentsError.message
+        : "Không thể kết nối máy chủ để tải danh sách NCS."
+      : null;
+
+  const error = propError || dataError;
+
+  const onRetry =
+    propOnRetry ||
+    (() => {
+      void refetchStudents();
+      void refetchProfile();
+    });
+
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
@@ -131,7 +184,7 @@ export function SupervisorStudentsWorkspace({
               {students.length}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Đang theo dõi tiến độ 9 mốc
+              Đang theo dõi tiến độ đào tạo
             </p>
           </div>
 
@@ -170,9 +223,8 @@ export function SupervisorStudentsWorkspace({
               />
             </div>
             <p
-              className={`mt-2 text-2xl font-bold tabular-nums ${
-                attentionCount > 0 ? "text-rose-700" : "text-emerald-700"
-              }`}
+              className={`mt-2 text-2xl font-bold tabular-nums ${attentionCount > 0 ? "text-rose-700" : "text-emerald-700"
+                }`}
             >
               {attentionCount}
             </p>
