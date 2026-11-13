@@ -6,7 +6,7 @@ export {
   useDocumentPreviewUrl,
 } from "./use-documents";
 
-export { ncsSelfKeys, useMyNcsProfile } from "./use-ncs";
+export { ncsSelfKeys, useMyNcsProfile, useMySupervisors } from "./use-ncs";
 
 export {
   progressKeys,
