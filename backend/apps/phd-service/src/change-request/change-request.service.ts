@@ -120,7 +120,27 @@ export class ChangeRequestService {
             await this.kiemTraFile(userId, ncsId, dto.fileId, false, ['DON_TU', 'MINH_CHUNG_MOC']);
         }
 
-        return this.prisma.$transaction(async (tx) => {
+        const laNcsTao = ncs.userId === userId;
+        let phanCongsGvhd: any[] = [];
+        if (dto.loai === 'DOI_DE_TAI' && laNcsTao) {
+            phanCongsGvhd = await this.prisma.phanCongHuongDan.findMany({
+                where: {
+                    ncsId,
+                    trangThai: 'DANG_HIEU_LUC',
+                },
+                include: { gvhd: true },
+            });
+            if (phanCongsGvhd.length === 0) {
+                throw new RpcException({
+                    statusCode: 400,
+                    message: 'NCS chưa được phân công Giảng viên hướng dẫn hiệu lực, không thể gửi đơn đề nghị đổi đề tài',
+                });
+            }
+        }
+
+        let thongBaoCanGui: { userIds: string[]; loai: string; duLieu: Record<string, unknown> } | null = null;
+
+        const deNghi = await this.prisma.$transaction(async (tx) => {
             // Mỗi NCS chỉ có 1 đề nghị đang chờ duyệt/xử lý
             const dangCho = await tx.deNghiDieuChinh.count({
                 where: {
@@ -137,8 +157,10 @@ export class ChangeRequestService {
             if (dto.loai === 'DOI_DE_TAI') quaHan = await this.kiemTraDoiDeTai(tx, ncsId, dto);
             if (dto.loai === 'DOI_GVHD') quaHan = await this.kiemTraDoiGvhd(tx, ncs, dto);
 
+            const canGvhdXacNhan = dto.loai === 'DOI_DE_TAI' && laNcsTao;
+
             // Tạo đề nghị
-            return tx.deNghiDieuChinh.create({
+            const created = await tx.deNghiDieuChinh.create({
                 data: {
                     ncsId,
                     loai: dto.loai as LoaiDeNghiDieuChinh,
@@ -149,9 +171,50 @@ export class ChangeRequestService {
                     phanCongCuId: dto.loai === 'DOI_GVHD' ? dto.phanCongCuId : null,
                     gvhdMoiId: dto.loai === 'DOI_GVHD' ? dto.gvhdMoiId : null,
                     nguoiDeNghiId: userId,
+                    trangThai: canGvhdXacNhan ? 'CHO_GVHD_XAC_NHAN' : 'CHO_DUYET',
+                    ...(canGvhdXacNhan && {
+                        xacNhanGvhds: {
+                            create: phanCongsGvhd.map((pc) => ({
+                                gvhdId: pc.gvhdId,
+                            })),
+                        },
+                    }),
+                },
+                include: {
+                    xacNhanGvhds: {
+                        include: {
+                            gvhd: { select: { id: true, hoTen: true, hocHamHocVi: true, email: true } },
+                        },
+                    },
                 },
             });
+
+            if (canGvhdXacNhan) {
+                const userIdsGvhd = phanCongsGvhd
+                    .map((pc) => pc.gvhd.userId)
+                    .filter((u): u is string => !!u);
+
+                if (userIdsGvhd.length > 0) {
+                    thongBaoCanGui = {
+                        userIds: userIdsGvhd,
+                        loai: 'DE_NGHI_DOI_DE_TAI_CAN_XAC_NHAN',
+                        duLieu: {
+                            tenNcs: ncs.hoTen,
+                            mshv: ncs.mshv,
+                            tenDeTaiMoi: dto.tenDeTaiMoi!.trim(),
+                        },
+                    };
+                }
+            }
+
+            return created;
         });
+
+        if (thongBaoCanGui) {
+            this.notification.gui(thongBaoCanGui);
+        }
+
+        return deNghi;
     }
 
     /** Kiểm tra điều kiện nộp đơn gia hạn */
@@ -284,8 +347,8 @@ export class ChangeRequestService {
                 include: { ncs: true, xacNhanGvhds: true },
             });
             if (!deNghi) throw new RpcException({ statusCode: 404, message: 'Không tìm thấy đề nghị' });
-            if (deNghi.loai !== 'GIA_HAN') {
-                throw new RpcException({ statusCode: 400, message: 'Xác nhận của GVHD chỉ áp dụng cho đơn đề nghị gia hạn học tập' });
+            if (deNghi.loai !== 'GIA_HAN' && deNghi.loai !== 'DOI_DE_TAI') {
+                throw new RpcException({ statusCode: 400, message: 'Xác nhận của GVHD chỉ áp dụng cho đơn đề nghị gia hạn học tập hoặc đổi đề tài' });
             }
             if (deNghi.trangThai !== 'CHO_GVHD_XAC_NHAN') {
                 throw new RpcException({ statusCode: 409, message: 'Đề nghị không ở trạng thái chờ GVHD xác nhận' });
@@ -310,11 +373,13 @@ export class ChangeRequestService {
                 },
             });
 
+            const tenLoaiDeNghi = deNghi.loai === 'DOI_DE_TAI' ? 'đổi đề tài' : 'gia hạn';
+
             if (dto.dongY === false) {
                 // GVHD từ chối -> dừng quy trình ngay lập tức, chuyển trạng thái TU_CHOI
                 const lyDoTuChoi = dto.nhanXet?.trim()
                     ? `GVHD ${gvhd.hoTen} không đồng ý: ${dto.nhanXet.trim()}`
-                    : `GVHD ${gvhd.hoTen} không đồng ý đề nghị gia hạn`;
+                    : `GVHD ${gvhd.hoTen} không đồng ý đề nghị ${tenLoaiDeNghi}`;
 
                 await tx.deNghiDieuChinh.update({
                     where: { id },
@@ -329,7 +394,7 @@ export class ChangeRequestService {
                 await tx.auditLog.create({
                     data: {
                         actorId: userId,
-                        action: 'DE_NGHI_GIA_HAN_GVHD_TU_CHOI',
+                        action: deNghi.loai === 'DOI_DE_TAI' ? 'DE_NGHI_DOI_DE_TAI_GVHD_TU_CHOI' : 'DE_NGHI_GIA_HAN_GVHD_TU_CHOI',
                         entityType: 'DeNghiDieuChinh',
                         entityId: id,
                         ncsId: deNghi.ncsId,
@@ -340,11 +405,11 @@ export class ChangeRequestService {
 
                 if (deNghi.ncs.userId) {
                     thongBaoCanGui = {
-                        loai: 'DE_NGHI_GIA_HAN_GVHD_TU_CHOI',
+                        loai: deNghi.loai === 'DOI_DE_TAI' ? 'DE_NGHI_DOI_DE_TAI_GVHD_TU_CHOI' : 'DE_NGHI_GIA_HAN_GVHD_TU_CHOI',
                         userIds: [deNghi.ncs.userId],
                         duLieu: {
                             tenGvhd: gvhd.hoTen,
-                            lyDo: dto.nhanXet?.trim() || 'GVHD không đồng ý đề nghị gia hạn',
+                            lyDo: dto.nhanXet?.trim() || `GVHD không đồng ý đề nghị ${tenLoaiDeNghi}`,
                         },
                     };
                 }
@@ -369,7 +434,7 @@ export class ChangeRequestService {
                     await tx.auditLog.create({
                         data: {
                             actorId: userId,
-                            action: 'DE_NGHI_GIA_HAN_GVHD_DONG_Y_TOAN_BO',
+                            action: deNghi.loai === 'DOI_DE_TAI' ? 'DE_NGHI_DOI_DE_TAI_GVHD_DONG_Y_TOAN_BO' : 'DE_NGHI_GIA_HAN_GVHD_DONG_Y_TOAN_BO',
                             entityType: 'DeNghiDieuChinh',
                             entityId: id,
                             ncsId: deNghi.ncsId,
@@ -380,7 +445,7 @@ export class ChangeRequestService {
 
                     if (deNghi.ncs.userId) {
                         thongBaoCanGui = {
-                            loai: 'DE_NGHI_GIA_HAN_GVHD_DONG_Y',
+                            loai: deNghi.loai === 'DOI_DE_TAI' ? 'DE_NGHI_DOI_DE_TAI_GVHD_DONG_Y' : 'DE_NGHI_GIA_HAN_GVHD_DONG_Y',
                             userIds: [deNghi.ncs.userId],
                             duLieu: {
                                 tenNcs: deNghi.ncs.hoTen,
@@ -900,6 +965,15 @@ export class ChangeRequestService {
             let qd: { id: string; soQuyetDinh: string; ngayQuyetDinh: Date; ghiChu?: string | null };
 
             if (deNghi.loai === 'DOI_DE_TAI') {
+                const chuaDongY = await tx.xacNhanGvhdDeNghi.count({
+                    where: { deNghiId: id, dongY: { not: true } },
+                });
+                if (chuaDongY > 0) {
+                    throw new RpcException({
+                        statusCode: 400,
+                        message: 'Đề nghị chưa được toàn bộ tập thể GVHD xác nhận đồng ý',
+                    });
+                }
                 if (!dto.quyetDinhId) {
                     throw new RpcException({ statusCode: 400, message: 'Vui lòng cung cấp quyetDinhId cho đề nghị đổi đề tài' });
                 }
