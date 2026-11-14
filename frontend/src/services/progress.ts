@@ -177,14 +177,29 @@ export function mapMyProgressToUi(
     milestones.find((m) => m.trangThai === "UNLOCKED") ??
     milestones[milestones.length - 1];
 
+  const maKhoaHoc =
+    ncsProfile?.khoaHocNcs?.maKhoaHoc ?? ncsProfile?.khoaHoc ?? undefined;
+  const namTuyenSinh =
+    ncsProfile?.khoaHocNcs?.namTuyenSinh ?? undefined;
+
+  // Chuỗi hiển thị niên khóa: e.g. "Niên khóa: NCS01 - 2025"
+  const nienKhoa =
+    maKhoaHoc && namTuyenSinh
+      ? `Niên khóa: ${maKhoaHoc} - ${namTuyenSinh}`
+      : maKhoaHoc
+        ? `Niên khóa: ${maKhoaHoc}`
+        : undefined;
+
   return {
     ncs: {
       id: progress.ncs.id,
       mshv: progress.ncs.mshv,
       hoTen: progress.ncs.hoTen,
       lop: progress.ncs.lop ?? ncsProfile?.lop ?? "Chưa cập nhật",
-      khoaHoc:
-        ncsProfile?.khoaHocNcs?.maKhoaHoc ?? ncsProfile?.khoaHoc ?? undefined,
+      khoaHoc: maKhoaHoc,
+      maKhoaHoc,
+      namTuyenSinh,
+      nienKhoa,
       nganh: ncsProfile?.nganh?.tenNganh ?? "Đang cập nhật",
       khoaVi: "Đào tạo Sau đại học - AGU",
       gvhd: gvhdMainName,
