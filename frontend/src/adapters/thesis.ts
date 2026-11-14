@@ -78,7 +78,10 @@ export function mapMyThesisToUi(
     ncsId: apiData.id,
     hoTenNcs: ncsProfile?.hoTen || apiData.hoTen,
     mshv: ncsProfile?.mshv || apiData.mshv,
-    khoaHoc: ncsProfile?.khoaHoc || apiData.khoaHoc || "Khóa 32",
+    khoaHoc:
+      ncsProfile?.khoaHocNcs?.maKhoaHoc && ncsProfile?.khoaHocNcs?.namTuyenSinh
+        ? `Niên khóa: ${ncsProfile.khoaHocNcs.maKhoaHoc} - ${ncsProfile.khoaHocNcs.namTuyenSinh}`
+        : ncsProfile?.khoaHoc || apiData.khoaHoc || "Niên khóa: NCS01 - 2025",
     ngayNhapHoc: ncsProfile?.ngayNhapHoc || "2024-01-15T08:00:00Z",
     hanDaoTao72Thang: resolveTrainingDeadline(ncsProfile),
     deTaiHienTai,

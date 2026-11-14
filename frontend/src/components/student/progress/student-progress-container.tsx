@@ -227,11 +227,21 @@ export function StudentProgressContainer({
                 <span className="rounded-md bg-muted px-2.5 py-0.5 font-mono text-xs font-semibold tracking-wider text-foreground">
                   {ncs.mshv}
                 </span>
-                {ncs.khoaHoc && (
+                {ncs.nienKhoa ? (
                   <span className="rounded-full bg-[#164E9B]/10 px-2.5 py-0.5 text-xs font-semibold text-[#164E9B]">
-                    NCS {ncs.khoaHoc}
+                    {ncs.nienKhoa}
                   </span>
-                )}
+                ) : ncs.maKhoaHoc && ncs.namTuyenSinh ? (
+                  <span className="rounded-full bg-[#164E9B]/10 px-2.5 py-0.5 text-xs font-semibold text-[#164E9B]">
+                    Niên khóa: {ncs.maKhoaHoc} - {ncs.namTuyenSinh}
+                  </span>
+                ) : ncs.khoaHoc ? (
+                  <span className="rounded-full bg-[#164E9B]/10 px-2.5 py-0.5 text-xs font-semibold text-[#164E9B]">
+                    {ncs.khoaHoc.startsWith("Niên khóa:")
+                      ? ncs.khoaHoc
+                      : `Niên khóa: ${ncs.khoaHoc}`}
+                  </span>
+                ) : null}
               </div>
 
               <p className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground sm:text-sm">

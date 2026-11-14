@@ -8,27 +8,59 @@
 import { decodeJwt } from "jose";
 
 /**
- * Format ngày theo dd/MM/yyyy
- * Backend lưu UTC, frontend convert sang UTC+7.
+ * Format ngày theo dd/MM/yyyy (chuẩn hóa theo múi giờ UTC+7 Việt Nam)
+ * Backend lưu UTC ISO string, frontend convert hiển thị đúng giờ Việt Nam.
  */
-export function formatDate(date: Date | string): string {
-  // TODO: Implement with date-fns + locale vi
-  const d = new Date(date);
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
+export function formatDate(date: Date | string | null | undefined): string {
+  if (!date) return "--/--/----";
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (Number.isNaN(d.getTime())) return typeof date === "string" ? date : "--/--/----";
+  try {
+    const formatter = new Intl.DateTimeFormat("vi-VN", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const parts = formatter.formatToParts(d);
+    const getPart = (type: string) => parts.find((p) => p.type === type)?.value || "";
+    return `${getPart("day")}/${getPart("month")}/${getPart("year")}`;
+  } catch {
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
 }
 
 /**
- * Format ngày giờ theo dd/MM/yyyy HH:mm
+ * Format ngày giờ theo dd/MM/yyyy HH:mm (chuẩn hóa theo múi giờ UTC+7 Việt Nam)
  */
-export function formatDateTime(date: Date | string): string {
-  const d = new Date(date);
-  const dateStr = formatDate(d);
-  const hours = String(d.getHours()).padStart(2, "0");
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-  return `${dateStr} ${hours}:${minutes}`;
+export function formatDateTime(date: Date | string | null | undefined): string {
+  if (!date) return "--/--/----";
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (Number.isNaN(d.getTime())) return typeof date === "string" ? date : "--/--/----";
+  try {
+    const formatter = new Intl.DateTimeFormat("vi-VN", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+    const parts = formatter.formatToParts(d);
+    const getPart = (type: string) => parts.find((p) => p.type === type)?.value || "";
+    return `${getPart("day")}/${getPart("month")}/${getPart("year")} ${getPart("hour")}:${getPart("minute")}`;
+  } catch {
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  }
 }
 
 /**
