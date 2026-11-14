@@ -12,6 +12,7 @@ import type { AuthUser } from '../common/interface/auth-user.interface.js';
 import { PERMISSIONS, ROLES } from '../../../../lib/contracts/src/permissions.js';
 import { MAX_PDF_SIZE, UploadDocumentDto } from '../../../../lib/contracts/src/dto/document.dto.js';
 import type { NguoiDungTaiLieu } from '../../../../lib/contracts/src/dto/document.dto.js';
+import { LimitMedium, LimitHeavyRead } from '../common/decorators/rate-limit.decorator.js';
 
 @Controller('documents')
 export class DocumentsController {
@@ -48,6 +49,7 @@ export class DocumentsController {
 
   // Tải lên một file PDF. Gửi dạng form-data: file (bắt buộc), documentType, và các trường còn lại
   @Post('upload')
+  @LimitMedium() 
   @RequirePermissions(PERMISSIONS.DOCUMENT_UPLOAD)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_PDF_SIZE } }))
   async upload(
@@ -90,6 +92,7 @@ export class DocumentsController {
 
   // Tải file PDF về (trình duyệt sẽ mở xem trực tiếp)
   @Get(':id/download')
+  @LimitHeavyRead() 
   @RequirePermissions(PERMISSIONS.DOCUMENT_READ)
   async taiVe(@CurrentUser() u: AuthUser, @Param('id', new ParseUUIDPipe()) id: string) {
     const nguoiDung = await this.layNguoiDung(u);

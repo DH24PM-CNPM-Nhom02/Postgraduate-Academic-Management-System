@@ -294,13 +294,13 @@ export class ThesisService {
         hoTen: true,
         khoaHoc: true,
         deTais: {
-          include: { quyetDinh: { select: { soQuyetDinh: true, ngayQuyetDinh: true } } },
+          include: { quyetDinh: { select: { soQuyetDinh: true, ngayQuyetDinh: true, fileId: true } } },
           orderBy: { createdAt: 'desc' },
         },
         phanCongs: {
           include: {
             gvhd: { select: { id: true, hoTen: true, hocHamHocVi: true, email: true, maGv: true } },
-            quyetDinh: { select: { soQuyetDinh: true, ngayQuyetDinh: true } },
+            quyetDinh: { select: { soQuyetDinh: true, ngayQuyetDinh: true, fileId: true } },
           },
           orderBy: { createdAt: 'desc' },
         },
