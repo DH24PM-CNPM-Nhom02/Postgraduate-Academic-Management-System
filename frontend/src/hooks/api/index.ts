@@ -15,3 +15,9 @@ export {
   useSubmitMilestoneWithFile,
   useStudentProgressData,
 } from "./use-progress";
+
+export {
+  thesisKeys,
+  useMyThesis,
+  useStudentThesisData,
+} from "./use-thesis";
