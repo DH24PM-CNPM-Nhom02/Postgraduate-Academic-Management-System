@@ -6,16 +6,29 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
 import { PassportModule } from '@nestjs/passport';
 import { AUTH_SERVICE } from '../common/constants/service.js';
 import { JwtStrategy } from './strategies/jwt.strategy.js';
-import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard.js';
 import { AuthController } from './auth.controller.js';
-import { PermissionGuard } from './guards/permission.guard.js';
+import { PermissionGuard } from '../common//guards/permission.guard.js';
 import { PermissionsService } from './services/permissions.service.js';
-import { MustChangePasswordGuard } from './guards/mustChangePassword.guard.js';
+import { MustChangePasswordGuard } from '../common/guards/mustChangePassword.guard.js';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { AppThrottlerGuard } from '../common/guards/app-throttler.guard.js';
 
 
 @Module({
   imports: [
     PassportModule,
+    ThrottlerModule.forRoot([
+      // Quy tắc 1: mọi API được 100 lần/phút
+      { name: 'default', ttl: 60_000, limit: 100 },
+      // Quy tắc 2: API ghi dữ liệu (không phải GET) chỉ được 30 lần/phút
+      {
+        name: 'write',
+        ttl: 60_000,
+        limit: 30,
+        skipIf: (ctx) => ctx.switchToHttp().getRequest().method === 'GET',
+      },
+    ]),
     ClientsModule.registerAsync([
       {
         name: AUTH_SERVICE,
@@ -35,8 +48,9 @@ import { MustChangePasswordGuard } from './guards/mustChangePassword.guard.js';
     JwtStrategy,
     PermissionsService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },            // 1. Xác thực JWT (gán req.user)
-    { provide: APP_GUARD, useClass: MustChangePasswordGuard }, // 2. Chặn ngay nếu chưa đổi mật khẩu
-    { provide: APP_GUARD, useClass: PermissionGuard },         // 3. Phân quyền chi tiết (sau khi user đã hợp lệ)
+    { provide: APP_GUARD, useClass: AppThrottlerGuard },       // 2. Giới hạn số lần gọi API
+    { provide: APP_GUARD, useClass: MustChangePasswordGuard }, // 3. Chặn ngay nếu chưa đổi mật khẩu
+    { provide: APP_GUARD, useClass: PermissionGuard },         // 4. Phân quyền chi tiết (sau khi user đã hợp lệ)
   ],
 })
 export class AuthModule {}

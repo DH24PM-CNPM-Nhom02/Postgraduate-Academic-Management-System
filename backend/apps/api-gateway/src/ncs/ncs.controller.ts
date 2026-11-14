@@ -9,6 +9,7 @@ import type { AuthUser } from '../common/interface/auth-user.interface.js';
 import { CreateNcsBatchDto, ListNcsQueryDto, UpdateNcsDto, UpdateNcsStatusDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
 import { buildNcsTemplate, parseNcsExcel } from './ncs-excel.js';
+import { LimitStrict, LimitBulk, LimitHeavyRead } from '../common/decorators/rate-limit.decorator.js';
 
 //header content type 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -53,6 +54,7 @@ export class NcsController {
 
   // Flow  1: xem trước, chưa ghi gì
   @Post('import/preview')
+  @LimitStrict() 
   @RequirePermissions(PERMISSIONS.NCS_CREATE)
   @UseInterceptors(FileInterceptor('file', uploadOptions))
   async importPreview(@UploadedFile() file?: Express.Multer.File) {
@@ -62,6 +64,7 @@ export class NcsController {
 
   // Flow  2: upload lại file đó để tạo thật (server kiểm tra lại từ đầu)
   @Post('import/confirm')
+  @LimitBulk()
   @RequirePermissions(PERMISSIONS.NCS_CREATE)
   @UseInterceptors(FileInterceptor('file', uploadOptions))
   async importConfirm(@CurrentUser() u: AuthUser, @UploadedFile() file?: Express.Multer.File) {
@@ -72,6 +75,7 @@ export class NcsController {
 
   // List NCS (Hybrid pagination: không truyền page/limit -> trả toàn bộ cho TanStack Table client-side)
   @Get()
+  @LimitHeavyRead()
   @RequirePermissions(PERMISSIONS.NCS_READ)
   list(@Query() query: ListNcsQueryDto) {
     return this.send('phd.ncs.list', { query });

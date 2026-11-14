@@ -15,7 +15,7 @@ import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import type { AuthUser } from "../common/interface/auth-user.interface.js";
 import { AllowMustChange } from "../common/decorators/must-change-password.decorator.js";
-
+import { LimitStrict, LimitMedium, SkipAllLimits } from '../common/decorators/rate-limit.decorator.js';
 @Controller('auth')
 export class AuthController {
   constructor(@Inject('AUTH_SERVICE') private auth: ClientProxy) {}
@@ -25,6 +25,7 @@ export class AuthController {
   }
 
   @Public() 
+  @LimitStrict()
   @Post('login')
   login(@Body() dto: LoginDto) { 
     return this.send('auth.login', dto); 
@@ -32,6 +33,7 @@ export class AuthController {
 
   @Public() 
   @AllowMustChange()
+  @SkipAllLimits()
   @Post('refresh')
   refresh(@Body() dto: RefreshDto) { 
     return this.send('auth.refresh', dto); 
@@ -39,6 +41,7 @@ export class AuthController {
 
   @Public() 
   @AllowMustChange()
+  @SkipAllLimits()
   @Post('logout')
   logout(@Body() dto: RefreshDto) { return this.send('auth.logout', dto); }
 
@@ -47,12 +50,14 @@ export class AuthController {
   me(@CurrentUser() u: AuthUser) { return this.send('auth.me', { userId: u.id }); }
 
   @AllowMustChange()
+  @LimitStrict()
   @Post('change-password')
   changePassword(@CurrentUser() u: AuthUser, @Body() dto: ChangePasswordDto) {
     return this.send('auth.change-password', { userId: u.id, ...dto });
   }
 
   @Post('users')
+  @LimitMedium()
   @RequirePermissions(PERMISSIONS.USER_CREATE)
   createUsers(@Body() dto: CreateUsersDto) { 
     return this.send('auth.create-users', dto); 
@@ -77,6 +82,7 @@ export class AuthController {
   }
 
   @Patch('users/:id/reset-password')
+  @LimitMedium()
   @RequirePermissions(PERMISSIONS.USER_RESET_PASSWORD)
   resetPassword(@CurrentUser() u: AuthUser, @Param('id') id: string) {
     return this.send('auth.reset-password', { actorRoles: u.roles, targetId: id });
