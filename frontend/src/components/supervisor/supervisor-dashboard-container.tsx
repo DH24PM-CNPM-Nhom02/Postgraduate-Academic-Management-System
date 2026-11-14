@@ -4,10 +4,10 @@ import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowRight, Gauge, RefreshCw, Users } from "lucide-react";
 import {
-  mockSupervisedStudents,
-  mockSupervisorProfile,
-  mockSupervisorQuota,
-} from "@/src/mocks/supervisor";
+  useMySupervisorProfile,
+  useMySupervisedStudents,
+} from "@/src/hooks/use-academic";
+import { computeSupervisorQuota } from "@/src/services/gvhd";
 import type {
   SupervisedStudent,
   SupervisorDashboardContainerProps,
@@ -19,13 +19,79 @@ import { StudentProgressDrawer } from "./student-progress-drawer";
 export type { SupervisorDashboardContainerProps };
 
 export function SupervisorDashboardContainer({
-  profile = mockSupervisorProfile,
-  quota = mockSupervisorQuota,
-  students = mockSupervisedStudents,
-  isLoading = false,
-  error = null,
-  onRetry,
+  profile: propProfile,
+  quota: propQuota,
+  students: propStudents,
+  isLoading: propIsLoading = false,
+  error: propError = null,
+  onRetry: propOnRetry,
 }: SupervisorDashboardContainerProps) {
+  const {
+    data: liveProfile,
+    isLoading: isProfileLoading,
+    isError: isProfileError,
+    error: profileError,
+    refetch: refetchProfile,
+  } = useMySupervisorProfile();
+
+  const {
+    data: liveStudents,
+    isLoading: isStudentsLoading,
+    isError: isStudentsError,
+    error: studentsError,
+    refetch: refetchStudents,
+  } = useMySupervisedStudents();
+
+  const profile = propProfile || liveProfile || {
+    id: "",
+    hoTen: "Giảng viên Hướng dẫn",
+    hocHamHocVi: "TS.",
+    maCanBo: "N/A",
+    donVi: "Trường Đại học An Giang",
+    chuyenMon: "Sau Đại học",
+    email: "",
+    soDienThoai: "",
+    hanMucToiDa: 3.0,
+  };
+
+  const students = useMemo(
+    () => propStudents || liveStudents || [],
+    [propStudents, liveStudents]
+  );
+
+  const quota = useMemo(
+    () =>
+      propQuota ||
+      computeSupervisorQuota(students, profile.hanMucToiDa ?? 3.0),
+    [propQuota, students, profile.hanMucToiDa]
+  );
+
+  const isDataLoading =
+    (!propProfile && !liveProfile && isProfileLoading) ||
+    (!propStudents && !liveStudents && isStudentsLoading);
+
+  const isLoading = propIsLoading || isDataLoading;
+
+  const dataError =
+    !propStudents && isStudentsError
+      ? studentsError instanceof Error
+        ? studentsError.message
+        : "Không thể kết nối máy chủ để tải danh sách NCS."
+      : !propProfile && isProfileError
+      ? profileError instanceof Error
+        ? profileError.message
+        : "Không thể kết nối máy chủ để tải thông tin hồ sơ GVHD."
+      : null;
+
+  const error = propError || dataError;
+
+  const onRetry =
+    propOnRetry ||
+    (() => {
+      void refetchProfile();
+      void refetchStudents();
+    });
+
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
