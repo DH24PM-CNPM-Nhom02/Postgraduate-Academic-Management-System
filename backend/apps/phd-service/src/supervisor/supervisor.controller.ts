@@ -79,4 +79,9 @@ export class SupervisorController {
   // updateMany(@Payload() d: { actorId: string; items: UpdateGvhdItemDto[] }) {
   //   return this.gvhd.updateMany(d.actorId, d.items);
   // }
+
+  @MessagePattern({ cmd: 'phd.gvhd.accessible-ncs-ids' })
+  getAccessibleNcsIds(@Payload() d: { userId: string }) {
+    return this.gvhd.getAccessibleNcsIdsForGvhd(d.userId);
+  }
 }

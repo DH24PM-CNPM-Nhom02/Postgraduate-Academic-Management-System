@@ -1265,4 +1265,46 @@ export class SupervisorService {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  //lấy ra danh sách NCS của GVHD phục vụ cho việc GVHD có thể đọc file minh chứng/đơn đề nghị của NCS mà mình hướng dẫn
+  async getAccessibleNcsIdsForGvhd(userId: string): Promise<string[]> {
+    const gvhd = await this.prisma.giangVienHuongDan.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!gvhd) return [];
+    // 1. Các NCS đang hướng dẫn
+    const phanCongs = await this.prisma.phanCongHuongDan.findMany({
+      where: { gvhdId: gvhd.id, trangThai: 'DANG_HIEU_LUC' },
+      select: { ncsId: true },
+    });
+    // 2. Các NCS có đơn đề nghị gia hạn mà GVHD này cần xác nhận
+    const donDeNghi = await this.prisma.xacNhanGvhdDeNghi.findMany({
+      where: { gvhdId: gvhd.id },
+      select: { deNghi: { select: { ncsId: true } } },
+    });
+    // 3. Các đơn đề nghị đổi GVHD (khi GVHD này là GVHD mới) hoặc đơn do chính GVHD này tạo
+    const donLienQuan = await this.prisma.deNghiDieuChinh.findMany({
+      where: {
+        OR: [
+          { gvhdMoiId: gvhd.id },
+          { nguoiDeNghiId: userId },
+        ],
+      },
+      select: { ncsId: true },
+    });
+
+    const ncsIds = new Set<string>();
+    for (const p of phanCongs) {
+      if (p.ncsId) ncsIds.add(p.ncsId);
+    }
+    for (const d of donDeNghi) {
+      if (d.deNghi?.ncsId) ncsIds.add(d.deNghi.ncsId);
+    }
+    for (const l of donLienQuan) {
+      if (l.ncsId) ncsIds.add(l.ncsId);
+    }
+
+    return Array.from(ncsIds);
+  }
 }

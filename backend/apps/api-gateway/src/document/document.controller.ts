@@ -34,6 +34,21 @@ export class DocumentsController {
       return { id: u.id, laNhanVien: true };
     }
 
+    //GVHD
+    const isGvhd = u.roles.includes(ROLES.GVHD);
+    if (isGvhd) {
+      let dsNcsGvhd: string[] = [];
+      try {
+        dsNcsGvhd = await firstValueFrom(
+          this.phdClient.send<string[]>({ cmd: 'phd.gvhd.accessible-ncs-ids' }, { userId: u.id }).pipe(timeout(5000)),
+        );
+      } catch {
+        dsNcsGvhd = [];
+      }
+      return { id: u.id, laNhanVien: false, isGvhd: true, dsNcsGvhd };
+    }
+
+    //NCS
     let ncsId: string | undefined = undefined;
     try {
       const hoSo = await firstValueFrom(
@@ -49,7 +64,7 @@ export class DocumentsController {
 
   // Tải lên một file PDF. Gửi dạng form-data: file (bắt buộc), documentType, và các trường còn lại
   @Post('upload')
-  @LimitMedium() 
+  @LimitMedium()
   @RequirePermissions(PERMISSIONS.DOCUMENT_UPLOAD)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_PDF_SIZE } }))
   async upload(
@@ -92,7 +107,7 @@ export class DocumentsController {
 
   // Tải file PDF về (trình duyệt sẽ mở xem trực tiếp)
   @Get(':id/download')
-  @LimitHeavyRead() 
+  @LimitHeavyRead()
   @RequirePermissions(PERMISSIONS.DOCUMENT_READ)
   async taiVe(@CurrentUser() u: AuthUser, @Param('id', new ParseUUIDPipe()) id: string) {
     const nguoiDung = await this.layNguoiDung(u);
