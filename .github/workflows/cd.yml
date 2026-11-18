@@ -25,13 +25,13 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Copy docker-compose.yml lên EC2
+      - name: Copy docker-compose.prod.yml của backend lên EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: backend/docker-compose.yml
+          source: backend/docker-compose.prod.yml
           target: /opt/pams/backend
           strip_components: 1
 
