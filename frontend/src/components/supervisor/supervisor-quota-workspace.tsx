@@ -18,6 +18,11 @@ import type {
   SupervisedStudent,
   SupervisorQuotaWorkspaceProps,
 } from "@/src/types/ui/supervisor";
+import {
+  useMySupervisorProfile,
+  useMySupervisedStudents,
+} from "@/src/hooks/use-academic";
+import { computeSupervisorQuota } from "@/src/services/gvhd";
 import { QuotaBar } from "./QuotaBar";
 
 export type { SupervisorQuotaWorkspaceProps };
@@ -77,14 +82,80 @@ function getStudentStatusLabel(student: SupervisedStudent): {
 }
 
 export function SupervisorQuotaWorkspace({
-  profile,
-  quota,
-  students,
+  profile: propProfile,
+  quota: propQuota,
+  students: propStudents,
   scenarios = [],
-  isLoading = false,
-  error = null,
-  onRetry,
+  isLoading: propIsLoading = false,
+  error: propError = null,
+  onRetry: propOnRetry,
 }: SupervisorQuotaWorkspaceProps) {
+  const {
+    data: liveProfile,
+    isLoading: isProfileLoading,
+    isError: isProfileError,
+    error: profileError,
+    refetch: refetchProfile,
+  } = useMySupervisorProfile();
+
+  const {
+    data: liveStudents,
+    isLoading: isStudentsLoading,
+    isError: isStudentsError,
+    error: studentsError,
+    refetch: refetchStudents,
+  } = useMySupervisedStudents();
+
+  const profile = propProfile || liveProfile || {
+    id: "",
+    hoTen: "Giảng viên Hướng dẫn",
+    hocHamHocVi: "TS.",
+    maCanBo: "N/A",
+    donVi: "Trường Đại học An Giang",
+    chuyenMon: "Sau Đại học",
+    email: "",
+    soDienThoai: "",
+    hanMucToiDa: 3.0,
+  };
+
+  const students = useMemo(
+    () => propStudents || liveStudents || [],
+    [propStudents, liveStudents]
+  );
+
+  const quota = useMemo(
+    () =>
+      propQuota ||
+      computeSupervisorQuota(students, profile.hanMucToiDa ?? 3.0),
+    [propQuota, students, profile.hanMucToiDa]
+  );
+
+  const isDataLoading =
+    (!propProfile && !liveProfile && isProfileLoading) ||
+    (!propStudents && !liveStudents && isStudentsLoading);
+
+  const isLoading = propIsLoading || isDataLoading;
+
+  const dataError =
+    !propStudents && isStudentsError
+      ? studentsError instanceof Error
+        ? studentsError.message
+        : "Không thể kết nối máy chủ để tải danh sách NCS."
+      : !propProfile && isProfileError
+      ? profileError instanceof Error
+        ? profileError.message
+        : "Không thể kết nối máy chủ để tải thông tin hồ sơ GVHD."
+      : null;
+
+  const error = propError || dataError;
+
+  const onRetry =
+    propOnRetry ||
+    (() => {
+      void refetchProfile();
+      void refetchStudents();
+    });
+
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(
     () => scenarios[0]?.id ?? null
   );
@@ -367,10 +438,16 @@ export function SupervisorQuotaWorkspace({
                           className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-semibold ${
                             isMain
                               ? "bg-[#164E9B]/10 text-[#164E9B]"
-                              : "bg-sky-50 text-sky-800"
+                              : student.vaiTro === "DONG_HUONG_DAN"
+                              ? "bg-sky-50 text-sky-800"
+                              : "bg-amber-50 text-amber-800"
                           }`}
                         >
-                          {isMain ? "Hướng dẫn chính" : "Đồng hướng dẫn"}
+                          {isMain
+                            ? "Hướng dẫn chính"
+                            : student.vaiTro === "DONG_HUONG_DAN"
+                            ? "Đồng hướng dẫn"
+                            : "Chưa xác định"}
                         </span>
                       </td>
                       <td className="px-5 py-3.5 text-right font-bold tabular-nums text-[#0F2744]">

@@ -13,6 +13,8 @@ export type NguoiDungTaiLieu = {
   id: string;
   laNhanVien: boolean;
   ncsId?: string;
+  isGvhd?: boolean;
+  dsNcsGvhd?: string[]; // Danh sách các ncsId mà GVHD được phép truy cập
 };
 
 // Các trường kèm theo file khi upload (form-data)
@@ -20,7 +22,7 @@ export class UploadDocumentDto {
   @IsIn(DOCUMENT_TYPES)
   documentType: DocumentTypeValue;
 
-  // Chỉ Giáo vụ cần gửi. Với NCS, hệ thống tự lấy theo tài khoản đăng nhập
+  // Chỉ Giáo vụ và GVHD cần gửi. Với NCS, hệ thống tự lấy theo tài khoản đăng nhập
   @IsOptional()
   @IsUUID()
   ncsId?: string;

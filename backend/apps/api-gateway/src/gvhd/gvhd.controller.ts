@@ -10,6 +10,7 @@ import { CreateGvhdBatchDto, ListGvhdQueryDto, UpdateGvhdDto, UpdateGvhdStatusDt
 import { CreateAssignmentDto, DeactivateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
 import { buildGvhdTemplate, parseGvhdExcel } from './gvhd-excel.js';
+import { LimitStrict, LimitBulk, LimitHeavyRead } from '../common/decorators/rate-limit.decorator.js';
 
 //header content type
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -39,6 +40,7 @@ export class GvhdController {
 
   // Nhập hồ sơ giảng viên hàng loạt (tối đa 200 dòng), timeout dài hơn vì ghi nhiều dòng
   @Post('batch')
+  @LimitStrict()
   @RequirePermissions(PERMISSIONS.GVHD_CREATE)
   createMany(@CurrentUser() u: AuthUser, @Body() dto: CreateGvhdBatchDto) {
     return this.send('phd.gvhd.create-many', { actorId: u.id, items: dto.items }, 30000);
@@ -55,6 +57,7 @@ export class GvhdController {
 
   // Flow  1: xem trước, chưa ghi gì
   @Post('import/preview')
+  @LimitStrict()
   @RequirePermissions(PERMISSIONS.GVHD_CREATE)
   @UseInterceptors(FileInterceptor('file', uploadOptions))
   async importPreview(@UploadedFile() file?: Express.Multer.File) {
@@ -64,6 +67,7 @@ export class GvhdController {
 
   // Flow  2: upload lại file đó để tạo thật (server kiểm tra lại từ đầu)
   @Post('import/confirm')
+  @LimitBulk()
   @RequirePermissions(PERMISSIONS.GVHD_CREATE)
   @UseInterceptors(FileInterceptor('file', uploadOptions))
   async importConfirm(@CurrentUser() u: AuthUser, @UploadedFile() file?: Express.Multer.File) {
@@ -72,6 +76,7 @@ export class GvhdController {
   }
 
   @Get()
+  @LimitHeavyRead()
   @RequirePermissions(PERMISSIONS.GVHD_READ)
   list(@Query() query: ListGvhdQueryDto) {
     return this.send('phd.gvhd.list', { query });

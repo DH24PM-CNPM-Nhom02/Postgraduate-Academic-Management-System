@@ -21,6 +21,7 @@ import { SubmitEvidenceDialog } from "./submit-evidence-dialog";
 import { EvidenceHistory } from "./evidence-history";
 import { DocumentViewButton } from "./document-view-button";
 import { EvaluationReviewsSection } from "./evaluation-reviews-section";
+import { formatDate } from "@/src/lib/utils";
 
 export interface MilestoneCardProps {
   milestone: MilestoneProgressItem;
@@ -34,17 +35,7 @@ export function MilestoneCard({
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
 
   const formatDateStr = (isoString?: string): string => {
-    if (!isoString) return "--/--/----";
-    try {
-      const d = new Date(isoString);
-      if (isNaN(d.getTime())) return isoString;
-      const day = String(d.getUTCDate()).padStart(2, "0");
-      const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-      const year = d.getUTCFullYear();
-      return `${day}/${month}/${year}`;
-    } catch {
-      return isoString;
-    }
+    return formatDate(isoString);
   };
 
   const handleSubmitSuccess = (submission: {

@@ -333,10 +333,16 @@ export function StudentListTable({
                                 className={`rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold ${
                                   isMain
                                     ? "bg-[#164E9B]/10 text-[#164E9B]"
-                                    : "bg-slate-100 text-slate-700"
+                                    : student.vaiTro === "DONG_HUONG_DAN"
+                                    ? "bg-slate-100 text-slate-700"
+                                    : "bg-amber-50 text-amber-800"
                                 }`}
                               >
-                                {isMain ? "Chính (1.0)" : "Đồng HD (0.5)"}
+                                {isMain
+                                  ? `Chính (${student.trongSo})`
+                                  : student.vaiTro === "DONG_HUONG_DAN"
+                                  ? `Đồng HD (${student.trongSo})`
+                                  : `Chưa xác định (${student.trongSo})`}
                               </span>
                             </div>
                           </div>
@@ -361,7 +367,9 @@ export function StudentListTable({
                       <td className="px-4 py-3.5 text-center">
                         <div className="inline-flex flex-col items-center">
                           <span className="inline-flex items-center justify-center rounded-md bg-muted px-2.5 py-1 font-mono text-xs font-bold tabular-nums text-foreground">
-                            Mốc {student.mocHienTai}/{student.tongSoMoc}
+                            {student.tongSoMoc > 0
+                              ? `Mốc ${student.mocHienTai}/${student.tongSoMoc}`
+                              : "Chưa có mốc"}
                           </span>
                           <span className="mt-1 max-w-[140px] truncate text-[11px] text-muted-foreground">
                             {student.tenMocHienTai.replace(/^Mốc \d+:\s*/, "")}
@@ -376,7 +384,9 @@ export function StudentListTable({
                               {progressSafe}%
                             </span>
                             <span className="font-mono tabular-nums text-muted-foreground">
-                              {student.soMocHoanThanh}/{student.tongSoMoc} mốc
+                              {student.tongSoMoc > 0
+                                ? `${student.soMocHoanThanh}/${student.tongSoMoc} mốc`
+                                : "0 mốc"}
                             </span>
                           </div>
                           <div

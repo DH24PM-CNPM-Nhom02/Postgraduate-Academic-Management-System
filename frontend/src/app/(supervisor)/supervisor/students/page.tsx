@@ -1,9 +1,5 @@
 import type { Metadata } from "next";
 import { SupervisorStudentsWorkspace } from "@/src/components/supervisor";
-import {
-  mockSupervisedStudents,
-  mockSupervisorQuota,
-} from "@/src/mocks/supervisor";
 
 export const metadata: Metadata = {
   title: "Danh sách NCS hướng dẫn | Cổng GVHD",
@@ -12,10 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function SupervisorStudentsPage() {
-  return (
-    <SupervisorStudentsWorkspace
-      students={mockSupervisedStudents}
-      quota={mockSupervisorQuota}
-    />
-  );
+  return <SupervisorStudentsWorkspace />;
 }

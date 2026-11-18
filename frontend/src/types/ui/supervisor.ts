@@ -12,11 +12,12 @@ import type {
  * Quy chuẩn tách biệt khỏi cổng Giáo vụ `(academic)` và không phụ thuộc `src/types/api/`.
  */
 
-export type SupervisorRole = "HUONG_DAN_CHINH" | "DONG_HUONG_DAN";
+export type SupervisorRole = "HUONG_DAN_CHINH" | "DONG_HUONG_DAN" | "CHUA_XAC_DINH";
 
 export const SUPERVISOR_ROLE_WEIGHTS: Record<SupervisorRole, number> = {
   HUONG_DAN_CHINH: 1.0,
   DONG_HUONG_DAN: 0.5,
+  CHUA_XAC_DINH: 0,
 };
 
 export type QuotaWarningLevel = "SAFE" | "WARNING" | "FULL" | "EXCEEDED";
@@ -56,6 +57,7 @@ export interface SupervisorProfile {
   chuyenMon: string;
   email: string;
   soDienThoai: string;
+  hanMucToiDa?: number;
 }
 
 /**
@@ -64,9 +66,9 @@ export interface SupervisorProfile {
 export interface SupervisedStudentRejectedInfo {
   mocSo: number;
   tenMoc: string;
-  lyDoTuChoi: string;
-  nguoiDuyet: string;
-  ngayDuyet: string;
+  lyDoTuChoi?: string;
+  nguoiDuyet?: string;
+  ngayDuyet?: string;
 }
 
 /**
@@ -93,7 +95,10 @@ export interface SupervisedStudent {
   soQuyetDinhPhanCong: string;
   ngayPhanCong: string;
   ngayNhapHoc: string;
-  soThangConLai: number;
+  soThangConLai: number | null;
+  soNgayConLai?: number | null;
+  daHetHan?: boolean | null;
+  hanDaoTao?: string | null;
   coMocCanHoanThien: boolean;
   thongTinMocTuChoi?: SupervisedStudentRejectedInfo;
   milestones: MilestoneProgressItem[];
@@ -151,17 +156,17 @@ export interface SupervisorDashboardContainerProps {
 }
 
 export interface SupervisorStudentsWorkspaceProps {
-  students: SupervisedStudent[];
-  quota: SupervisorQuota;
+  students?: SupervisedStudent[];
+  quota?: SupervisorQuota;
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
 }
 
 export interface SupervisorQuotaWorkspaceProps {
-  profile: SupervisorProfile;
-  quota: SupervisorQuota;
-  students: SupervisedStudent[];
+  profile?: SupervisorProfile;
+  quota?: SupervisorQuota;
+  students?: SupervisedStudent[];
   scenarios?: QuotaScenarioOption[];
   isLoading?: boolean;
   error?: string | null;
