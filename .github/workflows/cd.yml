@@ -1,0 +1,77 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["Build Image"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_db_init:
+        description: "Chạy db-init (prisma db push + seed) sau khi deploy"
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-ec2
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Copy docker-compose.yml lên EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: backend/docker-compose.yml
+          target: /opt/pams/backend
+          strip_components: 1
+
+      - name: Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          IMAGE_TAG: ${{ github.event.workflow_run.head_sha || 'latest' }}
+          RUN_DB_INIT: ${{ inputs.run_db_init && 'true' || 'false' }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_TAG,RUN_DB_INIT
+          script_stop: true
+          script: |
+            set -e
+            cd /opt/pams/backend
+
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+
+            if grep -q '^IMAGE_TAG=' .env; then
+              sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${IMAGE_TAG}/" .env
+            else
+              echo "IMAGE_TAG=${IMAGE_TAG}" >> .env
+            fi
+
+            docker compose --env-file .env pull
+            docker compose --env-file .env up -d --remove-orphans
+
+            if [ "$RUN_DB_INIT" = "true" ]; then
+              docker compose --env-file .env --profile init pull db-init
+              docker compose --env-file .env --profile init run --rm db-init
+            fi
+
+            # đợi rồi kiểm tra đủ 4 service đang chạy
+            sleep 15
+            docker compose --env-file .env ps
+            test "$(docker compose --env-file .env ps --status running -q | wc -l)" -ge 4
+
+            docker image prune -f
+            docker logout ghcr.io
