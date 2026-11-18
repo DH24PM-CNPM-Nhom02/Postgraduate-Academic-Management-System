@@ -6,7 +6,6 @@ on:
     tags: ["v*"]
   pull_request:
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -85,11 +84,6 @@ jobs:
       - name: Verify database connections and schemas
         working-directory: backend
         run: npm run prisma:push
-        env:
-          AUTH_DATABASE_URL: ${{ secrets.AUTH_DATABASE_URL }}
-          PHD_DATABASE_URL: ${{ secrets.PHD_DATABASE_URL }}
-          DOCUMENT_DATABASE_URL: ${{ secrets.DOCUMENT_DATABASE_URL }}
-          NOTIFICATION_DATABASE_URL: ${{ secrets.NOTIFICATION_DATABASE_URL }}
 
       - name: Run backend tests and build
         working-directory: backend
@@ -124,92 +118,3 @@ jobs:
         run: |
           npm run lint
           npm run build
-
-  # ---------------------------------------------------------------
-  # Job 3: Build và đẩy Docker image (chỉ chạy khi 2 job trên đều xanh)
-  # ---------------------------------------------------------------
-  publish:
-    name: Publish ${{ matrix.image }}
-    needs: [backend, frontend]
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - image: frontend
-            context: ./frontend
-            dockerfile: ./frontend/Dockerfile
-            build_args: "NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1"
-
-          - image: backend-api-gateway
-            context: ./backend
-            dockerfile: ./backend/Dockerfile
-            build_args: APP_NAME=api-gateway
-
-          - image: backend-auth-service
-            context: ./backend
-            dockerfile: ./backend/Dockerfile
-            build_args: APP_NAME=auth-service
-
-          - image: backend-phd-service
-            context: ./backend
-            dockerfile: ./backend/Dockerfile
-            build_args: APP_NAME=phd-service
-
-          - image: backend-document-service
-            context: ./backend
-            dockerfile: ./backend/Dockerfile
-            build_args: APP_NAME=document-service
-
-          - image: backend-notification-service
-            context: ./backend
-            dockerfile: ./backend/Dockerfile
-            build_args: APP_NAME=notification-service
-
-          - image: backend-db-init
-            context: ./backend
-            dockerfile: ./backend/Dockerfile
-            target: db-init
-            build_args: ""
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Prepare image metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}-${{ matrix.image }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=tag
-            type=sha
-
-      - name: Build and push image
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          target: ${{ matrix.target }} # thêm dòng này (entry không có target thì rỗng, dùng stage cuối)
-          build-args: ${{ matrix.build_args }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # Cache: lần build sau dùng lại các layer chưa đổi.
-          # scope = tên image, để mỗi image có cache riêng, không đè lên nhau.
-          cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
