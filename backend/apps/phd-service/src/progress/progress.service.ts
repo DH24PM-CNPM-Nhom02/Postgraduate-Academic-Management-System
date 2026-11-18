@@ -650,6 +650,45 @@ export class ProgressService {
                     nhapBoiId: d.actorId,
                 },
             });
+
+            // ── Quy tắc chênh lệch điểm giữa các thành viên Tiểu ban ──
+            const tatCaPhieu = await tx.phieuNhanXet.findMany({
+                where: { minhChungId: minhChung.id },
+                select: { diem: true, tenNguoiCham: true },
+            });
+
+            if (tatCaPhieu.length >= 2) {
+                const dsDiem = tatCaPhieu.map(p => Number(p.diem));
+                const maxDiem = Math.max(...dsDiem);
+                const minDiem = Math.min(...dsDiem);
+
+                // Quy tắc 2: Chênh lệch biên không vượt quá 3.0 điểm
+                const chenhLechBien = Math.round((maxDiem - minDiem) * 100) / 100;
+                if (chenhLechBien > 3.0) {
+                    throw new RpcException({
+                        statusCode: 400,
+                        message: `Chênh lệch điểm giữa các thành viên Tiểu ban (${chenhLechBien} điểm) vượt quá 3.0 điểm cho phép (cao nhất: ${maxDiem}, thấp nhất: ${minDiem}). Vui lòng kiểm tra lại điểm.`,
+                    });
+                }
+
+                // Quy tắc 3: Chênh lệch so với ĐTB không vượt quá 2.0 điểm
+                const diemTB = dsDiem.reduce((s, v) => s + v, 0) / dsDiem.length;
+                const viPham = tatCaPhieu.filter(p => {
+                    const chenhLech = Math.abs(Number(p.diem) - diemTB);
+                    return Math.round(chenhLech * 100) / 100 > 2.0;
+                });
+                if (viPham.length > 0) {
+                    const dtbLamTron = Math.round(diemTB * 100) / 100;
+                    const danhSach = viPham
+                        .map(p => `"${p.tenNguoiCham}" (${Number(p.diem)} điểm, chênh ${Math.round(Math.abs(Number(p.diem) - diemTB) * 100) / 100})`)
+                        .join(', ');
+                    throw new RpcException({
+                        statusCode: 400,
+                        message: `Điểm của ${danhSach} vượt quá 2.0 điểm so với điểm trung bình Tiểu ban (ĐTB: ${dtbLamTron}). Vui lòng kiểm tra lại điểm.`,
+                    });
+                }
+            }
+
             await tx.auditLog.create({
                 data: {
                     actorId: d.actorId,

@@ -941,19 +941,38 @@ export class SupervisorService {
       });
     }
 
-    //Kiểm tra ràng buộc duy nhất 1 GVHD chính
-    if (dto.vaiTro === 'HUONG_DAN_CHINH') {
-      const gvhdChinhHienTai = await this.prisma.phanCongHuongDan.findFirst({
-        where: {
-          ncsId: dto.ncsId,
-          vaiTro: 'HUONG_DAN_CHINH',
-          trangThai: 'DANG_HIEU_LUC',
-        },
+    //Kiểm tra ràng buộc tối đa 2 GVHD (1 chính + 1 đồng hướng dẫn)
+    const cacPhanCongHieuLuc = await this.prisma.phanCongHuongDan.findMany({
+      where: {
+        ncsId: dto.ncsId,
+        trangThai: 'DANG_HIEU_LUC',
+      },
+      select: { id: true, vaiTro: true },
+    });
+
+    if (cacPhanCongHieuLuc.length >= 2) {
+      throw new RpcException({
+        statusCode: 400,
+        message: 'NCS đã có đủ 2 GVHD (1 chính + 1 đồng hướng dẫn). Vui lòng vô hiệu hóa GVHD cũ trước khi phân công mới',
       });
-      if (gvhdChinhHienTai) {
+    }
+
+    if (dto.vaiTro === 'HUONG_DAN_CHINH') {
+      const daCoGvhdChinh = cacPhanCongHieuLuc.some(pc => pc.vaiTro === 'HUONG_DAN_CHINH');
+      if (daCoGvhdChinh) {
         throw new RpcException({
           statusCode: 400,
           message: 'NCS đã có GVHD chính. Vui lòng vô hiệu hóa GVHD cũ trước khi gán mới',
+        });
+      }
+    }
+
+    if (dto.vaiTro === 'DONG_HUONG_DAN') {
+      const daCoGvhdPhu = cacPhanCongHieuLuc.some(pc => pc.vaiTro === 'DONG_HUONG_DAN');
+      if (daCoGvhdPhu) {
+        throw new RpcException({
+          statusCode: 400,
+          message: 'NCS đã có GVHD đồng hướng dẫn. Vui lòng vô hiệu hóa GVHD cũ trước khi gán mới',
         });
       }
     }
@@ -980,13 +999,31 @@ export class SupervisorService {
       if (phanCongTrung) {
         throw new RpcException({ statusCode: 409, message: 'GVHD này đã và đang được phân công hướng dẫn NCS này' });
       }
-      if (dto.vaiTro === 'HUONG_DAN_CHINH') {
-        const gvhdChinh = await tx.phanCongHuongDan.findFirst({
-          where: { ncsId: dto.ncsId, vaiTro: 'HUONG_DAN_CHINH', trangThai: 'DANG_HIEU_LUC' },
-          select: { id: true },
+
+      // Kiểm tra ràng buộc tối đa 2 GVHD trong transaction (chống đồng thời)
+      const phanCongHieuLucTx = await tx.phanCongHuongDan.findMany({
+        where: { ncsId: dto.ncsId, trangThai: 'DANG_HIEU_LUC' },
+        select: { id: true, vaiTro: true },
+      });
+
+      if (phanCongHieuLucTx.length >= 2) {
+        throw new RpcException({
+          statusCode: 400,
+          message: 'NCS đã có đủ 2 GVHD (1 chính + 1 đồng hướng dẫn). Vui lòng vô hiệu hóa GVHD cũ trước khi phân công mới',
         });
-        if (gvhdChinh) {
+      }
+
+      if (dto.vaiTro === 'HUONG_DAN_CHINH') {
+        const daCoGvhdChinh = phanCongHieuLucTx.some(pc => pc.vaiTro === 'HUONG_DAN_CHINH');
+        if (daCoGvhdChinh) {
           throw new RpcException({ statusCode: 400, message: 'NCS đã có GVHD chính đang hiệu lực' });
+        }
+      }
+
+      if (dto.vaiTro === 'DONG_HUONG_DAN') {
+        const daCoGvhdPhu = phanCongHieuLucTx.some(pc => pc.vaiTro === 'DONG_HUONG_DAN');
+        if (daCoGvhdPhu) {
+          throw new RpcException({ statusCode: 400, message: 'NCS đã có GVHD đồng hướng dẫn đang hiệu lực' });
         }
       }
 
@@ -1264,5 +1301,47 @@ export class SupervisorService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  //lấy ra danh sách NCS của GVHD phục vụ cho việc GVHD có thể đọc file minh chứng/đơn đề nghị của NCS mà mình hướng dẫn
+  async getAccessibleNcsIdsForGvhd(userId: string): Promise<string[]> {
+    const gvhd = await this.prisma.giangVienHuongDan.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!gvhd) return [];
+    // 1. Các NCS đang hướng dẫn
+    const phanCongs = await this.prisma.phanCongHuongDan.findMany({
+      where: { gvhdId: gvhd.id, trangThai: 'DANG_HIEU_LUC' },
+      select: { ncsId: true },
+    });
+    // 2. Các NCS có đơn đề nghị gia hạn mà GVHD này cần xác nhận
+    const donDeNghi = await this.prisma.xacNhanGvhdDeNghi.findMany({
+      where: { gvhdId: gvhd.id },
+      select: { deNghi: { select: { ncsId: true } } },
+    });
+    // 3. Các đơn đề nghị đổi GVHD (khi GVHD này là GVHD mới) hoặc đơn do chính GVHD này tạo
+    const donLienQuan = await this.prisma.deNghiDieuChinh.findMany({
+      where: {
+        OR: [
+          { gvhdMoiId: gvhd.id },
+          { nguoiDeNghiId: userId },
+        ],
+      },
+      select: { ncsId: true },
+    });
+
+    const ncsIds = new Set<string>();
+    for (const p of phanCongs) {
+      if (p.ncsId) ncsIds.add(p.ncsId);
+    }
+    for (const d of donDeNghi) {
+      if (d.deNghi?.ncsId) ncsIds.add(d.deNghi.ncsId);
+    }
+    for (const l of donLienQuan) {
+      if (l.ncsId) ncsIds.add(l.ncsId);
+    }
+
+    return Array.from(ncsIds);
   }
 }

@@ -122,7 +122,11 @@ export function SupervisorRequestForm({
     if (loaiDon === "DOI_DE_TAI") {
       return selectedStudent.mocHienTai >= 8;
     }
-    return selectedStudent.soThangConLai < 12;
+    return (
+      !selectedStudent.daHetHan &&
+      selectedStudent.soThangConLai !== null &&
+      selectedStudent.soThangConLai < 12
+    );
   }, [loaiDon, selectedStudent]);
 
   const handleSelectFile = (file: File | null) => {
@@ -353,7 +357,20 @@ export function SupervisorRequestForm({
                 Hồ sơ hiện tại: {selectedStudent.hoTen} ({selectedStudent.mshv})
               </p>
               <span className="font-semibold text-[#164E9B]">
-                {selectedStudent.khoaDaoTao} • Còn lại {selectedStudent.soThangConLai} tháng
+                {selectedStudent.khoaDaoTao} •{" "}
+                {selectedStudent.daHetHan === null ||
+                selectedStudent.daHetHan === undefined ||
+                selectedStudent.soThangConLai === null
+                  ? "Chưa cập nhật hạn đào tạo"
+                  : selectedStudent.daHetHan
+                    ? "Đã hết hạn đào tạo"
+                    : selectedStudent.soNgayConLai === 0
+                      ? "Hôm nay là hạn chót đào tạo"
+                      : selectedStudent.soNgayConLai !== null &&
+                        selectedStudent.soNgayConLai !== undefined &&
+                        selectedStudent.soNgayConLai <= 30
+                        ? `Còn lại ${selectedStudent.soNgayConLai} ngày`
+                        : `Còn lại ${selectedStudent.soThangConLai} tháng`}
               </span>
             </div>
             <p className="mt-1.5 leading-relaxed text-foreground">
@@ -412,15 +429,23 @@ export function SupervisorRequestForm({
 
         {loaiDon === "DOI_GVHD" && selectedStudent && (
           <div className="space-y-4">
-            {selectedStudent.soThangConLai < 12 && (
-              <DeadlineWarningBanner
-                severity="warning"
-                remainingMonths={selectedStudent.soThangConLai}
-                alwaysShow
-                title="Thời gian đào tạo còn dưới 12 tháng"
-                message="NCS có thời hạn khóa học còn lại dưới 12 tháng. Cần xác nhận lý do bất khả kháng khi đề xuất thay đổi GVHD."
-              />
-            )}
+            {!selectedStudent.daHetHan &&
+              selectedStudent.soThangConLai !== null &&
+              selectedStudent.soThangConLai < 12 && (
+                <DeadlineWarningBanner
+                  severity="warning"
+                  remainingMonths={selectedStudent.soThangConLai}
+                  alwaysShow
+                  title="Thời gian đào tạo còn dưới 12 tháng"
+                  message={
+                    selectedStudent.soNgayConLai !== null &&
+                    selectedStudent.soNgayConLai !== undefined &&
+                    selectedStudent.soNgayConLai <= 30
+                      ? `NCS chỉ còn ${selectedStudent.soNgayConLai} ngày đào tạo. Cần xác nhận lý do bất khả kháng khi đề xuất thay đổi GVHD.`
+                      : "NCS có thời hạn khóa học còn lại dưới 12 tháng. Cần xác nhận lý do bất khả kháng khi đề xuất thay đổi GVHD."
+                  }
+                />
+              )}
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>

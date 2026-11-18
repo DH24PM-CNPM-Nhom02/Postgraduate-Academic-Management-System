@@ -76,6 +76,10 @@ export interface StudentProgressProfile {
   hoTen: string;
   lop: string;
   khoaHoc?: string;
+  maKhoaHoc?: string;
+  namTuyenSinh?: number;
+  /** Chuỗi niên khóa hiển thị: e.g. "Niên khóa: NCS01 - 2025" */
+  nienKhoa?: string;
   nganh: string;
   chuyenNganh?: string;
   khoaVi: string;

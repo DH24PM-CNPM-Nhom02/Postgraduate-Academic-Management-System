@@ -1,10 +1,5 @@
 import type { Metadata } from "next";
 import { SupervisorDashboardContainer } from "@/src/components/supervisor";
-import {
-  mockSupervisedStudents,
-  mockSupervisorProfile,
-  mockSupervisorQuota,
-} from "@/src/mocks/supervisor";
 
 export const metadata: Metadata = {
   title: "Bàn làm việc GVHD | Hệ thống Quản lý Sau đại học",
@@ -13,11 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function SupervisorDashboardPage() {
-  return (
-    <SupervisorDashboardContainer
-      profile={mockSupervisorProfile}
-      quota={mockSupervisorQuota}
-      students={mockSupervisedStudents}
-    />
-  );
+  return <SupervisorDashboardContainer />;
 }

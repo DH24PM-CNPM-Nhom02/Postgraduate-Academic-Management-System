@@ -4,11 +4,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { NcsService } from "@/src/services/ncs";
 import {
   GvhdService,
+  mapBackendGvhdToSupervisorProfile,
+  mapBackendNcsToSupervisedStudent,
   type BackendAssignmentRaw,
   type BackendAssignmentDecisionRaw,
+  type BackendNcsDetailRaw,
   type CreateAssignmentPayload,
   type BackendGvhdRaw,
 } from "@/src/services/gvhd";
+import type { SupervisedStudent, SupervisorProfile } from "@/src/types/ui/supervisor";
 import {
   MOCK_STUDENTS,
   MOCK_SUPERVISORS,
@@ -132,6 +136,99 @@ export function useAcademicSupervisorDetail(
       return await GvhdService.getSupervisorById(supervisorId);
     },
     enabled: Boolean(supervisorId) && enabled,
+    staleTime: 1000 * 60 * 2,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * Bộ queryKey chuẩn cho Cổng Giảng viên Hướng dẫn
+ */
+export const supervisorKeys = {
+  all: ["supervisor"] as const,
+  profile: () => [...supervisorKeys.all, "profile"] as const,
+  ncsList: () => [...supervisorKeys.all, "ncs"] as const,
+  ncsDetail: (ncsId: string) => [...supervisorKeys.all, "ncs", ncsId] as const,
+};
+
+/**
+ * Custom hook lấy thông tin hồ sơ của chính GVHD đang đăng nhập (GET /gvhd/me).
+ * Dùng cho Bàn làm việc GVHD (/supervisor/dashboard), /supervisor/quota và Header/Sidebar.
+ */
+export function useMySupervisorProfile() {
+  return useQuery<SupervisorProfile>({
+    queryKey: supervisorKeys.profile(),
+    queryFn: async () => {
+      const raw = await GvhdService.getMyProfile();
+      return mapBackendGvhdToSupervisorProfile(raw);
+    },
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * Custom hook lấy danh sách NCS đang hướng dẫn của chính GVHD (GET /gvhd/me/ncs).
+ * Dùng cho Bàn làm việc GVHD (/supervisor/dashboard), /supervisor/students và /supervisor/quota.
+ */
+export function useMySupervisedStudents() {
+  return useQuery<SupervisedStudent[]>({
+    queryKey: supervisorKeys.ncsList(),
+    queryFn: async () => {
+      const rawList = await GvhdService.getMyNcsList();
+      const mapped = rawList.map(mapBackendNcsToSupervisedStudent);
+
+      // Xử lý khử trùng NCS hiển thị UI: không để trùng key / trùng hàng
+      // Không tự ý chọn max trọng số; phát hiện và cảnh báo nếu có xung đột vai trò / trọng số
+      const uniqueMap = new Map<string, SupervisedStudent>();
+      const conflictList: string[] = [];
+
+      for (const item of mapped) {
+        const key = item.id || item.mshv;
+        if (!key) continue;
+
+        if (uniqueMap.has(key)) {
+          const existing = uniqueMap.get(key)!;
+          if (existing.vaiTro !== item.vaiTro || existing.trongSo !== item.trongSo) {
+            conflictList.push(
+              `NCS ${existing.mshv} (${existing.hoTen}): [${existing.vaiTro} - ${existing.trongSo}] xung đột với [${item.vaiTro} - ${item.trongSo}]`
+            );
+          }
+          // Giữ bản ghi đầu tiên theo thứ tự trả về của Backend, không tự ý ghi đè hay chọn max
+        } else {
+          uniqueMap.set(key, item);
+        }
+      }
+
+      if (conflictList.length > 0) {
+        console.warn(
+          "[useMySupervisedStudents] Phát hiện bản ghi phân công trùng lặp có xung đột dữ liệu từ Backend:",
+          conflictList
+        );
+      }
+
+      return Array.from(uniqueMap.values());
+    },
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * Custom hook lấy chi tiết tiến trình 9 mốc & lịch sử đào tạo của 1 NCS
+ * từ góc nhìn GVHD (GET /gvhd/me/ncs/:ncsId).
+ * Chỉ kích hoạt khi mở Drawer (enabled = isOpen && Boolean(ncsId)).
+ */
+export function useMyNcsDetail(ncsId?: string | null, enabled = true) {
+  return useQuery<BackendNcsDetailRaw>({
+    queryKey: supervisorKeys.ncsDetail(ncsId || ""),
+    queryFn: async () => {
+      if (!ncsId) {
+        throw new Error("Mã Nghiên cứu sinh không hợp lệ");
+      }
+      return GvhdService.getMyNcsDetail(ncsId);
+    },
+    enabled: Boolean(ncsId) && enabled,
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
   });
