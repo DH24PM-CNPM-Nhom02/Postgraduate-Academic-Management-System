@@ -1,0 +1,111 @@
+services:
+  db-init:
+    image: ${DB_INIT_IMAGE:-ghcr.io/dh24pm-cnpm-nhom02/postgraduate-academic-management-system-backend-db-init}:${IMAGE_TAG:?Set IMAGE_TAG in .env}
+    container_name: pams-db-init
+    profiles: ["init"]
+    working_dir: /app
+    environment:
+      NODE_ENV: production
+      AUTH_DATABASE_URL: ${AUTH_DATABASE_URL:?Set AUTH_DATABASE_URL in .env}
+      PHD_DATABASE_URL: ${PHD_DATABASE_URL:?Set PHD_DATABASE_URL in .env}
+      DOCUMENT_DATABASE_URL: ${DOCUMENT_DATABASE_URL:?Set DOCUMENT_DATABASE_URL in .env}
+      NOTIFICATION_DATABASE_URL: ${NOTIFICATION_DATABASE_URL:?Set NOTIFICATION_DATABASE_URL in .env}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?Set SEED_ADMIN_PASSWORD in .env}
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        for s in auth-service phd-service document-service notification-service; do
+          echo "== db push: $$s =="
+          (cd apps/$$s && npx prisma db push)
+        done
+        echo "== seed: auth-service =="
+        (cd apps/auth-service && npx prisma db seed)
+        echo "== seed: phd-service =="
+        (cd apps/phd-service && npx prisma db seed)
+    networks:
+      - pams-network
+
+  auth-service:
+    image: ghcr.io/dh24pm-cnpm-nhom02/postgraduate-academic-management-system-backend-auth-service:${IMAGE_TAG:?Set IMAGE_TAG in .env}
+    container_name: pams-auth-service
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      AUTH_DATABASE_URL: ${AUTH_DATABASE_URL:?Set AUTH_DATABASE_URL in .env}
+      AUTH_SERVICE_HOST: "0.0.0.0"
+      AUTH_SERVICE_PORT: "3001"
+      NOTIFICATION_HOST: notification-service
+      NOTIFICATION_PORT: "3004"
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Set JWT_ACCESS_SECRET in .env}
+      JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES:-15m}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
+      JWT_REFRESH_EXPIRES: ${JWT_REFRESH_EXPIRES:-7d}
+    ports:
+      - "3001:3001"
+    networks:
+      - pams-network
+
+  document-service:
+    image: ghcr.io/dh24pm-cnpm-nhom02/postgraduate-academic-management-system-backend-document-service:${IMAGE_TAG:?Set IMAGE_TAG in .env}
+    container_name: pams-document-service
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      DOCUMENT_DATABASE_URL: ${DOCUMENT_DATABASE_URL:?Set DOCUMENT_DATABASE_URL in .env}
+      DOCUMENT_SERVICE_HOST: "0.0.0.0"
+      DOCUMENT_SERVICE_PORT: "3003"
+      SEAWEED_S3_ENDPOINT: ${SEAWEED_S3_ENDPOINT:?Set SEAWEED_S3_ENDPOINT in .env}
+      SEAWEED_S3_BUCKET: ${SEAWEED_S3_BUCKET:?Set SEAWEED_S3_BUCKET in .env}
+      SEAWEED_S3_ACCESS_KEY: ${SEAWEED_S3_ACCESS_KEY:?Set SEAWEED_S3_ACCESS_KEY in .env}
+      SEAWEED_S3_SECRET_KEY: ${SEAWEED_S3_SECRET_KEY:?Set SEAWEED_S3_SECRET_KEY in .env}
+      SEAWEED_S3_REGION: ${SEAWEED_S3_REGION:-us-east-1}
+    ports:
+      - "3003:3003"
+    networks:
+      - pams-network
+
+  notification-service:
+    image: ghcr.io/dh24pm-cnpm-nhom02/postgraduate-academic-management-system-backend-notification-service:${IMAGE_TAG:?Set IMAGE_TAG in .env}
+    container_name: pams-notification-service
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      NOTIFICATION_DATABASE_URL: ${NOTIFICATION_DATABASE_URL:?Set NOTIFICATION_DATABASE_URL in .env}
+      NOTIFICATION_SERVICE_HOST: "0.0.0.0"
+      NOTIFICATION_SERVICE_PORT: "3004"
+    ports:
+      - "3004:3004"
+    networks:
+      - pams-network
+
+  phd-service:
+    image: ghcr.io/dh24pm-cnpm-nhom02/postgraduate-academic-management-system-backend-phd-service:${IMAGE_TAG:?Set IMAGE_TAG in .env}
+    container_name: pams-phd-service
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      PHD_DATABASE_URL: ${PHD_DATABASE_URL:?Set PHD_DATABASE_URL in .env}
+      PHD_SERVICE_HOST: "0.0.0.0"
+      PHD_SERVICE_PORT: "3002"
+      AUTH_SERVICE_HOST: auth-service
+      AUTH_SERVICE_PORT: "3001"
+      DOCUMENT_SERVICE_HOST: document-service
+      DOCUMENT_SERVICE_PORT: "3003"
+      NOTIFICATION_HOST: notification-service
+      NOTIFICATION_PORT: "3004"
+    ports:
+      - "3002:3002"
+    networks:
+      - pams-network
+
+networks:
+  pams-network:
+    external: true
+    name: pams-network
+
