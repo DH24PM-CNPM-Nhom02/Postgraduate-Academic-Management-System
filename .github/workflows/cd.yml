@@ -15,17 +15,45 @@ concurrency:
   group: deploy-ec2
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Copy docker-compose.prod.yml của backend lên EC2
+      # ---------- Mở port 22 tạm thời cho IP của runner ----------
+      - name: Lấy IP public của runner
+        id: ip
+        run: |
+          IP="$(curl -fsS https://checkip.amazonaws.com | tr -d '[:space:]')"
+          echo "ip=$IP" >> "$GITHUB_OUTPUT"
+
+      - name: Cấu hình AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Mở port 22 cho IP runner
+        id: open_sg
+        run: |
+          aws ec2 authorize-security-group-ingress \
+            --group-id "${{ secrets.SG_ID }}" \
+            --protocol tcp --port 22 \
+            --cidr "${{ steps.ip.outputs.ip }}/32"
+          sleep 10
+
+      # ---------- Deploy ----------
+      - name: Copy docker-compose.prod.yml lên EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -52,6 +80,8 @@ jobs:
             set -e
             cd /opt/pams/backend
 
+            COMPOSE="docker compose -f docker-compose.prod.yml --env-file .env"
+
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
 
             if grep -q '^IMAGE_TAG=' .env; then
@@ -60,18 +90,28 @@ jobs:
               echo "IMAGE_TAG=${IMAGE_TAG}" >> .env
             fi
 
-            docker compose --env-file .env pull
-            docker compose --env-file .env up -d --remove-orphans
+            $COMPOSE pull
+            $COMPOSE up -d --remove-orphans
 
             if [ "$RUN_DB_INIT" = "true" ]; then
-              docker compose --env-file .env --profile init pull db-init
-              docker compose --env-file .env --profile init run --rm db-init
+              $COMPOSE --profile init pull db-init
+              $COMPOSE --profile init run --rm db-init
             fi
 
             # đợi rồi kiểm tra đủ 4 service đang chạy
             sleep 15
-            docker compose --env-file .env ps
-            test "$(docker compose --env-file .env ps --status running -q | wc -l)" -ge 4
+            $COMPOSE ps
+            test "$($COMPOSE ps --status running -q | wc -l)" -ge 4
 
             docker image prune -f
             docker logout ghcr.io
+
+      # ---------- Đóng port 22 (luôn chạy, kể cả khi deploy fail) ----------
+      - name: Đóng port 22Nguyễn Thị Mỹ Truyền
+
+        if: ${{ always() && steps.open_sg.outcome == 'success' }}
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id "${{ secrets.SG_ID }}" \
+            --protocol tcp --port 22 \
+            --cidr "${{ steps.ip.outputs.ip }}/32"

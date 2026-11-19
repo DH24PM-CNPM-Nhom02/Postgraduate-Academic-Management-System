@@ -1,6 +1,7 @@
-# DEV: chạy local, frontend và backend đều có hot reload.
-# Chạy: docker compose -f docker-compose.dev.yml up --build
-# (hoặc đặt COMPOSE_FILE=docker-compose.dev.yml trong .env rồi chạy `docker compose up --build`)
+name: pams-be
+
+# Chạy backend:
+# docker compose -f backend/docker-compose.dev.yml up --build
 
 x-jwt-env: &jwt-env
   JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
@@ -8,17 +9,13 @@ x-jwt-env: &jwt-env
   JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
   JWT_REFRESH_EXPIRES: ${JWT_REFRESH_EXPIRES}
 
-# config build backend, target dev stage
-# khong can chay `npm i` trong container, node_modules da co san trong image.
-# cung khong can pull image tu dockerhub, vi build tu local source code.
 x-backend-build: &backend-build
-  context: ./backend
+  context: .
   target: dev
 
-# Chỉ mount source. node_modules nằm trong image nên `npm i` chỉ cần build lại image.
 x-backend-src: &backend-src
-  - ./backend/apps:/app/apps
-  - ./backend/lib:/app/lib
+  - ./apps:/app/apps
+  - ./lib:/app/lib
 
 services:
   mariadb:
@@ -31,7 +28,7 @@ services:
       - "${MARIADB_PORT}:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
-      - ./backend/docker/mariadb/init:/docker-entrypoint-initdb.d:ro
+      - ./docker/mariadb/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
@@ -159,33 +156,9 @@ services:
     networks:
       - pams-network
 
-  frontend:
-    build:
-      context: ./frontend
-      target: dev
-    environment:
-      API_INTERNAL_URL: http://api-gateway:${API_GATEWAY_HOST_PORT}/api/v1
-      NEXT_PUBLIC_API_URL: http://localhost:${API_GATEWAY_HOST_PORT}/api/v1
-      AUTH_TRUST_HOST: true
-      AUTH_URL: http://localhost:${FRONTEND_PORT}
-      NEXTAUTH_URL: http://localhost:${FRONTEND_PORT}
-      AUTH_SECRET: ${AUTH_SECRET}
-
-    extra_hosts:
-      - "api-gateway:host-gateway"
-    ports:
-      - "${FRONTEND_PORT}:3000"
-    volumes:
-      - ./frontend:/app
-      # volume ẩn danh: giữ node_modules/.next của container, không bị thư mục host đè.
-      # Sau khi đổi package.json: docker compose up -d --build -V frontend
-      - /app/node_modules
-      - /app/.next
-    networks:
-      - pams-network
-
 networks:
   pams-network:
+    name: pams-network
     driver: bridge
 
 volumes:
