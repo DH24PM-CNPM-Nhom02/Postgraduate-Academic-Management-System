@@ -52,7 +52,7 @@ export const AUDIT_ACTION_META: Record<AuditActionType, AuditActionMeta> = {
     label: "Phân công GVHD",
     group: "Phân công GVHD",
     badgeClass:
-      "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800/70 dark:bg-indigo-950/60 dark:text-indigo-300",
+      "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800/70 dark:bg-blue-950/60 dark:text-blue-300",
   },
   ASSIGNMENT_DEACTIVATE: {
     label: "Hủy phân công GVHD",

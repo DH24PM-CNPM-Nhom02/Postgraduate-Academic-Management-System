@@ -16,6 +16,7 @@ import type {
   SupervisedStudent,
   StudentListTableProps,
 } from "@/src/types/ui/supervisor";
+import { TablePagination } from "@/src/components/ui/table-pagination";
 
 function renderStatusBadge(student: SupervisedStudent) {
   if (student.trangThaiHocTap === "CAN_HOAN_THIEN" || student.coMocCanHoanThien) {
@@ -68,6 +69,8 @@ export function StudentListTable({
 }: StudentListTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 8;
 
   const filteredStudents = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -100,6 +103,11 @@ export function StudentListTable({
       return true;
     });
   }, [students, searchQuery, statusFilter]);
+
+  const paginatedStudents = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredStudents.slice(start, start + pageSize);
+  }, [filteredStudents, currentPage, pageSize]);
 
   if (isLoading) {
     return (
@@ -191,7 +199,10 @@ export function StudentListTable({
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
               aria-label="Tìm kiếm nghiên cứu sinh"
               placeholder="Tìm theo tên, MSHV, đề tài..."
               className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus-visible:border-[#164E9B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]/20"
@@ -203,7 +214,10 @@ export function StudentListTable({
             <select
               aria-label="Lọc theo trạng thái hoặc vai trò hướng dẫn"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="h-full cursor-pointer bg-transparent text-xs font-semibold text-foreground focus:outline-none"
             >
               <option value="ALL">Tất cả NCS</option>
@@ -285,7 +299,7 @@ export function StudentListTable({
                   </td>
                 </tr>
               ) : (
-                filteredStudents.map((student) => {
+                paginatedStudents.map((student) => {
                   const isSelected = selectedStudentId === student.id;
                   const isMain = student.vaiTro === "HUONG_DAN_CHINH";
                   const progressSafe =
@@ -436,6 +450,16 @@ export function StudentListTable({
               )}
             </tbody>
           </table>
+
+          {/* Phân trang danh sách NCS */}
+          <TablePagination
+            currentPage={currentPage}
+            totalItems={filteredStudents.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            itemLabel="nghiên cứu sinh"
+            className="p-3"
+          />
         </div>
       )}
     </section>

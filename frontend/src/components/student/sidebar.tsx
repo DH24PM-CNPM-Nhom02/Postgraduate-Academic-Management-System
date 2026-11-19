@@ -119,7 +119,7 @@ export function StudentSidebar({ isOpen, onClose }: StudentSidebarProps) {
         {/* Sidebar Brand Header đồng bộ với HoverLogo */}
         <div className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4">
           <Link
-            href="/student/progress"
+            href="/"
             className="flex items-center gap-2.5 transition-transform hover:scale-102 motion-reduce:hover:scale-100"
           >
             <HoverLogo sizeClass="size-9" />

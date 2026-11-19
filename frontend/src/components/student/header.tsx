@@ -226,7 +226,7 @@ export function StudentHeader({ onToggleSidebar }: StudentHeaderProps) {
 
           <div className="flex items-center gap-3">
             <Link
-              href="/student/progress"
+              href="/"
               className="flex items-center gap-2.5 transition-transform hover:scale-102 motion-reduce:hover:scale-100"
             >
               <HoverLogo sizeClass="size-8.5" />

@@ -2,8 +2,6 @@
 
 import {
   AlertCircle,
-  ChevronLeft,
-  ChevronRight,
   Eye,
   KeyRound,
   Lock,
@@ -13,6 +11,7 @@ import {
   Unlock,
   Users,
 } from "lucide-react";
+import { TablePagination } from "@/src/components/ui/table-pagination";
 import {
   type AdminUserViewItem,
   formatAdminDateTime,
@@ -51,12 +50,9 @@ export function UserTable({
   pageSize,
   totalItems,
   onPageChange,
-  onPageSizeChange,
 }: UserTableProps) {
   const totalPages = Math.max(1, Math.ceil(totalItems / Math.max(1, pageSize)));
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
-  const startIndex = totalItems === 0 ? 0 : (safePage - 1) * pageSize + 1;
-  const endIndex = Math.min(safePage * pageSize, totalItems);
 
   // Tự động cắt trang nếu caller truyền toàn bộ danh sách lớn hơn pageSize
   const displayedUsers =
@@ -189,9 +185,8 @@ export function UserTable({
                 return (
                   <tr
                     key={user.id}
-                    className={`transition-colors duration-150 hover:bg-muted/35 ${
-                      isLocked ? "bg-muted/15" : ""
-                    }`}
+                    className={`transition-colors duration-150 hover:bg-muted/35 ${isLocked ? "bg-muted/15" : ""
+                      }`}
                   >
                     {/* Người dùng */}
                     <td className="px-4 py-3.5 align-top">
@@ -305,21 +300,20 @@ export function UserTable({
                             disableSelfLock
                               ? `Không thể tự khóa tài khoản ${user.fullName}`
                               : isLocked
-                              ? `Mở khóa tài khoản ${user.fullName}`
-                              : `Khóa tài khoản ${user.fullName}`
+                                ? `Mở khóa tài khoản ${user.fullName}`
+                                : `Khóa tài khoản ${user.fullName}`
                           }
                           title={
                             disableSelfLock
                               ? "An toàn hệ thống: Không thể tự khóa tài khoản Admin đang đăng nhập"
                               : isLocked
-                              ? "Mở khóa tài khoản"
-                              : "Khóa tài khoản"
+                                ? "Mở khóa tài khoản"
+                                : "Khóa tài khoản"
                           }
-                          className={`inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:cursor-not-allowed disabled:opacity-45 ${
-                            isLocked
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800/70 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-950"
-                              : "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-800/70 dark:bg-rose-950/60 dark:text-rose-300 dark:hover:bg-rose-950"
-                          }`}
+                          className={`inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:cursor-not-allowed disabled:opacity-45 ${isLocked
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800/70 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-950"
+                            : "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-800/70 dark:bg-rose-950/60 dark:text-rose-300 dark:hover:bg-rose-950"
+                            }`}
                         >
                           {isLocked ? (
                             <>
@@ -350,90 +344,15 @@ export function UserTable({
       </div>
 
       {/* Pagination Bar */}
-      <div className="flex flex-col gap-3 border-t border-border bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground tabular-nums">
-          <span>
-            Hiển thị{" "}
-            <strong className="font-semibold text-foreground">
-              {startIndex}–{endIndex}
-            </strong>{" "}
-            trên tổng{" "}
-            <strong className="font-semibold text-foreground">
-              {totalItems}
-            </strong>{" "}
-            tài khoản
-          </span>
-
-          {onPageSizeChange && (
-            <div className="flex items-center gap-1.5">
-              <label htmlFor="user-page-size" className="text-xs">
-                Số dòng:
-              </label>
-              <select
-                id="user-page-size"
-                value={pageSize}
-                onChange={(event) =>
-                  onPageSizeChange(Number(event.target.value))
-                }
-                className="h-7 rounded-md border border-border bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40"
-              >
-                <option value={5}>5</option>
-                <option value={8}>8</option>
-                <option value={12}>12</option>
-                <option value={20}>20</option>
-              </select>
-            </div>
-          )}
-        </div>
-
-        <nav
-          aria-label="Phân trang danh sách tài khoản"
-          className="flex items-center gap-1"
-        >
-          <button
-            type="button"
-            onClick={() => onPageChange(safePage - 1)}
-            disabled={safePage <= 1 || isLoading}
-            aria-label="Trang trước"
-            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <ChevronLeft className="size-3.5" aria-hidden="true" />
-            <span>Trước</span>
-          </button>
-
-          {Array.from({ length: totalPages }).map((_, idx) => {
-            const page = idx + 1;
-            const isActive = page === safePage;
-            return (
-              <button
-                key={page}
-                type="button"
-                onClick={() => onPageChange(page)}
-                disabled={isLoading}
-                aria-current={isActive ? "page" : undefined}
-                aria-label={`Trang ${page}`}
-                className={`inline-flex size-8 items-center justify-center rounded-lg text-xs font-semibold tabular-nums transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 ${
-                  isActive
-                    ? "bg-rose-600 text-white"
-                    : "border border-border bg-background text-foreground hover:bg-muted"
-                }`}
-              >
-                {page}
-              </button>
-            );
-          })}
-
-          <button
-            type="button"
-            onClick={() => onPageChange(safePage + 1)}
-            disabled={safePage >= totalPages || isLoading}
-            aria-label="Trang sau"
-            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <span>Sau</span>
-            <ChevronRight className="size-3.5" aria-hidden="true" />
-          </button>
-        </nav>
+      <div className="border-t border-border bg-card px-4 py-3">
+        <TablePagination
+          currentPage={safePage}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={onPageChange}
+          itemLabel="tài khoản"
+          disabled={isLoading}
+        />
       </div>
     </div>
   );

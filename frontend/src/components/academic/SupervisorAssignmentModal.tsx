@@ -59,7 +59,12 @@ export interface SupervisorAssignmentModalProps {
   selectedSupervisor?: SupervisorQuotaRecord | null;
   students?: StudentDossier[];
   supervisors?: SupervisorQuotaRecord[];
-  onSuccess?: (msg: string) => void;
+  onSuccess?: (
+    msg: string,
+    studentId?: string,
+    supervisorName?: string,
+    role?: VaiTroHuongDan
+  ) => void;
 }
 
 export function SupervisorAssignmentModal({
@@ -103,6 +108,17 @@ export function SupervisorAssignmentModal({
   const isRealStudent = UUID_REGEX.test(effectiveStudentId);
   const isRealSupervisor = UUID_REGEX.test(effectiveSupervisorId);
   const isRealBackendPair = isRealStudent && isRealSupervisor;
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   const { data: activeAssignments = [], isFetching: loadingAssignments } =
     useAcademicAssignments(
@@ -195,7 +211,10 @@ export function SupervisorAssignmentModal({
         });
 
         onSuccess?.(
-          `Đã phân công ${currentSupervisor.name} hướng dẫn NCS ${currentStudent.name} theo QĐ số ${soQuyetDinh}.`
+          `Đã phân công ${currentSupervisor.name} hướng dẫn NCS ${currentStudent.name} theo QĐ số ${soQuyetDinh}.`,
+          effectiveStudentId,
+          currentSupervisor.name,
+          role
         );
         onClose();
       } catch (err: unknown) {
@@ -243,7 +262,10 @@ export function SupervisorAssignmentModal({
     });
 
     onSuccess?.(
-      `Đã phân công ${currentSupervisor.name} hướng dẫn NCS ${currentStudent.name} theo QĐ số ${decisionCode}.`
+      `Đã phân công ${currentSupervisor.name} hướng dẫn NCS ${currentStudent.name} theo QĐ số ${decisionCode}.`,
+      effectiveStudentId,
+      currentSupervisor.name,
+      role
     );
     onClose();
   };
@@ -345,7 +367,17 @@ export function SupervisorAssignmentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="assign-modal-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isSubmitting) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+    >
       <div className="relative w-full max-w-xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 bg-[#164E9B] px-6 py-4 text-white">
@@ -354,7 +386,7 @@ export function SupervisorAssignmentModal({
               <UserCheck className="size-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">
+              <h2 id="assign-modal-title" className="text-base font-bold text-white">
                 Phân công &amp; Điều chỉnh Giảng viên Hướng dẫn
               </h2>
               <p className="text-xs text-white/80">
