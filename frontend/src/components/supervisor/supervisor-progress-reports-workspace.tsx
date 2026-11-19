@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import { PdfViewer } from "@/src/components/upload/PdfViewer";
+import { TablePagination } from "@/src/components/ui/table-pagination";
 import type { EvidenceStatus } from "@/src/types/ui/progress";
 import type {
   SupervisorProgressReportItem,
@@ -53,6 +54,8 @@ export function SupervisorProgressReportsWorkspace({
   const [selectedStatus, setSelectedStatus] = useState<EvidenceStatus | "ALL">("ALL");
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
   const [activePdf, setActivePdf] = useState<ActivePdfState | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 8;
 
   const studentFilterOptions = useMemo(() => {
     const namesMap = new Map<string, { mshv: string; hoTen: string }>();
@@ -113,11 +116,17 @@ export function SupervisorProgressReportsWorkspace({
     selectedMilestone !== "ALL" ||
     selectedStatus !== "ALL";
 
+  const paginatedReports = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredReports.slice(start, start + PAGE_SIZE);
+  }, [filteredReports, currentPage]);
+
   const handleResetFilters = () => {
     setSearchQuery("");
     setSelectedStudentName("ALL");
     setSelectedMilestone("ALL");
     setSelectedStatus("ALL");
+    setCurrentPage(1);
   };
 
   const handleOpenPdf = (report: SupervisorProgressReportItem) => {
@@ -304,7 +313,10 @@ export function SupervisorProgressReportsWorkspace({
                   id="pr-search-input"
                   type="search"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   placeholder="Tên NCS, MSHV, tên tệp..."
                   className="h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
                 />
@@ -321,7 +333,10 @@ export function SupervisorProgressReportsWorkspace({
               <select
                 id="pr-student-filter"
                 value={selectedStudentName}
-                onChange={(e) => setSelectedStudentName(e.target.value)}
+                onChange={(e) => {
+                  setSelectedStudentName(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
               >
                 <option value="ALL">Tất cả Nghiên cứu sinh</option>
@@ -343,7 +358,10 @@ export function SupervisorProgressReportsWorkspace({
               <select
                 id="pr-milestone-filter"
                 value={selectedMilestone}
-                onChange={(e) => setSelectedMilestone(e.target.value)}
+                onChange={(e) => {
+                  setSelectedMilestone(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
               >
                 <option value="ALL">Tất cả 9 mốc</option>
@@ -365,9 +383,10 @@ export function SupervisorProgressReportsWorkspace({
               <select
                 id="pr-status-filter"
                 value={selectedStatus}
-                onChange={(e) =>
-                  setSelectedStatus(e.target.value as EvidenceStatus | "ALL")
-                }
+                onChange={(e) => {
+                  setSelectedStatus(e.target.value as EvidenceStatus | "ALL");
+                  setCurrentPage(1);
+                }}
                 className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
               >
                 <option value="ALL">Tất cả trạng thái</option>
@@ -425,7 +444,7 @@ export function SupervisorProgressReportsWorkspace({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredReports.map((report) => {
+                {paginatedReports.map((report) => {
                   const statusMeta = getMilestoneEvidenceStatusMeta(report.trangThai);
                   const sizeLabel = formatFileSizeBytes(report.fileSize);
                   const isExpanded = expandedReportId === report.id;
@@ -572,6 +591,16 @@ export function SupervisorProgressReportsWorkspace({
             </table>
           </div>
         )}
+
+        <div className="border-t border-border px-5 py-3">
+          <TablePagination
+            currentPage={currentPage}
+            totalItems={filteredReports.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+            itemLabel="báo cáo tiến độ"
+          />
+        </div>
       </section>
 
       <PdfViewer

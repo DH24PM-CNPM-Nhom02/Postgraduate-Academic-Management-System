@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { ConfirmDialog } from "@/src/components/shared/ConfirmDialog";
 import { PdfViewer } from "@/src/components/upload/PdfViewer";
+import { TablePagination } from "@/src/components/ui/table-pagination";
 import type {
   SupervisorExtensionDecisionAction,
   SupervisorExtensionRequestItem,
@@ -457,6 +458,8 @@ export function SupervisorExtensionsWorkspace({
   const [previewPdfRequest, setPreviewPdfRequest] =
     useState<SupervisorExtensionRequestItem | null>(null);
   const [feedbackBanner, setFeedbackBanner] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 8;
 
   const selectedRequest = useMemo(
     () => requestsState.find((item) => item.id === selectedRequestId) ?? null,
@@ -495,6 +498,11 @@ export function SupervisorExtensionsWorkspace({
       return true;
     });
   }, [requestsState, activeTab]);
+
+  const paginatedRequests = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredRequests.slice(start, start + PAGE_SIZE);
+  }, [filteredRequests, currentPage]);
 
   const handleSubmitReview = async (
     requestId: string,
@@ -714,7 +722,10 @@ export function SupervisorExtensionsWorkspace({
                   type="button"
                   role="tab"
                   aria-selected={isActive}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setCurrentPage(1);
+                  }}
                   className={`inline-flex min-h-10 items-center rounded-lg border px-3.5 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none ${
                     isActive
                       ? "border-[#164E9B] bg-[#164E9B] text-white"
@@ -749,7 +760,7 @@ export function SupervisorExtensionsWorkspace({
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {filteredRequests.map((item) => {
+            {paginatedRequests.map((item) => {
               const statusMeta = getSupervisorRequestStatusMeta(item.trangThai);
               const isPendingMe = item.trangThai === "CHO_GVHD_XAC_NHAN";
 
@@ -831,6 +842,16 @@ export function SupervisorExtensionsWorkspace({
             })}
           </div>
         )}
+
+        <div className="border-t border-border px-5 py-3">
+          <TablePagination
+            currentPage={currentPage}
+            totalItems={filteredRequests.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+            itemLabel="đơn gia hạn"
+          />
+        </div>
       </section>
 
       {selectedRequest && (

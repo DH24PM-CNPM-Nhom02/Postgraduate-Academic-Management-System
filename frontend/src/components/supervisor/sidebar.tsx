@@ -119,7 +119,7 @@ export function SupervisorSidebar({
       >
         <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
           <Link
-            href="/supervisor/dashboard"
+            href="/"
             onClick={onClose}
             className="flex min-h-10 items-center gap-3 rounded-lg pr-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
           >

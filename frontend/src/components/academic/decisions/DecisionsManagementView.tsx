@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { MOCK_DECISIONS, MOCK_STUDENTS } from "../mockData";
+import { TablePagination } from "@/src/components/ui/table-pagination";
 import type { StudentDossier } from "../StudentDetailModal";
 import type { DecisionItem, DecisionType } from "@/src/types/academic";
 
@@ -513,6 +514,9 @@ export function DecisionsManagementView({ embedded = false }: { embedded?: boole
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 8;
+
   // Modals state
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [detailDecision, setDetailDecision] = useState<DecisionItem | null>(null);
@@ -539,6 +543,11 @@ export function DecisionsManagementView({ embedded = false }: { embedded?: boole
       return matchSearch && matchType && matchStatus;
     });
   }, [decisions, searchText, typeFilter, statusFilter]);
+
+  const paginatedDecisions = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredDecisions.slice(start, start + pageSize);
+  }, [filteredDecisions, currentPage, pageSize]);
 
   // Thống kê nhanh
   const stats = useMemo(() => {
@@ -691,7 +700,10 @@ export function DecisionsManagementView({ embedded = false }: { embedded?: boole
           <input
             type="text"
             value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
+            onChange={(e) => {
+              setSearchText(e.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Tìm theo số QĐ, tên NCS, MSHV hoặc trích yếu..."
             className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-2 text-xs focus:border-[#164E9B] focus:outline-hidden"
           />
@@ -699,7 +711,10 @@ export function DecisionsManagementView({ embedded = false }: { embedded?: boole
 
         <select
           value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
+          onChange={(e) => {
+            setTypeFilter(e.target.value);
+            setCurrentPage(1);
+          }}
           className="rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#164E9B] focus:outline-hidden bg-white text-slate-700 font-medium"
         >
           <option value="all">Tất cả loại quyết định</option>
@@ -713,7 +728,10 @@ export function DecisionsManagementView({ embedded = false }: { embedded?: boole
 
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setCurrentPage(1);
+          }}
           className="rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#164E9B] focus:outline-hidden bg-white text-slate-700 font-medium"
         >
           <option value="all">Tất cả trạng thái</option>
@@ -737,14 +755,14 @@ export function DecisionsManagementView({ embedded = false }: { embedded?: boole
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredDecisions.length === 0 ? (
+            {paginatedDecisions.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
                   Không tìm thấy quyết định nào phù hợp.
                 </td>
               </tr>
             ) : (
-              filteredDecisions.map((dec) => {
+              paginatedDecisions.map((dec) => {
                 const isEffective = dec.trangThai === "HIEU_LUC";
                 return (
                   <tr key={dec.id} className="hover:bg-slate-50/50 transition-colors">
@@ -818,6 +836,16 @@ export function DecisionsManagementView({ embedded = false }: { embedded?: boole
             )}
           </tbody>
         </table>
+
+        {/* Phân trang danh sách quyết định */}
+        <TablePagination
+          currentPage={currentPage}
+          totalItems={filteredDecisions.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          itemLabel="quyết định pháp lý"
+          className="p-3"
+        />
       </div>
 
       {/* Modal tạo quyết định */}

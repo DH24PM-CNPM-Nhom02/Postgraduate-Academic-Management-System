@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { MOCK_PENDING_MILESTONES, MOCK_DECISIONS } from "../mockData";
+import { TablePagination } from "@/src/components/ui/table-pagination";
 import type {
   PendingMilestoneItem,
   EvaluationItem,
@@ -343,6 +344,9 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
   const [milestoneFilter, setMilestoneFilter] = useState("all");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 8;
+
   // States khi duyệt / từ chối / chấm điểm
   const [selectedQuyetDinhId, setSelectedQuyetDinhId] = useState("");
   const [addEvalModalOpen, setAddEvalModalOpen] = useState(false);
@@ -368,6 +372,11 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
       return matchSearch && matchMilestone;
     });
   }, [items, searchText, milestoneFilter]);
+
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredItems.slice(start, start + pageSize);
+  }, [filteredItems, currentPage, pageSize]);
 
   // Thống kê nhanh
   const stats = useMemo(() => {
@@ -519,7 +528,10 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
             <input
               type="text"
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              onChange={(e) => {
+                setSearchText(e.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="Tìm theo tên NCS, MSHV hoặc tên mốc..."
               className="w-full rounded-xl border border-slate-200 pl-9 pr-3 py-2 text-xs focus:border-[#164E9B] focus:outline-hidden"
             />
@@ -527,7 +539,10 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
 
           <select
             value={milestoneFilter}
-            onChange={(e) => setMilestoneFilter(e.target.value)}
+            onChange={(e) => {
+              setMilestoneFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className="rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#164E9B] focus:outline-hidden bg-white text-slate-700 font-medium"
           >
             <option value="all">Tất cả các mốc (1 - 9)</option>
@@ -553,14 +568,14 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredItems.length === 0 ? (
+              {paginatedItems.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
                     Không có hồ sơ nào trong hàng chờ duyệt.
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item) => {
+                paginatedItems.map((item) => {
                   const isSelected = selectedItem?.id === item.id;
                   const reqScore = item.moc.yeuCauDiem;
                   const sum = item.evaluationSummary;
@@ -636,6 +651,16 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
             </tbody>
           </table>
         </div>
+
+        {/* Phân trang danh sách hàng chờ */}
+        <TablePagination
+          currentPage={currentPage}
+          totalItems={filteredItems.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          itemLabel="hồ sơ mốc"
+          className="pt-2"
+        />
       </div>
 
       {/* KHÔNG GIAN THẨM ĐỊNH CHI TIẾT (KHI CHỌN 1 HỒ SƠ) */}

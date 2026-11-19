@@ -39,6 +39,7 @@ export interface NavItemDef {
   badgeColor?: string;
   group: "main" | "academic" | "support";
   href?: string;
+  matchPaths?: string[];
 }
 
 export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
@@ -49,6 +50,7 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     icon: LayoutDashboard,
     group: "main",
     href: "/academic",
+    matchPaths: ["/academic"],
   },
   {
     id: "students",
@@ -58,6 +60,7 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     badge: "18",
     badgeColor: "bg-blue-100 text-[#164E9B]",
     href: "/academic/students",
+    matchPaths: ["/academic/students", "/students"],
   },
   {
     id: "supervisors",
@@ -67,6 +70,7 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     badge: "2.5/3",
     badgeColor: "bg-emerald-100 text-emerald-800 font-bold",
     href: "/academic/supervisors",
+    matchPaths: ["/academic/supervisors"],
   },
   {
     id: "milestone-review",
@@ -76,6 +80,7 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     badge: 5,
     badgeColor: "bg-blue-100 text-[#164E9B] font-bold",
     href: "/academic/milestone-review",
+    matchPaths: ["/academic/milestone-review", "/review-queue"],
   },
   {
     id: "decisions",
@@ -85,6 +90,7 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     badge: 6,
     badgeColor: "bg-purple-100 text-purple-800 font-bold",
     href: "/academic/decisions",
+    matchPaths: ["/academic/decisions", "/graduation-check"],
   },
   {
     id: "evidence",
@@ -92,6 +98,7 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     icon: FileSpreadsheet,
     group: "main",
     href: "/academic/evidence",
+    matchPaths: ["/academic/evidence", "/publications"],
   },
   {
     id: "topic-changes",
@@ -101,6 +108,7 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     badge: 2,
     badgeColor: "bg-rose-500 text-white font-bold",
     href: "/academic/topic-changes",
+    matchPaths: ["/academic/topic-changes"],
   },
 
   // Nhóm nghiệp vụ học vụ
@@ -110,6 +118,7 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     icon: ClipboardList,
     group: "academic",
     href: "/academic/procedures",
+    matchPaths: ["/academic/procedures", "/academic/forms", "/academic-affairs"],
   },
   {
     id: "calendar",
@@ -119,6 +128,7 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     badge: "Mới",
     badgeColor: "bg-indigo-100 text-indigo-700",
     href: "/academic/calendar",
+    matchPaths: ["/academic/calendar"],
   },
 
   // Nhóm trợ giúp & văn bản
@@ -128,6 +138,7 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     icon: BookOpen,
     group: "support",
     href: "/academic/regulations",
+    matchPaths: ["/academic/regulations"],
   },
   {
     id: "faq",
@@ -135,6 +146,7 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     icon: HelpCircle,
     group: "support",
     href: "/academic/faq",
+    matchPaths: ["/academic/faq"],
   },
 ];
 
@@ -148,34 +160,48 @@ export function AcademicSidebar({
 }: AcademicSidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const currentUrlTab = searchParams.get("tab") || "dashboard";
 
-  let currentTab = activeTab;
-  if (!currentTab) {
-    if (pathname === "/academic" || pathname === "/academic/") {
-      currentTab = "dashboard";
-    } else if (pathname?.startsWith("/academic/students")) {
-      currentTab = "students";
-    } else if (pathname?.startsWith("/academic/supervisors")) {
-      currentTab = "supervisors";
-    } else if (pathname?.startsWith("/academic/evidence")) {
-      currentTab = "evidence";
-    } else if (pathname?.startsWith("/academic/topic-changes")) {
-      currentTab = "topic-changes";
-    } else if (pathname?.startsWith("/academic/procedures")) {
-      currentTab = "procedures";
-    } else if (pathname?.startsWith("/academic/calendar")) {
-      currentTab = "calendar";
-    } else if (pathname?.startsWith("/academic/forms")) {
-      currentTab = "forms";
-    } else if (pathname?.startsWith("/academic/regulations")) {
-      currentTab = "regulations";
-    } else if (pathname?.startsWith("/academic/faq")) {
-      currentTab = "faq";
-    } else {
-      currentTab = currentUrlTab;
+  const isItemActive = (item: NavItemDef): boolean => {
+    // 0. Nếu prop activeTab được truyền trực tiếp từ component cha
+    if (activeTab) {
+      return activeTab === item.id;
     }
-  }
+
+    // 1. Dashboard / Tổng quan: CHỈ active khi pathname là chính xác /academic hoặc /academic/
+    if (item.id === "dashboard") {
+      if (pathname === "/academic" || pathname === "/academic/") {
+        const tab = searchParams.get("tab");
+        return !tab || tab === "dashboard";
+      }
+      return false;
+    }
+
+    // 2. Nếu đang ở /academic?tab=... thì so sánh theo tab query param
+    if (pathname === "/academic" || pathname === "/academic/") {
+      const tab = searchParams.get("tab");
+      return tab === item.id;
+    }
+
+    // 3. So khớp theo route pathname thực tế (ví dụ: /academic/milestone-review, /academic/evidence)
+    const targetHref = item.href;
+    if (targetHref && targetHref !== "/academic") {
+      if (pathname === targetHref || pathname?.startsWith(`${targetHref}/`)) {
+        return true;
+      }
+    }
+
+    // 4. So khớp qua danh sách matchPaths nếu có (ví dụ: /review-queue, /graduation-check, /publications)
+    if (item.matchPaths && item.matchPaths.length > 0) {
+      return item.matchPaths.some((p) => {
+        if (p === "/academic") {
+          return pathname === "/academic" || pathname === "/academic/";
+        }
+        return pathname === p || pathname?.startsWith(`${p}/`);
+      });
+    }
+
+    return false;
+  };
 
   const handleNavClick = (item: NavItemDef) => {
     if (onTabChange) {
@@ -200,7 +226,7 @@ export function AcademicSidebar({
           </div>
         )}
         {items.map((item) => {
-          const isActive = currentTab === item.id;
+          const isActive = isItemActive(item);
           const Icon = item.icon;
 
           return (
@@ -277,7 +303,7 @@ export function AcademicSidebar({
         {/* Brand Header */}
         <div className="flex h-16 items-center justify-between border-b border-slate-200 px-4 bg-white">
           <Link
-            href="/academic"
+            href="/"
             className={`flex items-center gap-2.5 ${
               isCollapsed ? "justify-center w-full" : ""
             }`}

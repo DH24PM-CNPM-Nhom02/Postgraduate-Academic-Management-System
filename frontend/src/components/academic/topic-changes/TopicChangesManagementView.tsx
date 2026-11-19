@@ -15,6 +15,7 @@ import {
   TopicChangeModal,
   MOCK_TOPIC_CHANGES,
 } from "@/src/components/academic";
+import { TablePagination } from "@/src/components/ui/table-pagination";
 import { useAcademicTopicChanges } from "@/src/hooks/use-academic";
 import type { TopicChangeItem } from "@/src/types/academic";
 
@@ -27,11 +28,18 @@ export function TopicChangesManagementView({ embedded = false }: TopicChangesMan
   const { data: initialData, isLoading } = useAcademicTopicChanges();
 
   const [removedIds, setRemovedIds] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
 
   const topicChangesList = useMemo(() => {
     const base = initialData && Array.isArray(initialData) && initialData.length > 0 ? initialData : MOCK_TOPIC_CHANGES;
     return base.filter((item) => !removedIds.includes(item.id));
   }, [initialData, removedIds]);
+
+  const paginatedTopicChanges = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return topicChangesList.slice(start, start + pageSize);
+  }, [topicChangesList, currentPage, pageSize]);
 
   const [topicModalOpen, setTopicModalOpen] = useState(false);
   const [selectedTopicChange, setSelectedTopicChange] = useState<TopicChangeItem | null>(null);
@@ -120,14 +128,14 @@ export function TopicChangesManagementView({ embedded = false }: TopicChangesMan
         </div>
 
         <div className="space-y-4">
-          {topicChangesList.length === 0 ? (
+          {paginatedTopicChanges.length === 0 ? (
             <div className="py-16 text-center text-xs text-slate-400">
               <CheckCircle2 className="size-10 mx-auto text-emerald-500 mb-2" />
               <p className="font-semibold text-slate-700 text-sm">Tất cả đề nghị điều chỉnh đề tài đã được xử lý xong!</p>
               <p className="text-slate-400 mt-1">Khi có NCS nộp hồ sơ mới, thông báo sẽ hiển thị tại đây.</p>
             </div>
           ) : (
-            topicChangesList.map((item) => (
+            paginatedTopicChanges.map((item) => (
               <div
                 key={item.id}
                 className="rounded-xl border border-slate-200 p-4.5 hover:border-[#164E9B]/40 transition-all space-y-3 bg-white"
@@ -195,6 +203,16 @@ export function TopicChangesManagementView({ embedded = false }: TopicChangesMan
             ))
           )}
         </div>
+
+        {/* Phân trang danh sách đề nghị */}
+        <TablePagination
+          currentPage={currentPage}
+          totalItems={topicChangesList.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          itemLabel="đề nghị đổi đề tài"
+          className="pt-2"
+        />
       </div>
 
       {/* TOPIC CHANGE COMPARISON MODAL */}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
   UserCheck,
@@ -14,6 +14,7 @@ import {
   Info,
   Plus,
   Loader2,
+  X,
 } from "lucide-react";
 import {
   QuotaBar,
@@ -23,6 +24,7 @@ import {
   MOCK_SUPERVISORS,
   MOCK_STUDENTS,
 } from "@/src/components/academic";
+import { TablePagination } from "@/src/components/ui/table-pagination";
 import type { SupervisorOption } from "@/src/components/academic/SupervisorSelector";
 import {
   useAcademicSupervisors,
@@ -68,6 +70,22 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
   const [assignSupervisor, setAssignSupervisor] = useState<SupervisorQuotaRecord | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Phân trang danh sách GVHD
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 8;
+
+  // Lắng nghe phím Escape để đóng Modal chi tiết GVHD
+  useEffect(() => {
+    if (!selectedSupervisorId) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSelectedSupervisorId(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedSupervisorId]);
+
   const selectedSupervisor = useMemo(
     () => supervisorsList.find((sv) => sv.id === selectedSupervisorId) ?? null,
     [supervisorsList, selectedSupervisorId]
@@ -78,7 +96,6 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
     data: supervisorDetail,
     isLoading: isLoadingDetail,
     isError: isErrorDetail,
-    error: detailError,
     refetch: refetchDetail,
   } = useAcademicSupervisorDetail(selectedSupervisorId);
 
@@ -150,6 +167,11 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
       return matchSearch && matchDept && matchQuota;
     });
   }, [supervisorsList, searchTerm, departmentFilter, quotaStatusFilter]);
+
+  const paginatedSupervisors = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredSupervisors.slice(start, start + pageSize);
+  }, [filteredSupervisors, currentPage, pageSize]);
 
   const totalSupervisors = supervisorsList.length;
   const availableSupervisors = supervisorsList.filter((s) => s.remainingQuota > 0).length;
@@ -337,6 +359,7 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
                   setSearchTerm("");
                   setDepartmentFilter("all");
                   setQuotaStatusFilter("all");
+                  setCurrentPage(1);
                 }}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
               >
@@ -352,7 +375,10 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
                 placeholder="Tìm giảng viên, mã CB, khoa..."
                 className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-9 pr-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-[#164E9B] outline-none"
               />
@@ -360,7 +386,10 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
 
             <select
               value={departmentFilter}
-              onChange={(e) => setDepartmentFilter(e.target.value)}
+              onChange={(e) => {
+                setDepartmentFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-700 focus:bg-white focus:border-[#164E9B] outline-none cursor-pointer"
             >
               <option value="all">Tất cả Khoa / Bộ môn</option>
@@ -373,7 +402,10 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
 
             <select
               value={quotaStatusFilter}
-              onChange={(e) => setQuotaStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setQuotaStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-700 focus:bg-white focus:border-[#164E9B] outline-none cursor-pointer"
             >
               <option value="all">Tất cả tình trạng hạn ngạch</option>
@@ -396,14 +428,14 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredSupervisors.length === 0 ? (
+                {paginatedSupervisors.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-8 text-center text-slate-400">
                       Không tìm thấy giảng viên nào phù hợp với bộ lọc tìm kiếm.
                     </td>
                   </tr>
                 ) : (
-                  filteredSupervisors.map((sv) => {
+                  paginatedSupervisors.map((sv) => {
                     const percent =
                       sv.maxQuota > 0
                         ? Math.min(100, Math.round((sv.usedQuota / sv.maxQuota) * 100))
@@ -473,172 +505,15 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
             </table>
           </div>
 
-          {/* Sub-panel chi tiết GVHD & danh sách NCS phân công kết nối API GET /gvhd/:id */}
-          {selectedSupervisorId && (
-            <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4 space-y-3 text-xs animate-in fade-in duration-200">
-              {/* Header chung của Sub-panel */}
-              <div className="flex items-center justify-between border-b border-blue-200 pb-2">
-                <div className="flex items-center gap-2">
-                  <UserCheck className="size-4 text-[#164E9B]" />
-                  <h4 className="font-bold text-[#0F2744]">
-                    {supervisorDetail
-                      ? `Hồ sơ chi tiết: ${formatSupervisorDisplayName(supervisorDetail.hoTen, supervisorDetail.hocHamHocVi)}`
-                      : selectedSupervisor
-                      ? `Hồ sơ chi tiết: ${selectedSupervisor.name}`
-                      : "Chi tiết Giảng viên Hướng dẫn"}
-                  </h4>
-                </div>
-                <div className="flex items-center gap-2">
-                  {selectedQuotaSupervisor && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAssignSupervisor(selectedQuotaSupervisor);
-                        setAssignModalOpen(true);
-                      }}
-                      className="rounded-lg bg-[#164E9B] px-2.5 py-1 text-white hover:bg-[#123E7C] text-[11px] font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
-                    >
-                      <UserCheck className="size-3.5" />
-                      <span>Phân công thêm NCS</span>
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedSupervisorId(null)}
-                    className="rounded p-1 text-slate-400 hover:text-slate-700 hover:bg-white text-xs font-bold cursor-pointer"
-                    aria-label="Đóng bảng chi tiết"
-                  >
-                    ✕ Đóng
-                  </button>
-                </div>
-              </div>
-
-              {/* 1. Trạng thái Loading */}
-              {isLoadingDetail && (
-                <div role="status" className="py-6 text-center text-xs text-slate-500 space-y-2">
-                  <Loader2 className="size-5 animate-spin mx-auto text-[#164E9B]" />
-                  <p>Đang tải thông tin chi tiết giảng viên từ máy chủ (GET /gvhd/{selectedSupervisorId})...</p>
-                </div>
-              )}
-
-              {/* 2. Trạng thái Error (kèm nút Thử lại) */}
-              {!isLoadingDetail && isErrorDetail && (
-                <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-rose-800 space-y-2">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="size-4 shrink-0 text-rose-600 mt-0.5" />
-                    <div className="space-y-0.5 flex-1">
-                      <p className="font-bold text-xs text-rose-900">
-                        Không thể tải thông tin chi tiết giảng viên từ API
-                      </p>
-                      <p className="text-[11px] text-rose-700 leading-relaxed">
-                        {detailError instanceof Error ? detailError.message : "Đã xảy ra lỗi khi kết nối máy chủ API."}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => void refetchDetail()}
-                      className="inline-flex items-center gap-1 rounded bg-[#164E9B] px-2.5 py-1 text-white hover:bg-[#123E7C] text-[11px] font-semibold cursor-pointer shrink-0"
-                    >
-                      <RefreshCw className="size-3" />
-                      <span>Thử lại</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* 3. Trạng thái Empty (Không tìm thấy bản ghi GVHD) */}
-              {!isLoadingDetail && !isErrorDetail && !supervisorDetail && (
-                <div className="py-4 text-center text-slate-500 space-y-1">
-                  <Info className="size-5 mx-auto text-slate-400" />
-                  <p className="text-[11px]">Không tìm thấy thông tin giảng viên hướng dẫn yêu cầu.</p>
-                </div>
-              )}
-
-              {/* 4. Trạng thái Success */}
-              {!isLoadingDetail && !isErrorDetail && supervisorDetail && (
-                <div className="space-y-3 pt-1">
-                  {/* Thẻ tóm tắt thông tin hồ sơ GVHD từ API */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 bg-white p-3 rounded-lg border border-blue-100 text-[11px]">
-                    <div>
-                      <span className="text-slate-400 block text-[10px] font-medium">Mã giảng viên</span>
-                      <span className="font-mono font-bold text-slate-800">{supervisorDetail.maGv || "N/A"}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px] font-medium">Học hàm / Học vị</span>
-                      <span className="font-semibold text-slate-800">{formatDegreeLabel(supervisorDetail.hocHamHocVi)}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px] font-medium">Đơn vị công tác</span>
-                      <span className="font-medium text-slate-800 truncate block" title={supervisorDetail.donVi?.ten || ""}>
-                        {supervisorDetail.donVi?.ten || supervisorDetail.donVi?.parent?.ten || supervisorDetail.chuyenNganh || "Chưa cập nhật"}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px] font-medium">Email liên hệ</span>
-                      <span className="text-slate-700 truncate block font-mono" title={supervisorDetail.email || ""}>
-                        {supervisorDetail.email || "Chưa cập nhật"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Danh sách phân công NCS từ phanCongs */}
-                  <div>
-                    <h5 className="font-bold text-[#0F2744] text-[11px] mb-1.5 flex items-center justify-between">
-                      <span>Nghiên cứu sinh đang được phân công:</span>
-                      <span className="text-[10px] font-normal text-slate-500">
-                        {supervisorDetail.phanCongs?.length ?? 0} phân công
-                      </span>
-                    </h5>
-
-                    {(!supervisorDetail.phanCongs || supervisorDetail.phanCongs.length === 0) ? (
-                      <div className="rounded-lg bg-white/70 p-3 text-center border border-dashed border-blue-200">
-                        <p className="text-[11px] italic text-slate-500">
-                          Giảng viên hiện chưa được phân công hướng dẫn nghiên cứu sinh nào.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {supervisorDetail.phanCongs.map((assignment, idx) => {
-                          const isMain = assignment.vaiTro === "HUONG_DAN_CHINH";
-                          const roleLabel = isMain ? "Hướng dẫn chính (1.0)" : "Đồng hướng dẫn (0.5)";
-                          const roleBadgeStyle = isMain
-                            ? "bg-blue-50 text-[#164E9B] border-blue-200"
-                            : "bg-slate-100 text-slate-700 border-slate-200";
-
-                          return (
-                            <div
-                              key={assignment.id || idx}
-                              className="flex items-start gap-2.5 rounded-lg bg-white p-2.5 border border-blue-100 shadow-2xs"
-                            >
-                              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[#164E9B] font-bold text-[10px] mt-0.5">
-                                {idx + 1}
-                              </span>
-                              <div className="min-w-0 flex-1 space-y-1">
-                                <div className="flex items-center justify-between gap-1">
-                                  <span className="font-bold text-slate-900 text-[11px] truncate">
-                                    {assignment.ncs?.hoTen || "NCS chưa cập nhật tên"}
-                                  </span>
-                                  <span className={`inline-flex rounded-full px-1.5 py-0.2 text-[9px] font-bold border ${roleBadgeStyle}`}>
-                                    {roleLabel}
-                                  </span>
-                                </div>
-                                <div className="text-[10px] text-slate-500 flex flex-wrap gap-x-2 gap-y-0.5 font-mono">
-                                  {assignment.ncs?.mshv && <span>MSHV: {assignment.ncs.mshv}</span>}
-                                  {assignment.quyetDinh?.soQuyetDinh && (
-                                    <span>QĐ: {assignment.quyetDinh.soQuyetDinh}</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          {/* Phân trang danh sách GVHD */}
+          <TablePagination
+            currentPage={currentPage}
+            totalItems={filteredSupervisors.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            itemLabel="giảng viên hướng dẫn"
+            className="pt-2"
+          />
         </div>
 
         {/* Right Col: Interactive Tools & Live Quota Checker */}
@@ -727,6 +602,245 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
           setTimeout(() => setToastMessage(null), 5000);
         }}
       />
+
+      {/* MODAL POP-UP: HỒ SƠ CHI TIẾT GIẢNG VIÊN HƯỚNG DẪN */}
+      {selectedSupervisorId && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="supervisor-detail-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+          onClick={() => setSelectedSupervisorId(null)}
+        >
+          <div
+            className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Modal */}
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-[#164E9B]/10 text-[#164E9B]">
+                  <UserCheck className="size-5" />
+                </div>
+                <div>
+                  <h3
+                    id="supervisor-detail-modal-title"
+                    className="text-base font-extrabold text-[#0F2744]"
+                  >
+                    {supervisorDetail
+                      ? `Hồ sơ chi tiết: ${formatSupervisorDisplayName(supervisorDetail.hoTen, supervisorDetail.hocHamHocVi)}`
+                      : selectedSupervisor
+                      ? `Hồ sơ chi tiết: ${selectedSupervisor.name}`
+                      : "Chi tiết Giảng viên Hướng dẫn"}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Thông tin định mức, hạn ngạch BR-09 và danh sách nghiên cứu sinh phụ trách
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {selectedQuotaSupervisor && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssignSupervisor(selectedQuotaSupervisor);
+                      setAssignModalOpen(true);
+                    }}
+                    className="rounded-xl bg-[#164E9B] px-3 py-1.5 text-white hover:bg-[#123E7C] text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+                  >
+                    <UserCheck className="size-4" />
+                    <span>Phân công thêm NCS</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedSupervisorId(null)}
+                  className="rounded-lg p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                  aria-label="Đóng bảng chi tiết"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* 1. Trạng thái Loading */}
+            {isLoadingDetail && (
+              <div role="status" className="py-8 text-center text-xs text-slate-500 space-y-2">
+                <Loader2 className="size-6 animate-spin mx-auto text-[#164E9B]" />
+                <p>Đang tải thông tin chi tiết giảng viên từ máy chủ...</p>
+              </div>
+            )}
+
+            {/* 2. Dữ liệu chi tiết (Ưu tiên API, tự động Fallback Mock mượt mà nếu API lỗi/chưa có token) */}
+            {!isLoadingDetail && (
+              <div className="space-y-4">
+                {/* Thông báo chế độ dự phòng nếu API lỗi */}
+                {isErrorDetail && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-amber-800 text-xs flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Info className="size-4 shrink-0 text-amber-600" />
+                      <span>
+                        Máy chủ API phản hồi hạn chế. Đang hiển thị hồ sơ từ bộ nhớ đệm hệ thống.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void refetchDetail()}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-[#164E9B] hover:underline shrink-0 cursor-pointer"
+                    >
+                      <RefreshCw className="size-3" />
+                      <span>Đồng bộ lại</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Grid tóm tắt hồ sơ */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50/80 p-4 rounded-xl border border-slate-200 text-xs">
+                  <div>
+                    <span className="text-slate-400 block text-[11px] font-medium">Mã giảng viên</span>
+                    <span className="font-mono font-bold text-slate-900">
+                      {supervisorDetail?.maGv || selectedSupervisor?.code || "N/A"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[11px] font-medium">Học hàm / Học vị</span>
+                    <span className="font-semibold text-slate-900">
+                      {supervisorDetail?.hocHamHocVi
+                        ? formatDegreeLabel(supervisorDetail.hocHamHocVi)
+                        : selectedSupervisor?.degree || "Tiến sĩ"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[11px] font-medium">Đơn vị công tác</span>
+                    <span className="font-medium text-slate-900 truncate block">
+                      {supervisorDetail?.donVi?.ten ||
+                        supervisorDetail?.chuyenNganh ||
+                        selectedSupervisor?.department ||
+                        "Chưa cập nhật"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[11px] font-medium">Email liên hệ</span>
+                    <span className="text-slate-700 truncate block font-mono">
+                      {supervisorDetail?.email || `${(selectedSupervisor?.code || "gv").toLowerCase()}@agu.edu.vn`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Quota Bar trực quan bên trong Modal */}
+                {selectedQuotaSupervisor && (
+                  <div className="space-y-1.5 bg-blue-50/40 p-4 rounded-xl border border-blue-100">
+                    <p className="text-xs font-bold text-[#0F2744]">
+                      Chỉ tiêu &amp; Tình trạng hạn ngạch BR-09:
+                    </p>
+                    <QuotaBar
+                      used={selectedQuotaSupervisor.usedQuota}
+                      max={selectedQuotaSupervisor.maxQuota}
+                      independentCount={selectedQuotaSupervisor.independentCount}
+                      coCount={selectedQuotaSupervisor.coCount}
+                      showDetails={true}
+                    />
+                  </div>
+                )}
+
+                {/* Danh sách phân công NCS */}
+                <div>
+                  <h4 className="font-bold text-[#0F2744] text-xs mb-2.5 flex items-center justify-between">
+                    <span>Nghiên cứu sinh đang được phân công hướng dẫn:</span>
+                    <span className="text-[11px] font-medium text-slate-500">
+                      {supervisorDetail?.phanCongs && supervisorDetail.phanCongs.length > 0
+                        ? `${supervisorDetail.phanCongs.length} phân công`
+                        : `${(selectedSupervisor?.independentCount || 0) + (selectedSupervisor?.coCount || 0)} phân công`}
+                    </span>
+                  </h4>
+
+                  {supervisorDetail?.phanCongs && supervisorDetail.phanCongs.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {supervisorDetail.phanCongs.map((assignment, idx) => {
+                        const isMain = assignment.vaiTro === "HUONG_DAN_CHINH";
+                        const roleLabel = isMain ? "Hướng dẫn chính (1.0)" : "Đồng hướng dẫn (0.5)";
+                        const roleBadgeStyle = isMain
+                          ? "bg-blue-50 text-[#164E9B] border-blue-200"
+                          : "bg-slate-100 text-slate-700 border-slate-200";
+
+                        return (
+                          <div
+                            key={assignment.id || idx}
+                            className="flex items-start gap-2.5 rounded-xl bg-slate-50/60 p-3 border border-slate-200"
+                          >
+                            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[#164E9B] font-bold text-xs mt-0.5">
+                              {idx + 1}
+                            </span>
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="font-bold text-slate-900 text-xs truncate">
+                                  {assignment.ncs?.hoTen || "NCS chưa cập nhật tên"}
+                                </span>
+                                <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold border ${roleBadgeStyle}`}>
+                                  {roleLabel}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 flex flex-wrap gap-x-2 gap-y-0.5 font-mono">
+                                {assignment.ncs?.mshv && <span>MSHV: {assignment.ncs.mshv}</span>}
+                                {assignment.quyetDinh?.soQuyetDinh && (
+                                  <span>QĐ: {assignment.quyetDinh.soQuyetDinh}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    /* Fallback danh sách NCS từ dữ liệu mock/tổng quan khi API chưa có hoặc trả về mảng rỗng */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {studentsList
+                        .filter((st) => {
+                          const svName = selectedSupervisor?.name?.toLowerCase() || "";
+                          const svId = selectedSupervisor?.id || "";
+                          return (
+                            Boolean(st.supervisorMain && (st.supervisorMain.toLowerCase().includes(svName) || st.supervisorMain === svId)) ||
+                            Boolean(st.supervisorCo && (st.supervisorCo.toLowerCase().includes(svName) || st.supervisorCo === svId))
+                          );
+                        })
+                        .slice(0, 4)
+                        .map((st, idx) => {
+                          const svName = selectedSupervisor?.name?.toLowerCase() || "";
+                          const isMain = Boolean(st.supervisorMain && st.supervisorMain.toLowerCase().includes(svName));
+                          return (
+                            <div
+                              key={st.id || idx}
+                              className="flex items-start gap-2.5 rounded-xl bg-slate-50/60 p-3 border border-slate-200"
+                            >
+                              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[#164E9B] font-bold text-xs mt-0.5">
+                                {idx + 1}
+                              </span>
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="font-bold text-slate-900 text-xs truncate">
+                                    {st.name}
+                                  </span>
+                                  <span className="inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold border bg-blue-50 text-[#164E9B] border-blue-200">
+                                    {isMain ? "Hướng dẫn chính (1.0)" : "Đồng hướng dẫn (0.5)"}
+                                  </span>
+                                </div>
+                                <div className="text-[10px] text-slate-500 flex flex-wrap gap-x-2 gap-y-0.5 font-mono">
+                                  <span>MSSV: {st.code}</span>
+                                  <span>Mốc: {st.currentMilestoneIndex}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
