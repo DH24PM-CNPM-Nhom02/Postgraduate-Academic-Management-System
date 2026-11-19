@@ -342,6 +342,10 @@ export class ChangeRequestService {
         } | null = null;
 
         const ketQua = await this.prisma.$transaction(async (tx) => {
+            // Khóa hàng de_nghi_dieu_chinh và các bản ghi xác nhận để tuần tự hóa các lượt duyệt đồng thời (chống race condition)
+            await tx.$queryRaw`SELECT id FROM de_nghi_dieu_chinh WHERE id = ${id} FOR UPDATE`;
+            await tx.$queryRaw`SELECT id FROM xac_nhan_gvhd_de_nghi WHERE de_nghi_id = ${id} FOR UPDATE`;
+
             const deNghi = await tx.deNghiDieuChinh.findUnique({
                 where: { id },
                 include: { ncs: true, xacNhanGvhds: true },
@@ -779,7 +783,14 @@ export class ChangeRequestService {
                 },
                 select: { soThangGiaHan: true },
             });
-            thongTinThem.tongThangDaGiaHanTruoc = cacLanTruoc.reduce((sum, item) => sum + (item.soThangGiaHan ?? 0), 0);
+            let tongThangDaGiaHanTruoc = cacLanTruoc.reduce((sum, item) => sum + (item.soThangGiaHan ?? 0), 0);
+            if (tongThangDaGiaHanTruoc === 0 && deNghi.ncs?.hanGiaHan && deNghi.ncs?.hanChinhQuy) {
+                const diffMonths =
+                    (deNghi.ncs.hanGiaHan.getFullYear() - deNghi.ncs.hanChinhQuy.getFullYear()) * 12 +
+                    (deNghi.ncs.hanGiaHan.getMonth() - deNghi.ncs.hanChinhQuy.getMonth());
+                tongThangDaGiaHanTruoc = Math.max(0, diffMonths);
+            }
+            thongTinThem.tongThangDaGiaHanTruoc = tongThangDaGiaHanTruoc;
         }
 
         return {
@@ -1257,9 +1268,24 @@ export class ChangeRequestService {
             throw new RpcException({ statusCode: 400, message: 'Đề nghị gia hạn thiếu thông tin hạn mới đề xuất' });
         }
 
-        const ncs = await tx.nghienCuuSinh.findUnique({ where: { id: deNghi.ncsId } });
+        const ncs = await tx.nghienCuuSinh.findUnique({
+            where: {
+                id: deNghi.ncsId,
+            }
+        });
         if (!ncs) throw new RpcException({ statusCode: 404, message: 'Không tìm thấy NCS' });
-
+        if (ncs.trangThai !== 'DANG_HOC' && ncs.trangThai !== 'GIA_HAN') {
+            throw new RpcException({
+                statusCode: 400,
+                message: `Hồ sơ NCS đang ở trạng thái ${ncs.trangThai}, không thể áp dụng quyết định gia hạn`,
+            });
+        }
+        if (ncs.hanBuocThoiHoc && deNghi.hanMoiDeNghi > ncs.hanBuocThoiHoc) {
+            throw new RpcException({
+                statusCode: 400,
+                message: `Hạn gia hạn mới (${deNghi.hanMoiDeNghi.toISOString().slice(0, 10)}) vượt quá tổng thời gian đào tạo tối đa (${ncs.hanBuocThoiHoc.toISOString().slice(0, 10)})`,
+            });
+        }
         // Cập nhật trạng thái DANG_HOC -> GIA_HAN và hạn học tập mới
         await tx.nghienCuuSinh.update({
             where: { id: ncs.id },

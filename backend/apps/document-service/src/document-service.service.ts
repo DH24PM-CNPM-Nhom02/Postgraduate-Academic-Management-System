@@ -43,8 +43,12 @@ export class DocumentServiceService {
     let ncsId: string | undefined = undefined;
     if (d.nguoiDung.laNhanVien) {
       ncsId = d.ncsId;
-      if (d.documentType === 'MINH_CHUNG_MOC' && !ncsId) {
-        throw new RpcException({ statusCode: 400, message: 'Minh chứng phải kèm ncsId của NCS' });
+      const cacLoaiCanNcsId = ['MINH_CHUNG_MOC', 'MINH_CHUNG_NGOAI_NGU', 'MINH_CHUNG_CONG_NO'];
+      if (cacLoaiCanNcsId.includes(d.documentType) && !ncsId) {
+        throw new RpcException({
+          statusCode: 400,
+          message: `Minh chứng loại ${d.documentType} phải kèm ncsId của NCS`,
+        });
       }
     } else if (d.nguoiDung.isGvhd) {
       if (d.documentType !== 'DON_TU') {
@@ -53,7 +57,7 @@ export class DocumentServiceService {
       if (!d.ncsId) {
         throw new RpcException({ statusCode: 400, message: 'GVHD cần truyền ncsId của NCS khi tải lên đơn từ' });
       }
-      if (d.nguoiDung.dsNcsGvhd && !d.nguoiDung.dsNcsGvhd.includes(d.ncsId)) {
+      if (!d.nguoiDung.dsNcsGvhd?.includes(d.ncsId)) {
         throw new RpcException({ statusCode: 403, message: 'Bạn không có quyền tải lên tài liệu cho NCS này' });
       }
       ncsId = d.ncsId;
@@ -175,7 +179,7 @@ export class DocumentServiceService {
     if (!taiLieu || taiLieu.status !== 'ACTIVE') {
       throw new RpcException({ statusCode: 404, message: 'Không tìm thấy tài liệu' });
     }
-    
+
     this.kiemTraQuyenDoc(nguoiDung, taiLieu);
 
     let noiDung: Buffer;
@@ -222,6 +226,9 @@ export class DocumentServiceService {
     if (nguoiDung.ncsId && taiLieu.ncsId === nguoiDung.ncsId) {
       return;
     }
+
+    //Quy định và biểu mẫu cho phép tất cả user xem
+    if (taiLieu.documentType === "QUY_DINH" || taiLieu.documentType === "BIEU_MAU") return;
 
     // Nếu là GVHD: được xem minh chứng mốc, đơn từ, quyết định của các NCS mình quản lý
     if (

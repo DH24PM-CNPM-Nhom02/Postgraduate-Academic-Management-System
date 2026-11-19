@@ -39,8 +39,11 @@ export class AuthController {
   }
 
   @MessagePattern({ cmd: 'auth.create-users' })
-  createUsers(@Payload() dto: CreateUsersDto) {
-    return this.auth.createUsers(dto);
+  createUsers(@Payload() d: any) {
+    const dto: CreateUsersDto = d.dto ?? { users: d.users };
+    const actorId: string | undefined = d.actorId;
+    const actorRoles: string[] | undefined = d.actorRoles;
+    return this.auth.createUsers(dto, actorId, actorRoles);
   }
 
   @MessagePattern({ cmd: 'auth.find-users' })
