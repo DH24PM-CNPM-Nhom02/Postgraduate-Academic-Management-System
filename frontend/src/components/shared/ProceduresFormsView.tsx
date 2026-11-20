@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   ClipboardList,
   FileSpreadsheet,
@@ -22,13 +23,14 @@ export interface ProceduresFormsViewProps {
   backLabel?: string;
 }
 
-export function ProceduresFormsView({
+function ProceduresFormsViewContent({
   roleContext = "academic",
   backHref,
   backLabel,
 }: ProceduresFormsViewProps) {
   const [activeTab, setActiveTab] = useState<"all" | "procedures" | "forms">("all");
-  const [searchTerm, setSearchTerm] = useState("");
+  const searchParams = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(() => searchParams?.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -349,6 +351,20 @@ export function ProceduresFormsView({
         </div>
       )}
     </div>
+  );
+}
+
+export function ProceduresFormsView(props: ProceduresFormsViewProps) {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="flex h-64 items-center justify-center text-xs text-slate-500">
+          Đang tải thủ tục & biểu mẫu...
+        </div>
+      }
+    >
+      <ProceduresFormsViewContent {...props} />
+    </React.Suspense>
   );
 }
 

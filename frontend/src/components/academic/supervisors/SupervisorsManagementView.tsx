@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   UserCheck,
   Search,
@@ -47,7 +48,8 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
   const { data: initialData, isLoading, refetch, isFetching } = useAcademicSupervisors();
   const { data: studentsData } = useAcademicStudents();
 
-  const [searchTerm, setSearchTerm] = useState("");
+  const searchParams = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(() => searchParams?.get("search") || "");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [quotaStatusFilter, setQuotaStatusFilter] = useState("all");
 
@@ -793,46 +795,11 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
                       })}
                     </div>
                   ) : (
-                    /* Fallback danh sách NCS từ dữ liệu mock/tổng quan khi API chưa có hoặc trả về mảng rỗng */
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      {studentsList
-                        .filter((st) => {
-                          const svName = selectedSupervisor?.name?.toLowerCase() || "";
-                          const svId = selectedSupervisor?.id || "";
-                          return (
-                            Boolean(st.supervisorMain && (st.supervisorMain.toLowerCase().includes(svName) || st.supervisorMain === svId)) ||
-                            Boolean(st.supervisorCo && (st.supervisorCo.toLowerCase().includes(svName) || st.supervisorCo === svId))
-                          );
-                        })
-                        .slice(0, 4)
-                        .map((st, idx) => {
-                          const svName = selectedSupervisor?.name?.toLowerCase() || "";
-                          const isMain = Boolean(st.supervisorMain && st.supervisorMain.toLowerCase().includes(svName));
-                          return (
-                            <div
-                              key={st.id || idx}
-                              className="flex items-start gap-2.5 rounded-xl bg-slate-50/60 p-3 border border-slate-200"
-                            >
-                              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[#164E9B] font-bold text-xs mt-0.5">
-                                {idx + 1}
-                              </span>
-                              <div className="min-w-0 flex-1 space-y-1">
-                                <div className="flex items-center justify-between gap-1">
-                                  <span className="font-bold text-slate-900 text-xs truncate">
-                                    {st.name}
-                                  </span>
-                                  <span className="inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold border bg-blue-50 text-[#164E9B] border-blue-200">
-                                    {isMain ? "Hướng dẫn chính (1.0)" : "Đồng hướng dẫn (0.5)"}
-                                  </span>
-                                </div>
-                                <div className="text-[10px] text-slate-500 flex flex-wrap gap-x-2 gap-y-0.5 font-mono">
-                                  <span>MSSV: {st.code}</span>
-                                  <span>Mốc: {st.currentMilestoneIndex}</span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center text-xs text-slate-500">
+                      <p className="font-semibold text-slate-700">Chưa có nghiên cứu sinh nào được phân công</p>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Giảng viên hiện chưa nhận hướng dẫn NCS nào theo quyết định chính thức.
+                      </p>
                     </div>
                   )}
                 </div>

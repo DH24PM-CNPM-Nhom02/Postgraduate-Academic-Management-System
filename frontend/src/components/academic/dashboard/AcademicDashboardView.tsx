@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Users,
   FileCheck2,
@@ -12,15 +13,10 @@ import {
 import { HoverLogo } from "@/src/components/academic";
 
 export function AcademicDashboardView() {
-  const router = useRouter();
   const pathname = usePathname();
 
   // Xác định prefix route (/admin hoặc /academic) để chuyển hướng đúng phân hệ
   const prefix = pathname?.startsWith("/admin") ? "/admin" : "/academic";
-
-  const navigateTo = (path: string) => {
-    router.push(`${prefix}/${path}`);
-  };
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
@@ -53,41 +49,42 @@ export function AcademicDashboardView() {
             {/* Quick Action Shortcuts */}
             <div className="flex flex-wrap items-center gap-1.5 pt-2 text-xs">
               <span className="text-slate-400 font-medium text-[11px]">Chuyển nhanh:</span>
-              <button
-                type="button"
-                onClick={() => navigateTo("students")}
+              <Link
+                href={`${prefix}/students`}
                 className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-[#164E9B]/10 hover:text-[#164E9B] transition-colors cursor-pointer"
               >
                 Quản lý NCS toàn trường
-              </button>
-              <button
-                type="button"
-                onClick={() => navigateTo("supervisors")}
+              </Link>
+              <Link
+                href={`${prefix}/theses`}
+                className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-[#164E9B]/10 hover:text-[#164E9B] transition-colors cursor-pointer"
+              >
+                Quản lý đề tài luận án
+              </Link>
+              <Link
+                href={`${prefix}/supervisors`}
                 className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-[#164E9B]/10 hover:text-[#164E9B] transition-colors cursor-pointer"
               >
                 Hạn ngạch GVHD (BR-09)
-              </button>
-              <button
-                type="button"
-                onClick={() => navigateTo("milestone-review")}
+              </Link>
+              <Link
+                href={`${prefix}/milestone-review`}
                 className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-[#164E9B]/10 hover:text-[#164E9B] transition-colors cursor-pointer"
               >
                 Hàng chờ duyệt 9 mốc
-              </button>
-              <button
-                type="button"
-                onClick={() => navigateTo("evidence")}
+              </Link>
+              <Link
+                href={`${prefix}/evidence`}
                 className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-[#164E9B]/10 hover:text-[#164E9B] transition-colors cursor-pointer"
               >
                 Thẩm định bài báo WoS/Scopus
-              </button>
-              <button
-                type="button"
-                onClick={() => navigateTo("topic-changes")}
+              </Link>
+              <Link
+                href={`${prefix}/topic-changes`}
                 className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-[#164E9B]/10 hover:text-[#164E9B] transition-colors cursor-pointer"
               >
                 Duyệt đổi đề tài
-              </button>
+              </Link>
             </div>
           </div>
 
@@ -112,8 +109,8 @@ export function AcademicDashboardView() {
       {/* SUMMARY STAT CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Students */}
-        <div
-          onClick={() => navigateTo("students")}
+        <Link
+          href={`${prefix}/students`}
           className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-[#164E9B]/60 hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="space-y-2">
@@ -139,11 +136,11 @@ export function AcademicDashboardView() {
             <span>Mở Bảng Nghiên cứu sinh</span>
             <ArrowRight className="size-3.5 group-hover:translate-x-1 transition-transform" />
           </div>
-        </div>
+        </Link>
 
         {/* Card 2: Evidences */}
-        <div
-          onClick={() => navigateTo("evidence")}
+        <Link
+          href={`${prefix}/evidence`}
           className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-amber-400 hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="space-y-2">
@@ -169,11 +166,11 @@ export function AcademicDashboardView() {
             <span>Mở Bảng Minh chứng</span>
             <ArrowRight className="size-3.5 group-hover:translate-x-1 transition-transform" />
           </div>
-        </div>
+        </Link>
 
         {/* Card 3: Topic Changes */}
-        <div
-          onClick={() => navigateTo("topic-changes")}
+        <Link
+          href={`${prefix}/topic-changes`}
           className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-rose-400 hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="space-y-2">
@@ -199,11 +196,11 @@ export function AcademicDashboardView() {
             <span>Mở Bảng Đổi đề tài</span>
             <ArrowRight className="size-3.5 group-hover:translate-x-1 transition-transform" />
           </div>
-        </div>
+        </Link>
 
         {/* Card 4: Quota */}
-        <div
-          onClick={() => navigateTo("supervisors")}
+        <Link
+          href={`${prefix}/supervisors`}
           className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="space-y-2">
@@ -227,7 +224,7 @@ export function AcademicDashboardView() {
             <span>Mở Bảng Hạn ngạch GVHD</span>
             <ArrowRight className="size-3.5 group-hover:translate-x-1 transition-transform" />
           </div>
-        </div>
+        </Link>
       </div>
     </div>
   );

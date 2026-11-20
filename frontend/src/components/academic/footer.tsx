@@ -67,7 +67,7 @@ export function AcademicFooter() {
             <ul className="space-y-1.5 text-xs text-slate-600">
               <li>
                 <Link
-                  href="/academic?tab=regulations"
+                  href="/academic/regulations"
                   className="hover:text-[#164E9B] hover:underline flex items-center gap-1.5"
                 >
                   <BookOpen className="size-3 text-[#164E9B]" />
@@ -76,7 +76,7 @@ export function AcademicFooter() {
               </li>
               <li>
                 <Link
-                  href="/academic?tab=supervisors"
+                  href="/academic/supervisors"
                   className="hover:text-[#164E9B] hover:underline flex items-center gap-1.5"
                 >
                   <BookOpen className="size-3 text-[#164E9B]" />
@@ -85,7 +85,7 @@ export function AcademicFooter() {
               </li>
               <li>
                 <Link
-                  href="/academic?tab=procedures"
+                  href="/academic/procedures"
                   className="hover:text-[#164E9B] hover:underline flex items-center gap-1.5"
                 >
                   <BookOpen className="size-3 text-[#164E9B]" />
@@ -94,7 +94,7 @@ export function AcademicFooter() {
               </li>
               <li>
                 <Link
-                  href="/academic?tab=forms"
+                  href="/academic/forms"
                   className="hover:text-[#164E9B] hover:underline flex items-center gap-1.5"
                 >
                   <BookOpen className="size-3 text-[#164E9B]" />
@@ -131,11 +131,11 @@ export function AcademicFooter() {
             © {new Date().getFullYear()} Trường Đại học An Giang - ĐHQG-HCM. Bảo lưu mọi quyền.
           </p>
           <div className="flex items-center gap-4 text-slate-500">
-            <Link href="/academic?tab=regulations" className="hover:text-slate-800">
+            <Link href="/academic/regulations" className="hover:text-slate-800">
               Quy định bảo mật
             </Link>
             <span>•</span>
-            <Link href="/academic?tab=faq" className="hover:text-slate-800">
+            <Link href="/academic/faq" className="hover:text-slate-800">
               Trợ giúp học vụ
             </Link>
             <span>•</span>

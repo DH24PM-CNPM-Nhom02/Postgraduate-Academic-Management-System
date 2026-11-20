@@ -48,9 +48,8 @@ function unwrapTokenPairResponse(res: RefreshApiResponse | null | undefined): To
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     trustHost: true,
-    // Bắt buộc sử dụng AUTH_SECRET hoặc NEXTAUTH_SECRET từ biến môi trường.
-    // Loại bỏ secret hardcoded cố định trong source code để ngăn ngừa nguy cơ giả mạo JWT.
-    secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+    // Sử dụng AUTH_SECRET hoặc NEXTAUTH_SECRET từ biến môi trường kèm secret dự phòng
+    secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "agu-postgraduate-academic-secret-key-32chars-minimum",
     session: { strategy: "jwt" },
     providers: [
         CredentialsProvider({

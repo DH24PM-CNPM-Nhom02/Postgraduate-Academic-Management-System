@@ -78,7 +78,15 @@ function AcademicProfileShell({ children }: { children: React.ReactNode }) {
         isOpen={searchOpen}
         onClose={() => setSearchOpen(false)}
         onSelect={(item) => {
-          if (item.payload?.tab) router.push(`/academic?tab=${item.payload.tab}`);
+          let targetPath = item.payload?.targetPath;
+          if (!targetPath && item.payload?.tab) {
+            targetPath = `/${item.payload.tab}`;
+          }
+          if (!targetPath) {
+            targetPath = "/students";
+          }
+          const query = item.payload?.searchQuery || item.payload?.studentCode;
+          router.push(`/academic${targetPath}${query ? `?search=${encodeURIComponent(query)}` : ""}`);
         }}
       />
     </div>
