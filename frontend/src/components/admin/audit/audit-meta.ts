@@ -11,9 +11,14 @@ import type {
  * Kiểu mở rộng cho tầng UI Nhật ký kiểm toán, tương thích 100% với `AuditLogItem`
  * đồng thời hỗ trợ các trường hợp biên từ backend (actor null, clientIp, correlationId).
  */
+/** Người thao tác ở tầng hiển thị: `role` null khi backend không trả vai trò thuộc hệ thống */
+export interface AuditActorViewModel extends Omit<AuditActorView, "role"> {
+  role: SystemRole | null;
+}
+
 export interface AuditLogViewItem
   extends Omit<AuditLogItem, "actor" | "ncs" | "ipAddress"> {
-  actor: AuditActorView | null;
+  actor: AuditActorViewModel | null;
   actorId?: string;
   ipAddress?: string;
   clientIp?: string;
@@ -77,8 +82,8 @@ export function mapAuditLogApiToView(
   getActionLabel: (action: string) => string
 ): AuditLogViewItem {
   const roles = log.actor?.roles ?? [];
-  const role =
-    ROLE_PRIORITY.find((r) => roles.includes(r)) ?? (roles[0] as SystemRole | undefined);
+  // Chỉ nhận vai trò thuộc SystemRole; vai trò lạ hoặc không có → null (không ép kiểu)
+  const role: SystemRole | null = ROLE_PRIORITY.find((r) => roles.includes(r)) ?? null;
 
   return {
     id: log.id,
@@ -92,8 +97,8 @@ export function mapAuditLogApiToView(
           id: log.actor.id,
           username: log.actor.username,
           fullName: log.actor.fullName,
-          // Không suy đoán vai trò khi auth-service không trả roles → để rỗng, UI hiển thị "Không rõ"
-          role: (role ?? "") as SystemRole,
+          // Không suy đoán vai trò khi auth-service không trả roles → null, UI hiển thị "Không rõ vai trò"
+          role,
         }
       : null,
     ncs: log.ncs

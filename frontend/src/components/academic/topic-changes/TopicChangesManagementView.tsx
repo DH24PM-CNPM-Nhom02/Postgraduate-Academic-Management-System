@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import Link from "next/link";
 import {
   FileEdit,
@@ -81,9 +81,21 @@ export function TopicChangesManagementView({ embedded = false }: TopicChangesMan
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Timer tự đóng toast: hủy timer cũ khi có toast mới, và hủy khi unmount (không setState sau unmount)
+  const toastTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
   const triggerToast = (msg: string) => {
+    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4500);
+    toastTimerRef.current = window.setTimeout(() => {
+      toastTimerRef.current = null;
+      setToastMessage(null);
+    }, 4500);
   };
 
   return (

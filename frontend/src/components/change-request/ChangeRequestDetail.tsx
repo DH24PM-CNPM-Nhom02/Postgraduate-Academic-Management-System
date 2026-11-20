@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { PdfViewer } from "@/src/components/upload/PdfViewer";
 import { DocumentViewButton } from "@/src/components/student/progress/document-view-button";
+import { useDocumentMetadata } from "@/src/hooks/api/use-documents";
 import type {
   ChangeRequestDetailProps,
   ChangeRequestItem,
@@ -98,6 +99,23 @@ function ChangeRequestDetailInner({
 
   const opinions = request.xacNhanGvhds ?? [];
   const agreedCount = opinions.filter((op) => op.dongY === true).length;
+  // Backend tạo ý kiến tập thể GVHD cho GIA_HAN và cho DOI_DE_TAI do NCS tự nộp.
+  // Đơn đổi đề tài do GVHD nộp thay không có dòng xác nhận → không hiển thị khối này.
+  const showSupervisorOpinions =
+    request.loaiDon === "GIA_HAN" ||
+    (request.loaiDon === "DOI_DE_TAI" && opinions.length > 0);
+  // Tên file thật từ document-service; backend /change-request không trả tên file
+  const attachmentMeta = useDocumentMetadata(
+    request.tepDinhKem?.fileName ? null : request.tepDinhKem?.fileId
+  );
+  const attachmentName =
+    request.tepDinhKem?.fileName ||
+    attachmentMeta.data?.originalName ||
+    (attachmentMeta.isLoading ? "Đang tải tên tệp..." : "Tệp PDF đính kèm (chưa có tên tệp)");
+  const attachmentDownloadName =
+    request.tepDinhKem?.fileName ||
+    attachmentMeta.data?.originalName ||
+    `${request.maDon}.pdf`;
 
   return (
     <>
@@ -264,7 +282,7 @@ function ChangeRequestDetailInner({
                 {request.quyetDinh.fileId ? (
                   <DocumentViewButton
                     fileId={request.quyetDinh.fileId}
-                    fileName={request.quyetDinh.fileName}
+                    fileName={request.quyetDinh.fileName || `${request.quyetDinh.soQuyetDinh}.pdf`}
                     variant="default"
                   />
                 ) : request.quyetDinh.fileUrl ? (
@@ -398,8 +416,8 @@ function ChangeRequestDetailInner({
               </div>
             </section>
 
-            {/* Tiến độ xác nhận Tập thể GVHD (dành riêng cho đơn GIA_HAN) */}
-            {request.loaiDon === "GIA_HAN" && (
+            {/* Tiến độ xác nhận Tập thể GVHD (GIA_HAN và DOI_DE_TAI do NCS tự nộp) */}
+            {showSupervisorOpinions && (
               <section className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="flex items-center gap-2 text-sm font-bold text-[#0F2744]">
@@ -455,7 +473,9 @@ function ChangeRequestDetailInner({
                               <p className="text-xs text-muted-foreground">
                                 {op.vaiTro === "HUONG_DAN_CHINH"
                                   ? "Hướng dẫn chính"
-                                  : "Đồng hướng dẫn"}
+                                  : op.vaiTro === "DONG_HUONG_DAN"
+                                    ? "Đồng hướng dẫn"
+                                    : "Giảng viên hướng dẫn"}
                                 {op.thoiGianPhanHoi && (
                                   <>
                                     {" "}
@@ -503,7 +523,7 @@ function ChangeRequestDetailInner({
                     </div>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-foreground">
-                        {request.tepDinhKem.fileName}
+                        {attachmentName}
                       </p>
                       <p className="font-mono text-xs tabular-nums text-muted-foreground">
                         {formatFileSize(request.tepDinhKem.fileSize) || "Tài liệu PDF"}
@@ -514,7 +534,7 @@ function ChangeRequestDetailInner({
                   {request.tepDinhKem.fileId ? (
                     <DocumentViewButton
                       fileId={request.tepDinhKem.fileId}
-                      fileName={request.tepDinhKem.fileName}
+                      fileName={attachmentDownloadName}
                     />
                   ) : (
                   <button

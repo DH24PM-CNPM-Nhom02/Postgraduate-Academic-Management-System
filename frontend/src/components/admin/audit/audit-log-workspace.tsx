@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, ShieldCheck, X } from "lucide-react";
+import { CheckCircle2, ShieldCheck, X } from "lucide-react";
 import { useAuditLogDetail, useAuditLogs } from "@/src/hooks/api/use-audit";
 import type { ListAuditQueryParams } from "@/src/types/api/audit";
 import {
@@ -211,26 +211,6 @@ export function AuditLogWorkspace() {
         </div>
       )}
 
-      {/* Lỗi tải dữ liệu (403 khi không có quyền audit.read, 5xx...) */}
-      {logsQuery.isError && (
-        <div
-          role="alert"
-          className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50/80 px-4 py-3 text-xs font-medium text-rose-800 dark:border-rose-800/70 dark:bg-rose-950/50 dark:text-rose-200"
-        >
-          <div className="flex items-center gap-2">
-            <AlertCircle className="size-4 shrink-0" />
-            <span>{logsQuery.error.message}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => logsQuery.refetch()}
-            className="rounded-lg border border-rose-200 bg-white px-3 py-1 font-semibold hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950"
-          >
-            Thử lại
-          </button>
-        </div>
-      )}
-
       {/* Filter Panel */}
       <AuditFilters
         searchQuery={searchQuery}
@@ -271,6 +251,10 @@ export function AuditLogWorkspace() {
       <AuditTable
         logs={logs}
         isLoading={logsQuery.isLoading}
+        // Lỗi (403 không có quyền audit.read, 5xx...) hiển thị ngay trong bảng kèm nút Thử lại,
+        // bảng không rơi vào trạng thái "không có bản ghi" khi thực chất là lỗi
+        error={logsQuery.isError ? logsQuery.error.message : null}
+        onRetry={() => void logsQuery.refetch()}
         onResetFilters={handleResetFilters}
         onSelectDetail={(log, initialTab = "overview") => {
           setSelectedInitialTab(initialTab);

@@ -39,8 +39,10 @@ export function useChangeRequests(
   return useQuery<ChangeRequestListResponse, ApiClientError>({
     queryKey: changeRequestKeys.list(params),
     queryFn: () => ChangeRequestService.list(params),
+    // Trạng thái đơn do người khác thay đổi (GVHD xác nhận, Giáo vụ duyệt) → làm mới khi quay lại tab.
+    // staleTime 30s giới hạn số lần gọi khi focus liên tục; không polling.
     staleTime: 1000 * 30,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     enabled: options?.enabled,
   });
 }
@@ -52,7 +54,7 @@ export function useChangeRequestDetail(id: string | null) {
     queryFn: () => ChangeRequestService.detail(id!),
     enabled: Boolean(id),
     staleTime: 1000 * 15,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
   });
 }
 

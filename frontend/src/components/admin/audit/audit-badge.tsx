@@ -184,6 +184,31 @@ export const AUDIT_ACTION_META: Record<AuditActionType, AuditActionMeta> = {
     badgeClass:
       "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/70 dark:bg-rose-950/60 dark:text-rose-300",
   },
+  // change-request.service.ts:397 & :437 (action theo loại đơn, chỉ GIA_HAN / DOI_DE_TAI)
+  DE_NGHI_DOI_DE_TAI_GVHD_TU_CHOI: {
+    label: "GVHD từ chối đơn đổi đề tài",
+    group: "Đơn đề nghị",
+    badgeClass:
+      "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/70 dark:bg-rose-950/60 dark:text-rose-300",
+  },
+  DE_NGHI_GIA_HAN_GVHD_TU_CHOI: {
+    label: "GVHD từ chối đơn gia hạn",
+    group: "Đơn đề nghị",
+    badgeClass:
+      "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/70 dark:bg-rose-950/60 dark:text-rose-300",
+  },
+  DE_NGHI_DOI_DE_TAI_GVHD_DONG_Y_TOAN_BO: {
+    label: "Tập thể GVHD đồng ý đổi đề tài",
+    group: "Đơn đề nghị",
+    badgeClass:
+      "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800/70 dark:bg-sky-950/60 dark:text-sky-300",
+  },
+  DE_NGHI_GIA_HAN_GVHD_DONG_Y_TOAN_BO: {
+    label: "Tập thể GVHD đồng ý gia hạn",
+    group: "Đơn đề nghị",
+    badgeClass:
+      "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800/70 dark:bg-sky-950/60 dark:text-sky-300",
+  },
   GVHD_IMPORT: {
     label: "Import danh sách GVHD",
     group: "Giảng viên hướng dẫn",
@@ -229,6 +254,10 @@ export const BACKEND_AUDIT_ACTIONS: AuditActionType[] = [
   "DE_NGHI_DOI_GVHD_DUYET",
   "DE_NGHI_GIA_HAN_DUYET",
   "DE_NGHI_TU_CHOI",
+  "DE_NGHI_DOI_DE_TAI_GVHD_TU_CHOI",
+  "DE_NGHI_GIA_HAN_GVHD_TU_CHOI",
+  "DE_NGHI_DOI_DE_TAI_GVHD_DONG_Y_TOAN_BO",
+  "DE_NGHI_GIA_HAN_GVHD_DONG_Y_TOAN_BO",
   "XAC_NHAN_TOT_NGHIEP",
 ];
 

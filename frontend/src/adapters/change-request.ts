@@ -97,15 +97,16 @@ export function mapChangeRequestToUi(
     hanMoiDuKien: item.hanMoiDeNghi ?? undefined,
     xacNhanGvhds: item.xacNhanGvhds.map((op) => mapOpinion(op, roleByGvhdId)),
 
+    // Backend /change-request không trả tên file → để trống; UI lấy tên thật qua GET /documents/:id
     tepDinhKem: item.fileId
-      ? { fileId: item.fileId, fileName: "Don_de_nghi.pdf", fileUrl: "" }
+      ? { fileId: item.fileId, fileName: "", fileUrl: "" }
       : null,
     quyetDinh: detail.quyetDinh
       ? {
           soQuyetDinh: detail.quyetDinh.soQuyetDinh,
           ngayKy: detail.quyetDinh.ngayQuyetDinh,
           fileId: detail.quyetDinh.fileId ?? undefined,
-          fileName: `${detail.quyetDinh.soQuyetDinh}.pdf`,
+          fileName: "",
           fileUrl: "",
         }
       : null,
@@ -187,8 +188,12 @@ export function buildStudentChangeRequestsOverview(params: {
 }
 
 /**
- * GVHD: chuyển các đơn GIA_HAN (`GET /change-request?loai=GIA_HAN`) sang item của
- * `SupervisorExtensionsWorkspace`. Thông tin NCS bổ sung lấy từ `GET /gvhd/me/ncs`.
+ * GVHD: chuyển các đơn cần tập thể GVHD xác nhận sang item của `SupervisorExtensionsWorkspace`.
+ * Theo backend `xacNhanGvhd` (change-request.service.ts:350) chỉ có 2 loại:
+ * - GIA_HAN
+ * - DOI_DE_TAI do NCS tự nộp (create(): `canGvhdXacNhan = DOI_DE_TAI && laNcsTao` → có `xacNhanGvhds`)
+ * Đơn DOI_DE_TAI do GVHD nộp thay và DOI_GVHD không có `xacNhanGvhds` nên bị loại.
+ * Thông tin NCS bổ sung lấy từ `GET /gvhd/me/ncs`.
  */
 export function mapSupervisorExtensionRequests(params: {
   requests: ChangeRequestListItemApi[];
@@ -201,7 +206,11 @@ export function mapSupervisorExtensionRequests(params: {
   const studentById = new Map(students.map((s) => [s.id, s]));
 
   return requests
-    .filter((r) => r.loai === "GIA_HAN")
+    .filter(
+      (r) =>
+        r.loai === "GIA_HAN" ||
+        (r.loai === "DOI_DE_TAI" && r.xacNhanGvhds.length > 0)
+    )
     .map((r) => {
       const student = studentById.get(r.ncsId);
       const roleByGvhdId: Record<string, SupervisorRoleType> = {};
@@ -220,12 +229,18 @@ export function mapSupervisorExtensionRequests(params: {
       return {
         id: r.id,
         maDon: ui.maDon,
+        loaiDon: r.loai as "GIA_HAN" | "DOI_DE_TAI",
+        tenDeTaiMoi: r.tenDeTaiMoi,
         studentId: r.ncsId,
         mshv: r.ncs.mshv,
         hoTenNcs: r.ncs.hoTen,
         // NCS không còn trong /gvhd/me/ncs (vd. phân công đã hết hiệu lực) → hiển thị "—"
         khoaDaoTao: student?.khoaDaoTao ?? "—",
-        tenDeTai: student?.tenDeTai ?? "—",
+        // Đơn đổi đề tài: ưu tiên `deTaiHienTai` của API chi tiết (backend trả riêng cho DOI_DE_TAI)
+        tenDeTai:
+          (r.loai === "DOI_DE_TAI" ? detail?.deTaiHienTai?.tenDeTai : undefined) ??
+          student?.tenDeTai ??
+          "—",
         vaiTroCuaToi: (student?.vaiTro ?? "CHUA_XAC_DINH") as SupervisorRole,
         trangThai: r.trangThai,
         ngayGui: r.createdAt,
@@ -237,10 +252,7 @@ export function mapSupervisorExtensionRequests(params: {
         tenMocHienTai: student?.tenMocHienTai ?? "Chưa có dữ liệu tiến độ",
         tienDoPhanTram: student?.tienDoPhanTram ?? 0,
         lyDo: r.lyDo,
-        tepDinhKem: ui.tepDinhKem ?? {
-          fileName: "Không có tệp đính kèm",
-          fileUrl: "",
-        },
+        tepDinhKem: ui.tepDinhKem ?? null,
         xacNhanGvhds: ui.xacNhanGvhds ?? [],
         yKienCuaToi: myOpinion,
         nhanXetGvhd: myOpinion?.nhanXet ?? null,

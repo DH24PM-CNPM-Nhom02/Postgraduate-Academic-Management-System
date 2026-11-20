@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import Link from "next/link";
 import {
   FileCheck2,
@@ -517,7 +517,9 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
 
   // States khi duyệt / từ chối / chấm điểm
   const [selectedQuyetDinhId, setSelectedQuyetDinhId] = useState("");
-  const [addEvalModalOpen, setAddEvalModalOpen] = useState(false);
+  // Gắn modal nhập phiếu với đúng tienTrinhId (cùng cách với rejectTargetId): đổi mốc hoặc mốc rời
+  // hàng chờ thì modal tự đóng; `key` theo id tạo instance mới, không giữ form / lỗi / pending cũ
+  const [evalTargetId, setEvalTargetId] = useState<string | null>(null);
   // Gắn dialog từ chối với đúng tienTrinhId: đổi mốc hoặc mốc rời hàng chờ (409) thì dialog tự đóng,
   // và `key` theo id buộc tạo instance mới (không giữ lý do / lỗi mutation của lần trước)
   const [rejectTargetId, setRejectTargetId] = useState<string | null>(null);
@@ -535,9 +537,21 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
   const decisionsQuery = useMilestoneApprovalDecisions(Boolean(selectedItem));
   const approveMutation = useApproveMilestone();
 
+  // Timer tự đóng toast: hủy timer cũ khi có toast mới, và hủy khi unmount (không setState sau unmount)
+  const toastTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
   const showToast = (msg: string) => {
+    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4000);
+    toastTimerRef.current = window.setTimeout(() => {
+      toastTimerRef.current = null;
+      setToastMessage(null);
+    }, 4000);
   };
 
   const selectItem = (id: string | null) => {
@@ -933,7 +947,7 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
                       <p className="text-[11px] text-slate-500">Yêu cầu tối thiểu {soPhieuToiThieu} phiếu và điểm trung bình ≥ {DIEM_TOI_THIEU}.0</p>
                     </div>
                     <button
-                      onClick={() => setAddEvalModalOpen(true)}
+                      onClick={() => setEvalTargetId(selectedItem.id)}
                       disabled={!minhChungId}
                       className="rounded-xl bg-[#164E9B] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#113E7D] cursor-pointer disabled:opacity-60"
                     >
@@ -1164,10 +1178,11 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
 
       {/* MODAL 1: NHẬP ĐIỂM CHUYÊN GIA */}
       <AddEvaluationModal
-        isOpen={addEvalModalOpen}
+        key={evalTargetId ?? "eval-none"}
+        isOpen={evalTargetId !== null && evalTargetId === selectedItem?.id}
         minhChungId={minhChungId}
         ncsId={selectedItem?.ncs.id}
-        onClose={() => setAddEvalModalOpen(false)}
+        onClose={() => setEvalTargetId(null)}
         onSaved={showToast}
       />
 

@@ -15,14 +15,17 @@ import {
 import type { SupervisorExtensionDecisionAction } from "@/src/types/ui/supervisor";
 import { SupervisorExtensionsWorkspace } from "./SupervisorExtensionsWorkspace";
 
-/** Backend giới hạn limit tối đa 100; GVHD thường có ít đơn gia hạn */
-const LIST_PARAMS = { loai: "GIA_HAN", page: 1, limit: 100 } as const;
+/**
+ * Không lọc `loai` ở server: cần cả GIA_HAN và DOI_DE_TAI (NCS tự nộp). Backend tự giới hạn phạm vi
+ * đơn của GVHD; adapter lọc tiếp các đơn có `xacNhanGvhds`. Backend giới hạn limit tối đa 100.
+ */
+const LIST_PARAMS = { page: 1, limit: 100 } as const;
 
 /**
  * SupervisorExtensionsLiveView
  *
- * Nối màn hình Thẩm định đơn gia hạn (/supervisor/extensions) với API thật:
- * - GET  /change-request?loai=GIA_HAN               → đơn liên quan GVHD (backend tự lọc theo token)
+ * Nối màn hình Thẩm định đơn (gia hạn + đổi đề tài do NCS tự nộp) tại /supervisor/extensions với API thật:
+ * - GET  /change-request                            → đơn liên quan GVHD (backend tự lọc theo token)
  * - GET  /gvhd/me, GET /gvhd/me/ncs                 → gvhdId hiện tại + thông tin NCS đang hướng dẫn
  * - PATCH /change-request/:id/supervisor-review     → { dongY, nhanXet? }
  */
