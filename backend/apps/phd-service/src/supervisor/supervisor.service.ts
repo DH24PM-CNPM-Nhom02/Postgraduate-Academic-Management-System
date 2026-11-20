@@ -55,11 +55,20 @@ export class SupervisorService {
     // Mã GV nào đã có trong database thì dòng đó là CẬP NHẬT
     const gvTheoMaGv = await this.prisma.giangVienHuongDan.findMany({
       where: { maGv: { in: danhSachMaGv } },
-      select: { maGv: true },
+      select: { maGv: true, hocHamHocVi: true, soNcsDangHuongDan: true, maxNcsChoPhep: true },
     });
     const maGvDaCo = new Set<string>();
+    const gvCuTheoMaGv = new Map<string, {
+      maGv: string;
+      hocHamHocVi: HocHamHocVi;
+      soNcsDangHuongDan: Prisma.Decimal;
+      maxNcsChoPhep: number;
+    }>();
     for (const gv of gvTheoMaGv) {
-      if (gv.maGv) maGvDaCo.add(gv.maGv);
+      if (gv.maGv) {
+        maGvDaCo.add(gv.maGv);
+        gvCuTheoMaGv.set(gv.maGv, gv as any);
+      }
     }
 
     const taiKhoanTheoMaGv = await this.callAuth<{ id: string; username: string; fullName: string; isActive: boolean; roles: string[] }[]>(
@@ -141,6 +150,17 @@ export class SupervisorService {
         maxNcs = 5;
       } else if (r.hocHamHocVi && !DANH_SACH_HOC_HAM.includes(r.hocHamHocVi)) {
         loi.push('Học hàm không hợp lệ');
+      }
+
+      // Nếu là cập nhật GVHD cũ: kiểm tra số NCS đang hướng dẫn hiện tại không vượt định mức mới
+      const gvCu = maGv ? gvCuTheoMaGv.get(maGv) : undefined;
+      if (gvCu) {
+        const soNcsHienTai = Number(gvCu.soNcsDangHuongDan);
+        if (soNcsHienTai > maxNcs) {
+          loi.push(
+            `Không thể cập nhật học hàm/học vị sang ${hocHam} vì số NCS đang hướng dẫn hiện tại (${soNcsHienTai}) lớn hơn định mức tối đa (${maxNcs}) của học hàm/học vị mới`,
+          );
+        }
       }
 
       // --- Email: đúng định dạng, không trùng trong file, không trùng giảng viên khác ---
@@ -354,9 +374,11 @@ export class SupervisorService {
         ngaySinh: true,
         email: true,
         hocHamHocVi: true,
+        soNcsDangHuongDan: true,
         maxNcsChoPhep: true,
         chuyenNganh: true,
         quocGiaTotNghiep: true,
+        trangThai: true,
         donVi: {
           select: {
             id: true,
@@ -458,62 +480,47 @@ export class SupervisorService {
       throw new RpcException({ statusCode: 400, message: 'Trạng thái GVHD không thay đổi' });
     }
 
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const current = await tx.giangVienHuongDan.findUnique({
+        where: { id },
+        select: { id: true, trangThai: true },
+      });
+      if (!current) {
+        throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ GVHD' });
+      }
+      if (current.trangThai !== profile.trangThai) {
+        throw new RpcException({
+          statusCode: 409,
+          message: 'Trạng thái GVHD vừa được cập nhật ở request khác, vui lòng thử lại',
+        });
+      }
+
+      const res = await tx.giangVienHuongDan.update({
+        where: { id },
+        data: { trangThai: data.trangThai },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId,
+          action: 'GVHD_STATUS_UPDATE',
+          entityType: 'GiangVienHuongDan',
+          entityId: id,
+          oldValue: { trangThai: current.trangThai },
+          newValue: { trangThai: data.trangThai },
+        },
+      });
+      return res;
+    });
+
     const hasLinkedAccount = Boolean(profile.userId);
-    if (hasLinkedAccount) {
+    if (hasLinkedAccount && profile.userId) {
       await this.callAuth('auth.set-active', {
         userId: profile.userId,
         isActive: data.trangThai,
       });
     }
 
-    try {
-      return await this.prisma.$transaction(async (tx) => {
-        const current = await tx.giangVienHuongDan.findUnique({
-          where: { id },
-          select: { id: true, trangThai: true },
-        });
-        if (!current) {
-          throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ GVHD' });
-        }
-        if (current.trangThai !== profile.trangThai) {
-          throw new RpcException({
-            statusCode: 409,
-            message: 'Trạng thái GVHD vừa được cập nhật ở request khác, vui lòng thử lại',
-          });
-        }
-
-        const updated = await tx.giangVienHuongDan.update({
-          where: { id },
-          data: { trangThai: data.trangThai },
-        });
-        await tx.auditLog.create({
-          data: {
-            actorId,
-            action: 'GVHD_STATUS_UPDATE',
-            entityType: 'GiangVienHuongDan',
-            entityId: id,
-            oldValue: { trangThai: current.trangThai },
-            newValue: { trangThai: data.trangThai },
-          },
-        });
-        return updated;
-      });
-    } catch (error) {
-      if (hasLinkedAccount && profile.userId) {
-        try {
-          await this.callAuth('auth.set-active', {
-            userId: profile.userId,
-            isActive: profile.trangThai,
-          });
-        } catch {
-          throw new RpcException({
-            statusCode: 502,
-            message: 'Không cập nhật được trạng thái GVHD và không thể khôi phục trạng thái tài khoản',
-          });
-        }
-      }
-      throw error;
-    }
+    return updated;
   }
 
   //update gvhd
@@ -579,6 +586,9 @@ export class SupervisorService {
         }
 
         if (input.hocHamHocVi !== undefined) {
+          if (!DANH_SACH_HOC_HAM.includes(input.hocHamHocVi)) {
+            throw new RpcException({ statusCode: 400, message: 'Học hàm/học vị không hợp lệ' });
+          }
           const maxNcsByHocHam: Record<string, number> = {
             GIAO_SU: 7,
             PHO_GIAO_SU: 5,
@@ -586,6 +596,13 @@ export class SupervisorService {
             TIEN_SI: 3,
           };
           const maxNcs = maxNcsByHocHam[input.hocHamHocVi];
+          const soNcsHienTai = Number(hoSoCu.soNcsDangHuongDan);
+          if (soNcsHienTai > maxNcs) {
+            throw new RpcException({
+              statusCode: 400,
+              message: `Không thể chuyển học hàm/học vị sang ${input.hocHamHocVi} vì số NCS đang hướng dẫn hiện tại (${soNcsHienTai}) lớn hơn định mức tối đa (${maxNcs}) của học hàm/học vị mới`,
+            });
+          }
           setChange('hocHamHocVi', 'hocHamHocVi', hoSoCu.hocHamHocVi, input.hocHamHocVi);
           setChange('maxNcsChoPhep', 'maxNcsChoPhep', hoSoCu.maxNcsChoPhep, maxNcs);
         }
@@ -921,6 +938,7 @@ export class SupervisorService {
     if (!gvhdCheck.trangThai) {
       throw new RpcException({ statusCode: 400, message: 'GVHD đã bị vô hiệu hóa, không thể phân công' });
     }
+    
 
     // Kiểm tra quyết định và bảo đảm quyết định được lập cho đúng NCS.
     const quyetDinh = await this.prisma.quyetDinh.findUnique({
@@ -1238,7 +1256,11 @@ export class SupervisorService {
       }
 
       const deNghiDangCho = await tx.deNghiDieuChinh.findFirst({
-        where: { ncsId: phanCong.ncsId, trangThai: 'CHO_DUYET' },
+        where: { 
+          ncsId: phanCong.ncsId,
+           trangThai: {
+            in: ['CHO_DUYET', 'CHO_GVHD_XAC_NHAN'] 
+           } },
         select: { id: true },
       });
       if (deNghiDangCho) {
@@ -1471,7 +1493,11 @@ export class SupervisorService {
           action: 'ASSIGNMENT_DEACTIVATE',
           entityType: 'PhanCongHuongDan',
           entityId: id,
-          oldValue: { trangThai: phanCong.trangThai, ngayKetThuc: phanCong.ngayKetThuc },
+          oldValue: {
+            ncsId: phanCong.ncsId,
+            trangThai: phanCong.trangThai,
+            ngayKetThuc: phanCong.ngayKetThuc
+          },
           newValue: { trangThai: 'DEACTIVATE', ngayKetThuc, lyDo: lyDoDaChuanHoa },
         },
       });

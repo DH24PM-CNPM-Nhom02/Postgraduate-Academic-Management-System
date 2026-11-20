@@ -4,16 +4,11 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/src/hooks/use-auth';
-import { User, Lock, Eye, EyeOff, Loader2, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, Loader2, ArrowRight, AlertCircle } from 'lucide-react';
 import truongDHAGImg from '@/public/image/TruongDHAG.webp';
 import logo1 from '@/public/image/logo 1.png';
 import logo2 from '@/public/image/logo 2.png';
-import {
-  checkMockLogin,
-  MockAccount,
-} from '@/src/lib/mock-accounts';
 import { FirstLoginPasswordModal } from './first-login-password-modal';
-import { MockAccountSwitcher } from './mock-account-switcher';
 
 /**
  * Reusable HoverLogo component:
@@ -81,19 +76,14 @@ export function HoverLogo({
 }
 
 export function LoginForm() {
-  const { login, isLoading, error: authError } = useAuth();
+  const { login, logout, user, isLoading, error: authError } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ username?: string; password?: string }>({});
 
-  // States phục vụ thử nghiệm tính năng mật khẩu cấp riêng & đổi mật khẩu lần đầu
-  const [customError, setCustomError] = useState<string | null>(null);
-  const [successFeedback, setSuccessFeedback] = useState<string | null>(null);
   const [isFirstLoginModalOpen, setIsFirstLoginModalOpen] = useState(false);
-  const [firstLoginAccount, setFirstLoginAccount] = useState<MockAccount | null>(null);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const validate = () => {
     const errors: { username?: string; password?: string } = {};
@@ -107,57 +97,19 @@ export function LoginForm() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleQuickSelect = (u: string, p: string) => {
-    setUsername(u);
-    setPassword(p);
-    setCustomError(null);
-    setSuccessFeedback(null);
-    setFieldErrors({});
-  };
-
-  const handlePasswordChanged = (newPass: string, updatedAccount: MockAccount) => {
-    setPassword(newPass);
-    setRefreshTrigger((prev) => prev + 1);
-    setSuccessFeedback(
-      `Đã đổi mật khẩu thành công cho tài khoản ${updatedAccount.username}! Mật khẩu mới đã được cập nhật. Bạn có thể nhấn "Đăng nhập" để kiểm tra.`
-    );
-  };
-
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setCustomError(null);
-    setSuccessFeedback(null);
-
     if (!validate()) return;
-
-    // Kiểm tra xem có phải tài khoản thử nghiệm / mật khẩu cấp riêng không
-    const mockResult = checkMockLogin(username.trim(), password);
-
-    if (mockResult.status === 'FIRST_LOGIN_REQUIRED') {
-      // Phát hiện đăng nhập bằng mật khẩu cấp riêng ở lần đầu -> mở modal đổi mật khẩu
-      setFirstLoginAccount(mockResult.account);
-      setIsFirstLoginModalOpen(true);
-      return;
-    }
-
-    if (mockResult.status === 'INVALID_CREDENTIALS') {
-      setCustomError(mockResult.message);
-      return;
-    }
-
-    if (mockResult.status === 'SUCCESS') {
-      // Tài khoản mock đã đổi mật khẩu và đăng nhập hợp lệ
-      setSuccessFeedback(
-        `Đăng nhập thử nghiệm thành công! Chào mừng ${mockResult.account.fullName} (${mockResult.account.username}). Mật khẩu hiện tại hoàn toàn hợp lệ.`
-      );
-      return;
-    }
-
-    // Nếu không phải mock account -> tiến hành đăng nhập thông thường qua backend
-    await login(username.trim(), password);
+    const result = await login(username.trim(), password);
+    if (result.success && result.mustChangePassword) setIsFirstLoginModalOpen(true);
   }
 
-  const activeError = customError || authError;
+  const finishFirstLogin = () => {
+    setPassword('');
+    void logout();
+  };
+
+  const activeError = authError;
 
   return (
     <div className="w-full max-w-md lg:max-w-4xl xl:max-w-[940px] rounded-2xl border border-[#D0D5DD] bg-white shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03),0px_16px_28px_-6px_rgba(16,24,40,0.08)] overflow-hidden transition-all duration-200">
@@ -184,18 +136,7 @@ export function LoginForm() {
               </p>
             </div>
 
-            {/* Success Feedback Alert */}
-            {successFeedback && (
-              <div
-                role="status"
-                className="mb-3.5 flex items-start gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs sm:text-sm text-emerald-800"
-              >
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                <span className="leading-snug">{successFeedback}</span>
-              </div>
-            )}
-
-            {/* Global Auth / Mock Error Alert */}
+            {/* Authentication error */}
             {activeError && (
               <div
                 role="alert"
@@ -231,11 +172,10 @@ export function LoginForm() {
                     }}
                     placeholder="VD: MSHV20240189"
                     disabled={isLoading}
-                    className={`w-full rounded-lg border bg-white py-2 sm:py-2.5 pl-10 pr-4 text-sm font-normal text-[#172B4D] placeholder-gray-400 transition-all duration-150 focus:outline-none focus:ring-4 ${
-                      fieldErrors.username
-                        ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
-                        : 'border-[#D0D5DD] focus:border-[#155EEF] focus:ring-[#EAF2FF]'
-                    }`}
+                    className={`w-full rounded-lg border bg-white py-2 sm:py-2.5 pl-10 pr-4 text-sm font-normal text-[#172B4D] placeholder-gray-400 transition-all duration-150 focus:outline-none focus:ring-4 ${fieldErrors.username
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
+                      : 'border-[#D0D5DD] focus:border-[#155EEF] focus:ring-[#EAF2FF]'
+                      }`}
                   />
                 </div>
                 {fieldErrors.username && (
@@ -266,11 +206,10 @@ export function LoginForm() {
                     }}
                     placeholder="••••••••••••"
                     disabled={isLoading}
-                    className={`w-full rounded-lg border bg-white py-2 sm:py-2.5 pl-10 pr-11 text-sm font-normal text-[#172B4D] placeholder-gray-400 transition-all duration-150 focus:outline-none focus:ring-4 ${
-                      fieldErrors.password
-                        ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
-                        : 'border-[#D0D5DD] focus:border-[#155EEF] focus:ring-[#EAF2FF]'
-                    }`}
+                    className={`w-full rounded-lg border bg-white py-2 sm:py-2.5 pl-10 pr-11 text-sm font-normal text-[#172B4D] placeholder-gray-400 transition-all duration-150 focus:outline-none focus:ring-4 ${fieldErrors.password
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
+                      : 'border-[#D0D5DD] focus:border-[#155EEF] focus:ring-[#EAF2FF]'
+                      }`}
                   />
                   <button
                     type="button"
@@ -330,11 +269,6 @@ export function LoginForm() {
               </div>
             </form>
 
-            {/* Test Helper Panel: Mock accounts with temporary provisioned passwords */}
-            <MockAccountSwitcher
-              onSelectAccount={handleQuickSelect}
-              refreshTrigger={refreshTrigger}
-            />
           </div>
         </div>
 
@@ -385,13 +319,13 @@ export function LoginForm() {
         </div>
       </div>
 
-      {/* Modal Đổi mật khẩu lần đầu khi phát hiện đăng nhập bằng mật khẩu cấp riêng */}
       <FirstLoginPasswordModal
-        isOpen={isFirstLoginModalOpen}
-        account={firstLoginAccount}
-        initialTempPassword={password}
-        onClose={() => setIsFirstLoginModalOpen(false)}
-        onPasswordChanged={handlePasswordChanged}
+        isOpen={isFirstLoginModalOpen || user?.mustChangePassword === true}
+        username={user?.username ?? username}
+        fullName={user?.fullName ?? ''}
+        email={user?.email}
+        initialCurrentPassword={password}
+        onPasswordChanged={finishFirstLogin}
       />
     </div>
   );

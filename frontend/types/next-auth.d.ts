@@ -8,6 +8,7 @@ export interface IUser {
     username: string;
     email?: string;
     role: UserRole;
+    mustChangePassword: boolean;
 }
 
 declare module "next-auth" {

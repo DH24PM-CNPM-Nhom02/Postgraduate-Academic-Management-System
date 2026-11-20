@@ -189,7 +189,6 @@ export function SupervisorAssignmentModal({
   const effectiveDecisionId = decisions.some((d) => d.id === quyetDinhId)
     ? quyetDinhId
     : decisions[0]?.id || "";
-  const selectedDecision = decisions.find((d) => d.id === effectiveDecisionId) ?? null;
 
   // Quyết định đã dùng cho các phân công hiện tại của NCS
   const usedAssignmentDecisionIds = new Set(
@@ -653,7 +652,7 @@ export function SupervisorAssignmentModal({
                   ) : (
                     <>
                       <CheckCircle2 className="size-4" />
-                      <span>Ban hành &amp; Gửi thông báo</span>
+                      <span>Lưu phân công</span>
                     </>
                   )}
                 </button>
@@ -809,7 +808,7 @@ export function SupervisorAssignmentModal({
                 ) : (
                   <>
                     <Trash2 className="size-4" />
-                    <span>Xác nhận Hủy &amp; Gửi thông báo</span>
+                    <span>Xác nhận hủy phân công</span>
                   </>
                 )}
               </button>

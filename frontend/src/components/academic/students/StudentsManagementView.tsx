@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Users,
   Search,
@@ -72,7 +73,8 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
   const { data: supervisorsData } = useAcademicSupervisors();
 
   // Search & Filter States
-  const [studentSearchText, setStudentSearchText] = useState("");
+  const searchParams = useSearchParams();
+  const [studentSearchText, setStudentSearchText] = useState(() => searchParams?.get("search") || "");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [milestoneFilter, setMilestoneFilter] = useState("all");

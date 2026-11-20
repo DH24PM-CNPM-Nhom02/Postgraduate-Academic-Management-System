@@ -11,7 +11,6 @@ import {
   FileText,
   Calculator,
 } from "lucide-react";
-import { useTriggerNotification } from "@/src/hooks/use-notifications";
 
 export interface EvaluationItem {
   id: string;
@@ -94,7 +93,6 @@ export function EvaluationInputModal({
   initialMilestone = 2,
   onSavedSuccess,
 }: EvaluationInputModalProps) {
-  const triggerNotification = useTriggerNotification();
 
   const [milestone, setMilestone] = useState<number>(initialMilestone);
   const [evalList, setEvalList] = useState<EvaluationItem[]>(
@@ -153,39 +151,7 @@ export function EvaluationInputModal({
 
     const updated = [...evalList, newEval];
     setEvalList(updated);
-
-    // 1. Kích hoạt thông báo cho NCS (targetRole = 'student')
-    triggerNotification({
-      nhom: "TIEN_DO",
-      loai: "CO_PHIEU_NHAN_XET_MOI",
-      tieuDe: `Có phiếu nhận xét mới cho mốc ${milestone} của bạn`,
-      noiDung: `Mốc ${milestone} của bạn đã có phiếu nhận xét mới từ ${newEval.reviewerName} với điểm số ${numScore.toFixed(1)}/10.`.replace(/\s+/g, " "),
-      duLieu: {
-        thuTu: milestone,
-        tenNguoiCham: newEval.reviewerName,
-        diem: numScore,
-      },
-      targetRole: "student",
-      targetUrl: "/student/progress",
-    });
-
-    // 2. Kích hoạt thông báo cho GVHD (targetRole = 'supervisor')
-    triggerNotification({
-      nhom: "TIEN_DO",
-      loai: "CO_PHIEU_NHAN_XET_MOI",
-      tieuDe: `Có phiếu nhận xét mới cho mốc ${milestone} của NCS ${studentName}`,
-      noiDung: `Mốc ${milestone} của NCS ${studentName} (${studentCode}) đã có phiếu nhận xét mới từ ${newEval.reviewerName} với điểm số ${numScore.toFixed(1)}/10.`.replace(/\s+/g, " "),
-      duLieu: {
-        thuTu: milestone,
-        mshv: studentCode,
-        tenNcs: studentName,
-        tenNguoiCham: newEval.reviewerName,
-        diem: numScore,
-      },
-      targetRole: "supervisor",
-      targetUrl: "/supervisor/dashboard",
-    });
-
+       
     // Reset form
     setReviewerName("");
     setReviewerOrg("");
@@ -266,7 +232,7 @@ export function EvaluationInputModal({
             {isSuccessToast && (
               <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-2.5 text-xs font-semibold text-emerald-800 flex items-center gap-2 animate-in fade-in duration-150">
                 <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
-                <span>Đã ghi nhận phiếu &amp; kích hoạt thông báo tới NCS/GVHD!</span>
+                <span>Đã ghi nhận phiếu nhận xét.</span>
               </div>
             )}
 
@@ -353,7 +319,7 @@ export function EvaluationInputModal({
                 className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#164E9B] py-2.5 text-xs font-bold text-white hover:bg-[#113E7D] transition-colors shadow-xs cursor-pointer"
               >
                 <Plus className="size-4" />
-                <span>Ghi nhận Phiếu &amp; Kích hoạt Thông báo</span>
+                <span>Ghi nhận phiếu nhận xét</span>
               </button>
             </form>
           </div>

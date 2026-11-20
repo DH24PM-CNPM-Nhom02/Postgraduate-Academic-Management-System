@@ -1,11 +1,10 @@
 import React from "react";
 import type { Metadata } from "next";
-import { StudentProfileContainer } from "@/src/components/student/profile";
+import { UserProfileContainer } from "@/src/components/profile/user-profile-container";
 
 export const metadata: Metadata = {
-  title: "Hồ sơ nghiên cứu sinh | Hệ thống Quản trị Đào tạo Sau Đại học",
-  description:
-    "Trang quản lý thông tin cá nhân, hồ sơ học vụ và cài đặt bảo mật cho Nghiên cứu sinh.",
+  title: "Hồ sơ cá nhân | Hệ thống Quản trị Đào tạo Sau Đại học",
+  description: "Thông tin tài khoản và cài đặt bảo mật.",
 };
 
 /**
@@ -14,5 +13,5 @@ export const metadata: Metadata = {
  * toàn bộ giao diện và logic cho Container Component tương ứng.
  */
 export default function StudentProfilePage() {
-  return <StudentProfileContainer />;
+  return <UserProfileContainer />;
 }

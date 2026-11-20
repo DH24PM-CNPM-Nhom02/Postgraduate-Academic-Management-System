@@ -43,7 +43,10 @@ export function NotificationBell({
     >
       <Bell className="size-5 transition-transform group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100" />
       {unreadCount > 0 && (
-        <span className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-black text-white ring-2 ring-white shadow-xs">
+        <span
+          aria-label={`${unreadCount} thông báo chưa đọc`}
+          className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white ring-2 ring-white shadow-xs"
+        >
           {unreadCount > 99 ? "99+" : unreadCount}
         </span>
       )}

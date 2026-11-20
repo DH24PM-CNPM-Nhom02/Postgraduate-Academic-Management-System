@@ -29,24 +29,34 @@ export function AdminShell({ children }: AdminShellProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const handleSelectSearchResult = (item: { payload?: { tab?: string } }) => {
-    if (item.payload?.tab) {
+  const handleSelectSearchResult = (item: {
+    payload?: { tab?: string; targetPath?: string; searchQuery?: string; studentCode?: string };
+  }) => {
+    let targetPath = item.payload?.targetPath;
+    if (!targetPath && item.payload?.tab) {
       const tab = item.payload.tab;
       const tabMap: Record<string, string> = {
-        students: "/admin/students",
-        "topic-changes": "/admin/topic-changes",
-        supervisors: "/admin/supervisors",
-        procedures: "/admin/procedures",
-        regulations: "/admin/regulations",
-        decisions: "/admin/decisions",
-        evidence: "/admin/evidence",
-        "milestone-review": "/admin/milestone-review",
-        calendar: "/admin/calendar",
-        faq: "/admin/faq",
-        dashboard: "/admin/overview",
+        students: "/students",
+        theses: "/theses",
+        thesis: "/theses",
+        "topic-changes": "/topic-changes",
+        supervisors: "/supervisors",
+        procedures: "/procedures",
+        regulations: "/regulations",
+        decisions: "/decisions",
+        evidence: "/evidence",
+        "milestone-review": "/milestone-review",
+        calendar: "/calendar",
+        faq: "/faq",
+        dashboard: "/overview",
       };
-      router.push(tabMap[tab] || `/admin/overview?tab=${tab}`);
+      targetPath = tabMap[tab] || `/${tab}`;
     }
+    if (!targetPath) {
+      targetPath = "/students";
+    }
+    const query = item.payload?.searchQuery || item.payload?.studentCode;
+    router.push(`/admin${targetPath}${query ? `?search=${encodeURIComponent(query)}` : ""}`);
   };
 
 

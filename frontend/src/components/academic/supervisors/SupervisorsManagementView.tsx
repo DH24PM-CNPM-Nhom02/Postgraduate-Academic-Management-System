@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   UserCheck,
   Search,
@@ -42,7 +43,8 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
   const { data: initialData, isLoading, refetch, isFetching } = useAcademicSupervisors();
   const { data: studentsData } = useAcademicStudents();
 
-  const [searchTerm, setSearchTerm] = useState("");
+  const searchParams = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(() => searchParams?.get("search") || "");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [quotaStatusFilter, setQuotaStatusFilter] = useState("all");
 

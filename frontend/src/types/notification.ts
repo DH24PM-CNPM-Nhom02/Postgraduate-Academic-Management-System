@@ -1,11 +1,14 @@
-export type NotificationGroup =
-  | "QUYET_DINH"
-  | "TIEN_DO"
-  | "NHAC_HAN"
-  | "HE_THONG"
-  | "CANH_BAO_KY_THUAT";
+export const NOTIFICATION_GROUP_LABELS = {
+  QUYET_DINH: "Quyết định",
+  TIEN_DO: "Tiến độ",
+  NHAC_HAN: "Nhắc hạn",
+  HE_THONG: "Hệ thống",
+  CANH_BAO_KY_THUAT: "Cảnh báo kỹ thuật",
+} as const;
 
-export type NotificationRole = "student" | "supervisor" | "academic" | "all";
+export type NotificationGroup = keyof typeof NOTIFICATION_GROUP_LABELS;
+
+export type NotificationRole = "student" | "supervisor" | "academic";
 
 export type NotificationType =
   // Tiến độ học vụ
@@ -39,7 +42,6 @@ export interface NotificationItem {
   userId?: string;
   nhom: NotificationGroup;
   loai: NotificationType | string;
-  type?: string;
   tieuDe: string;
   noiDung: string;
   duLieu?: Record<string, unknown>;
@@ -47,10 +49,6 @@ export interface NotificationItem {
   readAt?: string | null;
   hetHanAt?: string | null;
   createdAt: string;
-  /** Role người nhận: student (NCS), supervisor (GVHD), academic (Giáo vụ) hoặc all */
-  targetRole?: NotificationRole;
-  /** URL điều hướng khi click vào thông báo */
-  targetUrl?: string;
 }
 
 export interface NotificationListResponse {
@@ -65,5 +63,4 @@ export interface NotificationQueryFilter {
   unread?: boolean;
   page?: number;
   limit?: number;
-  role?: "student" | "supervisor" | "academic";
 }

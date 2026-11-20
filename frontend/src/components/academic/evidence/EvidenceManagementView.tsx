@@ -81,7 +81,7 @@ export function EvidenceManagementView({ embedded = false }: EvidenceManagementV
 
     setRemovedIds((prev) => [...prev, approvalData.id]);
     triggerToast(
-      `${actionLabel} minh chứng cho NCS ${approvalData.studentName}. Hệ thống đã gửi email thông báo và cập nhật tiến độ đào tạo.`
+      `${actionLabel} minh chứng cho NCS ${approvalData.studentName}.`
     );
   };
 
@@ -366,7 +366,7 @@ export function EvidenceManagementView({ embedded = false }: EvidenceManagementV
         }
         onSavedSuccess={(evals, avg) => {
           triggerToast(
-            `Đã lưu kết quả phiếu nhận xét! Điểm trung bình: ${avg.toFixed(1)}/10. Hệ thống đã kích hoạt thông báo tới NCS và GVHD.`
+            `Đã lưu kết quả phiếu nhận xét! Điểm trung bình: ${avg.toFixed(1)}/10.`
           );
         }}
       />

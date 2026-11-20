@@ -31,10 +31,18 @@ export default function AcademicLayout({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const handleSelectSearchResult = (item: { payload?: { tab?: string } }) => {
-    if (item.payload?.tab) {
-      router.push(`/academic?tab=${item.payload.tab}`);
+  const handleSelectSearchResult = (item: {
+    payload?: { tab?: string; targetPath?: string; searchQuery?: string; studentCode?: string };
+  }) => {
+    let targetPath = item.payload?.targetPath;
+    if (!targetPath && item.payload?.tab) {
+      targetPath = `/${item.payload.tab}`;
     }
+    if (!targetPath) {
+      targetPath = "/students";
+    }
+    const query = item.payload?.searchQuery || item.payload?.studentCode;
+    router.push(`/academic${targetPath}${query ? `?search=${encodeURIComponent(query)}` : ""}`);
   };
 
   return (
@@ -55,20 +63,6 @@ export default function AcademicLayout({
         <AcademicHeader
           onToggleSidebar={() => setSidebarOpen(true)}
           onOpenSearch={() => setSearchModalOpen(true)}
-          onSelectNotification={(notif) => {
-            if (notif.targetUrl) {
-              router.push(notif.targetUrl);
-              return;
-            }
-            const nType = notif.type || notif.loai;
-            if (nType === "evidence" || nType === "NCS_NOP_MINH_CHUNG") {
-              router.push("/academic?tab=evidence");
-            } else if (nType === "topic" || nType === "THAY_DOI_PHAN_CONG_GVHD") {
-              router.push("/academic?tab=topic-changes");
-            } else if (nType === "deadline" || nType === "NHAC_HAN_HOC_TAP") {
-              router.push("/academic?tab=calendar");
-            }
-          }}
         />
 
         {/* Dynamic Page Content */}

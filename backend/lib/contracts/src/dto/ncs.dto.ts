@@ -112,6 +112,18 @@ export class UpdateNcsDto {
   lop?: string;
 }
 
+export class UpdateMyNcsProfileDto {
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  hoTen?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 20)
+  soDienThoai?: string;
+}
+
 export class CreateNcsBatchDto {
   @ValidateNested({ each: true })
   @Type(() => CreateNcsItemDto)

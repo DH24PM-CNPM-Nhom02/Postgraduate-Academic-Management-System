@@ -32,41 +32,41 @@ const AUTH_PAGES = ["/login", "/forgot-password"];
 // ──────────────────────────────────────────────────────────────────────
 const ROUTE_RBAC: { prefix: string; roles: UserRole[] }[] = [
   // ── Nhóm (admin): Chỉ ADMIN ────────────────────────────────────────
-  { prefix: "/admin",      roles: ["ADMIN"] },
-  { prefix: "/users",      roles: ["ADMIN"] },
-  { prefix: "/system",     roles: ["ADMIN"] },
-  { prefix: "/audit-log",  roles: ["ADMIN"] },
+  { prefix: "/admin", roles: ["ADMIN"] },
+  { prefix: "/users", roles: ["ADMIN"] },
+  { prefix: "/system", roles: ["ADMIN"] },
+  { prefix: "/audit-log", roles: ["ADMIN"] },
 
   // ── Nhóm (academic): GIAO_VU (và ADMIN cho tiện vận hành) ─────────
   { prefix: "/academic-affairs", roles: ["GIAO_VU", "ADMIN"] },
-  { prefix: "/academic",        roles: ["GIAO_VU", "ADMIN"] },
-  { prefix: "/review-queue",    roles: ["GIAO_VU", "ADMIN"] },
-  { prefix: "/blind-review",    roles: ["GIAO_VU", "ADMIN"] },
-  { prefix: "/committees",      roles: ["GIAO_VU", "ADMIN"] },
-  { prefix: "/graduation-check",roles: ["GIAO_VU", "ADMIN"] },
-  { prefix: "/publications",    roles: ["GIAO_VU", "ADMIN"] },
-  { prefix: "/supervisors",     roles: ["GIAO_VU", "ADMIN"] },
+  { prefix: "/academic", roles: ["GIAO_VU", "ADMIN"] },
+  { prefix: "/review-queue", roles: ["GIAO_VU", "ADMIN"] },
+  { prefix: "/blind-review", roles: ["GIAO_VU", "ADMIN"] },
+  { prefix: "/committees", roles: ["GIAO_VU", "ADMIN"] },
+  { prefix: "/graduation-check", roles: ["GIAO_VU", "ADMIN"] },
+  { prefix: "/publications", roles: ["GIAO_VU", "ADMIN"] },
+  { prefix: "/supervisors", roles: ["GIAO_VU", "ADMIN"] },
 
   // ── Nhóm (committee): Hội đồng đánh giá (GVHD, GIAO_VU, ADMIN) ────
   { prefix: "/review-forms", roles: ["GVHD", "GIAO_VU", "ADMIN"] },
-  { prefix: "/voting",       roles: ["GVHD", "GIAO_VU", "ADMIN"] },
+  { prefix: "/voting", roles: ["GVHD", "GIAO_VU", "ADMIN"] },
 
   // ── Nhóm (supervisor): GVHD ───────────────────────────────────────
   // Lưu ý: "/students/" (có slash cuối hoặc path con) cũng thuộc cả
   // academic (chi tiết NCS: /students/[id]) nên cho cả GIAO_VU vào.
-  { prefix: "/supervisor",       roles: ["GVHD", "ADMIN"] },
+  { prefix: "/supervisor", roles: ["GVHD", "ADMIN"] },
   { prefix: "/progress-reports", roles: ["GVHD", "ADMIN"] },
-  { prefix: "/quota",            roles: ["GVHD", "GIAO_VU", "ADMIN"] },
-  { prefix: "/students",         roles: ["GVHD", "GIAO_VU", "ADMIN"] },
+  { prefix: "/quota", roles: ["GVHD", "GIAO_VU", "ADMIN"] },
+  { prefix: "/students", roles: ["GVHD", "GIAO_VU", "ADMIN"] },
 
   // ── Nhóm (student): NCS ────────────────────────────────────────────
-  { prefix: "/student",      roles: ["NCS", "ADMIN"] },
-  { prefix: "/dashboard",    roles: ["NCS", "ADMIN"] },
-  { prefix: "/milestones",   roles: ["NCS", "ADMIN"] },
+  { prefix: "/student", roles: ["NCS", "ADMIN"] },
+  { prefix: "/dashboard", roles: ["NCS", "ADMIN"] },
+  { prefix: "/milestones", roles: ["NCS", "ADMIN"] },
   { prefix: "/my-publications", roles: ["NCS", "ADMIN"] },
-  { prefix: "/defense",      roles: ["NCS", "ADMIN"] },
-  { prefix: "/extensions",   roles: ["NCS", "ADMIN"] },
-  { prefix: "/graduation",   roles: ["NCS", "ADMIN"] },
+  { prefix: "/defense", roles: ["NCS", "ADMIN"] },
+  { prefix: "/extensions", roles: ["NCS", "ADMIN"] },
+  { prefix: "/graduation", roles: ["NCS", "ADMIN"] },
 ];
 
 // ──────────────────────────────────────────────────────────────────────
@@ -116,6 +116,9 @@ export default auth((req) => {
   const userRole = user?.role;
 
   if (isAuthPage) {
+    if (pathname.startsWith("/login") && user?.mustChangePassword) {
+      return NextResponse.next();
+    }
     const home = userRole ? ROLE_HOME[userRole] : "/";
     return NextResponse.redirect(new URL(home, req.nextUrl.origin));
   }

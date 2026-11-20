@@ -1,3 +1,4 @@
+import React, { Suspense } from "react";
 import { ProceduresFormsView } from "@/src/components/shared";
 
 export const metadata = {
@@ -11,10 +12,18 @@ export const metadata = {
  */
 export default function AdminProceduresPage() {
   return (
-    <ProceduresFormsView
-      roleContext="academic"
-      backHref="/admin/overview"
-      backLabel="Tổng quan đào tạo"
-    />
+    <Suspense
+      fallback={
+        <div className="flex h-64 items-center justify-center text-xs text-slate-500">
+          Đang tải danh mục thủ tục &amp; biểu mẫu...
+        </div>
+      }
+    >
+      <ProceduresFormsView
+        roleContext="academic"
+        backHref="/admin/overview"
+        backLabel="Tổng quan đào tạo"
+      />
+    </Suspense>
   );
 }

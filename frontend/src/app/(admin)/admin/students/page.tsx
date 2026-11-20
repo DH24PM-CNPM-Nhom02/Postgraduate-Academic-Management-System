@@ -1,3 +1,4 @@
+import React, { Suspense } from "react";
 import { StudentsManagementView } from "@/src/components/academic";
 
 export const metadata = {
@@ -10,5 +11,15 @@ export const metadata = {
  * Kế thừa trực tiếp StudentsManagementView từ phân hệ Academic cho Admin.
  */
 export default function AdminStudentsManagementPage() {
-  return <StudentsManagementView />;
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-64 items-center justify-center text-xs text-slate-500">
+          Đang tải danh sách Nghiên cứu sinh...
+        </div>
+      }
+    >
+      <StudentsManagementView />
+    </Suspense>
+  );
 }

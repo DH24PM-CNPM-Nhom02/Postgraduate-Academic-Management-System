@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
+import { useUpdateMyNcsProfile } from "@/src/hooks/api/use-ncs";
 import {
   User,
   Mail,
   Phone,
   GraduationCap,
   BookOpen,
-  Globe,
   Lock,
   Save,
   Loader2,
@@ -19,46 +19,28 @@ import {
 
 export interface StudentProfileData {
   mshv: string;
-  emailTruong: string;
+  email: string;
   lop: string;
   chuyenNganh: string;
-  khoaQuanLy: string;
-  khoaDaoTao: string;
+  khoaHoc: string;
   ngayNhapHoc: string;
+  trangThai: string;
   hoTen: string;
   soDienThoai: string;
-  googleScholarUrl: string;
 }
 
 interface GeneralInfoFormProps {
-  initialData?: Partial<StudentProfileData>;
+  initialData: StudentProfileData;
 }
 
-const defaultProfileData: StudentProfileData = {
-  mshv: "NCS2024001",
-  emailTruong: "a.nguyen@agu.edu.vn",
-  lop: "K32-CNTT",
-  chuyenNganh: "Khoa học máy tính & Trí tuệ nhân tạo",
-  khoaQuanLy: "Khoa Công nghệ thông tin",
-  khoaDaoTao: "NCS Khóa 32 (2024 - 2028)",
-  ngayNhapHoc: "15/01/2024",
-  hoTen: "Nguyễn Văn A",
-  soDienThoai: "0912 345 678",
-  googleScholarUrl: "https://scholar.google.com/citations?user=a_nguyen_agu",
-};
-
 export function GeneralInfoForm({ initialData }: GeneralInfoFormProps) {
-  const profile = { ...defaultProfileData, ...initialData };
+  const profile = initialData;
+  const updateProfile = useUpdateMyNcsProfile();
 
   // Editable fields state
   const [hoTen, setHoTen] = useState(profile.hoTen);
   const [soDienThoai, setSoDienThoai] = useState(profile.soDienThoai);
-  const [googleScholarUrl, setGoogleScholarUrl] = useState(
-    profile.googleScholarUrl
-  );
-
   // Status state
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -87,27 +69,24 @@ export function GeneralInfoForm({ initialData }: GeneralInfoFormProps) {
       return;
     }
 
-    if (
-      googleScholarUrl &&
-      !googleScholarUrl.startsWith("http://") &&
-      !googleScholarUrl.startsWith("https://")
-    ) {
-      setErrorMessage("Link Google Scholar phải bắt đầu bằng http:// hoặc https://");
+    const payload = {
+      ...(hoTen.trim() !== profile.hoTen ? { hoTen: hoTen.trim() } : {}),
+      ...(soDienThoai.trim() !== profile.soDienThoai ? { soDienThoai: soDienThoai.trim() } : {}),
+    };
+    if (Object.keys(payload).length === 0) {
+      setErrorMessage("Thông tin chưa có thay đổi.");
       return;
     }
 
-    setIsSubmitting(true);
-
-    // Mock API call delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    setIsSubmitting(false);
-    setShowSuccessToast(true);
-
-    // Tự ẩn thông báo sau 3.5s
-    setTimeout(() => {
-      setShowSuccessToast(false);
-    }, 3500);
+    try {
+      await updateProfile.mutateAsync(payload);
+      setHoTen(hoTen.trim());
+      setSoDienThoai(soDienThoai.trim());
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 3500);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Không thể lưu thông tin cá nhân.");
+    }
   };
 
   return (
@@ -161,19 +140,19 @@ export function GeneralInfoForm({ initialData }: GeneralInfoFormProps) {
                 {profile.mshv}
               </span>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Nghiên cứu sinh chuyên ngành {profile.chuyenNganh}
-            </p>
+            <p className="text-sm text-muted-foreground">Nghiên cứu sinh</p>
             <div className="pt-2 flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1">
                 <Building2 className="size-3.5 text-blue-600" />
-                {profile.khoaQuanLy}
+                {profile.chuyenNganh}
               </span>
               <span>•</span>
               <span className="inline-flex items-center gap-1">
                 <GraduationCap className="size-3.5 text-blue-600" />
                 {profile.lop}
               </span>
+              <span>•</span>
+              <span>{profile.khoaHoc}</span>
               <span>•</span>
               <span className="inline-flex items-center gap-1">
                 <Calendar className="size-3.5 text-blue-600" />
@@ -234,19 +213,19 @@ export function GeneralInfoForm({ initialData }: GeneralInfoFormProps) {
             {/* Email trường */}
             <div className="space-y-1.5">
               <label
-                htmlFor="emailTruong"
+                htmlFor="email"
                 className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide"
               >
-                Email học vụ trường cấp
+                Email liên hệ
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
                   <Mail className="size-4" />
                 </div>
                 <input
-                  id="emailTruong"
+                  id="email"
                   type="email"
-                  value={profile.emailTruong}
+                  value={profile.email || "Chưa cập nhật"}
                   disabled
                   readOnly
                   aria-readonly="true"
@@ -318,10 +297,10 @@ export function GeneralInfoForm({ initialData }: GeneralInfoFormProps) {
         <div className="rounded-2xl border border-border bg-card p-6 shadow-xs">
           <div className="mb-4 border-b border-border pb-3">
             <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-              Thông tin liên hệ & Công bố (Có thể chỉnh sửa)
+              Thông tin cá nhân và liên hệ (Có thể chỉnh sửa)
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Vui lòng cập nhật số điện thoại và hồ sơ học giả để Hội đồng & Thầy cô tiện liên hệ trao đổi.
+              Cập nhật họ tên và số điện thoại liên hệ của bạn.
             </p>
           </div>
 
@@ -374,38 +353,16 @@ export function GeneralInfoForm({ initialData }: GeneralInfoFormProps) {
               </div>
             </div>
 
-            {/* Google Scholar URL */}
-            <div className="space-y-1.5">
-              <label
-                htmlFor="googleScholarUrl"
-                className="block text-xs font-semibold text-foreground"
-              >
-                Liên kết học giả (Google Scholar)
-              </label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
-                  <Globe className="size-4" />
-                </div>
-                <input
-                  id="googleScholarUrl"
-                  type="url"
-                  value={googleScholarUrl}
-                  onChange={(e) => setGoogleScholarUrl(e.target.value)}
-                  placeholder="https://scholar.google.com/citations?user=..."
-                  className="w-full rounded-xl border border-input bg-background py-2.5 pl-9 pr-3 text-sm text-foreground transition-all duration-150 placeholder:text-muted-foreground hover:border-blue-400 focus-visible:outline-none focus-visible:border-blue-600 focus-visible:ring-2 focus-visible:ring-blue-600/20"
-                />
-              </div>
-            </div>
           </div>
 
           {/* Action Button: Save Changes */}
           <div className="mt-8 flex items-center justify-end border-t border-border pt-4">
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={updateProfile.isPending}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-xs transition-all duration-150 hover:bg-blue-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isSubmitting ? (
+              {updateProfile.isPending ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
                   <span>Đang lưu thay đổi...</span>
