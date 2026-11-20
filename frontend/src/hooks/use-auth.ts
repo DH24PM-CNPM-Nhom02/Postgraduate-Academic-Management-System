@@ -3,6 +3,7 @@
 import { getSession, signIn, signOut, useSession } from "next-auth/react";
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import { authService } from "@/src/services/auth";
 
 export function useAuth() {
     const { data: session, status } = useSession();
