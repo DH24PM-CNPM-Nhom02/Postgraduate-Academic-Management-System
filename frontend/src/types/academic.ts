@@ -6,6 +6,16 @@
 /** Trạng thái của Nghiên cứu sinh */
 export type StudentStatus = "active" | "warning" | "overdue";
 
+/** Query params tra cứu và lọc danh sách Nghiên cứu sinh (Học vụ) */
+export interface ListAcademicStudentsQuery {
+  page?: number;
+  limit?: number;
+  trangThai?: string;
+  khoaHocId?: string;
+  nganhId?: string;
+  search?: string;
+}
+
 /** Hồ sơ Nghiên cứu sinh (Student Dossier) */
 export interface StudentDossier {
   id: string;
@@ -13,15 +23,31 @@ export interface StudentDossier {
   code: string;
   cohort: string;
   department: string;
+  admissionYear?: number | string;
+  trinhDoDauVao?: "THAC_SI" | "DAI_HOC" | string;
+  phuongThucDaoTao?: string;
+  phuongThucDaoTaoText?: string;
   thesisTopic: string;
   supervisorMain: string;
   supervisorCo?: string;
   remainingMonths: number;
   currentMilestoneIndex: number; // 1 to 9
-  publicationPoints: number; // Điểm tích lũy bài báo (ngưỡng 2.0)
+  publicationPoints?: number;
   status: StudentStatus;
   email: string;
   phone: string;
+  ngaySinh?: string | Date | null;
+  gioiTinh?: "NAM" | "NU" | string | null;
+  cccd?: string | null;
+  lop?: string | null;
+  ngayNhapHoc?: string | Date | null;
+  hanChinhQuy?: string | Date | null;
+  hanBuocThoiHoc?: string | Date | null;
+  hanGiaHan?: string | Date | null;
+  ngayChuyenTrangThai?: string | Date | null;
+  lyDoChuyenTrangThai?: string | null;
+  createdAt?: string | Date;
+  rawDetails?: Record<string, unknown>;
 }
 
 /** Hồ sơ & Hạn ngạch Giảng viên Hướng dẫn theo Quy chế BR-09 */
@@ -231,3 +257,34 @@ export type AcademicTabKey =
   | "forms"
   | "regulations"
   | "faq";
+
+/** Kết quả phân tích một dòng trong file Excel import NCS */
+export interface ImportNcsPreviewRow {
+  row: number;
+  mshv: string;
+  hoTen?: string;
+  nganh?: string;
+  khoaHoc?: string;
+  ok: boolean;
+  willCreateAccount: boolean;
+  errors: string[];
+}
+
+/** Phản hồi từ endpoint xem trước import NCS (POST /ncs/import/preview) */
+export interface ImportNcsPreviewResponse {
+  total: number;
+  validCount: number;
+  errorCount: number;
+  newAccountCount: number;
+  newKhoaHocCount: number;
+  rows: ImportNcsPreviewRow[];
+}
+
+/** Phản hồi từ endpoint xác nhận import NCS (POST /ncs/import/confirm) */
+export interface ImportNcsConfirmResponse {
+  createdAccounts: number;
+  createdKhoaHoc: number;
+  createdProfiles: number;
+  profiles: Array<Record<string, unknown>>;
+}
+
