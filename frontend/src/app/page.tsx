@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import type { UserRole } from "@/src/lib/auth/constants";
 import {
   ArrowRight,
   ShieldCheck,
@@ -24,8 +26,19 @@ import { MOCK_FORMS } from "@/src/components/academic/mockData";
 import { REGULATIONS_LIST } from "@/src/components/shared/RegulationsView";
 import { FAQ_ITEMS } from "@/src/components/shared/FaqContactView";
 
+const ROLE_PORTAL: Record<UserRole, { href: string; label: string }> = {
+  NCS: { href: "/student/progress", label: "Cổng NCS" },
+  GVHD: { href: "/supervisor", label: "Cổng GVHD" },
+  GIAO_VU: { href: "/academic", label: "Cổng Giáo vụ" },
+  ADMIN: { href: "/admin", label: "Cổng Quản trị" },
+};
+
 export default function Home() {
+  const { data: session, status } = useSession();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const role = session?.user?.role;
+  const mustChangePassword = session?.user?.mustChangePassword === true;
+  const portal = role ? ROLE_PORTAL[role] : undefined;
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
@@ -102,31 +115,21 @@ export default function Home() {
             </a>
           </nav>
 
-          {/* Portal Access Buttons */}
+          {/* Chỉ hiển thị cổng phù hợp với vai trò hiện tại */}
           <div className="flex items-center gap-2">
-            <Link
-              href="/student/progress"
-              className="hidden lg:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-white hover:text-[#164E9B] hover:border-blue-200 transition-all shadow-2xs"
-            >
-              <GraduationCap className="size-3.5 text-[#164E9B]" />
-              <span>Cổng NCS</span>
-            </Link>
-
-            <Link
-              href="/supervisor/dashboard"
-              className="hidden lg:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-white hover:text-[#164E9B] hover:border-blue-200 transition-all shadow-2xs"
-            >
-              <UserCheck className="size-3.5 text-emerald-600" />
-              <span>Cổng GVHD</span>
-            </Link>
-
-            <Link
-              href="/academic"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#164E9B] px-4 py-2 text-xs font-bold text-white hover:bg-[#113E7D] transition-all shadow-xs hover:shadow-sm"
-            >
-              <span>Vào Cổng SĐH</span>
-              <ArrowRight className="size-3.5" />
-            </Link>
+            {status !== "loading" && (
+              <Link
+                href={mustChangePassword ? "/login" : portal?.href ?? "/login"}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#164E9B] px-4 py-2 text-xs font-bold text-white hover:bg-[#113E7D] transition-all shadow-xs hover:shadow-sm"
+              >
+                {mustChangePassword ? (
+                  <span>Đổi mật khẩu để tiếp tục</span>
+                ) : (
+                  <span>{portal?.label ?? "Đăng nhập"}</span>
+                )}
+                <ArrowRight className="size-3.5" />
+              </Link>
+            )}
           </div>
         </div>
       </header>
@@ -151,8 +154,7 @@ export default function Home() {
           {/* 3 Portal Entry Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-left pt-6">
             {/* Academic Staff Portal */}
-            <Link
-              href="/academic"
+            <div
               className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-xs hover:border-[#164E9B] hover:shadow-md transition-all flex flex-col justify-between"
             >
               <div className="space-y-3">
@@ -166,15 +168,10 @@ export default function Home() {
                   Quản lý hồ sơ 18 NCS, xét duyệt minh chứng 2 cấp, thẩm định điểm bài báo WoS/Scopus và giám sát hạn ngạch GVHD toàn trường.
                 </p>
               </div>
-              <div className="pt-4 flex items-center text-xs font-bold text-[#164E9B] group-hover:translate-x-1 transition-transform">
-                <span>Truy cập Cổng Giáo vụ</span>
-                <ChevronRight className="size-4 ml-1" />
-              </div>
-            </Link>
+            </div>
 
             {/* Supervisor Portal */}
-            <Link
-              href="/supervisor/dashboard"
+            <div
               className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-xs hover:border-emerald-500 hover:shadow-md transition-all flex flex-col justify-between"
             >
               <div className="space-y-3">
@@ -188,15 +185,10 @@ export default function Home() {
                   Bàn làm việc số của GVHD: Theo dõi danh sách NCS hướng dẫn, nhận xét báo cáo định kỳ 6 tháng và giám sát định mức tải trọng BR-09.
                 </p>
               </div>
-              <div className="pt-4 flex items-center text-xs font-bold text-emerald-700 group-hover:translate-x-1 transition-transform">
-                <span>Truy cập Bàn làm việc GVHD</span>
-                <ChevronRight className="size-4 ml-1" />
-              </div>
-            </Link>
+            </div>
 
             {/* Student Portal */}
-            <Link
-              href="/student/progress"
+            <div
               className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-xs hover:border-indigo-500 hover:shadow-md transition-all flex flex-col justify-between"
             >
               <div className="space-y-3">
@@ -210,11 +202,8 @@ export default function Home() {
                   Tiến trình 9 mốc đào tạo chuẩn hóa: Nộp minh chứng mốc, theo dõi tiến độ phản biện chuyên môn, xem điểm nhận xét và đăng ký bảo vệ.
                 </p>
               </div>
-              <div className="pt-4 flex items-center text-xs font-bold text-indigo-700 group-hover:translate-x-1 transition-transform">
-                <span>Truy cập Tiến độ NCS</span>
-                <ChevronRight className="size-4 ml-1" />
-              </div>
-            </Link>
+            </div>
+
           </div>
         </section>
 

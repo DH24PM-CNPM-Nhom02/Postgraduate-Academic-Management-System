@@ -33,6 +33,11 @@ export interface BackendNcsRaw {
   tienTrinhs?: Array<{ trangThai?: string }>;
 }
 
+export interface UpdateMyNcsProfilePayload {
+  hoTen?: string;
+  soDienThoai?: string;
+}
+
 /**
  * Hàm chuyển đổi dữ liệu thô từ Backend sang cấu trúc hiển thị giao diện Frontend (StudentDossier).
  * Giúp giao diện luôn hiển thị mượt mà kể cả khi cấu trúc database dùng tiếng Việt (hoTen, mshv...).
@@ -96,7 +101,7 @@ export function mapBackendNcsToStudentDossier(raw: BackendNcsRaw): StudentDossie
 
 /**
  * Service kết nối toàn bộ API của Phân hệ Quản lý Nghiên cứu sinh (NCS).
- * Gọi qua apiClient (tự động đính kèm Token đăng nhập của Giáo vụ).
+ * Gọi qua apiClient (tự động đính kèm access token của phiên hiện tại).
  */
 export const NcsService = {
   /**
@@ -127,6 +132,15 @@ export const NcsService = {
     try {
       const response = await apiClient.get<BackendNcsMeResponse>("/ncs/me");
       return response.data;
+    } catch (error) {
+      throwApiError(error);
+    }
+  },
+
+  /** Cập nhật các trường cá nhân được phép của hồ sơ NCS hiện tại. */
+  updateMyProfile: async (payload: UpdateMyNcsProfilePayload): Promise<void> => {
+    try {
+      await apiClient.patch("/ncs/me", payload);
     } catch (error) {
       throwApiError(error);
     }

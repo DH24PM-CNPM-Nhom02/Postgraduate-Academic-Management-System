@@ -192,8 +192,10 @@ export function NotificationList({
             type="button"
             key={item.id}
             onClick={() => onItemClick(item)}
-            className={`flex w-full cursor-pointer items-start gap-3 p-3.5 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/60 focus-visible:outline-none ${
-              !item.daDoc ? "bg-[#164E9B]/5" : "bg-card"
+            className={`flex w-full cursor-pointer items-start gap-3 border-l-2 p-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#164E9B] ${
+              !item.daDoc
+                ? "border-l-[#164E9B] bg-[#164E9B]/5 hover:bg-[#164E9B]/10"
+                : "border-l-transparent bg-card hover:bg-muted/50"
             }`}
           >
             <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted/60 text-foreground">
@@ -208,12 +210,15 @@ export function NotificationList({
                   >
                     {visual.label}
                   </span>
-                  {!item.daDoc && (
-                    <span
-                      aria-label="Chưa đọc"
-                      className="size-2 shrink-0 rounded-full bg-rose-500 ring-2 ring-card"
-                    />
-                  )}
+                  <span
+                    className={`whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+                      item.daDoc
+                        ? "bg-muted text-muted-foreground"
+                        : "bg-[#164E9B]/10 text-[#164E9B]"
+                    }`}
+                  >
+                    {item.daDoc ? "Đã đọc" : "Chưa đọc"}
+                  </span>
                 </div>
                 <span className="whitespace-nowrap text-[10px] font-medium text-muted-foreground">
                   {formatTimeAgo(item.createdAt, effectiveNow)}

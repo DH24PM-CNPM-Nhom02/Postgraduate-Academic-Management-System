@@ -11,7 +11,6 @@ import {
   Scale,
   Loader2,
 } from "lucide-react";
-import { useTriggerNotification } from "@/src/hooks/use-notifications";
 import {
   useAcademicAssignments,
   useAssignmentDecisions,
@@ -76,7 +75,6 @@ export function SupervisorAssignmentModal({
   supervisors,
   onSuccess,
 }: SupervisorAssignmentModalProps) {
-  const triggerNotification = useTriggerNotification();
   const createAssignmentMutation = useCreateAssignment();
   const deactivateAssignmentMutation = useDeactivateAssignment();
 
@@ -178,40 +176,8 @@ export function SupervisorAssignmentModal({
           quyetDinhId: effectiveDecisionId,
         });
 
-        const soQuyetDinh = selectedDecision?.soQuyetDinh || "theo QĐ hệ thống";
-
-        triggerNotification({
-          nhom: "TIEN_DO",
-          loai: "NCS_DUOC_PHAN_CONG_GVHD",
-          tieuDe: "Bạn đã được phân công giảng viên hướng dẫn",
-          noiDung: `Giảng viên hướng dẫn của bạn: ${currentSupervisor.name} (${
-            role === "HUONG_DAN_CHINH" ? "GVHD Chính" : "Đồng Hướng dẫn"
-          }) theo Quyết định số ${soQuyetDinh}.`,
-          duLieu: {
-            tenGvhd: currentSupervisor.name,
-            vaiTro: role,
-            soQuyetDinh,
-          },
-          targetRole: "student",
-          targetUrl: "/student/progress",
-        });
-
-        triggerNotification({
-          nhom: "TIEN_DO",
-          loai: "GVHD_NHAN_NCS",
-          tieuDe: "Bạn được phân công hướng dẫn nghiên cứu sinh mới",
-          noiDung: `Nghiên cứu sinh ${currentStudent.name} (${currentStudent.code}) đã được phân công cho bạn theo QĐ số ${soQuyetDinh}.`,
-          duLieu: {
-            tenNcs: currentStudent.name,
-            mshv: currentStudent.code,
-            soQuyetDinh,
-          },
-          targetRole: "supervisor",
-          targetUrl: "/supervisor/dashboard",
-        });
-
         onSuccess?.(
-          `Đã phân công ${currentSupervisor.name} hướng dẫn NCS ${currentStudent.name} theo QĐ số ${soQuyetDinh}.`,
+          `Đã phân công ${currentSupervisor.name} hướng dẫn NCS ${currentStudent.name}.`,
           effectiveStudentId,
           currentSupervisor.name,
           role
@@ -223,43 +189,10 @@ export function SupervisorAssignmentModal({
       return;
     }
 
-    // Fallback offline mock mode
     if (!decisionCode.trim()) {
       setErrorMsg("Vui lòng nhập số quyết định phân công hướng dẫn làm căn cứ pháp lý.");
       return;
     }
-
-    // 1. Kích hoạt thông báo cho NCS (targetRole = 'student')
-    triggerNotification({
-      nhom: "TIEN_DO",
-      loai: "NCS_DUOC_PHAN_CONG_GVHD",
-      tieuDe: "Bạn đã được phân công giảng viên hướng dẫn",
-      noiDung: `Giảng viên hướng dẫn của bạn: ${currentSupervisor.name} (${
-        role === "HUONG_DAN_CHINH" ? "GVHD Chính" : "Đồng Hướng dẫn"
-      }) theo Quyết định số ${decisionCode}.`,
-      duLieu: {
-        tenGvhd: currentSupervisor.name,
-        vaiTro: role,
-        soQuyetDinh: decisionCode,
-      },
-      targetRole: "student",
-      targetUrl: "/student/progress",
-    });
-
-    // 2. Kích hoạt thông báo cho GVHD (targetRole = 'supervisor')
-    triggerNotification({
-      nhom: "TIEN_DO",
-      loai: "GVHD_NHAN_NCS",
-      tieuDe: "Bạn được phân công hướng dẫn nghiên cứu sinh mới",
-      noiDung: `Nghiên cứu sinh ${currentStudent.name} (${currentStudent.code}) đã được phân công cho bạn theo QĐ số ${decisionCode}.`,
-      duLieu: {
-        tenNcs: currentStudent.name,
-        mshv: currentStudent.code,
-        soQuyetDinh: decisionCode,
-      },
-      targetRole: "supervisor",
-      targetUrl: "/supervisor/dashboard",
-    });
 
     onSuccess?.(
       `Đã phân công ${currentSupervisor.name} hướng dẫn NCS ${currentStudent.name} theo QĐ số ${decisionCode}.`,
@@ -291,33 +224,6 @@ export function SupervisorAssignmentModal({
           lyDo: deactivateReason.trim(),
         });
 
-        triggerNotification({
-          nhom: "TIEN_DO",
-          loai: "THAY_DOI_PHAN_CONG_GVHD",
-          tieuDe: "Thay đổi phân công giảng viên hướng dẫn",
-          noiDung: `Phân công hướng dẫn với GV ${currentSupervisor.name} đã kết thúc. Lý do: ${deactivateReason}.`,
-          duLieu: {
-            tenGvhd: currentSupervisor.name,
-            lyDo: deactivateReason,
-          },
-          targetRole: "student",
-          targetUrl: "/student/progress",
-        });
-
-        triggerNotification({
-          nhom: "TIEN_DO",
-          loai: "THAY_DOI_PHAN_CONG_GVHD",
-          tieuDe: `Kết thúc phân công hướng dẫn NCS ${currentStudent.name}`,
-          noiDung: `Phân công hướng dẫn giữa bạn và NCS ${currentStudent.name} (${currentStudent.code}) đã kết thúc. Lý do: ${deactivateReason}.`,
-          duLieu: {
-            tenNcs: currentStudent.name,
-            mshv: currentStudent.code,
-            lyDo: deactivateReason,
-          },
-          targetRole: "supervisor",
-          targetUrl: "/supervisor/dashboard",
-        });
-
         onSuccess?.(
           `Đã hủy phân công hướng dẫn giữa NCS ${currentStudent.name} và GV ${currentSupervisor.name}.`
         );
@@ -328,36 +234,6 @@ export function SupervisorAssignmentModal({
       }
       return;
     }
-
-    // Fallback offline mock mode
-    // 1. Kích hoạt thông báo cho NCS (targetRole = 'student')
-    triggerNotification({
-      nhom: "TIEN_DO",
-      loai: "THAY_DOI_PHAN_CONG_GVHD",
-      tieuDe: "Thay đổi phân công giảng viên hướng dẫn",
-      noiDung: `Phân công hướng dẫn với GV ${currentSupervisor.name} đã kết thúc. Lý do: ${deactivateReason}.`,
-      duLieu: {
-        tenGvhd: currentSupervisor.name,
-        lyDo: deactivateReason,
-      },
-      targetRole: "student",
-      targetUrl: "/student/progress",
-    });
-
-    // 2. Kích hoạt thông báo cho GVHD (targetRole = 'supervisor')
-    triggerNotification({
-      nhom: "TIEN_DO",
-      loai: "THAY_DOI_PHAN_CONG_GVHD",
-      tieuDe: `Kết thúc phân công hướng dẫn NCS ${currentStudent.name}`,
-      noiDung: `Phân công hướng dẫn giữa bạn và NCS ${currentStudent.name} (${currentStudent.code}) đã kết thúc. Lý do: ${deactivateReason}.`,
-      duLieu: {
-        tenNcs: currentStudent.name,
-        mshv: currentStudent.code,
-        lyDo: deactivateReason,
-      },
-      targetRole: "supervisor",
-      targetUrl: "/supervisor/dashboard",
-    });
 
     onSuccess?.(
       `Đã hủy phân công hướng dẫn giữa NCS ${currentStudent.name} và GV ${currentSupervisor.name}.`
@@ -693,7 +569,7 @@ export function SupervisorAssignmentModal({
                   ) : (
                     <>
                       <CheckCircle2 className="size-4" />
-                      <span>Ban hành &amp; Gửi thông báo</span>
+                      <span>Lưu phân công</span>
                     </>
                   )}
                 </button>
@@ -767,7 +643,7 @@ export function SupervisorAssignmentModal({
                 ) : (
                   <>
                     <Trash2 className="size-4" />
-                    <span>Xác nhận Hủy &amp; Gửi thông báo</span>
+                    <span>Xác nhận hủy phân công</span>
                   </>
                 )}
               </button>

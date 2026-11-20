@@ -8,11 +8,11 @@ import {
   Sparkles,
   Info,
 } from "lucide-react";
-import { GeneralInfoForm, StudentProfileData } from "./general-info-form";
+import { GeneralInfoForm, type StudentProfileData } from "./general-info-form";
 import { SecurityForm } from "./security-form";
 
 interface ProfileLayoutProps {
-  initialData?: Partial<StudentProfileData>;
+  initialData: StudentProfileData;
 }
 
 type TabType = "general" | "security";
@@ -57,8 +57,8 @@ function ProfileLayoutContent({ initialData }: ProfileLayoutProps) {
 
         {/* Quick status pill */}
         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <span className="size-2 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20" />
-          <span>Tài khoản đang hoạt động bình thường</span>
+          <span className={`size-2 rounded-full ring-4 ${initialData.trangThai === "Đang học" ? "bg-emerald-500 ring-emerald-500/20" : "bg-slate-400 ring-slate-400/20"}`} />
+          <span>Trạng thái hồ sơ: {initialData.trangThai}</span>
         </div>
       </div>
 

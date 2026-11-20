@@ -45,7 +45,6 @@ export default function SupervisorLayout({
         <SupervisorHeader
           onToggleSidebar={() => setSidebarOpen(true)}
           profile={profile}
-          quota={quota}
         />
 
         <main

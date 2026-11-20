@@ -6,7 +6,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator.js';
 import { PHD_SERVICE } from '../common/constants/service.js';
 import type { AuthUser } from '../common/interface/auth-user.interface.js';
-import { CreateNcsBatchDto, ListNcsQueryDto, UpdateNcsDto, UpdateNcsStatusDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
+import { CreateNcsBatchDto, ListNcsQueryDto, UpdateMyNcsProfileDto, UpdateNcsDto, UpdateNcsStatusDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
 import { buildNcsTemplate, parseNcsExcel } from './ncs-excel.js';
 import { LimitStrict, LimitBulk, LimitHeavyRead } from '../common/decorators/rate-limit.decorator.js';
@@ -84,6 +84,13 @@ export class NcsController {
   @Get('me')
   me(@CurrentUser() u: AuthUser) {
     return this.send('phd.ncs.get', { userId: u.id });
+  }
+
+  @Patch('me')
+  @LimitStrict()
+  @RequirePermissions(PERMISSIONS.NCS_READ)
+  updateMe(@CurrentUser() u: AuthUser, @Body() body: UpdateMyNcsProfileDto) {
+    return this.send('phd.ncs.update-me', { userId: u.id, duLieu: body });
   }
 
   // Chi tiết một NCS (Giáo vụ xem)

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, CheckCheck, X } from "lucide-react";
+import { Bell, CheckCheck, LoaderCircle, X } from "lucide-react";
 import {
   useDetectedRole,
   useMarkAllNotificationsAsRead,
@@ -12,6 +12,7 @@ import {
 } from "@/src/hooks/use-notifications";
 import type { NotificationItem } from "@/src/types/notification";
 import { NotificationBell } from "./NotificationBell";
+import { NotificationDetailDialog } from "./NotificationDetailDialog";
 import { NotificationList } from "./NotificationList";
 
 interface NotificationBellPopoverProps {
@@ -30,11 +31,13 @@ export function NotificationBellPopover({
   const currentRole = role || detectedRole;
 
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedNotification, setSelectedNotification] =
+    useState<NotificationItem | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("ALL");
   const [now] = useState(() => Date.now());
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  const { data: unreadData } = useUnreadNotificationCount(currentRole);
+  const { data: unreadData } = useUnreadNotificationCount();
   const unreadCount = unreadData?.soLuong ?? 0;
 
   const filterParams = useMemo(() => {
@@ -42,16 +45,14 @@ export function NotificationBellPopover({
       unread?: boolean;
       group?: string;
       limit: number;
-      role: "academic" | "supervisor" | "student";
     } = {
       limit: 30,
-      role: currentRole,
     };
     if (activeTab === "UNREAD") base.unread = true;
     if (activeTab === "TIEN_DO") base.group = "TIEN_DO";
     if (activeTab === "QUYET_DINH") base.group = "QUYET_DINH";
     return base;
-  }, [activeTab, currentRole]);
+  }, [activeTab]);
 
   const {
     data: notificationData,
@@ -61,7 +62,7 @@ export function NotificationBellPopover({
     refetch,
   } = useNotifications(filterParams);
   const markAsRead = useMarkNotificationAsRead();
-  const markAllAsRead = useMarkAllNotificationsAsRead(currentRole);
+  const markAllAsRead = useMarkAllNotificationsAsRead();
 
   const notifications = notificationData?.items ?? [];
 
@@ -92,26 +93,44 @@ export function NotificationBellPopover({
   }, [isOpen]);
 
   const handleItemClick = (item: NotificationItem) => {
+    const readAt = new Date().toISOString();
+    setSelectedNotification(
+      item.daDoc ? item : { ...item, daDoc: true, readAt }
+    );
+
     if (!item.daDoc) {
-      markAsRead.mutate(item.id);
+      markAsRead.reset();
+      markAsRead.mutate({ id: item.id, readAt }, {
+        onSuccess: () => {
+          setSelectedNotification((current) =>
+            current?.id === item.id
+              ? { ...current, daDoc: true, readAt }
+              : current
+          );
+        },
+        onError: () => {
+          setSelectedNotification((current) =>
+            current?.id === item.id ? item : current
+          );
+        },
+      });
     }
+  };
+
+  const handleOpenNotificationTarget = (item: NotificationItem) => {
+    setSelectedNotification(null);
     setIsOpen(false);
-
-    if (item.targetUrl) {
-      router.push(item.targetUrl);
-      return;
-    }
-
     if (currentRole === "student") {
       router.push("/student/progress");
     } else if (currentRole === "supervisor") {
       router.push("/supervisor/dashboard");
     } else if (item.nhom === "QUYET_DINH") {
       router.push("/academic?tab=students");
-    } else if (
-      item.loai === "CO_PHIEU_NHAN_XET_MOI" ||
-      item.nhom === "TIEN_DO"
-    ) {
+    } else if (item.nhom === "NHAC_HAN") {
+      router.push("/academic?tab=calendar");
+    } else if (item.loai.startsWith("DE_NGHI_DOI_DE_TAI") || item.loai.startsWith("DE_NGHI_DIEU_CHINH")) {
+      router.push("/academic?tab=topic-changes");
+    } else if (item.nhom === "TIEN_DO") {
       router.push("/academic?tab=evidences");
     } else {
       router.push("/academic");
@@ -150,9 +169,9 @@ export function NotificationBellPopover({
                 </h3>
                 <span className="text-[11px] font-medium text-muted-foreground">
                   {currentRole === "student"
-                    ? "Học vụ cá nhân • AGU SĐH"
+                    ? "Học vụ cá nhân"
                     : currentRole === "supervisor"
-                      ? "Tiến độ hướng dẫn NCS • AGU SĐH"
+                      ? "Tiến độ hướng dẫn NCS"
                       : "Hệ thống Đào tạo Sau Đại học AGU"}
                 </span>
               </div>
@@ -164,11 +183,22 @@ export function NotificationBellPopover({
                   type="button"
                   onClick={() => markAllAsRead.mutate()}
                   disabled={markAllAsRead.isPending}
-                  className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-lg border border-border bg-card px-2.5 text-[11px] font-bold text-[#164E9B] transition-colors hover:bg-[#164E9B]/10 disabled:opacity-50"
-                  title="Đánh dấu tất cả là đã đọc"
+                  aria-label={
+                    markAllAsRead.isPending
+                      ? "Đang đánh dấu thông báo là đã đọc"
+                      : "Đánh dấu tất cả thông báo là đã đọc"
+                  }
+                  className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-[#164E9B]/20 bg-card px-2.5 text-[11px] font-semibold text-[#164E9B] transition-colors hover:bg-[#164E9B]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] disabled:cursor-wait disabled:opacity-60"
+                  title={markAllAsRead.isPending ? "Đang cập nhật thông báo" : "Đánh dấu tất cả là đã đọc"}
                 >
-                  <CheckCheck className="size-3.5" />
-                  <span className="hidden sm:inline">Đã đọc tất cả</span>
+                  {markAllAsRead.isPending ? (
+                    <LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" />
+                  ) : (
+                    <CheckCheck className="size-3.5" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {markAllAsRead.isPending ? "Đang cập nhật" : "Đã đọc tất cả"}
+                  </span>
                 </button>
               )}
               <button
@@ -214,7 +244,7 @@ export function NotificationBellPopover({
             >
               <span>Chưa đọc</span>
               {unreadCount > 0 && (
-                <span className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[9px] font-extrabold leading-none text-white">
+                <span className="rounded-full bg-rose-500 px-1.5 py-0.5 text-[9px] font-bold leading-none text-white">
                   {unreadCount}
                 </span>
               )}
@@ -269,10 +299,22 @@ export function NotificationBellPopover({
           {/* Footer */}
           <div className="flex items-center justify-between border-t border-border bg-muted/35 px-4 py-2 text-[11px] font-semibold text-muted-foreground">
             <span>Cập nhật thời gian thực</span>
-            <span className="text-[10px]">ĐHQG-HCM AGU SĐH</span>
           </div>
         </div>
       )}
+
+      <NotificationDetailDialog
+        notification={selectedNotification}
+        readError={
+          selectedNotification && !selectedNotification.daDoc && markAsRead.isError
+            ? markAsRead.error instanceof Error
+              ? markAsRead.error.message
+              : "Không thể cập nhật trạng thái đã đọc. Vui lòng thử lại."
+            : null
+        }
+        onClose={() => setSelectedNotification(null)}
+        onOpenTarget={handleOpenNotificationTarget}
+      />
     </div>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+import { useSession, signOut } from "next-auth/react";
+import { authService } from "@/src/services/auth";
 import {
   Lock,
   Eye,
@@ -14,6 +16,7 @@ import {
 } from "lucide-react";
 
 export function SecurityForm() {
+  const { data: session } = useSession();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -31,6 +34,7 @@ export function SecurityForm() {
   // Status state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Password strength calculation
   const getPasswordStrength = (pass: string) => {
@@ -90,31 +94,35 @@ export function SecurityForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSuccessMessage(null);
+    setSubmitError(null);
 
     if (!validate()) {
       return;
     }
 
+    if (!session?.access_token) {
+      setSubmitError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      return;
+    }
+
     setIsSubmitting(true);
-
-    // Mock delay
-    await new Promise((resolve) => setTimeout(resolve, 900));
-
-    setIsSubmitting(false);
-    setSuccessMessage("Đã cập nhật mật khẩu mới thành công! Vui lòng ghi nhớ mật khẩu này.");
-
-    // Reset inputs
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setCurrentPasswordError(null);
-    setNewPasswordError(null);
-    setConfirmPasswordError(null);
-
-    // Auto dismiss success toast after 4s
-    setTimeout(() => {
-      setSuccessMessage(null);
-    }, 4000);
+    try {
+      await authService.changePassword(
+        { oldPassword: currentPassword, newPassword },
+        session.access_token
+      );
+      setSuccessMessage("Đã đổi mật khẩu. Phiên đăng nhập đã bị thu hồi, vui lòng đăng nhập lại bằng mật khẩu mới.");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setCurrentPasswordError(null);
+      setNewPasswordError(null);
+      setConfirmPasswordError(null);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Không thể đổi mật khẩu. Vui lòng thử lại.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -127,9 +135,13 @@ export function SecurityForm() {
           className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/90 p-4 text-emerald-800 shadow-sm transition-all animate-in fade-in slide-in-from-top-2 dark:border-emerald-900/60 dark:bg-emerald-950/80 dark:text-emerald-200"
         >
           <CheckCircle2 className="size-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-          <div className="text-sm font-medium">{successMessage}</div>
+          <div className="flex-1 text-sm font-medium">{successMessage}</div>
+          <button type="button" onClick={() => signOut({ callbackUrl: "/login" })} className="shrink-0 rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
+            Đăng nhập lại
+          </button>
         </div>
       )}
+      {submitError && <div role="alert" className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"><AlertCircle className="mt-0.5 size-4 shrink-0" />{submitError}</div>}
 
       {/* Main Security Card */}
       <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-xs">
@@ -143,7 +155,7 @@ export function SecurityForm() {
               Đổi mật khẩu tài khoản
             </h3>
             <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-              Để bảo vệ an toàn thông tin cá nhân và tài liệu nghiên cứu học thuật, khuyến nghị đặt mật khẩu có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và chữ số.
+              Mật khẩu mới cần có ít nhất 8 ký tự. Sau khi đổi, bạn sẽ cần đăng nhập lại.
             </p>
           </div>
         </div>
@@ -228,7 +240,7 @@ export function SecurityForm() {
                     setConfirmPasswordError(null);
                   }
                 }}
-                placeholder="Tối thiểu 8 ký tự (chữ hoa, chữ thường, số)"
+                placeholder="Tối thiểu 8 ký tự"
                 className={`w-full rounded-xl border bg-background py-2.5 pl-9 pr-10 text-sm text-foreground transition-all duration-150 placeholder:text-muted-foreground hover:border-blue-400 focus-visible:outline-none focus-visible:border-blue-600 focus-visible:ring-2 focus-visible:ring-blue-600/20 ${
                   newPasswordError
                     ? "border-rose-400 focus-visible:border-rose-600 focus-visible:ring-rose-600/20"
