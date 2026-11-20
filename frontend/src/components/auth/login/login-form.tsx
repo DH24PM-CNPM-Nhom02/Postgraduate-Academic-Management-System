@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/src/hooks/use-auth';
@@ -96,10 +96,6 @@ export function LoginForm() {
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
-
-  useEffect(() => {
-    if (user?.mustChangePassword) setIsFirstLoginModalOpen(true);
-  }, [user?.mustChangePassword]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

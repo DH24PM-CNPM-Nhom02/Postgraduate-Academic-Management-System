@@ -5,7 +5,6 @@ import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { notificationService } from "@/src/services/notification.service";
 import type {
-  NotificationItem,
   NotificationListResponse,
   NotificationQueryFilter,
   NotificationRole,

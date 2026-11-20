@@ -16,7 +16,6 @@ import {
   Mail,
   Phone,
   Clock,
-  ChevronRight,
   GraduationCap,
   UserCheck,
   CheckCircle2,

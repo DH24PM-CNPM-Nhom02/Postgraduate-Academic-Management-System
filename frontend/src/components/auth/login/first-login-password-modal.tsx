@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useId, useState } from 'react';
 import { AlertCircle, CheckCircle2, Eye, EyeOff, KeyRound, Loader2, ShieldCheck } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { authService } from '@/src/services/auth';
@@ -14,14 +14,18 @@ interface FirstLoginPasswordModalProps {
   onPasswordChanged: () => void;
 }
 
-export function FirstLoginPasswordModal({
-  isOpen,
+export function FirstLoginPasswordModal(props: FirstLoginPasswordModalProps) {
+  if (!props.isOpen) return null;
+  return <FirstLoginPasswordModalDialog {...props} />;
+}
+
+function FirstLoginPasswordModalDialog({
   username,
   fullName,
   email,
   initialCurrentPassword = '',
   onPasswordChanged,
-}: FirstLoginPasswordModalProps) {
+}: Omit<FirstLoginPasswordModalProps, 'isOpen'>) {
   const { data: session } = useSession();
   const currentId = useId();
   const newId = useId();
@@ -35,17 +39,6 @@ export function FirstLoginPasswordModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setCurrentPassword(initialCurrentPassword);
-    setNewPassword('');
-    setConfirmPassword('');
-    setError(null);
-    setSuccess(false);
-  }, [initialCurrentPassword, isOpen]);
-
-  if (!isOpen) return null;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

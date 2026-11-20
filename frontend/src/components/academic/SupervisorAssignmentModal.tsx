@@ -144,7 +144,6 @@ export function SupervisorAssignmentModal({
   const effectiveDecisionId = decisions.some((d) => d.id === quyetDinhId)
     ? quyetDinhId
     : decisions[0]?.id || "";
-  const selectedDecision = decisions.find((d) => d.id === effectiveDecisionId) ?? null;
 
   const isSubmitting =
     createAssignmentMutation.isPending || deactivateAssignmentMutation.isPending;

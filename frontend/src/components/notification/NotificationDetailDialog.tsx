@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { ArrowUpRight, X } from "lucide-react";
 import { NOTIFICATION_GROUP_LABELS, type NotificationItem } from "@/src/types/notification";
@@ -9,7 +9,7 @@ interface NotificationDetailDialogProps {
   notification: NotificationItem | null;
   readError?: string | null;
   onClose: () => void;
-  onOpenTarget: (notification: NotificationItem) => void;
+  onOpenTarget?: (notification: NotificationItem) => void;
 }
 
 function formatDate(date: string) {
@@ -51,6 +51,8 @@ function formatDetailLabel(key: string) {
   );
 }
 
+const emptySubscribe = () => () => {};
+
 export function NotificationDetailDialog({
   notification,
   readError,
@@ -58,11 +60,11 @@ export function NotificationDetailDialog({
   onOpenTarget,
 }: NotificationDetailDialogProps) {
   const titleId = useId();
-  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    setPortalRoot(document.body);
-  }, []);
+  const portalRoot = useSyncExternalStore(
+    emptySubscribe,
+    () => document.body,
+    () => null
+  );
 
   useEffect(() => {
     if (!notification) return;
@@ -203,7 +205,7 @@ export function NotificationDetailDialog({
           )}
         </div>
 
-        <footer className="gap-2 border-t border-border bg-muted/20 px-5 py-3 sm:flex-row sm:px-7">
+        <footer className="flex items-center justify-end gap-2 border-t border-border bg-muted/20 px-5 py-3 sm:px-7">
           <button
             type="button"
             onClick={onClose}
@@ -211,6 +213,16 @@ export function NotificationDetailDialog({
           >
             Đóng
           </button>
+          {onOpenTarget && (
+            <button
+              type="button"
+              onClick={() => onOpenTarget(notification)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#164E9B] px-3.5 text-xs font-semibold text-white transition-colors hover:bg-[#113E7D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
+            >
+              <span>Xem chi tiết học vụ</span>
+              <ArrowUpRight className="size-3.5" />
+            </button>
+          )}
         </footer>
       </section>
     </div>,
