@@ -14,6 +14,13 @@ export {
   useSubmitMilestone,
   useSubmitMilestoneWithFile,
   useStudentProgressData,
+  usePendingMilestones,
+  useNcsProgress,
+  useEvaluations,
+  useMilestoneApprovalDecisions,
+  useCreateEvaluation,
+  useApproveMilestone,
+  useRejectMilestone,
 } from "./use-progress";
 
 export {
@@ -21,3 +28,5 @@ export {
   useMyThesis,
   useStudentThesisData,
 } from "./use-thesis";
+
+export { auditKeys, useAuditLogs, useAuditLogDetail } from "./use-audit";

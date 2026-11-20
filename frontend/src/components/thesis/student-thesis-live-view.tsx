@@ -2,7 +2,6 @@
 
 import React from "react";
 import { useStudentThesisData } from "@/src/hooks/api/use-thesis";
-import { mockStudentThesisOverview } from "@/src/mocks/thesis";
 import { MyThesisCard } from "./MyThesisCard";
 import { ThesisHistory } from "./ThesisHistory";
 
@@ -11,17 +10,18 @@ import { ThesisHistory } from "./ThesisHistory";
  *
  * Cầu nối giữa API React Query (`useStudentThesisData`) và các UI Component hiển thị đề tài.
  *
- * Cơ chế Fallback thân thiện:
- * - Khi Backend bật và trả dữ liệu: Hiển thị đề tài thật từ Database.
- * - Khi chưa bật Backend (hoặc mất mạng): Tự động dự phòng về `mockStudentThesisOverview`
- *   giúp người dùng và người phát triển luôn xem được trọn vẹn giao diện.
+ * Chỉ hiển thị dữ liệu thật từ API (không dùng dữ liệu mẫu khi lỗi):
+ * - Đang tải lần đầu → trạng thái loading của từng khối.
+ * - Lỗi và chưa có dữ liệu → thông báo lỗi + nút thử lại ở từng khối.
+ * - Thành công → đề tài hiện tại (hoặc empty state nếu chưa được giao) và lịch sử.
  */
 export function StudentThesisLiveView() {
   const { data, isLoading, error, refetch } = useStudentThesisData();
 
-  // Tự động dùng mock khi chưa có dữ liệu từ backend
-  const displayData = data ?? mockStudentThesisOverview;
-  const hasRealData = Boolean(data);
+  const hasData = Boolean(data);
+  // Chỉ chặn hiển thị bằng lỗi khi chưa có dữ liệu thật nào
+  const blockingError = !hasData ? (error?.message ?? null) : null;
+  const showLoading = isLoading && !hasData;
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 pb-12">
@@ -31,20 +31,26 @@ export function StudentThesisLiveView() {
           Đề tài luận án của tôi
         </h1>
         <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-          Thông tin đề tài luận án tiến sĩ chính thức và lịch sử các quyết định điều chỉnh của NCS{" "}
-          <strong className="font-semibold text-foreground">
-            {displayData.hoTenNcs}
-          </strong>{" "}
-          (<span className="font-mono">{displayData.mshv}</span>).
+          Thông tin đề tài luận án tiến sĩ chính thức và lịch sử các quyết định điều chỉnh
+          {data ? (
+            <>
+              {" "}của NCS{" "}
+              <strong className="font-semibold text-foreground">
+                {data.hoTenNcs}
+              </strong>{" "}
+              (<span className="font-mono">{data.mshv}</span>)
+            </>
+          ) : null}
+          .
         </p>
       </header>
 
       {/* Thẻ hiển thị đề tài hiện tại */}
       <MyThesisCard
-        thesis={displayData.deTaiHienTai}
-        trainingDeadline={displayData.hanDaoTao72Thang}
-        isLoading={isLoading && !hasRealData}
-        error={hasRealData ? (error?.message ?? null) : null}
+        thesis={data?.deTaiHienTai ?? null}
+        trainingDeadline={data?.hanDaoTao72Thang}
+        isLoading={showLoading}
+        error={blockingError}
         onRetry={() => {
           void refetch();
         }}
@@ -52,9 +58,9 @@ export function StudentThesisLiveView() {
 
       {/* Bảng lịch sử các quyết định và đề tài cũ */}
       <ThesisHistory
-        items={displayData.lichSuDeTai}
-        isLoading={isLoading && !hasRealData}
-        error={hasRealData ? (error?.message ?? null) : null}
+        items={data?.lichSuDeTai ?? []}
+        isLoading={showLoading}
+        error={blockingError}
         onRetry={() => {
           void refetch();
         }}

@@ -25,8 +25,8 @@ export interface SupervisorOpinionItem {
   tenGvhd: string;
   /** Học hàm, học vị (vd: "PGS.TS.", "TS.") */
   hocHamHocVi?: string;
-  /** Vai trò hướng dẫn */
-  vaiTro: SupervisorRoleType;
+  /** Vai trò hướng dẫn (backend không trả kèm trong xacNhanGvhds → có thể không xác định) */
+  vaiTro?: SupervisorRoleType;
   /** Trạng thái đồng ý của GVHD (null = chưa phản hồi) */
   dongY: boolean | null;
   /** Nhận xét của giảng viên (nếu có) */
@@ -71,12 +71,16 @@ export interface CandidateSupervisorOption {
 }
 
 export interface ChangeRequestAttachment {
+  /** ID tài liệu thật (document-service) → xem qua GET /documents/:id/download */
+  fileId?: string;
   fileName: string;
   fileUrl: string;
   fileSize?: number;
 }
 
 export interface ChangeRequestDecision {
+  /** ID file scan quyết định (document-service), nếu có */
+  fileId?: string;
   soQuyetDinh: string;
   ngayKy: string;
   coQuanBanHanh?: string;
@@ -190,6 +194,11 @@ export interface ChangeRequestDetailProps {
   isOpen: boolean;
   onClose: () => void;
   onCancelRequest?: (request: ChangeRequestItem) => void;
+  /** Đang tải chi tiết đầy đủ (GET /change-request/:id); khi đó `request` chỉ là dữ liệu tóm tắt */
+  isDetailLoading?: boolean;
+  /** Lỗi tải chi tiết; khi có lỗi `request` chỉ là dữ liệu tóm tắt từ danh sách */
+  detailError?: string | null;
+  onRetryDetail?: () => void;
   className?: string;
 }
 

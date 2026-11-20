@@ -1,16 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ShieldCheck, X } from "lucide-react";
-import { mockAuditLogs } from "@/src/mocks/admin";
+import { useAuditLogDetail, useAuditLogs } from "@/src/hooks/api/use-audit";
+import type { ListAuditQueryParams } from "@/src/types/api/audit";
 import {
   type AuditActionFilterValue,
   type AuditLogViewItem,
+  BACKEND_AUDIT_ENTITY_OPTIONS,
   formatAuditDateTime,
   getAuditClientIp,
-  getAuditCorrelationId,
   getAuditNcsName,
   getEntityTypeLabel,
+  mapAuditLogApiToView,
 } from "./audit-meta";
 import { getAuditActionMeta } from "./audit-badge";
 import { AuditFilters } from "./audit-filters";
@@ -22,27 +24,20 @@ function escapeCsvCell(value: unknown): string {
   return `"${raw.replace(/"/g, '""')}"`;
 }
 
-export function AuditLogWorkspace() {
-  // Dữ liệu nhật ký kiểm toán khởi tạo từ mockAuditLogs
-  const [logs] = useState<AuditLogViewItem[]>(() =>
-    [...mockAuditLogs].sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
-  );
+const getActionLabel = (action: string) => getAuditActionMeta(action).label;
 
-  // Bộ lọc & phân trang
+export function AuditLogWorkspace() {
+  // Bộ lọc & phân trang (server-side, GET /audit-logs)
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [actionFilter, setActionFilter] =
     useState<AuditActionFilterValue>("ALL");
   const [entityTypeFilter, setEntityTypeFilter] = useState("ALL");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(8);
+  const [limit, setLimit] = useState(20);
 
-  // Trạng thái làm mới & thông báo
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
   // Modal chi tiết & Visual Diff
@@ -51,66 +46,56 @@ export function AuditLogWorkspace() {
     "overview" | "diff"
   >("overview");
 
-  // Lọc danh sách bản ghi
-  const filteredLogs = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    const fromBoundary = fromDate
-      ? new Date(`${fromDate}T00:00:00`).getTime()
-      : null;
-    const toBoundary = toDate
-      ? new Date(`${toDate}T23:59:59.999`).getTime()
-      : null;
+  // Debounce ô tìm kiếm 400ms trước khi gọi API
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
 
-    return logs.filter((log) => {
-      if (actionFilter !== "ALL" && log.action !== actionFilter) {
-        return false;
-      }
-      if (entityTypeFilter !== "ALL" && log.entityType !== entityTypeFilter) {
-        return false;
-      }
+  const queryParams: ListAuditQueryParams = useMemo(
+    () => ({
+      page,
+      limit,
+      search: debouncedSearch || undefined,
+      action: actionFilter !== "ALL" ? actionFilter : undefined,
+      entityType: entityTypeFilter !== "ALL" ? entityTypeFilter : undefined,
+      // Gửi kèm offset giờ Việt Nam (+07:00): backend `new Date(...)` parse đúng mốc thời gian,
+      // và vì chuỗi dài hơn 10 ký tự nên backend không gọi setHours theo múi giờ của server.
+      fromDate: fromDate ? `${fromDate}T00:00:00+07:00` : undefined,
+      toDate: toDate ? `${toDate}T23:59:59.999+07:00` : undefined,
+    }),
+    [page, limit, debouncedSearch, actionFilter, entityTypeFilter, fromDate, toDate]
+  );
 
-      const logTime = new Date(log.createdAt).getTime();
-      if (fromBoundary !== null && !Number.isNaN(logTime)) {
-        if (logTime < fromBoundary) return false;
-      }
-      if (toBoundary !== null && !Number.isNaN(logTime)) {
-        if (logTime > toBoundary) return false;
-      }
+  const logsQuery = useAuditLogs(queryParams);
+  const detailQuery = useAuditLogDetail(selectedLog?.id ?? null);
 
-      if (!query) return true;
+  const logs = useMemo(
+    () =>
+      (logsQuery.data?.data ?? []).map((log) =>
+        mapAuditLogApiToView(log, getActionLabel)
+      ),
+    [logsQuery.data]
+  );
 
-      const actionMeta = getAuditActionMeta(log.action);
-      const entityLabel = getEntityTypeLabel(log.entityType);
-      const ncsName = getAuditNcsName(log.ncs) ?? "";
+  // Ưu tiên dữ liệu chi tiết mới nhất từ GET /audit-logs/:id khi đã tải xong
+  const dialogLog = useMemo(() => {
+    if (!selectedLog) return null;
+    if (detailQuery.data && detailQuery.data.id === selectedLog.id) {
+      return mapAuditLogApiToView(detailQuery.data, getActionLabel);
+    }
+    return selectedLog;
+  }, [selectedLog, detailQuery.data]);
 
-      return (
-        log.id.toLowerCase().includes(query) ||
-        log.action.toLowerCase().includes(query) ||
-        actionMeta.label.toLowerCase().includes(query) ||
-        log.entityType.toLowerCase().includes(query) ||
-        entityLabel.toLowerCase().includes(query) ||
-        log.entityId.toLowerCase().includes(query) ||
-        log.summary.toLowerCase().includes(query) ||
-        (log.actor?.fullName.toLowerCase().includes(query) ?? false) ||
-        (log.actor?.username.toLowerCase().includes(query) ?? false) ||
-        (log.actorId?.toLowerCase().includes(query) ?? false) ||
-        ncsName.toLowerCase().includes(query) ||
-        (log.ncs?.mshv.toLowerCase().includes(query) ?? false)
-      );
-    });
-  }, [logs, searchQuery, actionFilter, entityTypeFilter, fromDate, toDate]);
-
-  const total = filteredLogs.length;
-  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const total = logsQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, logsQuery.data?.totalPages ?? 1);
   const safePage = Math.min(page, totalPages);
-
-  const paginatedLogs = useMemo(() => {
-    const start = (safePage - 1) * limit;
-    return filteredLogs.slice(start, start + limit);
-  }, [filteredLogs, safePage, limit]);
 
   const handleResetFilters = () => {
     setSearchQuery("");
+    setDebouncedSearch("");
     setActionFilter("ALL");
     setEntityTypeFilter("ALL");
     setFromDate("");
@@ -119,15 +104,17 @@ export function AuditLogWorkspace() {
   };
 
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-      setFeedbackMessage("Đã làm mới dữ liệu nhật ký kiểm toán.");
-    }, 250);
+    setFeedbackMessage(null);
+    logsQuery.refetch().then((result) => {
+      if (!result.error) {
+        setFeedbackMessage("Đã làm mới dữ liệu nhật ký kiểm toán.");
+      }
+    });
   };
 
+  // Xuất CSV các bản ghi của trang hiện tại (dữ liệu phân trang server-side)
   const handleExportCsv = () => {
-    if (filteredLogs.length === 0) return;
+    if (logs.length === 0) return;
 
     const headers = [
       "ID",
@@ -145,19 +132,19 @@ export function AuditLogWorkspace() {
       "Tóm tắt",
     ];
 
-    const rows = filteredLogs.map((log) => [
+    const rows = logs.map((log) => [
       log.id,
       formatAuditDateTime(log.createdAt),
       log.action,
       getAuditActionMeta(log.action).label,
       getEntityTypeLabel(log.entityType),
       log.entityId,
-      log.actor?.fullName ?? "Tài khoản không còn tồn tại",
+      log.actor?.fullName ?? "Không xác định",
       log.actor?.username ?? log.actorId ?? "",
       getAuditNcsName(log.ncs) ?? "",
       log.ncs?.mshv ?? "",
       getAuditClientIp(log),
-      getAuditCorrelationId(log),
+      log.correlationId ?? "",
       log.summary,
     ]);
 
@@ -172,14 +159,14 @@ export function AuditLogWorkspace() {
     const link = document.createElement("a");
     const today = new Date().toISOString().slice(0, 10);
     link.href = url;
-    link.setAttribute("download", `nhat-ky-kiem-toan-${today}.csv`);
+    link.setAttribute("download", `nhat-ky-kiem-toan-${today}-trang-${safePage}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
     setFeedbackMessage(
-      `Đã xuất tệp CSV gồm ${filteredLogs.length} bản ghi kiểm toán.`
+      `Đã xuất tệp CSV gồm ${logs.length} bản ghi của trang ${safePage}/${totalPages}.`
     );
   };
 
@@ -254,15 +241,20 @@ export function AuditLogWorkspace() {
         onResetFilters={handleResetFilters}
         onRefresh={handleRefresh}
         onExportCsv={handleExportCsv}
-        totalCount={logs.length}
+        entityTypeOptions={BACKEND_AUDIT_ENTITY_OPTIONS}
+        totalCount={total}
         filteredCount={total}
-        isRefreshing={isRefreshing}
+        isRefreshing={logsQuery.isFetching}
       />
 
       {/* Audit Log Table */}
       <AuditTable
-        logs={paginatedLogs}
-        isLoading={isRefreshing}
+        logs={logs}
+        isLoading={logsQuery.isLoading}
+        // Lỗi (403 không có quyền audit.read, 5xx...) hiển thị ngay trong bảng kèm nút Thử lại,
+        // bảng không rơi vào trạng thái "không có bản ghi" khi thực chất là lỗi
+        error={logsQuery.isError ? logsQuery.error.message : null}
+        onRetry={() => void logsQuery.refetch()}
         onResetFilters={handleResetFilters}
         onSelectDetail={(log, initialTab = "overview") => {
           setSelectedInitialTab(initialTab);
@@ -281,7 +273,7 @@ export function AuditLogWorkspace() {
 
       {/* Detail & Visual Diff Modal */}
       <AuditDetailDialog
-        log={selectedLog}
+        log={dialogLog}
         isOpen={Boolean(selectedLog)}
         onClose={() => setSelectedLog(null)}
         initialTab={selectedInitialTab}

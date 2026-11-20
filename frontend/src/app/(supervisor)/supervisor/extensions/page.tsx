@@ -1,9 +1,5 @@
 import type { Metadata } from "next";
-import { SupervisorExtensionsWorkspace } from "@/src/components/supervisor";
-import {
-  mockSupervisorExtensionRequests,
-  mockSupervisorProfile,
-} from "@/src/mocks/supervisor";
+import { SupervisorExtensionsLiveView } from "@/src/components/supervisor";
 
 export const metadata: Metadata = {
   title: "Thẩm định đơn gia hạn | Cổng GVHD",
@@ -12,10 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function SupervisorExtensionsPage() {
-  return (
-    <SupervisorExtensionsWorkspace
-      requests={mockSupervisorExtensionRequests}
-      currentSupervisorId={mockSupervisorProfile.id}
-    />
-  );
+  return <SupervisorExtensionsLiveView />;
 }

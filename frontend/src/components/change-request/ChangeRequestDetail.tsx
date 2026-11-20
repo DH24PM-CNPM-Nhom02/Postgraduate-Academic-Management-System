@@ -4,6 +4,7 @@ import React, { useEffect, useId, useRef, useState } from "react";
 import {
   AlertCircle,
   ArrowRight,
+  Loader2,
   Award,
   Building2,
   CheckCircle2,
@@ -15,6 +16,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { PdfViewer } from "@/src/components/upload/PdfViewer";
+import { DocumentViewButton } from "@/src/components/student/progress/document-view-button";
+import { useDocumentMetadata } from "@/src/hooks/api/use-documents";
 import type {
   ChangeRequestDetailProps,
   ChangeRequestItem,
@@ -39,11 +42,17 @@ function ChangeRequestDetailInner({
   request,
   onClose,
   onCancelRequest,
+  isDetailLoading = false,
+  detailError = null,
+  onRetryDetail,
   className = "",
 }: {
   request: ChangeRequestItem;
   onClose: () => void;
   onCancelRequest?: (request: ChangeRequestItem) => void;
+  isDetailLoading?: boolean;
+  detailError?: string | null;
+  onRetryDetail?: () => void;
   className?: string;
 }) {
   const titleId = useId();
@@ -90,6 +99,23 @@ function ChangeRequestDetailInner({
 
   const opinions = request.xacNhanGvhds ?? [];
   const agreedCount = opinions.filter((op) => op.dongY === true).length;
+  // Backend tạo ý kiến tập thể GVHD cho GIA_HAN và cho DOI_DE_TAI do NCS tự nộp.
+  // Đơn đổi đề tài do GVHD nộp thay không có dòng xác nhận → không hiển thị khối này.
+  const showSupervisorOpinions =
+    request.loaiDon === "GIA_HAN" ||
+    (request.loaiDon === "DOI_DE_TAI" && opinions.length > 0);
+  // Tên file thật từ document-service; backend /change-request không trả tên file
+  const attachmentMeta = useDocumentMetadata(
+    request.tepDinhKem?.fileName ? null : request.tepDinhKem?.fileId
+  );
+  const attachmentName =
+    request.tepDinhKem?.fileName ||
+    attachmentMeta.data?.originalName ||
+    (attachmentMeta.isLoading ? "Đang tải tên tệp..." : "Tệp PDF đính kèm (chưa có tên tệp)");
+  const attachmentDownloadName =
+    request.tepDinhKem?.fileName ||
+    attachmentMeta.data?.originalName ||
+    `${request.maDon}.pdf`;
 
   return (
     <>
@@ -168,6 +194,39 @@ function ChangeRequestDetailInner({
 
           {/* Drawer Body */}
           <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6 sm:px-6">
+            {/* Trạng thái tải chi tiết: phần đề tài hiện tại, GVHD cũ, quyết định chỉ có ở API chi tiết */}
+            {isDetailLoading && (
+              <div
+                role="status"
+                className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-3.5 py-2.5 text-xs text-muted-foreground"
+              >
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                <span>Đang tải chi tiết đơn (đề tài hiện tại, GVHD cũ, quyết định ban hành)...</span>
+              </div>
+            )}
+            {detailError && (
+              <div
+                role="alert"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs text-rose-800"
+              >
+                <span className="flex items-center gap-2">
+                  <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+                  <span>
+                    Không tải được chi tiết đơn ({detailError}). Thông tin dưới đây chỉ là bản tóm tắt
+                    từ danh sách, có thể thiếu đề tài hiện tại, GVHD cũ và quyết định.
+                  </span>
+                </span>
+                {onRetryDetail && (
+                  <button
+                    type="button"
+                    onClick={onRetryDetail}
+                    className="rounded-lg border border-rose-200 bg-white px-3 py-1 font-semibold hover:bg-rose-100 cursor-pointer"
+                  >
+                    Thử lại
+                  </button>
+                )}
+              </div>
+            )}
             {/* Lý do từ chối nổi bật (khi TU_CHOI) */}
             {request.trangThai === "TU_CHOI" && request.lyDoTuChoi && (
               <section
@@ -220,6 +279,13 @@ function ChangeRequestDetailInner({
                   )}
                 </dl>
 
+                {request.quyetDinh.fileId ? (
+                  <DocumentViewButton
+                    fileId={request.quyetDinh.fileId}
+                    fileName={request.quyetDinh.fileName || `${request.quyetDinh.soQuyetDinh}.pdf`}
+                    variant="default"
+                  />
+                ) : request.quyetDinh.fileUrl ? (
                 <button
                   type="button"
                   onClick={() =>
@@ -235,6 +301,9 @@ function ChangeRequestDetailInner({
                   <FileText className="size-4" aria-hidden="true" />
                   <span>Xem PDF Quyết định</span>
                 </button>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Quyết định không đính kèm file scan.</p>
+                )}
               </section>
             )}
 
@@ -347,8 +416,8 @@ function ChangeRequestDetailInner({
               </div>
             </section>
 
-            {/* Tiến độ xác nhận Tập thể GVHD (dành riêng cho đơn GIA_HAN) */}
-            {request.loaiDon === "GIA_HAN" && (
+            {/* Tiến độ xác nhận Tập thể GVHD (GIA_HAN và DOI_DE_TAI do NCS tự nộp) */}
+            {showSupervisorOpinions && (
               <section className="space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="flex items-center gap-2 text-sm font-bold text-[#0F2744]">
@@ -404,7 +473,9 @@ function ChangeRequestDetailInner({
                               <p className="text-xs text-muted-foreground">
                                 {op.vaiTro === "HUONG_DAN_CHINH"
                                   ? "Hướng dẫn chính"
-                                  : "Đồng hướng dẫn"}
+                                  : op.vaiTro === "DONG_HUONG_DAN"
+                                    ? "Đồng hướng dẫn"
+                                    : "Giảng viên hướng dẫn"}
                                 {op.thoiGianPhanHoi && (
                                   <>
                                     {" "}
@@ -452,7 +523,7 @@ function ChangeRequestDetailInner({
                     </div>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-foreground">
-                        {request.tepDinhKem.fileName}
+                        {attachmentName}
                       </p>
                       <p className="font-mono text-xs tabular-nums text-muted-foreground">
                         {formatFileSize(request.tepDinhKem.fileSize) || "Tài liệu PDF"}
@@ -460,6 +531,12 @@ function ChangeRequestDetailInner({
                     </div>
                   </div>
 
+                  {request.tepDinhKem.fileId ? (
+                    <DocumentViewButton
+                      fileId={request.tepDinhKem.fileId}
+                      fileName={attachmentDownloadName}
+                    />
+                  ) : (
                   <button
                     type="button"
                     onClick={() =>
@@ -475,6 +552,7 @@ function ChangeRequestDetailInner({
                     <FileText className="size-3.5" aria-hidden="true" />
                     <span>Xem PDF đính kèm</span>
                   </button>
+                  )}
                 </div>
               ) : (
                 <p className="rounded-xl border border-dashed border-border bg-muted/20 p-3.5 text-xs text-muted-foreground">
@@ -534,6 +612,9 @@ export function ChangeRequestDetail({
   isOpen,
   onClose,
   onCancelRequest,
+  isDetailLoading,
+  detailError,
+  onRetryDetail,
   className = "",
 }: ChangeRequestDetailProps) {
   if (!isOpen || !request) return null;
@@ -543,6 +624,9 @@ export function ChangeRequestDetail({
       request={request}
       onClose={onClose}
       onCancelRequest={onCancelRequest}
+      isDetailLoading={isDetailLoading}
+      detailError={detailError}
+      onRetryDetail={onRetryDetail}
       className={className}
     />
   );

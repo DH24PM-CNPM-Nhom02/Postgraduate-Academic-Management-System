@@ -321,8 +321,7 @@ function AuditDetailDialogContent({
                           aria-hidden="true"
                         />
                         <span>
-                          Tài khoản người dùng này không còn tồn tại trên hệ
-                          thống
+                          Không có thông tin người thao tác (backend không trả thông tin tài khoản)
                         </span>
                       </div>
                     </div>
@@ -334,10 +333,11 @@ function AuditDetailDialogContent({
                         </span>
                         <span
                           className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
-                            SYSTEM_ROLE_META[log.actor.role].badgeClass
+                            (log.actor.role ? SYSTEM_ROLE_META[log.actor.role].badgeClass : undefined) ??
+                            "border-border bg-muted text-muted-foreground"
                           }`}
                         >
-                          {SYSTEM_ROLE_META[log.actor.role].label}
+                          {log.actor.role ? SYSTEM_ROLE_META[log.actor.role].label : "Không rõ vai trò"}
                         </span>
                       </div>
                       <div className="font-mono text-[11px] text-muted-foreground">

@@ -2,7 +2,6 @@
 
 import React from "react";
 import { useStudentProgressData } from "@/src/hooks/api/use-progress";
-import { mockProgressData } from "@/src/mocks/progress";
 import { StudentProgressContainer } from "./student-progress-container";
 
 /**
@@ -11,23 +10,20 @@ import { StudentProgressContainer } from "./student-progress-container";
  * Thành phần cầu nối giữa tầng React Query (`useStudentProgressData`)
  * và giao diện `StudentProgressContainer` cho trang `/student/progress`.
  *
- * Cơ chế Fallback:
- * - Khi Backend bật và kết nối thành công: Dùng dữ liệu thật từ API.
- * - Khi chưa bật Backend (hoặc mất kết nối): Tự động lấy dữ liệu mẫu (mockProgressData)
- *   để giao diện luôn hiển thị đầy đủ 9 mốc cho người dùng xem và trải nghiệm.
+ * Chỉ hiển thị dữ liệu thật từ API (không dùng dữ liệu mẫu khi lỗi):
+ * - Đang tải lần đầu → skeleton.
+ * - Lỗi và chưa có dữ liệu → thông báo lỗi + nút thử lại.
+ * - Thành công nhưng rỗng → empty state của container.
+ * - Đã có dữ liệu mà lần làm mới sau bị lỗi → giữ dữ liệu thật đã tải.
  */
 export function StudentProgressLiveView() {
   const { data, isLoading, error, refetch } = useStudentProgressData();
 
-  // Ưu tiên dữ liệu thật từ API; nếu chưa có (chưa bật backend) thì fallback về mock
-  const displayData = data ?? mockProgressData;
-  const hasRealData = Boolean(data);
-
   return (
     <StudentProgressContainer
-      initialData={displayData}
-      isLoading={isLoading && !hasRealData}
-      error={hasRealData ? (error?.message ?? null) : null}
+      initialData={data}
+      isLoading={isLoading && !data}
+      error={!data ? (error?.message ?? null) : null}
       onRetry={() => {
         void refetch();
       }}

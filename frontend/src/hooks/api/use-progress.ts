@@ -14,7 +14,15 @@ import { documentKeys } from "@/src/hooks/api/use-documents";
 import { ncsSelfKeys, useMyNcsProfile } from "@/src/hooks/api/use-ncs";
 import type { DocumentMetadataResponse } from "@/src/types/api/document";
 import type {
+  ApproveMilestoneResponse,
+  CreateEvaluationRequest,
+  CreateEvaluationResponse,
+  EvaluationListResponse,
+  MilestoneDecisionApi,
   MyProgressResponse,
+  NcsProgressResponse,
+  PendingMilestoneApi,
+  RejectMilestoneResponse,
   SubmitMilestoneResponse,
   SubmitMilestoneVariables,
   SubmitMilestoneWithFileVariables,
@@ -22,11 +30,17 @@ import type {
 import type { StudentProgressData } from "@/src/types/ui/progress";
 
 /**
- * Bộ queryKey chuẩn cho phân hệ Tiến trình 9 mốc của NCS
+ * Bộ queryKey chuẩn cho phân hệ Tiến trình 9 mốc (NCS + Giáo vụ)
  */
 export const progressKeys = {
   all: ["progress"] as const,
   me: () => [...progressKeys.all, "me"] as const,
+  pending: () => [...progressKeys.all, "pending"] as const,
+  ncs: (ncsId: string) => [...progressKeys.all, "ncs", ncsId] as const,
+  evaluations: (minhChungId: string) =>
+    [...progressKeys.all, "evaluations", minhChungId] as const,
+  approvalDecisions: () =>
+    [...progressKeys.all, "approval-decisions"] as const,
 };
 
 /**
@@ -158,4 +172,122 @@ export function useStudentProgressData() {
       null,
     refetch,
   };
+}
+
+/* =========================================================================
+   GIÁO VỤ: HÀNG CHỜ DUYỆT & THẨM ĐỊNH MỐC
+   ========================================================================= */
+
+/** 5. Hàng chờ duyệt (`GET /progress/pending`) */
+export function usePendingMilestones() {
+  return useQuery<PendingMilestoneApi[], ApiClientError>({
+    queryKey: progressKeys.pending(),
+    queryFn: () => ProgressService.getPendingMilestones(),
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** 6. Lịch sử 9 mốc của 1 NCS (`GET /progress/ncs/:ncsId`) */
+export function useNcsProgress(ncsId?: string | null) {
+  return useQuery<NcsProgressResponse, ApiClientError>({
+    queryKey: progressKeys.ncs(ncsId ?? ""),
+    queryFn: () => ProgressService.getNcsProgress(ncsId!),
+    enabled: Boolean(ncsId),
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** 7. Phiếu nhận xét của 1 lần nộp (`GET /progress/evidences/:id/evaluations`) */
+export function useEvaluations(minhChungId?: string | null, enabled = true) {
+  return useQuery<EvaluationListResponse, ApiClientError>({
+    queryKey: progressKeys.evaluations(minhChungId ?? ""),
+    queryFn: () => ProgressService.getEvaluations(minhChungId!),
+    enabled: Boolean(minhChungId) && enabled,
+    staleTime: 1000 * 15,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** 8. Quyết định CAN_CU_DUYET_MOC còn hiệu lực (lọc theo NCS ở component) */
+export function useMilestoneApprovalDecisions(enabled = true) {
+  return useQuery<MilestoneDecisionApi[], ApiClientError>({
+    queryKey: progressKeys.approvalDecisions(),
+    queryFn: () => ProgressService.getMilestoneApprovalDecisions(),
+    enabled,
+    staleTime: 1000 * 60,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** 9. Nhập phiếu nhận xét → làm mới phiếu, hàng chờ (đếm phiếu) và lịch sử NCS */
+export function useCreateEvaluation() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    CreateEvaluationResponse,
+    ApiClientError,
+    { minhChungId: string; ncsId?: string; payload: CreateEvaluationRequest }
+  >({
+    mutationFn: ({ minhChungId, payload }) =>
+      ProgressService.createEvaluation(minhChungId, payload),
+    onSuccess: (_data, { minhChungId, ncsId }) => {
+      queryClient.invalidateQueries({
+        queryKey: progressKeys.evaluations(minhChungId),
+      });
+      queryClient.invalidateQueries({ queryKey: progressKeys.pending() });
+      if (ncsId) {
+        queryClient.invalidateQueries({ queryKey: progressKeys.ncs(ncsId) });
+      }
+    },
+  });
+}
+
+/** Làm mới các truy vấn bị ảnh hưởng sau khi duyệt / từ chối mốc (kể cả khi 409) */
+function invalidateAfterReview(
+  queryClient: ReturnType<typeof useQueryClient>,
+  ncsId?: string
+) {
+  queryClient.invalidateQueries({ queryKey: progressKeys.pending() });
+  if (ncsId) {
+    queryClient.invalidateQueries({ queryKey: progressKeys.ncs(ncsId) });
+  }
+}
+
+/** 10. Duyệt mốc (`POST /progress/reviews/:id/approve`) */
+export function useApproveMilestone() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    ApproveMilestoneResponse,
+    ApiClientError,
+    { tienTrinhId: string; quyetDinhId: string; ncsId?: string }
+  >({
+    mutationFn: ({ tienTrinhId, quyetDinhId }) =>
+      ProgressService.approveMilestone(tienTrinhId, quyetDinhId),
+    onSuccess: (_data, { ncsId }) => invalidateAfterReview(queryClient, ncsId),
+    onError: (error, { ncsId }) => {
+      // 409: mốc vừa được người khác xử lý → tải lại hàng chờ
+      if (error.status === 409) invalidateAfterReview(queryClient, ncsId);
+    },
+  });
+}
+
+/** 11. Từ chối mốc (`POST /progress/reviews/:id/reject`) */
+export function useRejectMilestone() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    RejectMilestoneResponse,
+    ApiClientError,
+    { tienTrinhId: string; lyDo: string; ncsId?: string }
+  >({
+    mutationFn: ({ tienTrinhId, lyDo }) =>
+      ProgressService.rejectMilestone(tienTrinhId, lyDo),
+    onSuccess: (_data, { ncsId }) => invalidateAfterReview(queryClient, ncsId),
+    onError: (error, { ncsId }) => {
+      if (error.status === 409) invalidateAfterReview(queryClient, ncsId);
+    },
+  });
 }

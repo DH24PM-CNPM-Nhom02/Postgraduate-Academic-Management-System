@@ -852,9 +852,12 @@ export function ChangeRequestForm({
             aria-hidden="true"
           />
           <span>
+            {/* Theo backend create(): GIA_HAN và DOI_DE_TAI do NCS tự nộp → CHO_GVHD_XAC_NHAN; DOI_GVHD → CHO_DUYET */}
             {loaiDon === "GIA_HAN"
               ? "Sau khi gửi, đơn gia hạn sẽ chuyển tới Tập thể GVHD để lấy ý kiến xác nhận trước khi Phòng ĐT-SĐH xét duyệt."
-              : "Sau khi gửi, đơn đề nghị sẽ chuyển trực tiếp tới Phòng Đào tạo Sau Đại học để kiểm tra điều kiện và trình phê duyệt."}
+              : loaiDon === "DOI_DE_TAI"
+                ? "Sau khi gửi, đơn đổi đề tài sẽ chuyển tới Tập thể GVHD để lấy ý kiến xác nhận; khi tất cả GVHD đồng ý, đơn mới chuyển Phòng ĐT-SĐH xét duyệt."
+                : "Sau khi gửi, đơn đề nghị sẽ chuyển trực tiếp tới Phòng Đào tạo Sau Đại học để kiểm tra điều kiện và trình phê duyệt."}
           </span>
         </div>
       </div>
