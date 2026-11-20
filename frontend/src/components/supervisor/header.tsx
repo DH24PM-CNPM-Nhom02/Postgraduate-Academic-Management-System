@@ -2,12 +2,15 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   CalendarClock,
   ChevronDown,
+  ChevronRight,
   ClipboardCheck,
   LogOut,
   Menu,
+  UserCheck,
   UserRound,
   KeyRound,
 } from "lucide-react";
@@ -16,16 +19,41 @@ import { NotificationBellPopover } from "@/src/components/notification";
 import type { SupervisorProfile } from "@/src/types/ui/supervisor";
 import { HoverLogo } from "./HoverLogo";
 
-
 export interface SupervisorHeaderProps {
   onToggleSidebar?: () => void;
   profile?: SupervisorProfile;
+}
+
+const SUPERVISOR_PAGE_TITLES: Record<string, string> = {
+  "/supervisor/dashboard": "Bàn làm việc GVHD",
+  "/supervisor": "Bàn làm việc GVHD",
+  "/supervisor/students": "Danh sách NCS hướng dẫn",
+  "/supervisor/progress-reports": "Báo cáo tiến độ 6 tháng",
+  "/supervisor/extensions": "Thẩm định gia hạn",
+  "/supervisor/requests": "Đề xuất thay NCS",
+  "/supervisor/quota": "Định mức hướng dẫn BR-09",
+  "/supervisor/regulations": "Quy chế & Quy định",
+  "/supervisor/faq": "Hỏi đáp & Hỗ trợ",
+  "/supervisor/procedures": "Thủ tục & Biểu mẫu",
+};
+
+function getSupervisorPageTitle(pathname: string | null): string {
+  if (!pathname) return "Bàn làm việc GVHD";
+  if (SUPERVISOR_PAGE_TITLES[pathname]) return SUPERVISOR_PAGE_TITLES[pathname];
+  for (const [route, title] of Object.entries(SUPERVISOR_PAGE_TITLES)) {
+    if (route !== "/supervisor" && pathname.startsWith(route)) {
+      return title;
+    }
+  }
+  return "Bàn làm việc GVHD";
 }
 
 export function SupervisorHeader({
   onToggleSidebar,
   profile,
 }: SupervisorHeaderProps) {
+  const pathname = usePathname();
+  const pageTitle = getSupervisorPageTitle(pathname);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const menuContainerRef = useRef<HTMLDivElement>(null);
   const { user, logout } = useAuth();
@@ -74,21 +102,41 @@ export function SupervisorHeader({
           </button>
         )}
 
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 transition-transform hover:scale-102"
-          title="Về Trang chủ"
-        >
-          <HoverLogo sizeClass="size-8.5" />
-          <div className="hidden sm:block">
-            <p className="text-sm font-semibold text-[#0F2744]">
-              Phân hệ Giảng viên Hướng dẫn
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Hệ thống Quản lý Đào tạo Sau đại học
-            </p>
-          </div>
-        </Link>
+        {/* Mobile: Chỉ hiện Logo ở Header khi màn hình nhỏ (do Sidebar đã ẩn) */}
+        <div className="flex items-center gap-2 lg:hidden">
+          <Link
+            href="/"
+            className="flex items-center gap-2 transition-transform active:scale-98"
+          >
+            <HoverLogo sizeClass="size-8" />
+            <div className="flex flex-col">
+              <span className="text-xs font-black tracking-tight text-[#0F2744] uppercase leading-none">
+                AGU SĐH
+              </span>
+              <span className="text-[10px] font-semibold text-[#164E9B] mt-0.5">
+                Cổng GVHD
+              </span>
+            </div>
+          </Link>
+        </div>
+
+        {/* Desktop: Sidebar bên trái đã có Logo AGU, Header hiển thị Breadcrumb & Vị trí làm việc để tránh trùng lặp */}
+        <nav aria-label="Điều hướng vị trí" className="hidden lg:flex items-center gap-2 text-xs">
+          <Link
+            href="/supervisor/dashboard"
+            className="flex items-center gap-1.5 font-semibold text-slate-500 hover:text-[#164E9B] transition-colors"
+          >
+            <UserCheck className="size-4 text-[#164E9B]" />
+            <span>Cổng GVHD</span>
+          </Link>
+          <ChevronRight className="size-3.5 text-slate-400" />
+          <span className="font-bold text-slate-800">
+            {pageTitle}
+          </span>
+          <span className="ml-1 rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold text-[#164E9B] tracking-wide">
+            GIẢNG VIÊN HƯỚNG DẪN
+          </span>
+        </nav>
       </div>
 
       <div className="flex items-center gap-2.5">

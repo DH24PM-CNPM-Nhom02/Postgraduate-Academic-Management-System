@@ -115,19 +115,10 @@ export function LoginForm() {
     <div className="w-full max-w-md lg:max-w-4xl xl:max-w-[940px] rounded-2xl border border-[#D0D5DD] bg-white shadow-[0px_4px_6px_-2px_rgba(16,24,40,0.03),0px_16px_28px_-6px_rgba(16,24,40,0.08)] overflow-hidden transition-all duration-200">
       <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[490px] lg:min-h-[520px]">
         {/* Left Column: Login Form (lg:col-span-7) */}
-        <div className="flex flex-col justify-between p-5 sm:p-7 lg:p-8 lg:col-span-7">
+        <div className="flex flex-col justify-center p-5 sm:p-7 lg:p-8 lg:col-span-7">
           <div>
             {/* Brand & Interactive Logo (Logo 1 -> Logo 2 on hover) */}
             <div className="mb-3.5 sm:mb-4 flex flex-col items-start">
-              <div
-                className="mb-2.5 flex h-13 w-13 sm:h-14 sm:w-14 items-center justify-center rounded-2xl border border-[#D0D5DD]/70 bg-white p-1.5 shadow-xs ring-4 ring-[#EAF2FF] transition-all duration-300 hover:ring-8 hover:ring-[#EAF2FF] hover:border-[#155EEF]"
-                title="Trỏ chuột để xem logo Trường Đại Học An Giang"
-              >
-                <HoverLogo sizeClass="h-full w-full" />
-              </div>
-              <span className="mb-1 text-xs font-bold uppercase tracking-wider text-[#155EEF]">
-                Đào Tạo Sau Đại Học
-              </span>
               <h1 className="text-[26px] sm:text-[30px] lg:text-[32px] font-bold leading-tight tracking-tight text-[#172B4D]">
                 Chào mừng bạn trở lại
               </h1>
@@ -288,17 +279,14 @@ export function LoginForm() {
           <div className="absolute inset-0 bg-gradient-to-t from-[#0B1A30]/95 via-[#0B1A30]/35 to-black/20 pointer-events-none" />
 
           {/* Top Tag inside Image */}
-          <div className="relative z-10 flex justify-end">
+          {/* <div className="relative z-10 flex justify-end">
             <div className="inline-flex items-center rounded-full border border-white/20 bg-white/15 px-3 py-1 text-xs font-semibold text-white shadow-sm backdrop-blur-md transition-all hover:bg-white/30 cursor-pointer">
               <span>AGU • ĐHQG-HCM</span>
             </div>
-          </div>
+          </div> */}
 
           {/* Bottom Information overlay */}
-          <div className="relative z-10 space-y-2.5">
-            <div className="inline-flex items-center gap-1.5 rounded-md bg-[#155EEF]/90 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-white shadow-sm backdrop-blur-xs">
-              Đào tạo Sau đại học
-            </div>
+          <div className="relative z-10 space-y-2.5 top-80">
             <div>
               <h2 className="text-xl font-bold leading-tight text-white drop-shadow-sm">
                 Trường Đại Học An Giang

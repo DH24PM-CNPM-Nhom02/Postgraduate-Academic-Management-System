@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Menu,
   Search,
@@ -10,6 +11,8 @@ import {
   Sparkles,
   UserRound,
   KeyRound,
+  ShieldCheck,
+  ChevronRight,
 } from "lucide-react";
 import { useAuth } from "@/src/hooks/use-auth";
 import { HoverLogo } from "./HoverLogo";
@@ -20,16 +23,48 @@ export interface AcademicHeaderProps {
   onOpenSearch?: () => void;
 }
 
+const ACADEMIC_PAGE_TITLES: Record<string, string> = {
+  "/academic": "Tổng quan Giáo vụ",
+  "/academic/students": "Quản lý NCS",
+  "/students": "Quản lý NCS",
+  "/academic/theses": "Quản lý Đề tài Luận án",
+  "/academic/supervisors": "Quản lý GVHD & Hạn ngạch",
+  "/supervisors": "Quản lý GVHD & Hạn ngạch",
+  "/academic/milestone-review": "Hàng chờ duyệt 9 mốc",
+  "/review-queue": "Hàng chờ duyệt 9 mốc",
+  "/academic/decisions": "Quản lý Quyết định",
+  "/academic/evidence": "Minh chứng học vị & Báo cáo",
+  "/academic/topic-changes": "Duyệt đề nghị đổi đề tài",
+  "/academic/procedures": "Thủ tục & Biểu mẫu học vụ",
+  "/academic-affairs": "Thủ tục & Biểu mẫu học vụ",
+  "/academic/calendar": "Lịch học vụ & Thông báo",
+  "/academic/regulations": "Quy chế & Quy định",
+  "/academic/faq": "Hỏi đáp & Liên hệ",
+};
+
+function getAcademicPageTitle(pathname: string | null): string {
+  if (!pathname) return "Tổng quan Giáo vụ";
+  if (ACADEMIC_PAGE_TITLES[pathname]) return ACADEMIC_PAGE_TITLES[pathname];
+  for (const [route, title] of Object.entries(ACADEMIC_PAGE_TITLES)) {
+    if (route !== "/academic" && pathname.startsWith(route)) {
+      return title;
+    }
+  }
+  return "Tổng quan Giáo vụ";
+}
+
 export function AcademicHeader({
   onToggleSidebar,
   onOpenSearch,
 }: AcademicHeaderProps) {
+  const pathname = usePathname();
+  const pageTitle = getAcademicPageTitle(pathname);
   const { user, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-md sm:px-6">
-      {/* Left: Mobile Toggle & Brand Identity */}
+      {/* Left: Mobile Toggle & Brand/Breadcrumb Identity */}
       <div className="flex items-center gap-3">
         <button
           onClick={onToggleSidebar}
@@ -39,22 +74,41 @@ export function AcademicHeader({
           <Menu className="size-5" />
         </button>
 
-        <div className="flex items-center gap-3">
+        {/* Mobile: Chỉ hiện Logo ở Header khi màn hình nhỏ (do Sidebar đã ẩn) */}
+        <div className="flex items-center gap-2 lg:hidden">
           <Link
             href="/"
-            className="flex items-center gap-2.5 transition-transform hover:scale-102"
+            className="flex items-center gap-2 transition-transform active:scale-98"
           >
-            <HoverLogo sizeClass="size-8.5" />
+            <HoverLogo sizeClass="size-8" />
             <div className="flex flex-col">
-              <span className="text-xs sm:text-sm font-black tracking-tight text-[#0F2744] uppercase leading-none">
-                TRƯỜNG ĐẠI HỌC AN GIANG – ĐHQG-HCM
+              <span className="text-xs font-black tracking-tight text-[#0F2744] uppercase leading-none">
+                AGU SĐH
               </span>
-              <span className="text-[10px] sm:text-[11px] font-semibold text-[#164E9B] mt-0.5">
-                Cổng Quản lý Đào tạo Sau Đại học • Cán bộ Quản lý Giáo vụ
+              <span className="text-[10px] font-semibold text-[#164E9B] mt-0.5">
+                Cổng Giáo vụ
               </span>
             </div>
           </Link>
         </div>
+
+        {/* Desktop: Sidebar bên trái đã có Logo AGU, Header hiển thị Breadcrumb & Vị trí làm việc để tránh trùng lặp */}
+        <nav aria-label="Điều hướng vị trí" className="hidden lg:flex items-center gap-2 text-xs">
+          <Link
+            href="/academic"
+            className="flex items-center gap-1.5 font-semibold text-slate-500 hover:text-[#164E9B] transition-colors"
+          >
+            <ShieldCheck className="size-4 text-[#164E9B]" />
+            <span>Cổng Giáo vụ</span>
+          </Link>
+          <ChevronRight className="size-3.5 text-slate-400" />
+          <span className="font-bold text-slate-800">
+            {pageTitle}
+          </span>
+          <span className="ml-1 rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold text-[#164E9B] tracking-wide">
+            GIÁO VỤ SĐH
+          </span>
+        </nav>
       </div>
 
       {/* Right: Quick Search, Actions, Notifications & Profile */}
