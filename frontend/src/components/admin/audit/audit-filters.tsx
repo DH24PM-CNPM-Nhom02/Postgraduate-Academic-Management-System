@@ -2,7 +2,7 @@
 
 import { Download, RefreshCw, RotateCcw, Search, X } from "lucide-react";
 import type { AuditActionType } from "@/src/types/ui/admin";
-import { AUDIT_ACTION_META } from "./audit-badge";
+import { AUDIT_ACTION_META, BACKEND_AUDIT_ACTIONS } from "./audit-badge";
 import type { AuditActionFilterValue } from "./audit-meta";
 
 export interface AuditEntityTypeOption {
@@ -42,7 +42,8 @@ export interface AuditFiltersProps {
   disabled?: boolean;
 }
 
-const ALL_ACTION_KEYS = Object.keys(AUDIT_ACTION_META) as AuditActionType[];
+// Chỉ liệt kê mã action backend thực sự ghi nhận (xem BACKEND_AUDIT_ACTIONS)
+const ALL_ACTION_KEYS: AuditActionType[] = BACKEND_AUDIT_ACTIONS;
 
 export function AuditFilters({
   searchQuery,

@@ -47,6 +47,21 @@ export interface MilestoneDeadlineApi {
   cacHan: MilestoneSubDeadlineApi[];
 }
 
+/**
+ * 1 phiếu nhận xét chấm điểm (mốc 2, 4, 5).
+ * Backend: `PhieuNhanXet` (progress.service.ts). `diem` là Decimal → có thể về dạng chuỗi.
+ */
+export interface EvaluationApi {
+  id: string;
+  minhChungId?: string;
+  tenNguoiCham: string;
+  donViNguoiCham: string | null;
+  diem: number | string;
+  nhanXet: string | null;
+  nhapBoiId: string;
+  createdAt: string;
+}
+
 /** 1 lần nộp minh chứng trong lịch sử nộp của mốc */
 export interface MilestoneEvidenceApi {
   id: string;
@@ -58,6 +73,8 @@ export interface MilestoneEvidenceApi {
   lyDoTuChoi: string | null;
   ngayNop: string;
   ngayDuyet: string | null;
+  /** Các phiếu nhận xét của lần nộp (sắp theo createdAt tăng dần), rỗng nếu mốc không yêu cầu điểm */
+  phieuNhanXets?: EvaluationApi[];
 }
 
 /** Thông tin từng mốc tiến trình trả về từ GET /progress/me */
@@ -92,6 +109,94 @@ export interface MyProgressResponse {
     hanBuocThoiHoc: string | null;
   };
   tienTrinhs: MilestoneItemApi[];
+}
+
+/* =========================================================================
+   GIÁO VỤ: HÀNG CHỜ DUYỆT 9 MỐC (ProgressController - milestone.approve/reject)
+   ========================================================================= */
+
+/** 1 dòng trong `GET /progress/pending` (không truyền page/limit → mảng thuần) */
+export interface PendingMilestoneApi {
+  /** tienTrinhId */
+  id: string;
+  submittedAt: string | null;
+  ncs: {
+    id: string;
+    mshv: string;
+    hoTen: string;
+    lop: string | null;
+  };
+  moc: {
+    thuTu: number;
+    tenMoc: string;
+    yeuCauDiem: boolean;
+  };
+  minhChungMoiNhat: {
+    id: string;
+    lanNop: number;
+    fileId: string;
+    ghiChuNcs: string | null;
+    ngayNop: string;
+    _count: { phieuNhanXets: number };
+  } | null;
+}
+
+/** `GET /progress/ncs/:ncsId` trả cùng cấu trúc với `GET /progress/me` */
+export type NcsProgressResponse = MyProgressResponse;
+
+/** Tổng hợp phiếu của 1 lần nộp (`tongHopPhieu` ở backend) */
+export interface EvaluationSummaryApi {
+  soPhieu: number;
+  soPhieuToiThieu: number;
+  diemTrungBinh: number | null;
+  duPhieu: boolean;
+}
+
+/** `GET /progress/evidences/:minhChungId/evaluations` */
+export interface EvaluationListResponse {
+  phieus: EvaluationApi[];
+  tongHop: EvaluationSummaryApi;
+}
+
+/** Body `POST /progress/evidences/:minhChungId/evaluations` (CreateEvaluationDto) */
+export interface CreateEvaluationRequest {
+  tenNguoiCham: string;
+  donViNguoiCham?: string;
+  diem: number;
+  nhanXet?: string;
+  xacNhanTrung?: boolean;
+}
+
+/** Response `POST /progress/evidences/:minhChungId/evaluations` */
+export interface CreateEvaluationResponse {
+  phieu: EvaluationApi;
+  tongHop: EvaluationSummaryApi;
+}
+
+/** Response `POST /progress/reviews/:tienTrinhId/approve` */
+export interface ApproveMilestoneResponse {
+  tienTrinhId: string;
+  trangThai: "PASSED";
+  diemTrungBinh: number | null;
+  mocKeTiep: number | null;
+}
+
+/** Response `POST /progress/reviews/:tienTrinhId/reject` */
+export interface RejectMilestoneResponse {
+  tienTrinhId: string;
+  trangThai: "REJECTED";
+}
+
+/** 1 dòng quyết định trong `GET /decisions` (model QuyetDinh) dùng làm căn cứ duyệt mốc */
+export interface MilestoneDecisionApi {
+  id: string;
+  ncsId: string | null;
+  loai: string;
+  soQuyetDinh: string;
+  ngayQuyetDinh: string;
+  fileId: string | null;
+  trangThai: "HIEU_LUC" | "DEACTIVATE";
+  ghiChu: string | null;
 }
 
 /** Body gửi lên POST /progress/milestones/:thuTu/submit */

@@ -1,8 +1,10 @@
+import type { AuditLogApi } from "@/src/types/api/audit";
 import type {
   AuditActionType,
   AuditActorView,
   AuditLogItem,
   AuditNcsView,
+  SystemRole,
 } from "@/src/types/ui/admin";
 
 /**
@@ -35,7 +37,75 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   DeNghiDieuChinh: "Đơn đề nghị điều chỉnh",
   GRADUATION: "Xét tốt nghiệp",
   TotNghiep: "Xét tốt nghiệp",
+  // entityType thực tế backend ghi vào audit_log
+  GiangVienHuongDan: "Giảng viên hướng dẫn",
+  PhanCongHuongDan: "Phân công GVHD",
+  PhieuNhanXet: "Phiếu nhận xét",
+  XetTotNghiep: "Xét tốt nghiệp",
 };
+
+/** Danh sách entityType thực tế (phd-service) cho dropdown lọc */
+export const BACKEND_AUDIT_ENTITY_OPTIONS: { value: string; label: string }[] = [
+  { value: "NghienCuuSinh", label: "Hồ sơ NCS (NghienCuuSinh)" },
+  { value: "GiangVienHuongDan", label: "Giảng viên hướng dẫn (GiangVienHuongDan)" },
+  { value: "DeTai", label: "Đề tài luận án (DeTai)" },
+  { value: "PhanCongHuongDan", label: "Phân công GVHD (PhanCongHuongDan)" },
+  { value: "TienTrinhNcs", label: "Tiến độ 9 mốc (TienTrinhNcs)" },
+  { value: "PhieuNhanXet", label: "Phiếu nhận xét (PhieuNhanXet)" },
+  { value: "QuyetDinh", label: "Quyết định (QuyetDinh)" },
+  { value: "DeNghiDieuChinh", label: "Đơn đề nghị (DeNghiDieuChinh)" },
+  { value: "XetTotNghiep", label: "Xét tốt nghiệp (XetTotNghiep)" },
+];
+
+const ROLE_PRIORITY: SystemRole[] = ["ADMIN", "GIAO_VU", "GVHD", "NCS"];
+
+/** Chuẩn hóa oldValue/newValue (Json) về object để AuditDiffViewer so sánh theo key */
+function toRecord(value: unknown): Record<string, unknown> | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return { giaTri: value };
+}
+
+/**
+ * Chuyển 1 bản ghi `GET /audit-logs` sang kiểu hiển thị của bảng / dialog.
+ * Backend không có trường `summary` → FE tự dựng mô tả ngắn từ action + đối tượng.
+ */
+export function mapAuditLogApiToView(
+  log: AuditLogApi,
+  getActionLabel: (action: string) => string
+): AuditLogViewItem {
+  const roles = log.actor?.roles ?? [];
+  const role =
+    ROLE_PRIORITY.find((r) => roles.includes(r)) ?? (roles[0] as SystemRole | undefined);
+
+  return {
+    id: log.id,
+    action: log.action as AuditActionType,
+    entityType: log.entityType,
+    entityId: log.entityId,
+    summary: `${getActionLabel(log.action)} • ${getEntityTypeLabel(log.entityType)}`,
+    actorId: log.actorId,
+    actor: log.actor
+      ? {
+          id: log.actor.id,
+          username: log.actor.username,
+          fullName: log.actor.fullName,
+          // Không suy đoán vai trò khi auth-service không trả roles → để rỗng, UI hiển thị "Không rõ"
+          role: (role ?? "") as SystemRole,
+        }
+      : null,
+    ncs: log.ncs
+      ? { id: log.ncs.id, mshv: log.ncs.mshv, fullName: log.ncs.hoTen, hoTen: log.ncs.hoTen }
+      : null,
+    oldValue: toRecord(log.oldValue),
+    newValue: toRecord(log.newValue),
+    clientIp: log.clientIp ?? undefined,
+    correlationId: log.correlationId ?? undefined,
+    createdAt: log.createdAt,
+  };
+}
 
 export function getEntityTypeLabel(entityType: string): string {
   return ENTITY_TYPE_LABELS[entityType] ?? entityType;
@@ -100,11 +170,10 @@ export function formatRelativeAuditTime(
 }
 
 /**
- * Tạo chuỗi correlationId fallback ổn định khi dữ liệu mock không cung cấp sẵn.
+ * correlationId thật từ backend; không tự sinh giá trị giả khi trống.
  */
 export function getAuditCorrelationId(log: AuditLogViewItem): string {
-  if (log.correlationId) return log.correlationId;
-  return `corr-${log.id}-${log.entityId}`.toLowerCase();
+  return log.correlationId || "Không ghi nhận";
 }
 
 export function getAuditClientIp(log: AuditLogViewItem): string {

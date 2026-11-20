@@ -241,10 +241,11 @@ export function AuditTable({
                             </span>
                             <span aria-hidden="true">•</span>
                             <span
-                              className={`inline-flex rounded border px-1.5 py-0 text-[10px] font-semibold ${SYSTEM_ROLE_META[log.actor.role].badgeClass
+                              className={`inline-flex rounded border px-1.5 py-0 text-[10px] font-semibold ${SYSTEM_ROLE_META[log.actor.role]?.badgeClass ??
+                                "border-border bg-muted text-muted-foreground"
                                 }`}
                             >
-                              {log.actor.role}
+                              {log.actor.role || "Không rõ vai trò"}
                             </span>
                           </div>
                         </div>

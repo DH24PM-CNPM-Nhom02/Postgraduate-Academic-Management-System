@@ -13,3 +13,4 @@ export type {
   ChangeRequestFormProps,
   ChangeRequestTableProps,
 } from "@/src/types/ui/change-request";
+export { StudentChangeRequestsLiveView } from "./StudentChangeRequestsLiveView";

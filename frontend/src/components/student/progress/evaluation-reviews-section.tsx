@@ -117,7 +117,7 @@ export function EvaluationReviewsSection({
                     Thời gian chấm
                   </th>
                   <th scope="col" className="px-3 py-2.5 text-right sm:px-4">
-                    Tệp đính kèm
+                    Nhận xét / Tệp đính kèm
                   </th>
                 </tr>
               </thead>
@@ -154,15 +154,25 @@ export function EvaluationReviewsSection({
                     </td>
 
                     <td className="px-3 py-2.5 text-right sm:px-4">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedPhieu(phieu)}
-                        title={`Xem ${phieu.fileName || "Phiếu nhận xét"}`}
-                        className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/70 px-3 py-1.5 text-xs font-semibold text-[#164E9B] transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] cursor-pointer"
-                      >
-                        <FileText className="size-3.5" aria-hidden="true" />
-                        <span>Xem phiếu (PDF)</span>
-                      </button>
+                      {phieu.fileUrl ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPhieu(phieu)}
+                          title={`Xem ${phieu.fileName || "Phiếu nhận xét"}`}
+                          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/70 px-3 py-1.5 text-xs font-semibold text-[#164E9B] transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] cursor-pointer"
+                        >
+                          <FileText className="size-3.5" aria-hidden="true" />
+                          <span>Xem phiếu (PDF)</span>
+                        </button>
+                      ) : (
+                        // Phiếu do Giáo vụ nhập trực tiếp, Backend không lưu file đính kèm
+                        <span
+                          className="inline-block max-w-56 text-left text-xs text-muted-foreground whitespace-pre-line"
+                          title={phieu.nhanXet}
+                        >
+                          {phieu.nhanXet || "Không có nhận xét"}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}

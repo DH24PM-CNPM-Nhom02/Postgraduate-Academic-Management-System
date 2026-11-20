@@ -228,7 +228,8 @@ export interface SupervisorExtensionRequestItem {
   soThangGiaHan: number;
   hanHienTai: string;
   hanMoiDuKien: string;
-  tongThangDaGiaHanTruocDo: number;
+  /** Lấy từ GET /change-request/:id (`tongThangDaGiaHanTruoc`); null khi chưa tải chi tiết */
+  tongThangDaGiaHanTruocDo: number | null;
   mocHienTai: number;
   tenMocHienTai: string;
   tienDoPhanTram: number;
@@ -253,6 +254,14 @@ export interface SupervisorExtensionsWorkspaceProps {
     action: SupervisorExtensionDecisionAction,
     comment: string
   ) => void | Promise<void>;
+  /** Báo đơn đang mở drawer để tầng trên tải chi tiết (GET /change-request/:id) */
+  onSelectedRequestChange?: (requestId: string | null) => void;
+  /** Trạng thái tải chi tiết của đơn đang mở drawer */
+  selectedRequestDetail?: {
+    isLoading: boolean;
+    error: string | null;
+    onRetry: () => void;
+  };
 }
 
 export type SupervisorProxyRequestType = "DOI_DE_TAI" | "DOI_GVHD";

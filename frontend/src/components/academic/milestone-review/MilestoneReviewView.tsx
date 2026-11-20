@@ -12,64 +12,153 @@ import {
   Award,
   AlertCircle,
   XCircle,
-  Download,
   Calendar,
   X,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
-import { MOCK_PENDING_MILESTONES, MOCK_DECISIONS } from "../mockData";
 import { TablePagination } from "@/src/components/ui/table-pagination";
+import { DocumentViewButton } from "@/src/components/student/progress/document-view-button";
+import {
+  useApproveMilestone,
+  useCreateEvaluation,
+  useEvaluations,
+  useMilestoneApprovalDecisions,
+  useNcsProgress,
+  usePendingMilestones,
+  useRejectMilestone,
+} from "@/src/hooks/api/use-progress";
+import type { ApiClientError } from "@/src/lib/api";
 import type {
-  PendingMilestoneItem,
-  EvaluationItem,
-  DecisionItem,
-  MilestoneSubmissionHistory,
-} from "@/src/types/academic";
+  CreateEvaluationRequest,
+  MilestoneDecisionApi,
+  PendingMilestoneApi,
+} from "@/src/types/api/progress";
+
+const SO_PHIEU_TOI_THIEU = 3;
+const DIEM_TOI_THIEU = 7;
+
+/** Định dạng ISO / YYYY-MM-DD → dd/MM/yyyy (giờ Việt Nam) */
+function formatDateVi(value?: string | null): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
+}
+
+/** Hiển thị lỗi backend: message có thể là mảng (class-validator) */
+function ErrorList({ error }: { error: ApiClientError | null }) {
+  if (!error) return null;
+  return (
+    <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-rose-700 font-semibold">
+      <AlertCircle className="size-4 shrink-0 text-rose-600 mt-0.5" />
+      {error.messages.length > 1 ? (
+        <ul className="list-disc pl-4 space-y-0.5">
+          {error.messages.map((m) => (
+            <li key={m}>{m}</li>
+          ))}
+        </ul>
+      ) : (
+        <span>{error.message}</span>
+      )}
+    </div>
+  );
+}
 
 /* =========================================================================
    SUB-COMPONENT: MODAL NHẬP PHIẾU CHẤM ĐIỂM CHUYÊN GIA (MỐC 2, 4, 5)
+   POST /progress/evidences/:minhChungId/evaluations
    ========================================================================= */
 interface AddEvaluationModalProps {
   isOpen: boolean;
+  minhChungId: string | null;
+  ncsId?: string;
   onClose: () => void;
-  onSubmit: (evaluation: Partial<EvaluationItem>) => void;
+  onSaved: (message: string) => void;
 }
 
-function AddEvaluationModal({ isOpen, onClose, onSubmit }: AddEvaluationModalProps) {
+function AddEvaluationModal({ isOpen, minhChungId, ncsId, onClose, onSaved }: AddEvaluationModalProps) {
   const [tenNguoiCham, setTenNguoiCham] = useState("");
   const [donViNguoiCham, setDonViNguoiCham] = useState("");
-  const [diem, setDiem] = useState<number | "">("");
+  const [diem, setDiem] = useState<string>("");
   const [nhanXet, setNhanXet] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Bước xác nhận: phiếu lưu xong không sửa/xóa được
+  const [step, setStep] = useState<"form" | "confirm" | "duplicate">("form");
 
-  if (!isOpen) return null;
+  const createMutation = useCreateEvaluation();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
+  if (!isOpen || !minhChungId) return null;
 
-    if (!tenNguoiCham.trim()) {
-      setErrorMsg("Vui lòng nhập họ tên người chấm / chuyên gia đánh giá.");
-      return;
-    }
-    if (diem === "" || isNaN(Number(diem)) || Number(diem) < 0 || Number(diem) > 10) {
-      setErrorMsg("Điểm số phải từ 0 đến 10 (tối đa 1 chữ số thập phân).");
-      return;
-    }
-
-    onSubmit({
-      tenNguoiCham: tenNguoiCham.trim(),
-      donViNguoiCham: donViNguoiCham.trim() || undefined,
-      diem: Math.round(Number(diem) * 10) / 10,
-      nhanXet: nhanXet.trim() || undefined,
-      createdAt: new Date().toISOString(),
-    });
-
+  const resetAndClose = () => {
     setTenNguoiCham("");
     setDonViNguoiCham("");
     setDiem("");
     setNhanXet("");
+    setErrorMsg(null);
+    setStep("form");
+    createMutation.reset();
     onClose();
   };
+
+  const buildPayload = (xacNhanTrung: boolean): CreateEvaluationRequest => ({
+    tenNguoiCham: tenNguoiCham.trim(),
+    donViNguoiCham: donViNguoiCham.trim() || undefined,
+    diem: Number(diem),
+    nhanXet: nhanXet.trim() || undefined,
+    xacNhanTrung,
+  });
+
+  const handleValidate = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    createMutation.reset();
+
+    const ten = tenNguoiCham.trim();
+    if (!ten || ten.length > 150) {
+      setErrorMsg("Họ tên người chấm bắt buộc, tối đa 150 ký tự.");
+      return;
+    }
+    if (donViNguoiCham.trim().length > 255) {
+      setErrorMsg("Đơn vị công tác tối đa 255 ký tự.");
+      return;
+    }
+    const diemSo = Number(diem);
+    if (diem === "" || Number.isNaN(diemSo) || diemSo < 0 || diemSo > 10 || !/^\d+(\.\d)?$/.test(diem.trim())) {
+      setErrorMsg("Điểm số phải từ 0 đến 10 (tối đa 1 chữ số thập phân).");
+      return;
+    }
+    if (nhanXet.trim().length > 2000) {
+      setErrorMsg("Nhận xét tối đa 2000 ký tự.");
+      return;
+    }
+    setStep("confirm");
+  };
+
+  const handleSave = (xacNhanTrung: boolean) => {
+    createMutation.mutate(
+      { minhChungId, ncsId, payload: buildPayload(xacNhanTrung) },
+      {
+        onSuccess: (res) => {
+          onSaved(
+            `Đã lưu phiếu của ${res.phieu.tenNguoiCham} (${Number(res.phieu.diem)} điểm) • ${res.tongHop.soPhieu}/${res.tongHop.soPhieuToiThieu} phiếu.`
+          );
+          resetAndClose();
+        },
+        onError: (err) => {
+          if (err.status === 409 && err.code === "PHIEU_TRUNG_NGUOI_CHAM") {
+            setStep("duplicate");
+          }
+        },
+      }
+    );
+  };
+
+  const isPending = createMutation.isPending;
+  const showApiError =
+    createMutation.error && !(createMutation.error.code === "PHIEU_TRUNG_NGUOI_CHAM" && step === "duplicate")
+      ? createMutation.error
+      : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in">
@@ -84,84 +173,139 @@ function AddEvaluationModal({ isOpen, onClose, onSubmit }: AddEvaluationModalPro
               <p className="text-[11px] text-slate-500">Dành cho Mốc 2, 4, 5 (Tối thiểu 3 phiếu)</p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
+          <button onClick={resetAndClose} disabled={isPending} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
             <X className="size-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-3.5 text-xs">
-          {errorMsg && (
-            <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-rose-700 font-semibold">
-              <AlertCircle className="size-4 shrink-0 text-rose-600" />
-              <span>{errorMsg}</span>
+        {step === "form" ? (
+          <form onSubmit={handleValidate} className="p-5 space-y-3.5 text-xs">
+            {errorMsg && (
+              <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-rose-700 font-semibold">
+                <AlertCircle className="size-4 shrink-0 text-rose-600" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Họ tên người chấm *</label>
+              <input
+                type="text"
+                value={tenNguoiCham}
+                onChange={(e) => setTenNguoiCham(e.target.value)}
+                placeholder="VD: PGS.TS Nguyễn Văn A"
+                maxLength={150}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#164E9B] focus:outline-hidden"
+                required
+              />
             </div>
-          )}
 
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Họ tên người chấm *</label>
-            <input
-              type="text"
-              value={tenNguoiCham}
-              onChange={(e) => setTenNguoiCham(e.target.value)}
-              placeholder="VD: PGS.TS Nguyễn Văn A"
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#164E9B] focus:outline-hidden"
-              required
-            />
-          </div>
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Đơn vị công tác</label>
+              <input
+                type="text"
+                value={donViNguoiCham}
+                onChange={(e) => setDonViNguoiCham(e.target.value)}
+                placeholder="VD: Đại học Bách Khoa - ĐHQG-HCM"
+                maxLength={255}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#164E9B] focus:outline-hidden"
+              />
+            </div>
 
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Đơn vị công tác</label>
-            <input
-              type="text"
-              value={donViNguoiCham}
-              onChange={(e) => setDonViNguoiCham(e.target.value)}
-              placeholder="VD: Đại học Bách Khoa - ĐHQG-HCM"
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#164E9B] focus:outline-hidden"
-            />
-          </div>
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Điểm số (Thang 10) *</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                max="10"
+                value={diem}
+                onChange={(e) => setDiem(e.target.value)}
+                placeholder="VD: 8.5"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#164E9B] focus:outline-hidden font-bold"
+                required
+              />
+            </div>
 
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Điểm số (Thang 10) *</label>
-            <input
-              type="number"
-              step="0.1"
-              min="0"
-              max="10"
-              value={diem}
-              onChange={(e) => setDiem(e.target.value === "" ? "" : Number(e.target.value))}
-              placeholder="VD: 8.5"
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#164E9B] focus:outline-hidden font-bold"
-              required
-            />
-          </div>
+            <div>
+              <label className="block font-bold text-slate-700 mb-1">Nhận xét tóm tắt</label>
+              <textarea
+                value={nhanXet}
+                onChange={(e) => setNhanXet(e.target.value)}
+                rows={3}
+                maxLength={2000}
+                placeholder="Nội dung đánh giá, góp ý chuyên môn..."
+                className="w-full rounded-xl border border-slate-200 p-2.5 text-xs focus:border-[#164E9B] focus:outline-hidden"
+              />
+            </div>
 
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Nhận xét tóm tắt</label>
-            <textarea
-              value={nhanXet}
-              onChange={(e) => setNhanXet(e.target.value)}
-              rows={3}
-              placeholder="Nội dung đánh giá, góp ý chuyên môn..."
-              className="w-full rounded-xl border border-slate-200 p-2.5 text-xs focus:border-[#164E9B] focus:outline-hidden"
-            />
-          </div>
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={resetAndClose}
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                className="rounded-xl bg-[#164E9B] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#113E7D] cursor-pointer"
+              >
+                Tiếp tục xác nhận
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="p-5 space-y-3.5 text-xs">
+            {step === "duplicate" ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900">
+                <p className="font-bold">Đã có phiếu cùng tên và đơn vị người chấm.</p>
+                <p className="mt-1">Đây có phải là một người chấm khác trùng tên không? Chọn &ldquo;Vẫn lưu phiếu&rdquo; để xác nhận.</p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900">
+                <p className="font-bold">Xác nhận thông tin trước khi lưu</p>
+                <p className="mt-1">Phiếu nhận xét sau khi lưu sẽ <strong>không thể sửa hoặc xóa</strong>.</p>
+              </div>
+            )}
 
-          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              className="rounded-xl bg-[#164E9B] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#113E7D] cursor-pointer"
-            >
-              Lưu Phiếu Chấm
-            </button>
+            <dl className="grid grid-cols-3 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <dt className="text-slate-500">Người chấm</dt>
+              <dd className="col-span-2 font-bold text-slate-800">{tenNguoiCham.trim()}</dd>
+              <dt className="text-slate-500">Đơn vị</dt>
+              <dd className="col-span-2 text-slate-800">{donViNguoiCham.trim() || "—"}</dd>
+              <dt className="text-slate-500">Điểm</dt>
+              <dd className="col-span-2 font-bold text-slate-800">{Number(diem)} / 10</dd>
+              <dt className="text-slate-500">Nhận xét</dt>
+              <dd className="col-span-2 text-slate-700 whitespace-pre-line">{nhanXet.trim() || "—"}</dd>
+            </dl>
+
+            <ErrorList error={showApiError} />
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => {
+                  createMutation.reset();
+                  setStep("form");
+                }}
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-60"
+              >
+                Quay lại sửa
+              </button>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => handleSave(step === "duplicate")}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#164E9B] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#113E7D] cursor-pointer disabled:opacity-60"
+              >
+                {isPending && <Loader2 className="size-3.5 animate-spin" />}
+                {step === "duplicate" ? "Vẫn lưu phiếu" : "Lưu Phiếu Chấm"}
+              </button>
+            </div>
           </div>
-        </form>
+        )}
       </div>
     </div>
   );
@@ -169,38 +313,52 @@ function AddEvaluationModal({ isOpen, onClose, onSubmit }: AddEvaluationModalPro
 
 /* =========================================================================
    SUB-COMPONENT: MODAL TỪ CHỐI MỐC (BẮT BUỘC LÝ DO)
+   POST /progress/reviews/:tienTrinhId/reject
    ========================================================================= */
 interface RejectMilestoneDialogProps {
-  item: PendingMilestoneItem | null;
+  item: PendingMilestoneApi | null;
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (tienTrinhId: string, lyDo: string) => void;
+  onRejected: (message: string) => void;
 }
 
-function RejectMilestoneDialog({
-  item,
-  isOpen,
-  onClose,
-  onConfirm,
-}: RejectMilestoneDialogProps) {
+function RejectMilestoneDialog({ item, isOpen, onClose, onRejected }: RejectMilestoneDialogProps) {
   const [lyDo, setLyDo] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const rejectMutation = useRejectMilestone();
 
   if (!isOpen || !item) return null;
 
+  const handleClose = () => {
+    if (rejectMutation.isPending) return;
+    setLyDo("");
+    setErrorMsg(null);
+    rejectMutation.reset();
+    onClose();
+  };
+
   const handleConfirm = () => {
-    if (!lyDo.trim()) {
+    const text = lyDo.trim();
+    if (!text) {
       setErrorMsg("Vui lòng nhập lý do từ chối mốc (1 - 1000 ký tự).");
       return;
     }
-    if (lyDo.trim().length > 1000) {
+    if (text.length > 1000) {
       setErrorMsg("Lý do không được vượt quá 1000 ký tự.");
       return;
     }
-    onConfirm(item.id, lyDo.trim());
-    setLyDo("");
-    setErrorMsg(null);
-    onClose();
+    rejectMutation.mutate(
+      { tienTrinhId: item.id, lyDo: text, ncsId: item.ncs.id },
+      {
+        onSuccess: () => {
+          onRejected(`Đã từ chối mốc ${item.moc.thuTu} của NCS ${item.ncs.hoTen}.`);
+          setLyDo("");
+          setErrorMsg(null);
+          rejectMutation.reset();
+          onClose();
+        },
+      }
+    );
   };
 
   return (
@@ -211,7 +369,7 @@ function RejectMilestoneDialog({
             <XCircle className="size-5 text-rose-600" />
             <h3 className="text-sm font-bold">Từ Chối Mốc Tiến Độ</h3>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-white hover:text-slate-600 cursor-pointer">
+          <button onClick={handleClose} className="rounded-lg p-1 text-slate-400 hover:bg-white hover:text-slate-600 cursor-pointer">
             <X className="size-4" />
           </button>
         </div>
@@ -246,13 +404,20 @@ function RejectMilestoneDialog({
               <span>{lyDo.length}/1000 ký tự</span>
             </div>
           </div>
+
+          <ErrorList error={rejectMutation.error} />
         </div>
 
         <div className="border-t border-slate-200 bg-slate-50 px-5 py-3 flex justify-end gap-2.5">
-          <button onClick={onClose} className="rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer">
+          <button onClick={handleClose} disabled={rejectMutation.isPending} className="rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer disabled:opacity-60">
             Đóng
           </button>
-          <button onClick={handleConfirm} className="rounded-xl bg-rose-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-rose-700 cursor-pointer">
+          <button
+            onClick={handleConfirm}
+            disabled={rejectMutation.isPending}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-rose-700 cursor-pointer disabled:opacity-60"
+          >
+            {rejectMutation.isPending && <Loader2 className="size-3.5 animate-spin" />}
             Xác Nhận Từ Chối Mốc
           </button>
         </div>
@@ -265,7 +430,7 @@ function RejectMilestoneDialog({
    SUB-COMPONENT: MODAL XEM NHANH QUYẾT ĐỊNH CĂN CỨ
    ========================================================================= */
 interface DecisionPreviewModalProps {
-  decision: DecisionItem | null;
+  decision: MilestoneDecisionApi | null;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -283,7 +448,9 @@ function DecisionPreviewModal({ decision, isOpen, onClose }: DecisionPreviewModa
             </div>
             <div>
               <h3 className="text-base font-bold text-[#0F2744]">{decision.soQuyetDinh}</h3>
-              <p className="text-xs text-slate-500">Căn cứ pháp lý duyệt mốc</p>
+              <p className="text-xs text-slate-500">
+                Căn cứ pháp lý duyệt mốc {decision.ncsId ? "(riêng NCS)" : "(quyết định chung)"}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer">
@@ -297,7 +464,7 @@ function DecisionPreviewModal({ decision, isOpen, onClose }: DecisionPreviewModa
               <span className="text-slate-400 block mb-0.5 font-medium">Ngày ban hành</span>
               <div className="flex items-center gap-1.5 font-bold text-slate-800">
                 <Calendar className="size-3.5 text-[#164E9B]" />
-                <span>{decision.ngayQuyetDinh}</span>
+                <span>{formatDateVi(decision.ngayQuyetDinh)}</span>
               </div>
             </div>
             <div>
@@ -308,19 +475,18 @@ function DecisionPreviewModal({ decision, isOpen, onClose }: DecisionPreviewModa
 
           <div>
             <span className="text-slate-400 block mb-1 font-medium">Trích yếu / Ghi chú</span>
-            <p className="rounded-xl border border-slate-200 p-3 bg-white text-slate-700 leading-relaxed">
-              {decision.ghiChu || "Căn cứ quyết định duyệt mốc tiến trình."}
+            <p className="rounded-xl border border-slate-200 p-3 bg-white text-slate-700 leading-relaxed whitespace-pre-line">
+              {decision.ghiChu || "Không có ghi chú."}
             </p>
           </div>
 
           <div className="flex justify-between items-center bg-slate-50 border border-slate-200 rounded-xl p-3">
-            <span className="font-semibold text-slate-700">{decision.fileName || "QuyetDinh.pdf"}</span>
-            <button
-              onClick={() => alert(`Xem file PDF: ${decision.fileName || "QuyetDinh.pdf"}`)}
-              className="text-[#164E9B] font-bold hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <Download className="size-3.5" /> Xem PDF
-            </button>
+            <span className="font-semibold text-slate-700">Bản scan quyết định</span>
+            {decision.fileId ? (
+              <DocumentViewButton fileId={decision.fileId} fileName={`${decision.soQuyetDinh}.pdf`} variant="link" />
+            ) : (
+              <span className="text-slate-400 italic">Không đính kèm file</span>
+            )}
           </div>
         </div>
 
@@ -338,8 +504,10 @@ function DecisionPreviewModal({ decision, isOpen, onClose }: DecisionPreviewModa
    VIEW CHÍNH: HÀNG CHỜ & THẨM ĐỊNH 9 MỐC (MilestoneReviewView)
    ========================================================================= */
 export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }) {
-  const [items, setItems] = useState<PendingMilestoneItem[]>(MOCK_PENDING_MILESTONES);
-  const [selectedItem, setSelectedItem] = useState<PendingMilestoneItem | null>(null);
+  const pendingQuery = usePendingMilestones();
+  const items = useMemo(() => pendingQuery.data ?? [], [pendingQuery.data]);
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
   const [milestoneFilter, setMilestoneFilter] = useState("all");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -350,21 +518,43 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
   // States khi duyệt / từ chối / chấm điểm
   const [selectedQuyetDinhId, setSelectedQuyetDinhId] = useState("");
   const [addEvalModalOpen, setAddEvalModalOpen] = useState(false);
-  const [rejectModalOpen, setRejectModalOpen] = useState(false);
-  const [previewQd, setPreviewQd] = useState<DecisionItem | null>(null);
+  // Gắn dialog từ chối với đúng tienTrinhId: đổi mốc hoặc mốc rời hàng chờ (409) thì dialog tự đóng,
+  // và `key` theo id buộc tạo instance mới (không giữ lý do / lỗi mutation của lần trước)
+  const [rejectTargetId, setRejectTargetId] = useState<string | null>(null);
+  const [previewQd, setPreviewQd] = useState<MilestoneDecisionApi | null>(null);
+
+  // Mốc đang thẩm định luôn lấy từ dữ liệu server mới nhất (tự đóng khi mốc rời hàng chờ)
+  const selectedItem = useMemo(
+    () => items.find((it) => it.id === selectedId) ?? null,
+    [items, selectedId]
+  );
+  const minhChungId = selectedItem?.minhChungMoiNhat?.id ?? null;
+
+  const evaluationsQuery = useEvaluations(minhChungId, Boolean(selectedItem?.moc.yeuCauDiem));
+  const ncsProgressQuery = useNcsProgress(selectedItem?.ncs.id);
+  const decisionsQuery = useMilestoneApprovalDecisions(Boolean(selectedItem));
+  const approveMutation = useApproveMilestone();
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Lọc danh sách hàng chờ
+  const selectItem = (id: string | null) => {
+    setSelectedId(id);
+    setSelectedQuyetDinhId("");
+    approveMutation.reset();
+  };
+
+  // Lọc danh sách hàng chờ (client-side, BE trả toàn bộ mảng khi không truyền page/limit)
   const filteredItems = useMemo(() => {
+    const keyword = searchText.trim().toLowerCase();
     return items.filter((it) => {
       const matchSearch =
-        it.ncs.hoTen.toLowerCase().includes(searchText.toLowerCase()) ||
-        it.ncs.mshv.toLowerCase().includes(searchText.toLowerCase()) ||
-        it.moc.tenMoc.toLowerCase().includes(searchText.toLowerCase());
+        !keyword ||
+        it.ncs.hoTen.toLowerCase().includes(keyword) ||
+        it.ncs.mshv.toLowerCase().includes(keyword) ||
+        it.moc.tenMoc.toLowerCase().includes(keyword);
 
       const matchMilestone =
         milestoneFilter === "all" || it.moc.thuTu.toString() === milestoneFilter;
@@ -378,93 +568,76 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
     return filteredItems.slice(start, start + pageSize);
   }, [filteredItems, currentPage, pageSize]);
 
-  // Thống kê nhanh
+  // Thống kê nhanh (chỉ dựa trên dữ liệu hàng chờ: số phiếu đếm từ `_count`)
   const stats = useMemo(() => {
     return {
       total: items.length,
       requiresScore: items.filter((it) => it.moc.yeuCauDiem).length,
-      readyToApprove: items.filter(
-        (it) => !it.moc.yeuCauDiem || (it.evaluationSummary?.duPhieu && it.evaluationSummary?.diemTrungBinh >= 7.0)
+      enoughEvaluations: items.filter(
+        (it) =>
+          !it.moc.yeuCauDiem ||
+          (it.minhChungMoiNhat?._count.phieuNhanXets ?? 0) >= SO_PHIEU_TOI_THIEU
       ).length,
     };
   }, [items]);
 
-  // Chỉ số điểm của mốc đang xem
-  const currentEvals = selectedItem?.evaluations || [];
-  const evalCount = currentEvals.length;
-  const hasEnoughEvals = evalCount >= 3;
-  const totalScore = currentEvals.reduce((sum, e) => sum + e.diem, 0);
-  const avgScore = evalCount > 0 ? Math.round((totalScore / evalCount) * 10) / 10 : 0;
-  const isScorePassed = avgScore >= 7.0;
+  // Chỉ số điểm của mốc đang xem (lấy `tongHop` do server tính)
+  const tongHop = evaluationsQuery.data?.tongHop;
+  const currentEvals = evaluationsQuery.data?.phieus ?? [];
+  const evalCount = tongHop?.soPhieu ?? 0;
+  const soPhieuToiThieu = tongHop?.soPhieuToiThieu ?? SO_PHIEU_TOI_THIEU;
+  const hasEnoughEvals = Boolean(tongHop?.duPhieu);
+  const avgScore = tongHop?.diemTrungBinh ?? null;
+  const isScorePassed = avgScore !== null && avgScore >= DIEM_TOI_THIEU;
 
-  // Lọc quyết định làm căn cứ hợp lệ cho NCS này
-  const validDecisions: DecisionItem[] = useMemo(() => {
+  // Lọc quyết định căn cứ hợp lệ cho NCS này: riêng NCS hoặc quyết định chung
+  const validDecisions = useMemo(() => {
     if (!selectedItem) return [];
-    return MOCK_DECISIONS.filter(
-      (d) =>
-        d.loai === "CAN_CU_DUYET_MOC" &&
-        d.trangThai === "HIEU_LUC" &&
-        (d.ncsId === selectedItem.ncs.id || d.ncsId === null)
+    return (decisionsQuery.data ?? []).filter(
+      (d) => d.ncsId === selectedItem.ncs.id || d.ncsId === null
     );
-  }, [selectedItem]);
+  }, [decisionsQuery.data, selectedItem]);
+
+  // Lịch sử nộp của chính mốc đang duyệt (từ GET /progress/ncs/:ncsId)
+  const currentMilestoneHistory = useMemo(() => {
+    if (!selectedItem) return [];
+    const tienTrinh = ncsProgressQuery.data?.tienTrinhs.find((t) => t.id === selectedItem.id);
+    return [...(tienTrinh?.minhChungs ?? [])].sort((a, b) => b.lanNop - a.lanNop);
+  }, [ncsProgressQuery.data, selectedItem]);
+
+  const scoreConditionOk =
+    !selectedItem?.moc.yeuCauDiem || (hasEnoughEvals && isScorePassed);
 
   const canApprove =
     selectedQuyetDinhId !== "" &&
-    (!selectedItem?.moc.yeuCauDiem || (hasEnoughEvals && isScorePassed));
+    scoreConditionOk &&
+    !approveMutation.isPending &&
+    (!selectedItem?.moc.yeuCauDiem || evaluationsQuery.isSuccess);
 
   // Handler duyệt mốc
   const handleApprove = () => {
     if (!selectedItem || !canApprove) return;
     const qd = validDecisions.find((d) => d.id === selectedQuyetDinhId);
 
-    setItems((prev) => prev.filter((it) => it.id !== selectedItem.id));
-    showToast(
-      `Đã duyệt thành công mốc "${selectedItem.moc.tenMoc}" cho NCS ${selectedItem.ncs.hoTen} theo QĐ ${qd?.soQuyetDinh || ""}.`
-    );
-    setSelectedItem(null);
-    setSelectedQuyetDinhId("");
-  };
-
-  // Handler từ chối mốc
-  const handleRejectConfirm = (tienTrinhId: string, lyDo: string) => {
-    const item = items.find((it) => it.id === tienTrinhId);
-    setItems((prev) => prev.filter((it) => it.id !== tienTrinhId));
-    showToast(`Đã từ chối mốc của NCS ${item?.ncs.hoTen}. Lý do: "${lyDo}"`);
-    setSelectedItem(null);
-  };
-
-  // Thêm phiếu chấm
-  const handleAddEvaluation = (evalData: Partial<EvaluationItem>) => {
-    if (!selectedItem) return;
-    const newEval: EvaluationItem = {
-      id: `ev-${Date.now()}`,
-      tenNguoiCham: evalData.tenNguoiCham || "",
-      donViNguoiCham: evalData.donViNguoiCham,
-      diem: evalData.diem || 0,
-      nhanXet: evalData.nhanXet,
-      createdAt: new Date().toISOString(),
-    };
-
-    const updatedEvals = [...(selectedItem.evaluations || []), newEval];
-    const newCount = updatedEvals.length;
-    const newTotal = updatedEvals.reduce((s, e) => s + e.diem, 0);
-    const newAvg = Math.round((newTotal / newCount) * 10) / 10;
-
-    const updatedItem: PendingMilestoneItem = {
-      ...selectedItem,
-      evaluations: updatedEvals,
-      evaluationSummary: {
-        soPhieu: newCount,
-        soPhieuToiThieu: 3,
-        diemTrungBinh: newAvg,
-        duPhieu: newCount >= 3,
+    approveMutation.mutate(
+      {
+        tienTrinhId: selectedItem.id,
+        quyetDinhId: selectedQuyetDinhId,
+        ncsId: selectedItem.ncs.id,
       },
-    };
-
-    setSelectedItem(updatedItem);
-    setItems((prev) => prev.map((it) => (it.id === selectedItem.id ? updatedItem : it)));
-    showToast(`Đã lưu phiếu chấm của ${newEval.tenNguoiCham} (${newEval.diem} điểm).`);
+      {
+        onSuccess: (res) => {
+          showToast(
+            `Đã duyệt mốc ${selectedItem.moc.thuTu} cho NCS ${selectedItem.ncs.hoTen} theo QĐ ${qd?.soQuyetDinh ?? ""}.` +
+              (res.mocKeTiep ? ` Mốc ${res.mocKeTiep} đã được mở.` : " NCS đã hoàn thành mốc cuối.")
+          );
+          selectItem(null);
+        },
+      }
+    );
   };
+
+  const isInitialLoading = pendingQuery.isLoading;
 
   return (
     <div className={`space-y-6 ${embedded ? "" : "p-6"}`}>
@@ -494,6 +667,15 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => pendingQuery.refetch()}
+            disabled={pendingQuery.isFetching}
+            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-60"
+          >
+            <RefreshCw className={`size-4 text-[#164E9B] ${pendingQuery.isFetching ? "animate-spin" : ""}`} />
+            <span>Làm mới</span>
+          </button>
           <Link
             href="/academic/decisions"
             className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
@@ -508,15 +690,15 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <span className="text-slate-500 text-xs block font-medium">Hồ Sơ Chờ Duyệt (PENDING)</span>
-          <span className="text-2xl font-black text-slate-900 mt-1 block">{stats.total}</span>
+          <span className="text-2xl font-black text-slate-900 mt-1 block">{isInitialLoading ? "…" : stats.total}</span>
         </div>
         <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-4 shadow-xs">
           <span className="text-amber-700 text-xs block font-bold">Mốc Yêu Cầu Chấm Điểm (Mốc 2,4,5)</span>
-          <span className="text-2xl font-black text-amber-800 mt-1 block">{stats.requiresScore}</span>
+          <span className="text-2xl font-black text-amber-800 mt-1 block">{isInitialLoading ? "…" : stats.requiresScore}</span>
         </div>
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 shadow-xs">
-          <span className="text-emerald-700 text-xs block font-bold">Đủ Điều Kiện Duyệt Ngay</span>
-          <span className="text-2xl font-black text-emerald-800 mt-1 block">{stats.readyToApprove}</span>
+          <span className="text-emerald-700 text-xs block font-bold">Đủ Phiếu Hoặc Không Yêu Cầu Điểm</span>
+          <span className="text-2xl font-black text-emerald-800 mt-1 block">{isInitialLoading ? "…" : stats.enoughEvaluations}</span>
         </div>
       </div>
 
@@ -545,40 +727,65 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
             }}
             className="rounded-xl border border-slate-200 px-3 py-2 text-xs focus:border-[#164E9B] focus:outline-hidden bg-white text-slate-700 font-medium"
           >
-            <option value="all">Tất cả các mốc (1 - 9)</option>
-            {Array.from({ length: 9 }, (_, i) => (
-              <option key={i + 1} value={(i + 1).toString()}>
-                Mốc {i + 1}
+            <option value="all">Tất cả các mốc (2 - 9)</option>
+            {Array.from({ length: 8 }, (_, i) => (
+              <option key={i + 2} value={(i + 2).toString()}>
+                Mốc {i + 2}
               </option>
             ))}
           </select>
         </div>
 
         {/* Bảng hàng chờ */}
-        <div className="overflow-hidden rounded-xl border border-slate-200">
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/75 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 <th className="px-4 py-3">Mốc</th>
                 <th className="px-4 py-3">NCS / Mã Học Viên</th>
-                <th className="px-4 py-3">Minh Chứng</th>
+                <th className="px-4 py-3">Lần Nộp</th>
                 <th className="px-4 py-3">Phiếu Chấm (Mốc 2,4,5)</th>
                 <th className="px-4 py-3">Ngày Nộp</th>
                 <th className="px-4 py-3 text-right">Thao Tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {paginatedItems.length === 0 ? (
+              {isInitialLoading ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
-                    Không có hồ sơ nào trong hàng chờ duyệt.
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="size-4 animate-spin" /> Đang tải hàng chờ duyệt...
+                    </span>
+                  </td>
+                </tr>
+              ) : pendingQuery.isError ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center">
+                    <div className="inline-flex flex-col items-center gap-2 text-rose-700">
+                      <span className="font-semibold">{pendingQuery.error.message}</span>
+                      <button
+                        type="button"
+                        onClick={() => pendingQuery.refetch()}
+                        className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1 font-bold hover:bg-rose-100 cursor-pointer"
+                      >
+                        Thử lại
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedItems.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                    {items.length === 0
+                      ? "Không có hồ sơ nào trong hàng chờ duyệt."
+                      : "Không có hồ sơ phù hợp với bộ lọc."}
                   </td>
                 </tr>
               ) : (
                 paginatedItems.map((item) => {
                   const isSelected = selectedItem?.id === item.id;
                   const reqScore = item.moc.yeuCauDiem;
-                  const sum = item.evaluationSummary;
+                  const soPhieu = item.minhChungMoiNhat?._count.phieuNhanXets ?? 0;
 
                   return (
                     <tr
@@ -586,10 +793,7 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
                       className={`transition-colors cursor-pointer ${
                         isSelected ? "bg-blue-50/70" : "hover:bg-slate-50/50"
                       }`}
-                      onClick={() => {
-                        setSelectedItem(item);
-                        setSelectedQuyetDinhId("");
-                      }}
+                      onClick={() => selectItem(item.id)}
                     >
                       <td className="px-4 py-3 font-bold text-slate-900">
                         <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-100/70 px-2 py-1 text-[#164E9B]">
@@ -599,41 +803,36 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
                       </td>
                       <td className="px-4 py-3">
                         <div className="font-bold text-slate-800">{item.ncs.hoTen}</div>
-                        <div className="text-[10px] text-slate-400">MSHV: {item.ncs.mshv}</div>
+                        <div className="text-[10px] text-slate-400">
+                          MSHV: {item.ncs.mshv}{item.ncs.lop ? ` • Lớp: ${item.ncs.lop}` : ""}
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        <span className="truncate max-w-[150px] inline-block font-medium">
-                          {item.minhChungMoiNhat.fileId || "MinhChung.pdf"}
-                        </span>
+                      <td className="px-4 py-3 text-slate-600 font-medium">
+                        {item.minhChungMoiNhat ? `Lần ${item.minhChungMoiNhat.lanNop}` : "—"}
                       </td>
                       <td className="px-4 py-3">
                         {reqScore ? (
-                          sum ? (
-                            <span
-                              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold ${
-                                sum.duPhieu && sum.diemTrungBinh >= 7.0
-                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                  : "bg-amber-50 text-amber-700 border border-amber-200"
-                              }`}
-                            >
-                              {sum.soPhieu}/3 phiếu • TB: {sum.diemTrungBinh.toFixed(1)}đ
-                            </span>
-                          ) : (
-                            <span className="text-amber-600 font-semibold text-[10px]">Chưa có phiếu chấm</span>
-                          )
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                              soPhieu >= SO_PHIEU_TOI_THIEU
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : "bg-amber-50 text-amber-700 border border-amber-200"
+                            }`}
+                          >
+                            Phiếu: {soPhieu}/{SO_PHIEU_TOI_THIEU}
+                          </span>
                         ) : (
                           <span className="text-slate-400 italic">Không yêu cầu</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
-                        {item.minhChungMoiNhat.ngayNop}
+                        {formatDateVi(item.minhChungMoiNhat?.ngayNop ?? item.submittedAt)}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedItem(item);
-                            setSelectedQuyetDinhId("");
+                            selectItem(item.id);
                           }}
                           className={`rounded-lg px-3 py-1 text-xs font-bold transition-colors cursor-pointer ${
                             isSelected
@@ -675,13 +874,13 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
                 Mốc {selectedItem.moc.thuTu}: {selectedItem.moc.tenMoc}
               </h2>
               <p className="text-xs text-slate-500">
-                Học viên: <strong className="text-slate-800">{selectedItem.ncs.hoTen}</strong> (MSHV: {selectedItem.ncs.mshv}) • Lớp: {selectedItem.ncs.lop}
+                Học viên: <strong className="text-slate-800">{selectedItem.ncs.hoTen}</strong> (MSHV: {selectedItem.ncs.mshv}) • Lớp: {selectedItem.ncs.lop ?? "—"}
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setSelectedItem(null)}
+                onClick={() => selectItem(null)}
                 className="rounded-xl border border-slate-200 px-3.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
               >
                 Đóng Thẩm Định
@@ -692,25 +891,35 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Cột trái: Minh chứng & Phiếu chấm */}
             <div className="lg:col-span-8 space-y-6">
-              {/* Khối 1: Lịch sử nộp & Minh chứng */}
+              {/* Khối 1: Minh chứng */}
               <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5 space-y-3 text-xs">
                 <h3 className="font-bold text-slate-800 flex items-center gap-1.5">
                   <FileText className="size-4 text-[#164E9B]" /> Minh Chứng Đính Kèm
                 </h3>
-                <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex justify-between items-center">
-                  <div>
-                    <span className="font-bold text-slate-900 block">{selectedItem.minhChungMoiNhat.fileId || "MinhChung.pdf"}</span>
-                    <span className="text-[11px] text-slate-400">
-                      Nộp ngày: {selectedItem.minhChungMoiNhat.ngayNop} • Trạng thái: PENDING
-                    </span>
+                {selectedItem.minhChungMoiNhat ? (
+                  <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center">
+                    <div>
+                      <span className="font-bold text-slate-900 block">
+                        Minh chứng lần nộp {selectedItem.minhChungMoiNhat.lanNop}
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        Nộp ngày: {formatDateVi(selectedItem.minhChungMoiNhat.ngayNop)} • Trạng thái: Chờ duyệt
+                      </span>
+                      {selectedItem.minhChungMoiNhat.ghiChuNcs && (
+                        <p className="mt-1 text-slate-600 italic">Ghi chú NCS: {selectedItem.minhChungMoiNhat.ghiChuNcs}</p>
+                      )}
+                      {selectedItem.moc.thuTu === 8 && (
+                        <p className="mt-1 text-[11px] text-slate-500">Mốc 8: 1 file PDF gộp tất cả bài báo.</p>
+                      )}
+                    </div>
+                    <DocumentViewButton
+                      fileId={selectedItem.minhChungMoiNhat.fileId}
+                      fileName={`Minh_chung_moc_${selectedItem.moc.thuTu}_lan_${selectedItem.minhChungMoiNhat.lanNop}.pdf`}
+                    />
                   </div>
-                  <button
-                    onClick={() => alert(`Tải xuống minh chứng: ${selectedItem.minhChungMoiNhat.fileId || "MinhChung.pdf"}`)}
-                    className="flex items-center gap-1 text-[#164E9B] font-bold text-xs hover:underline cursor-pointer"
-                  >
-                    <Download className="size-3.5" /> Xem PDF
-                  </button>
-                </div>
+                ) : (
+                  <p className="text-slate-400 italic">Không tìm thấy lần nộp đang chờ duyệt.</p>
+                )}
               </div>
 
               {/* Khối 2: Phiếu chấm chuyên gia (Mốc 2, 4, 5) */}
@@ -721,63 +930,84 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
                       <h3 className="font-bold text-slate-900 flex items-center gap-1.5">
                         <Award className="size-4 text-[#164E9B]" /> Phiếu Nhận Xét &amp; Chấm Điểm
                       </h3>
-                      <p className="text-[11px] text-slate-500">Yêu cầu tối thiểu 3 phiếu và điểm trung bình ≥ 7.0</p>
+                      <p className="text-[11px] text-slate-500">Yêu cầu tối thiểu {soPhieuToiThieu} phiếu và điểm trung bình ≥ {DIEM_TOI_THIEU}.0</p>
                     </div>
                     <button
                       onClick={() => setAddEvalModalOpen(true)}
-                      className="rounded-xl bg-[#164E9B] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#113E7D] cursor-pointer"
+                      disabled={!minhChungId}
+                      className="rounded-xl bg-[#164E9B] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#113E7D] cursor-pointer disabled:opacity-60"
                     >
                       + Nhập Phiếu Chấm
                     </button>
                   </div>
 
-                  {/* Tóm tắt điểm */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 text-center">
-                      <span className="text-slate-500 block text-[11px]">Số phiếu</span>
-                      <strong className="text-lg text-slate-800">{evalCount} / 3</strong>
+                  {evaluationsQuery.isLoading ? (
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <Loader2 className="size-4 animate-spin" /> Đang tải phiếu nhận xét...
                     </div>
-                    <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 text-center">
-                      <span className="text-slate-500 block text-[11px]">Điểm trung bình</span>
-                      <strong className={`text-lg ${isScorePassed ? "text-emerald-700" : "text-amber-700"}`}>
-                        {evalCount > 0 ? avgScore.toFixed(1) : "—"} / 10
-                      </strong>
+                  ) : evaluationsQuery.isError ? (
+                    <div className="flex items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-rose-700">
+                      <span className="font-semibold">{evaluationsQuery.error.message}</span>
+                      <button onClick={() => evaluationsQuery.refetch()} className="font-bold hover:underline cursor-pointer">
+                        Thử lại
+                      </button>
                     </div>
-                    <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 flex items-center justify-center text-center">
-                      {hasEnoughEvals ? (
-                        isScorePassed ? (
-                          <span className="text-emerald-700 font-bold flex items-center gap-1">
-                            <CheckCircle2 className="size-3.5" /> Đạt (≥ 7.0)
-                          </span>
-                        ) : (
-                          <span className="text-rose-700 font-bold flex items-center gap-1">
-                            <XCircle className="size-3.5" /> Dưới 7.0
-                          </span>
-                        )
-                      ) : (
-                        <span className="text-amber-700 font-bold flex items-center gap-1">
-                          <AlertCircle className="size-3.5" /> Thiếu {3 - evalCount} phiếu
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Danh sách phiếu */}
-                  <div className="space-y-2">
-                    {currentEvals.map((ev, i) => (
-                      <div key={ev.id || i} className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 flex justify-between items-start">
-                        <div>
-                          <div className="font-bold text-slate-800">
-                            {ev.tenNguoiCham} {ev.donViNguoiCham && <span className="font-normal text-slate-500">({ev.donViNguoiCham})</span>}
-                          </div>
-                          {ev.nhanXet && <p className="text-slate-600 mt-1 italic">&ldquo;{ev.nhanXet}&rdquo;</p>}
+                  ) : (
+                    <>
+                      {/* Tóm tắt điểm */}
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 text-center">
+                          <span className="text-slate-500 block text-[11px]">Số phiếu</span>
+                          <strong className="text-lg text-slate-800">{evalCount} / {soPhieuToiThieu}</strong>
                         </div>
-                        <span className="rounded-lg bg-emerald-100 px-2 py-0.5 font-black text-emerald-800 shrink-0">
-                          {ev.diem}đ
-                        </span>
+                        <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 text-center">
+                          <span className="text-slate-500 block text-[11px]">Điểm trung bình</span>
+                          <strong className={`text-lg ${isScorePassed ? "text-emerald-700" : "text-amber-700"}`}>
+                            {avgScore !== null ? avgScore.toFixed(2) : "—"} / 10
+                          </strong>
+                        </div>
+                        <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 flex items-center justify-center text-center">
+                          {hasEnoughEvals ? (
+                            isScorePassed ? (
+                              <span className="text-emerald-700 font-bold flex items-center gap-1">
+                                <CheckCircle2 className="size-3.5" /> Đạt (≥ {DIEM_TOI_THIEU}.0)
+                              </span>
+                            ) : (
+                              <span className="text-rose-700 font-bold flex items-center gap-1">
+                                <XCircle className="size-3.5" /> Dưới {DIEM_TOI_THIEU}.0
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-amber-700 font-bold flex items-center gap-1">
+                              <AlertCircle className="size-3.5" /> Cần thêm {Math.max(0, soPhieuToiThieu - evalCount)} phiếu
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    ))}
-                  </div>
+
+                      {/* Danh sách phiếu */}
+                      <div className="space-y-2">
+                        {currentEvals.length === 0 ? (
+                          <p className="text-slate-400 italic">Chưa có phiếu nhận xét nào cho lần nộp này.</p>
+                        ) : (
+                          currentEvals.map((ev) => (
+                            <div key={ev.id} className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 flex justify-between items-start">
+                              <div>
+                                <div className="font-bold text-slate-800">
+                                  {ev.tenNguoiCham} {ev.donViNguoiCham && <span className="font-normal text-slate-500">({ev.donViNguoiCham})</span>}
+                                </div>
+                                {ev.nhanXet && <p className="text-slate-600 mt-1 italic">&ldquo;{ev.nhanXet}&rdquo;</p>}
+                                <p className="text-[10px] text-slate-400 mt-1">Nhập ngày {formatDateVi(ev.createdAt)}</p>
+                              </div>
+                              <span className="rounded-lg bg-emerald-100 px-2 py-0.5 font-black text-emerald-800 shrink-0">
+                                {Number(ev.diem)}đ
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs text-xs text-slate-500 flex items-center gap-2">
@@ -809,25 +1039,45 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
                       </button>
                     )}
                   </div>
-                  <select
-                    value={selectedQuyetDinhId}
-                    onChange={(e) => setSelectedQuyetDinhId(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 p-2 focus:border-[#164E9B] focus:outline-hidden bg-white"
-                  >
-                    <option value="">-- Chọn quyết định hiệu lực --</option>
-                    {validDecisions.map((qd) => (
-                      <option key={qd.id} value={qd.id}>
-                        {qd.soQuyetDinh} ({qd.ngayQuyetDinh})
+                  {decisionsQuery.isError ? (
+                    <div className="flex items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 p-2 text-rose-700">
+                      <span>{decisionsQuery.error.message}</span>
+                      <button onClick={() => decisionsQuery.refetch()} className="font-bold hover:underline cursor-pointer">
+                        Thử lại
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedQuyetDinhId}
+                      onChange={(e) => setSelectedQuyetDinhId(e.target.value)}
+                      disabled={decisionsQuery.isLoading}
+                      className="w-full rounded-xl border border-slate-200 p-2 focus:border-[#164E9B] focus:outline-hidden bg-white"
+                    >
+                      <option value="">
+                        {decisionsQuery.isLoading
+                          ? "Đang tải quyết định..."
+                          : validDecisions.length === 0
+                            ? "-- Không có quyết định CAN_CU_DUYET_MOC hiệu lực --"
+                            : "-- Chọn quyết định hiệu lực --"}
                       </option>
-                    ))}
-                  </select>
+                      {validDecisions.map((qd) => (
+                        <option key={qd.id} value={qd.id}>
+                          {qd.soQuyetDinh} ({formatDateVi(qd.ngayQuyetDinh)}){qd.ncsId === null ? " • Chung" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
-                {selectedItem.moc.yeuCauDiem && (!hasEnoughEvals || !isScorePassed) && (
+                {selectedItem.moc.yeuCauDiem && evaluationsQuery.isSuccess && !scoreConditionOk && (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-amber-800 text-[11px]">
-                    ⚠️ Chưa đủ điều kiện duyệt: cần tối thiểu 3 phiếu và điểm trung bình ≥ 7.0.
+                    {!hasEnoughEvals
+                      ? `⚠️ Chưa đủ điều kiện duyệt: cần thêm ${Math.max(0, soPhieuToiThieu - evalCount)} phiếu.`
+                      : `⚠️ Điểm trung bình dưới ${DIEM_TOI_THIEU}.0: server sẽ từ chối duyệt, chỉ có thể Từ chối mốc.`}
                   </div>
                 )}
+
+                <ErrorList error={approveMutation.error} />
 
                 <div className="space-y-2 pt-2">
                   <button
@@ -837,13 +1087,14 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
                       canApprove ? "bg-emerald-600 hover:bg-emerald-700 cursor-pointer" : "bg-slate-300 opacity-60 cursor-not-allowed"
                     }`}
                   >
-                    <CheckCircle2 className="size-4" />
+                    {approveMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
                     Phê Duyệt Mốc Đạt (PASSED)
                   </button>
 
                   <button
-                    onClick={() => setRejectModalOpen(true)}
-                    className="w-full rounded-xl border border-rose-200 bg-rose-50 py-2.5 font-bold text-rose-700 hover:bg-rose-100 flex items-center justify-center gap-1.5 cursor-pointer"
+                    onClick={() => setRejectTargetId(selectedItem.id)}
+                    disabled={approveMutation.isPending}
+                    className="w-full rounded-xl border border-rose-200 bg-rose-50 py-2.5 font-bold text-rose-700 hover:bg-rose-100 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
                   >
                     <XCircle className="size-4" />
                     Từ Chối Yêu Cầu Nộp Lại
@@ -851,14 +1102,26 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
                 </div>
               </div>
 
-              {/* Lịch sử nộp các lần trước */}
+              {/* Lịch sử nộp các lần trước (GET /progress/ncs/:ncsId) */}
               <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 text-xs space-y-2">
                 <span className="font-bold text-slate-700 block">Lịch Sử Nộp Hồ Sơ</span>
-                {selectedItem.lichSuNop && selectedItem.lichSuNop.length > 0 ? (
+                {ncsProgressQuery.isLoading ? (
+                  <span className="flex items-center gap-2 text-slate-400">
+                    <Loader2 className="size-3.5 animate-spin" /> Đang tải lịch sử...
+                  </span>
+                ) : ncsProgressQuery.isError ? (
+                  <div className="flex items-center justify-between gap-2 text-rose-700">
+                    <span>{ncsProgressQuery.error.message}</span>
+                    <button onClick={() => ncsProgressQuery.refetch()} className="font-bold hover:underline cursor-pointer">
+                      Thử lại
+                    </button>
+                  </div>
+                ) : currentMilestoneHistory.length > 1 ? (
                   <div className="space-y-2 border-l-2 border-slate-200 pl-3">
-                    {selectedItem.lichSuNop.map((h: MilestoneSubmissionHistory, i: number) => (
-                      <div key={i} className="text-[11px]">
-                        <span className="font-bold text-slate-800">Lần {h.lanNop}</span> • {h.ngayNop}
+                    {currentMilestoneHistory.map((h) => (
+                      <div key={h.id} className="text-[11px]">
+                        <span className="font-bold text-slate-800">Lần {h.lanNop}</span> • {formatDateVi(h.ngayNop)} •{" "}
+                        <span className="text-slate-500">{h.trangThai}</span>
                         {h.lyDoTuChoi && (
                           <p className="text-rose-600 mt-0.5 italic">Lý do từ chối: {h.lyDoTuChoi}</p>
                         )}
@@ -866,7 +1129,32 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
                     ))}
                   </div>
                 ) : (
-                  <p className="text-slate-400 italic text-[11px]">Đây là lần nộp đầu tiên.</p>
+                  <p className="text-slate-400 italic text-[11px]">Đây là lần nộp đầu tiên của mốc này.</p>
+                )}
+
+                {ncsProgressQuery.data && (
+                  <div className="pt-2 border-t border-slate-200">
+                    <span className="font-bold text-slate-700 block mb-1.5">Tiến trình 9 mốc</span>
+                    <div className="flex flex-wrap gap-1">
+                      {ncsProgressQuery.data.tienTrinhs.map((t) => (
+                        <span
+                          key={t.id}
+                          title={`${t.moc.tenMoc} • ${t.trangThai}`}
+                          className={`rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${
+                            t.trangThai === "PASSED"
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : t.trangThai === "PENDING_REVIEW"
+                                ? "border-blue-200 bg-blue-50 text-[#164E9B]"
+                                : t.trangThai === "REJECTED"
+                                  ? "border-rose-200 bg-rose-50 text-rose-700"
+                                  : "border-slate-200 bg-white text-slate-400"
+                          }`}
+                        >
+                          M{t.moc.thuTu}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -877,16 +1165,22 @@ export function MilestoneReviewView({ embedded = false }: { embedded?: boolean }
       {/* MODAL 1: NHẬP ĐIỂM CHUYÊN GIA */}
       <AddEvaluationModal
         isOpen={addEvalModalOpen}
+        minhChungId={minhChungId}
+        ncsId={selectedItem?.ncs.id}
         onClose={() => setAddEvalModalOpen(false)}
-        onSubmit={handleAddEvaluation}
+        onSaved={showToast}
       />
 
       {/* MODAL 2: TỪ CHỐI MỐC */}
       <RejectMilestoneDialog
         item={selectedItem}
-        isOpen={rejectModalOpen}
-        onClose={() => setRejectModalOpen(false)}
-        onConfirm={handleRejectConfirm}
+        key={rejectTargetId ?? "reject-none"}
+        isOpen={rejectTargetId !== null && rejectTargetId === selectedItem?.id}
+        onClose={() => setRejectTargetId(null)}
+        onRejected={(msg) => {
+          showToast(msg);
+          selectItem(null);
+        }}
       />
 
       {/* MODAL 3: XEM NHANH QUYẾT ĐỊNH CĂN CỨ */}

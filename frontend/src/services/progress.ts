@@ -3,10 +3,19 @@ import { DocumentService } from "@/src/services/document";
 import { formatSupervisorDisplayName } from "@/src/services/gvhd";
 import type { DocumentMetadataResponse } from "@/src/types/api/document";
 import type {
+  ApproveMilestoneResponse,
   BackendNcsMeResponse,
+  CreateEvaluationRequest,
+  CreateEvaluationResponse,
+  EvaluationApi,
+  EvaluationListResponse,
+  MilestoneDecisionApi,
   MilestoneEvidenceApi,
   MilestoneItemApi,
   MyProgressResponse,
+  NcsProgressResponse,
+  PendingMilestoneApi,
+  RejectMilestoneResponse,
   SubmitMilestoneRequest,
   SubmitMilestoneResponse,
   SubmitMilestoneWithFileVariables,
@@ -14,8 +23,30 @@ import type {
 import type {
   EvidenceItem,
   MilestoneProgressItem,
+  PhieuNhanXetItem,
   StudentProgressData,
 } from "@/src/types/ui/progress";
+
+/** Chuẩn hóa response Hybrid Pagination về mảng (không truyền page/limit thì BE trả T[]) */
+function toArray<T>(data: T[] | { data: T[] } | null | undefined): T[] {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.data)) return data.data;
+  return [];
+}
+
+/** Chuyển 1 phiếu nhận xét Backend -> UI (dùng cho timeline của NCS) */
+function mapEvaluationApiToUi(phieu: EvaluationApi): PhieuNhanXetItem {
+  return {
+    id: phieu.id,
+    tenNguoiCham: phieu.tenNguoiCham,
+    chucDanh: phieu.donViNguoiCham ?? "",
+    diem: Number(phieu.diem),
+    // Backend không lưu file riêng cho phiếu nhận xét → không có fileUrl/fileName thật
+    fileName: "",
+    ngayDanhGia: formatDateShortVi(phieu.createdAt),
+    nhanXet: phieu.nhanXet ?? undefined,
+  };
+}
 
 /** Định dạng chuỗi ngày YYYY-MM-DD hoặc ISO sang DD/MM/YYYY */
 function formatDateShortVi(dateStr?: string | null): string | undefined {
@@ -115,6 +146,14 @@ export function mapMyProgressToUi(
         .reverse()
         .find((ev) => ev.diemTrungBinh !== undefined);
 
+      // Phiếu nhận xét của lần nộp gần nhất (BE trả kèm trong minhChungs[].phieuNhanXets)
+      const latestRawEvidence = [...item.minhChungs].sort(
+        (a, b) => b.lanNop - a.lanNop
+      )[0];
+      const phieuNhanXets = (latestRawEvidence?.phieuNhanXets ?? []).map(
+        mapEvaluationApiToUi
+      );
+
       return {
         id: item.id,
         thuTu: item.moc.thuTu,
@@ -134,8 +173,7 @@ export function mapMyProgressToUi(
         ghiChuHeThong: buildMilestoneSystemNote(item),
         minhChungHienTai: latestEvidence,
         lichSuMinhChung: history,
-        // Lưu ý: Backend chưa mở API xem từng phiếu nhận xét lẻ cho vai trò NCS (chỉ trả diemTrungBinh)
-        phieuNhanXets: [],
+        phieuNhanXets,
       };
     });
 
@@ -280,5 +318,142 @@ export const ProgressService = {
       fileId: uploadedDoc.id,
       ghiChu,
     });
+  },
+
+  /* ---------------------------------------------------------------------
+     GIÁO VỤ (milestone.approve / milestone.reject / decision.read)
+     --------------------------------------------------------------------- */
+
+  /**
+   * 4. Hàng chờ duyệt mốc (nộp trước xếp trước). Không truyền page/limit → nhận toàn bộ mảng.
+   * Endpoint: GET /progress/pending
+   */
+  getPendingMilestones: async (): Promise<PendingMilestoneApi[]> => {
+    try {
+      const response = await apiClient.get<
+        PendingMilestoneApi[] | { data: PendingMilestoneApi[] }
+      >("/progress/pending");
+      return toArray(response.data);
+    } catch (error) {
+      throwApiError(error);
+    }
+  },
+
+  /**
+   * 5. Tiến trình 9 mốc + lịch sử nộp của 1 NCS
+   * Endpoint: GET /progress/ncs/:ncsId
+   */
+  getNcsProgress: async (ncsId: string): Promise<NcsProgressResponse> => {
+    try {
+      const response = await apiClient.get<NcsProgressResponse>(
+        `/progress/ncs/${ncsId}`
+      );
+      return response.data;
+    } catch (error) {
+      throwApiError(error);
+    }
+  },
+
+  /**
+   * 6. Danh sách phiếu nhận xét + tổng hợp của 1 lần nộp
+   * Endpoint: GET /progress/evidences/:minhChungId/evaluations
+   */
+  getEvaluations: async (
+    minhChungId: string
+  ): Promise<EvaluationListResponse> => {
+    try {
+      const response = await apiClient.get<EvaluationListResponse>(
+        `/progress/evidences/${minhChungId}/evaluations`
+      );
+      return response.data;
+    } catch (error) {
+      throwApiError(error);
+    }
+  },
+
+  /**
+   * 7. Giáo vụ nhập phiếu nhận xét (không sửa/xóa được sau khi lưu).
+   * 409 `code = PHIEU_TRUNG_NGUOI_CHAM` → gửi lại kèm `xacNhanTrung: true` sau khi xác nhận.
+   * Endpoint: POST /progress/evidences/:minhChungId/evaluations
+   */
+  createEvaluation: async (
+    minhChungId: string,
+    payload: CreateEvaluationRequest
+  ): Promise<CreateEvaluationResponse> => {
+    try {
+      const donVi = payload.donViNguoiCham?.trim();
+      const nhanXet = payload.nhanXet?.trim();
+      const body: CreateEvaluationRequest = {
+        tenNguoiCham: payload.tenNguoiCham.trim(),
+        diem: payload.diem,
+        ...(donVi ? { donViNguoiCham: donVi } : {}),
+        ...(nhanXet ? { nhanXet } : {}),
+        ...(payload.xacNhanTrung ? { xacNhanTrung: true } : {}),
+      };
+      const response = await apiClient.post<CreateEvaluationResponse>(
+        `/progress/evidences/${minhChungId}/evaluations`,
+        body
+      );
+      return response.data;
+    } catch (error) {
+      throwApiError(error);
+    }
+  },
+
+  /**
+   * 8. Duyệt mốc với quyết định căn cứ
+   * Endpoint: POST /progress/reviews/:tienTrinhId/approve
+   */
+  approveMilestone: async (
+    tienTrinhId: string,
+    quyetDinhId: string
+  ): Promise<ApproveMilestoneResponse> => {
+    try {
+      const response = await apiClient.post<ApproveMilestoneResponse>(
+        `/progress/reviews/${tienTrinhId}/approve`,
+        { quyetDinhId }
+      );
+      return response.data;
+    } catch (error) {
+      throwApiError(error);
+    }
+  },
+
+  /**
+   * 9. Từ chối mốc (bắt buộc lý do 1..1000 ký tự)
+   * Endpoint: POST /progress/reviews/:tienTrinhId/reject
+   */
+  rejectMilestone: async (
+    tienTrinhId: string,
+    lyDo: string
+  ): Promise<RejectMilestoneResponse> => {
+    try {
+      const response = await apiClient.post<RejectMilestoneResponse>(
+        `/progress/reviews/${tienTrinhId}/reject`,
+        { lyDo: lyDo.trim() }
+      );
+      return response.data;
+    } catch (error) {
+      throwApiError(error);
+    }
+  },
+
+  /**
+   * 10. Quyết định `CAN_CU_DUYET_MOC` còn hiệu lực.
+   * Theo tài liệu: KHÔNG gửi `ncsId` lên server (sẽ loại mất quyết định chung `ncsId = null`);
+   * FE tự lọc `ncsId === ncs.id || ncsId === null`.
+   * Endpoint: GET /decisions?loai=CAN_CU_DUYET_MOC&trangThai=HIEU_LUC
+   */
+  getMilestoneApprovalDecisions: async (): Promise<MilestoneDecisionApi[]> => {
+    try {
+      const response = await apiClient.get<
+        MilestoneDecisionApi[] | { data: MilestoneDecisionApi[] }
+      >("/decisions", {
+        params: { loai: "CAN_CU_DUYET_MOC", trangThai: "HIEU_LUC" },
+      });
+      return toArray(response.data);
+    } catch (error) {
+      throwApiError(error);
+    }
   },
 };

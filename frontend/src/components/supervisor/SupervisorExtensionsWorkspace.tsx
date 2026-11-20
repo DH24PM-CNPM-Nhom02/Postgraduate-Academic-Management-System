@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { ConfirmDialog } from "@/src/components/shared/ConfirmDialog";
 import { PdfViewer } from "@/src/components/upload/PdfViewer";
+import { useDocumentPreviewUrl } from "@/src/hooks/api/use-documents";
 import { TablePagination } from "@/src/components/ui/table-pagination";
 import type {
   SupervisorExtensionDecisionAction,
@@ -51,6 +52,10 @@ interface ReviewDrawerInnerProps {
     comment: string
   ) => void | Promise<void>;
   isPdfOpen: boolean;
+  /** Đã xác định được hồ sơ GVHD đang đăng nhập (GET /gvhd/me) */
+  reviewerReady: boolean;
+  /** Trạng thái tải chi tiết đơn (hạn hiện tại, số tháng đã gia hạn) */
+  detailState?: { isLoading: boolean; error: string | null; onRetry: () => void };
 }
 
 function ExtensionReviewDrawerInner({
@@ -59,6 +64,8 @@ function ExtensionReviewDrawerInner({
   onOpenPdf,
   onSubmitReview,
   isPdfOpen,
+  reviewerReady,
+  detailState,
 }: ReviewDrawerInnerProps) {
   const titleId = useId();
   const commentId = useId();
@@ -69,8 +76,15 @@ function ExtensionReviewDrawerInner({
   const [validationError, setValidationError] = useState<string | null>(null);
   const [confirmState, setConfirmState] = useState<PendingConfirmState | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const canReview = request.trangThai === "CHO_GVHD_XAC_NHAN";
+  // Chỉ thẩm định khi đơn đang chờ GVHD và chính GVHD này chưa phản hồi (dongY === null)
+  // Không xác định được GVHD hiện tại thì không biết đã phản hồi hay chưa → khóa thao tác
+  const awaitingReviewer = request.trangThai === "CHO_GVHD_XAC_NHAN" && !reviewerReady;
+  const canReview =
+    request.trangThai === "CHO_GVHD_XAC_NHAN" &&
+    reviewerReady &&
+    (!request.yKienCuaToi || request.yKienCuaToi.dongY === null);
   const statusMeta = getSupervisorRequestStatusMeta(request.trangThai);
   const attachmentSize = formatFileSizeBytes(request.tepDinhKem.fileSize);
 
@@ -112,21 +126,26 @@ function ExtensionReviewDrawerInner({
       return;
     }
     setValidationError(null);
-    setConfirmState({
-      action,
-      comment:
-        trimmed ||
-        "Đồng ý với lý do gia hạn và kế hoạch hoàn thành luận án trong thời gian đề nghị.",
-    });
+    setSubmitError(null);
+    // Nhận xét là tùy chọn khi đồng ý: không tự điền nội dung thay GVHD
+    setConfirmState({ action, comment: trimmed });
   };
 
   const handleConfirmDecision = async () => {
     if (!confirmState) return;
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
       await onSubmitReview(request.id, confirmState.action, confirmState.comment);
       setConfirmState(null);
       onClose();
+    } catch (err) {
+      setConfirmState(null);
+      setSubmitError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Không gửi được ý kiến thẩm định. Vui lòng thử lại."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -202,7 +221,12 @@ function ExtensionReviewDrawerInner({
                   +{request.soThangGiaHan} tháng
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  Đã gia hạn trước: {request.tongThangDaGiaHanTruocDo} tháng
+                  Đã gia hạn trước:{" "}
+                  {request.tongThangDaGiaHanTruocDo !== null
+                    ? `${request.tongThangDaGiaHanTruocDo} tháng`
+                    : detailState?.isLoading
+                      ? "đang tải..."
+                      : "—"}
                 </p>
               </div>
 
@@ -211,11 +235,30 @@ function ExtensionReviewDrawerInner({
                   Hạn đào tạo hiện tại
                 </p>
                 <p className="mt-1 text-sm font-bold tabular-nums text-[#0F2744]">
-                  {formatSupervisorDateUtc(request.hanHienTai)}
+                  {request.hanHienTai
+                    ? formatSupervisorDateUtc(request.hanHienTai)
+                    : detailState?.isLoading
+                      ? "Đang tải..."
+                      : "—"}
                 </p>
                 <p className="text-[11px] text-muted-foreground">
                   Dự kiến mới: {formatSupervisorDateUtc(request.hanMoiDuKien)}
                 </p>
+                {detailState?.error && (
+                  <div
+                    role="alert"
+                    className="mt-1.5 flex items-center justify-between gap-2 text-[11px] text-rose-700"
+                  >
+                    <span>Không tải được chi tiết đơn: {detailState.error}</span>
+                    <button
+                      type="button"
+                      onClick={detailState.onRetry}
+                      className="shrink-0 font-semibold underline-offset-2 hover:underline cursor-pointer"
+                    >
+                      Thử lại
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="rounded-lg bg-card p-3">
@@ -295,7 +338,8 @@ function ExtensionReviewDrawerInner({
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="font-semibold text-[#0F2744]">
                         {op.hocHamHocVi ? `${op.hocHamHocVi} ` : ""}
-                        {op.tenGvhd} • {getRoleShortLabel(op.vaiTro)}
+                        {op.tenGvhd}
+                        {op.vaiTro ? ` • ${getRoleShortLabel(op.vaiTro)}` : ""}
                       </span>
                       <span
                         className={`rounded-full px-2.5 py-0.5 font-semibold ${statusBadge}`}
@@ -352,12 +396,28 @@ function ExtensionReviewDrawerInner({
                   <span>{validationError}</span>
                 </p>
               )}
+
+              {submitError && (
+                <p
+                  role="alert"
+                  className="mt-2 flex items-start gap-1.5 rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs font-medium text-rose-700"
+                >
+                  <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                  <span>{submitError}</span>
+                </p>
+              )}
             </div>
           ) : (
             <div className="rounded-lg bg-[#F0F5FA] p-4 text-xs text-[#0F2744]">
               <div className="flex items-center gap-2 font-semibold">
                 <Info className="size-4 text-[#164E9B]" aria-hidden="true" />
-                <span>Đơn này đã qua bước GVHD thẩm định</span>
+                <span>
+                  {awaitingReviewer
+                    ? "Chưa xác định được hồ sơ Giảng viên hướng dẫn của bạn nên tạm khóa thẩm định. Vui lòng tải lại trang."
+                    : request.trangThai === "CHO_GVHD_XAC_NHAN"
+                      ? "Bạn đã gửi ý kiến thẩm định, đang chờ các GVHD khác"
+                      : "Đơn này đã qua bước GVHD thẩm định"}
+                </span>
               </div>
               {request.nhanXetGvhd && (
                 <p className="mt-1.5 leading-relaxed">
@@ -444,14 +504,18 @@ function ExtensionReviewDrawerInner({
 
 export function SupervisorExtensionsWorkspace({
   requests: initialRequests,
-  currentSupervisorId = "gvhd-001",
+  currentSupervisorId,
+  onSelectedRequestChange,
+  selectedRequestDetail,
   isLoading = false,
   error = null,
   onRetry,
   onReviewExtension,
 }: SupervisorExtensionsWorkspaceProps) {
-  const [requestsState, setRequestsState] =
-    useState<SupervisorExtensionRequestItem[]>(initialRequests);
+  // Dữ liệu luôn lấy từ props (React Query) để phản ánh trạng thái thật sau khi refetch
+  const requestsState = initialRequests;
+  const previewMutation = useDocumentPreviewUrl();
+  const [previewObjectUrl, setPreviewObjectUrl] = useState<string | null>(null);
   const [activeTab, setActiveTab] =
     useState<ExtensionFilterTab>("CHO_GVHD_XAC_NHAN");
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -509,46 +573,34 @@ export function SupervisorExtensionsWorkspace({
     action: SupervisorExtensionDecisionAction,
     comment: string
   ) => {
+    const item = requestsState.find((r) => r.id === requestId);
     if (onReviewExtension) {
+      // Lỗi được ném lại để drawer hiển thị; danh sách tự làm mới qua invalidate query
       await onReviewExtension(requestId, action, comment);
     }
 
-    const nowIso = new Date().toISOString();
-    let reviewedCode = "";
-    let studentName = "";
-
-    setRequestsState((prev) =>
-      prev.map((item) => {
-        if (item.id !== requestId) return item;
-        reviewedCode = item.maDon;
-        studentName = item.hoTenNcs;
-        const nextStatus = action === "DONG_Y" ? "CHO_DUYET" : "TU_CHOI";
-        const updatedOpinions = item.xacNhanGvhds.map((op) =>
-          op.giangVienId === currentSupervisorId || op.vaiTro === item.vaiTroCuaToi
-            ? {
-                ...op,
-                dongY: action === "DONG_Y",
-                nhanXet: comment,
-                thoiGianPhanHoi: nowIso,
-              }
-            : op
-        );
-        return {
-          ...item,
-          trangThai: nextStatus,
-          nhanXetGvhd: comment,
-          thoiGianPhanHoiCuaToi: nowIso,
-          lyDoTuChoi: action === "TU_CHOI" ? comment : item.lyDoTuChoi,
-          xacNhanGvhds: updatedOpinions,
-        };
-      })
-    );
-
     setFeedbackBanner(
       action === "DONG_Y"
-        ? `Đã xác nhận ĐỒNG Ý gia hạn cho đơn ${reviewedCode} (${studentName}) và chuyển Giáo vụ SĐH xem xét.`
-        : `Đã ghi nhận TỪ CHỐI đơn gia hạn ${reviewedCode} (${studentName}) kèm nhận xét chuyên môn.`
+        ? `Đã ghi nhận ý kiến ĐỒNG Ý gia hạn cho đơn ${item?.maDon ?? ""} (${item?.hoTenNcs ?? ""}). Đơn chuyển Giáo vụ khi tất cả GVHD đồng ý.`
+        : `Đã ghi nhận TỪ CHỐI đơn gia hạn ${item?.maDon ?? ""} (${item?.hoTenNcs ?? ""}) kèm nhận xét chuyên môn.`
     );
+  };
+
+  const openPdfPreview = (item: SupervisorExtensionRequestItem) => {
+    setPreviewPdfRequest(item);
+    if (item.tepDinhKem.fileId) {
+      setPreviewObjectUrl(null);
+      previewMutation.mutate(item.tepDinhKem.fileId, {
+        onSuccess: (result) => setPreviewObjectUrl(result.objectUrl),
+      });
+    }
+  };
+
+  const closePdfPreview = () => {
+    if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+    setPreviewObjectUrl(null);
+    previewMutation.reset();
+    setPreviewPdfRequest(null);
   };
 
   return (
@@ -802,11 +854,15 @@ export function SupervisorExtensionsWorkspace({
                         <strong className="font-semibold text-[#164E9B]">
                           +{item.soThangGiaHan} tháng
                         </strong>{" "}
-                        ({formatSupervisorDateUtc(item.hanHienTai)} →{" "}
+                        ({item.hanHienTai
+                          ? `${formatSupervisorDateUtc(item.hanHienTai)} → `
+                          : "hạn mới dự kiến "}
                         {formatSupervisorDateUtc(item.hanMoiDuKien)})
                       </span>
                       <span>
-                        Tiến độ hiện tại: Mốc {item.mocHienTai}/9 ({item.tienDoPhanTram}%)
+                        {item.mocHienTai > 0
+                          ? `Tiến độ hiện tại: Mốc ${item.mocHienTai}/9 (${item.tienDoPhanTram}%)`
+                          : `Tiến độ hiện tại: ${item.tenMocHienTai}`}
                       </span>
                       <span className="inline-flex items-center gap-1 text-[#0F2744]">
                         <FileText className="size-3.5 text-[#164E9B]" aria-hidden="true" />
@@ -818,7 +874,7 @@ export function SupervisorExtensionsWorkspace({
                   <div className="flex flex-wrap items-center gap-2.5 lg:shrink-0">
                     <button
                       type="button"
-                      onClick={() => setPreviewPdfRequest(item)}
+                      onClick={() => openPdfPreview(item)}
                       className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border bg-background px-3.5 py-2 text-xs font-semibold text-[#0F2744] transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none"
                     >
                       <Eye className="size-3.5 text-[#164E9B]" aria-hidden="true" />
@@ -827,7 +883,10 @@ export function SupervisorExtensionsWorkspace({
 
                     <button
                       type="button"
-                      onClick={() => setSelectedRequestId(item.id)}
+                      onClick={() => {
+                        setSelectedRequestId(item.id);
+                        onSelectedRequestChange?.(item.id);
+                      }}
                       className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none ${
                         isPendingMe
                           ? "bg-[#164E9B] text-white hover:bg-[#0F2744]"
@@ -858,17 +917,28 @@ export function SupervisorExtensionsWorkspace({
         <ExtensionReviewDrawerInner
           key={selectedRequest.id}
           request={selectedRequest}
-          onClose={() => setSelectedRequestId(null)}
-          onOpenPdf={() => setPreviewPdfRequest(selectedRequest)}
+          onClose={() => {
+            setSelectedRequestId(null);
+            onSelectedRequestChange?.(null);
+          }}
+          onOpenPdf={() => openPdfPreview(selectedRequest)}
           onSubmitReview={handleSubmitReview}
           isPdfOpen={previewPdfRequest !== null}
+          reviewerReady={Boolean(currentSupervisorId)}
+          detailState={selectedRequestDetail}
         />
       )}
 
       <PdfViewer
         isOpen={previewPdfRequest !== null}
-        onClose={() => setPreviewPdfRequest(null)}
-        fileUrl={previewPdfRequest?.tepDinhKem.fileUrl}
+        onClose={closePdfPreview}
+        fileUrl={
+          previewPdfRequest?.tepDinhKem.fileId
+            ? previewObjectUrl ?? undefined
+            : previewPdfRequest?.tepDinhKem.fileUrl
+        }
+        isLoading={previewMutation.isPending}
+        error={previewMutation.error?.message ?? null}
         fileName={previewPdfRequest?.tepDinhKem.fileName}
         title={
           previewPdfRequest

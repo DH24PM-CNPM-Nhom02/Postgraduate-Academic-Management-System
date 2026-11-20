@@ -4,6 +4,7 @@ import React, { useEffect, useId, useRef, useState } from "react";
 import {
   AlertCircle,
   ArrowRight,
+  Loader2,
   Award,
   Building2,
   CheckCircle2,
@@ -15,6 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { PdfViewer } from "@/src/components/upload/PdfViewer";
+import { DocumentViewButton } from "@/src/components/student/progress/document-view-button";
 import type {
   ChangeRequestDetailProps,
   ChangeRequestItem,
@@ -39,11 +41,17 @@ function ChangeRequestDetailInner({
   request,
   onClose,
   onCancelRequest,
+  isDetailLoading = false,
+  detailError = null,
+  onRetryDetail,
   className = "",
 }: {
   request: ChangeRequestItem;
   onClose: () => void;
   onCancelRequest?: (request: ChangeRequestItem) => void;
+  isDetailLoading?: boolean;
+  detailError?: string | null;
+  onRetryDetail?: () => void;
   className?: string;
 }) {
   const titleId = useId();
@@ -168,6 +176,39 @@ function ChangeRequestDetailInner({
 
           {/* Drawer Body */}
           <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6 sm:px-6">
+            {/* Trạng thái tải chi tiết: phần đề tài hiện tại, GVHD cũ, quyết định chỉ có ở API chi tiết */}
+            {isDetailLoading && (
+              <div
+                role="status"
+                className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-3.5 py-2.5 text-xs text-muted-foreground"
+              >
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                <span>Đang tải chi tiết đơn (đề tài hiện tại, GVHD cũ, quyết định ban hành)...</span>
+              </div>
+            )}
+            {detailError && (
+              <div
+                role="alert"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs text-rose-800"
+              >
+                <span className="flex items-center gap-2">
+                  <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+                  <span>
+                    Không tải được chi tiết đơn ({detailError}). Thông tin dưới đây chỉ là bản tóm tắt
+                    từ danh sách, có thể thiếu đề tài hiện tại, GVHD cũ và quyết định.
+                  </span>
+                </span>
+                {onRetryDetail && (
+                  <button
+                    type="button"
+                    onClick={onRetryDetail}
+                    className="rounded-lg border border-rose-200 bg-white px-3 py-1 font-semibold hover:bg-rose-100 cursor-pointer"
+                  >
+                    Thử lại
+                  </button>
+                )}
+              </div>
+            )}
             {/* Lý do từ chối nổi bật (khi TU_CHOI) */}
             {request.trangThai === "TU_CHOI" && request.lyDoTuChoi && (
               <section
@@ -220,6 +261,13 @@ function ChangeRequestDetailInner({
                   )}
                 </dl>
 
+                {request.quyetDinh.fileId ? (
+                  <DocumentViewButton
+                    fileId={request.quyetDinh.fileId}
+                    fileName={request.quyetDinh.fileName}
+                    variant="default"
+                  />
+                ) : request.quyetDinh.fileUrl ? (
                 <button
                   type="button"
                   onClick={() =>
@@ -235,6 +283,9 @@ function ChangeRequestDetailInner({
                   <FileText className="size-4" aria-hidden="true" />
                   <span>Xem PDF Quyết định</span>
                 </button>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Quyết định không đính kèm file scan.</p>
+                )}
               </section>
             )}
 
@@ -460,6 +511,12 @@ function ChangeRequestDetailInner({
                     </div>
                   </div>
 
+                  {request.tepDinhKem.fileId ? (
+                    <DocumentViewButton
+                      fileId={request.tepDinhKem.fileId}
+                      fileName={request.tepDinhKem.fileName}
+                    />
+                  ) : (
                   <button
                     type="button"
                     onClick={() =>
@@ -475,6 +532,7 @@ function ChangeRequestDetailInner({
                     <FileText className="size-3.5" aria-hidden="true" />
                     <span>Xem PDF đính kèm</span>
                   </button>
+                  )}
                 </div>
               ) : (
                 <p className="rounded-xl border border-dashed border-border bg-muted/20 p-3.5 text-xs text-muted-foreground">
@@ -534,6 +592,9 @@ export function ChangeRequestDetail({
   isOpen,
   onClose,
   onCancelRequest,
+  isDetailLoading,
+  detailError,
+  onRetryDetail,
   className = "",
 }: ChangeRequestDetailProps) {
   if (!isOpen || !request) return null;
@@ -543,6 +604,9 @@ export function ChangeRequestDetail({
       request={request}
       onClose={onClose}
       onCancelRequest={onCancelRequest}
+      isDetailLoading={isDetailLoading}
+      detailError={detailError}
+      onRetryDetail={onRetryDetail}
       className={className}
     />
   );

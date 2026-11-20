@@ -334,10 +334,11 @@ function AuditDetailDialogContent({
                         </span>
                         <span
                           className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
-                            SYSTEM_ROLE_META[log.actor.role].badgeClass
+                            SYSTEM_ROLE_META[log.actor.role]?.badgeClass ??
+                            "border-border bg-muted text-muted-foreground"
                           }`}
                         >
-                          {SYSTEM_ROLE_META[log.actor.role].label}
+                          {SYSTEM_ROLE_META[log.actor.role]?.label ?? "Không rõ vai trò"}
                         </span>
                       </div>
                       <div className="font-mono text-[11px] text-muted-foreground">
