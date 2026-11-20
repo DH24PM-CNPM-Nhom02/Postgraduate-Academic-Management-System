@@ -32,16 +32,16 @@ Hệ thống quản lý học vụ của học viên Sau đại học" là một
 Mở hai terminal tại thư mục gốc repository. Chạy backend trước:
 
 ```bash
-docker compose -f compose.dev-be.yml up --build
+docker compose -f backend/docker-compose.dev.yml up --build
 ```
 
 Sau đó chạy frontend:
 
 ```bash
-docker compose -f compose.dev-fe.yml up --build
+docker compose -f frontend/docker-compose.dev.yml up --build
 ```
 
-Frontend chạy tại `http://localhost:3000`, gọi API qua gateway tại `http://localhost:3001/api/v1`. MariaDB được publish ở `localhost:3306`; các microservice backend chỉ giao tiếp nội bộ trong Compose network, không publish port riêng ra host. Các mật khẩu mặc định trong Compose chỉ dành cho máy phát triển cá nhân; có thể đặt `MARIADB_ROOT_PASSWORD`, `MARIADB_PASSWORD`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `MARIADB_PORT`, `API_GATEWAY_HOST_PORT` và `FRONTEND_PORT` trong file `.env` để ghi đè cấu hình local.
+Frontend chạy tại `http://localhost:3000`, gọi API qua gateway tại `http://localhost:8080/api/v1`. MariaDB được publish ở `localhost:3306`; các microservice backend chỉ giao tiếp nội bộ trong Compose network, không publish port riêng ra host. Các mật khẩu mặc định trong Compose chỉ dành cho máy phát triển cá nhân; có thể đặt `MARIADB_ROOT_PASSWORD`, `MARIADB_PASSWORD`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `MARIADB_PORT`, `API_GATEWAY_HOST_PORT` và `FRONTEND_PORT` trong file `.env` để ghi đè cấu hình local.
 
 ## Chạy riêng MariaDB
 
