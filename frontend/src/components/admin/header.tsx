@@ -6,13 +6,10 @@ import {
   Menu,
   Search,
   LogOut,
-  Shield,
   ChevronDown,
   Sparkles,
-  History,
-  LayoutDashboard,
-  Users,
-  FileCheck2,
+  UserRound,
+  KeyRound,
 } from "lucide-react";
 import { useAuth } from "@/src/hooks/use-auth";
 import { HoverLogo } from "@/src/components/academic/HoverLogo";
@@ -131,7 +128,7 @@ export function AdminHeader({
             </div>
             <div className="hidden text-left md:block">
               <p className="max-w-[140px] truncate text-xs font-bold text-slate-900">
-                {user?.fullName || "Quản trị viên"}
+                {user?.fullName || user?.username || "Tài khoản"}
               </p>
               <p className="text-[10px] font-medium text-slate-500">
                 {user?.username ? `@${user.username}` : "Admin"} • <span className="font-bold text-[#164E9B]">ADMIN</span>
@@ -158,13 +155,10 @@ export function AdminHeader({
               >
                 <div className="border-b border-slate-100 px-3 py-2.5">
                   <p className="text-xs font-bold text-slate-900">
-                    {user?.fullName || "Quản trị viên Hệ thống"}
+                    {user?.fullName || user?.username || "Tài khoản"}
                   </p>
                   <p className="text-[11px] text-slate-500 truncate">
-                    {user?.email ||
-                      (user?.username
-                        ? `${user.username}@agu.edu.vn`
-                        : "admin@agu.edu.vn")}
+                    {user?.email || user?.username || ""}
                   </p>
                   <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-[#164E9B] font-semibold bg-blue-50 px-2 py-0.5 rounded-md">
                     <span>Quyền: ADMIN</span>
@@ -174,54 +168,13 @@ export function AdminHeader({
                 </div>
 
                 <div className="py-1">
-                  <Link
-                    href="/admin"
-                    role="menuitem"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    <Users className="size-4 text-slate-400" />
-                    <span>Quản lý tài khoản người dùng</span>
+                  <Link href="/profile#account" role="menuitem" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">
+                    <UserRound className="size-4 text-slate-400" />
+                    <span>Hồ sơ cá nhân</span>
                   </Link>
-
-                  <Link
-                    href="/admin/audit-log"
-                    role="menuitem"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    <History className="size-4 text-slate-400" />
-                    <span>Nhật ký kiểm toán hệ thống</span>
-                  </Link>
-
-                  <Link
-                    href="/admin/overview"
-                    role="menuitem"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    <LayoutDashboard className="size-4 text-slate-400" />
-                    <span>Bàn làm việc Đào tạo SĐH</span>
-                  </Link>
-
-                  <Link
-                    href="/admin/milestone-review"
-                    role="menuitem"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    <FileCheck2 className="size-4 text-slate-400" />
-                    <span>Hàng chờ duyệt 9 mốc</span>
-                  </Link>
-
-                  <Link
-                    href="/admin/regulations"
-                    role="menuitem"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    <Shield className="size-4 text-slate-400" />
-                    <span>Quy chế SĐH &amp; Hướng dẫn BR-09</span>
+                  <Link href="/profile#security" role="menuitem" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">
+                    <KeyRound className="size-4 text-slate-400" />
+                    <span>Đổi mật khẩu &amp; Bảo mật</span>
                   </Link>
                 </div>
 

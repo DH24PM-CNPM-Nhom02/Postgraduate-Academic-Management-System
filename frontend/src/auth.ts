@@ -69,6 +69,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 const data = unwrapLoginResponse(rawData);
 
                 if (data && data.access_token && data.user) {
+                    const role = data.user.roles?.find((candidate): candidate is UserRole =>
+                        ["ADMIN", "GIAO_VU", "GVHD", "NCS"].includes(candidate)
+                    );
+                    if (!role) return null;
+
                     return {
                         id: data.user.id,
                         user: {
@@ -76,7 +81,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                             username: data.user.username,
                             email: data.user.email,
                             fullName: data.user.fullName,
-                            role: (data.user.roles?.[0] as UserRole) ?? "NCS",
+                            role,
+                            mustChangePassword: data.user.mustChangePassword,
                         },
                         access_token: data.access_token,
                         refresh_token: data.refresh_token,

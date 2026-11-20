@@ -6,28 +6,25 @@ import {
   Menu,
   Search,
   LogOut,
-  User,
-  Shield,
   ChevronDown,
   Sparkles,
-  HelpCircle,
+  UserRound,
+  KeyRound,
 } from "lucide-react";
 import { useAuth } from "@/src/hooks/use-auth";
 import { HoverLogo } from "./HoverLogo";
 import { NotificationBellPopover } from "@/src/components/notification";
-import type { NotificationItem } from "@/src/types/notification";
 
 export interface AcademicHeaderProps {
   onToggleSidebar?: () => void;
   onOpenSearch?: () => void;
-  onSelectNotification?: (item: NotificationItem) => void;
 }
 
 export function AcademicHeader({
   onToggleSidebar,
   onOpenSearch,
 }: AcademicHeaderProps) {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   return (
@@ -107,14 +104,14 @@ export function AcademicHeader({
             className="flex items-center gap-2.5 rounded-xl p-1.5 hover:bg-slate-100 transition-colors"
           >
             <div className="flex size-8 items-center justify-center rounded-lg bg-[#164E9B] text-xs font-bold text-white shadow-2xs">
-              TA
+              {user?.fullName?.trim().charAt(0).toUpperCase() || "G"}
             </div>
             <div className="hidden text-left md:block">
               <p className="text-xs font-bold text-slate-900 line-clamp-1">
-                TS. Bùi Lê Tuấn Anh
+                {user?.fullName || user?.username || "Tài khoản"}
               </p>
               <p className="text-[10px] text-slate-500 font-medium">
-                Cán bộ Quản lý Giáo vụ
+                Cán bộ quản lý giáo vụ
               </p>
             </div>
             <ChevronDown className="size-3.5 text-slate-400" />
@@ -129,45 +126,27 @@ export function AcademicHeader({
               <div className="absolute right-0 top-full mt-2 z-40 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl animate-in fade-in zoom-in-95 duration-100">
                 <div className="border-b border-slate-100 px-3 py-2.5">
                   <p className="text-xs font-bold text-slate-900">
-                    TS. Bùi Lê Tuấn Anh
+                    {user?.fullName || user?.username || "Tài khoản"}
                   </p>
                   <p className="text-[11px] text-slate-500 truncate">
-                    tuananh.bl@agu.edu.vn
+                    {user?.email || user?.username || ""}
                   </p>
                   <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-[#164E9B] font-semibold bg-blue-50 px-2 py-0.5 rounded-md">
-                    <span>Mã CB: CB-GV-2026</span>
+                    <span>{user?.username || "GIAO_VU"}</span>
                     <span>•</span>
-                    <span>Khoa CNTT &amp; Phòng Đào tạo SĐH</span>
+                    <span>Giáo vụ</span>
                   </div>
                 </div>
 
                 <div className="py-1">
-                  <Link
-                    href="/academic?tab=supervisors"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    <User className="size-4 text-slate-400" />
-                    <span>Quản lý hạn ngạch GVHD</span>
+                  <Link href="/profile#account" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">
+                    <UserRound className="size-4 text-slate-400" />
+                    <span>Hồ sơ cá nhân</span>
                   </Link>
-
-                  <Link
-                    href="/academic?tab=regulations"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    <Shield className="size-4 text-slate-400" />
-                    <span>Quy chế SĐH &amp; Hướng dẫn BR-09</span>
+                  <Link href="/profile#security" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors">
+                    <KeyRound className="size-4 text-slate-400" />
+                    <span>Đổi mật khẩu &amp; Bảo mật</span>
                   </Link>
-
-                  <a
-                    href="mailto:sdh@agu.edu.vn?subject=Tro%20giup%20he%20thong%20Giao%20vu"
-                    onClick={() => setDropdownOpen(false)}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    <HelpCircle className="size-4 text-slate-400" />
-                    <span>Hỗ trợ kỹ thuật phần mềm</span>
-                  </a>
                 </div>
 
                 <div className="border-t border-slate-100 pt-1">

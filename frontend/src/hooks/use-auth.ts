@@ -1,8 +1,9 @@
 "use client";
 
-import { signIn, signOut, useSession } from "next-auth/react";
+import { getSession, signIn, signOut, useSession } from "next-auth/react";
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import { authService } from "@/src/services/auth";
 
 export function useAuth() {
     const { data: session, status } = useSession();
@@ -42,15 +43,37 @@ export function useAuth() {
                             }
                     }
                     setError(errorMessage);
-                    return false;
+                    return { success: false, mustChangePassword: false };
                 }
 
-                // Middleware sẽ redirect "/" về ROLE_HOME, nhưng ở đây
-                // push thẳng để không flicker qua trang "/" rồi mới redirect.
-                // Sau signIn, session chưa cập nhật ngay nên dùng fallback "/" —
-                // middleware bắt và chuyển đúng về trang chủ của role.
+                // signIn() đã kích hoạt tải session nền. useSession().update()
+                // có thể trả undefined khi provider vẫn đang loading, vì vậy
+                // đọc session đã được ký bằng cookie sau khi signIn hoàn tất.
+                const signedInSession = await getSession();
+                if (!signedInSession) {
+                    setError("Không thể tải phiên đăng nhập. Vui lòng thử lại.");
+                    return { success: false, mustChangePassword: false };
+                }
+
+                let mustChangePassword = signedInSession.user.mustChangePassword === true;
+                try {
+                    const profileResponse = await authService.getMe(signedInSession.access_token);
+                    const profile = "data" in profileResponse ? profileResponse.data : profileResponse;
+                    mustChangePassword = profile.mustChangePassword === true || mustChangePassword;
+                } catch {
+                    // Giữ cờ từ phản hồi login nếu /auth/me tạm thời không khả dụng.
+                }
+
+                if (mustChangePassword) {
+                    return { success: true, mustChangePassword: true };
+                }
+
+                // Middleware chuyển tiếp về trang chủ tương ứng với vai trò.
                 router.push("/");
-                return true;
+                return { success: true, mustChangePassword: false };
+            } catch {
+                setError("Không thể kết nối để đăng nhập. Vui lòng thử lại.");
+                return { success: false, mustChangePassword: false };
             } finally {
                 setIsSubmitting(false);
             }

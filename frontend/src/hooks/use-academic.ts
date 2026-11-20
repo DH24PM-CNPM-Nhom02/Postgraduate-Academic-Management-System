@@ -167,7 +167,7 @@ export const supervisorKeys = {
  * Custom hook lấy thông tin hồ sơ của chính GVHD đang đăng nhập (GET /gvhd/me).
  * Dùng cho Bàn làm việc GVHD (/supervisor/dashboard), /supervisor/quota và Header/Sidebar.
  */
-export function useMySupervisorProfile() {
+export function useMySupervisorProfile(options?: { enabled?: boolean }) {
   return useQuery<SupervisorProfile>({
     queryKey: supervisorKeys.profile(),
     queryFn: async () => {
@@ -176,6 +176,7 @@ export function useMySupervisorProfile() {
     },
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
+    enabled: options?.enabled,
   });
 }
 

@@ -16,7 +16,6 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/src/hooks/use-auth";
-import { mockSupervisorProfile, mockSupervisorQuota } from "@/src/mocks/supervisor";
 import type { SupervisorProfile, SupervisorQuota } from "@/src/types/ui/supervisor";
 import { HoverLogo } from "./HoverLogo";
 
@@ -76,8 +75,8 @@ const referenceNavItems = [
 export function SupervisorSidebar({
   isOpen = false,
   onClose,
-  profile = mockSupervisorProfile,
-  quota = mockSupervisorQuota,
+  profile,
+  quota,
 }: SupervisorSidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
@@ -95,8 +94,8 @@ export function SupervisorSidebar({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  const displayName = user?.fullName || profile.hoTen;
-  const displayCode = user?.username || profile.maCanBo;
+  const displayName = user?.fullName || profile?.hoTen || user?.username || "Tài khoản";
+  const displayCode = user?.username || profile?.maCanBo;
 
   const isNavItemActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`);
@@ -222,22 +221,24 @@ export function SupervisorSidebar({
           </div>
         </nav>
 
-        <div className="border-t border-white/10 p-3">
-          <div className="rounded-lg bg-[#164E9B]/55 p-3.5">
-            <div className="flex items-center justify-between gap-2 text-xs font-semibold text-white">
-              <span className="inline-flex items-center gap-1.5">
-                <Scale className="size-3.5 text-sky-200" aria-hidden="true" />
-                <span>Định mức BR-09</span>
-              </span>
-              <span className="tabular-nums text-sky-100">
-                {quota.tongTrongSo.toFixed(1)}/{quota.hanMucToiDa.toFixed(1)}
-              </span>
+        {quota && (
+          <div className="border-t border-white/10 p-3">
+            <div className="rounded-lg bg-[#164E9B]/55 p-3.5">
+              <div className="flex items-center justify-between gap-2 text-xs font-semibold text-white">
+                <span className="inline-flex items-center gap-1.5">
+                  <Scale className="size-3.5 text-sky-200" aria-hidden="true" />
+                  <span>Định mức BR-09</span>
+                </span>
+                <span className="tabular-nums text-sky-100">
+                  {quota.tongTrongSo.toFixed(1)}/{quota.hanMucToiDa.toFixed(1)}
+                </span>
+              </div>
+              <p className="mt-1.5 text-xs leading-relaxed text-sky-100/85">
+                Chính = 1.0 • Đồng HD = 0.5 • Tối đa {quota.hanMucToiDa.toFixed(1)} điểm định mức.
+              </p>
             </div>
-            <p className="mt-1.5 text-xs leading-relaxed text-sky-100/85">
-              Chính = 1.0 • Đồng HD = 0.5 • Tối đa {quota.hanMucToiDa.toFixed(1)} điểm định mức.
-            </p>
           </div>
-        </div>
+        )}
       </aside>
     </>
   );

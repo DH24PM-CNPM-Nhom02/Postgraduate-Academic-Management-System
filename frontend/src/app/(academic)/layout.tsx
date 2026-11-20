@@ -55,20 +55,6 @@ export default function AcademicLayout({
         <AcademicHeader
           onToggleSidebar={() => setSidebarOpen(true)}
           onOpenSearch={() => setSearchModalOpen(true)}
-          onSelectNotification={(notif) => {
-            if (notif.targetUrl) {
-              router.push(notif.targetUrl);
-              return;
-            }
-            const nType = notif.type || notif.loai;
-            if (nType === "evidence" || nType === "NCS_NOP_MINH_CHUNG") {
-              router.push("/academic?tab=evidence");
-            } else if (nType === "topic" || nType === "THAY_DOI_PHAN_CONG_GVHD") {
-              router.push("/academic?tab=topic-changes");
-            } else if (nType === "deadline" || nType === "NHAC_HAN_HOC_TAP") {
-              router.push("/academic?tab=calendar");
-            }
-          }}
         />
 
         {/* Dynamic Page Content */}

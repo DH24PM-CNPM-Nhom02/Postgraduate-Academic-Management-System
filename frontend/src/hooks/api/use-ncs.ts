@@ -1,9 +1,9 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiClientError } from "@/src/lib/api";
 import { GvhdService, mapBackendMySupervisorToItem } from "@/src/services/gvhd";
-import { NcsService } from "@/src/services/ncs";
+import { NcsService, type UpdateMyNcsProfilePayload } from "@/src/services/ncs";
 import type { BackendNcsMeResponse } from "@/src/types/api/progress";
 import type { SupervisorAssignmentItem } from "@/src/types/ui/thesis";
 
@@ -20,12 +20,22 @@ export const ncsSelfKeys = {
  * Lấy thông tin hồ sơ chi tiết của chính NCS đang đăng nhập (GET /ncs/me).
  * Dùng cho phần đầu trang Tiến độ 9 mốc, Đề tài, GVHD, Đơn đề nghị và Hồ sơ cá nhân.
  */
-export function useMyNcsProfile() {
+export function useMyNcsProfile(options?: { enabled?: boolean }) {
   return useQuery<BackendNcsMeResponse, ApiClientError>({
     queryKey: ncsSelfKeys.me(),
     queryFn: () => NcsService.getMyProfile(),
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
+    enabled: options?.enabled,
+  });
+}
+
+export function useUpdateMyNcsProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation<void, ApiClientError, UpdateMyNcsProfilePayload>({
+    mutationFn: NcsService.updateMyProfile,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ncsSelfKeys.me() }),
   });
 }
 

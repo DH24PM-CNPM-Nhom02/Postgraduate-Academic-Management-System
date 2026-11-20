@@ -116,6 +116,9 @@ export default auth((req) => {
   const userRole = user?.role;
 
   if (isAuthPage) {
+    if (pathname.startsWith("/login") && user?.mustChangePassword) {
+      return NextResponse.next();
+    }
     const home = userRole ? ROLE_HOME[userRole] : "/";
     return NextResponse.redirect(new URL(home, req.nextUrl.origin));
   }

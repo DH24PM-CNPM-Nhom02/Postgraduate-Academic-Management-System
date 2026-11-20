@@ -4,14 +4,10 @@ import {
   NotificationListResponse,
   NotificationQueryFilter,
 } from "@/src/types/notification";
-import {
-  getLocalNotifications,
-  saveLocalNotifications,
-} from "./mock-notifications";
 
 class NotificationService {
   /**
-   * Lấy danh sách thông báo phân trang và lọc theo nhóm / chưa đọc / role
+   * Lấy danh sách thông báo của người dùng hiện tại, có phân trang và lọc
    * Endpoint: GET /notifications
    */
   async getNotifications(
@@ -32,10 +28,6 @@ class NotificationService {
       if (filter?.limit) {
         params.limit = filter.limit;
       }
-      if (filter?.role) {
-        params.role = filter.role;
-      }
-
       const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
 
       const res = await apiClient.get<NotificationListResponse>("/notifications", {
@@ -50,15 +42,14 @@ class NotificationService {
   }
 
   /**
-   * Lấy số lượng thông báo chưa đọc theo role để hiển thị Badge đỏ
+   * Lấy số lượng thông báo chưa đọc của người dùng hiện tại
    * Endpoint: GET /notifications/unread-count
    */
-  async getUnreadCount(role?: string, accessToken?: string): Promise<{ soLuong: number }> {
+  async getUnreadCount(accessToken?: string): Promise<{ soLuong: number }> {
     try {
       const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
 
       const res = await apiClient.get<{ soLuong: number }>("/notifications/unread-count", {
-        params: role ? { role } : undefined,
         headers,
       });
 
@@ -78,7 +69,7 @@ class NotificationService {
 
       const res = await apiClient.patch<NotificationItem>(
         `/notifications/${id}/read`,
-        null,
+        {},
         { headers }
       );
 
@@ -89,18 +80,17 @@ class NotificationService {
   }
 
   /**
-   * Đánh dấu tất cả thông báo của 1 role là đã đọc
+   * Đánh dấu tất cả thông báo của người dùng hiện tại là đã đọc
    * Endpoint: PATCH /notifications/read-all
    */
-  async markAllAsRead(role?: string, accessToken?: string): Promise<{ soLuong: number }> {
+  async markAllAsRead(accessToken?: string): Promise<{ soLuong: number }> {
     try {
       const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
 
       const res = await apiClient.patch<{ soLuong: number }>(
         "/notifications/read-all",
-        null,
+        {},
         {
-          params: role ? { role } : undefined,
           headers,
         }
       );
@@ -109,69 +99,6 @@ class NotificationService {
     } catch (error) {
       throwApiError(error);
     }
-  }
-
-  /**
-   * Thêm thông báo mới vào bộ nhớ cục bộ (hỗ trợ mô phỏng kích hoạt thông báo tức thì)
-   */
-  addLocalNotification(newItem: Omit<NotificationItem, "id" | "createdAt" | "daDoc">): NotificationItem {
-    const all = getLocalNotifications();
-    const created: NotificationItem = {
-      ...newItem,
-      id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      daDoc: false,
-      targetRole: newItem.targetRole || "all",
-      createdAt: new Date().toISOString(),
-      duLieu: {
-        ...newItem.duLieu,
-        _isMockFallback: true,
-      },
-    };
-    saveLocalNotifications([created, ...all]);
-    return created;
-  }
-
-  /**
-   * Bộ lọc giả lập cho mock data theo role và tab khi backend không khả dụng
-   */
-  private getMockNotifications(filter?: NotificationQueryFilter): NotificationListResponse {
-    let all = getLocalNotifications();
-
-    // 1. Lọc theo Role
-    if (filter?.role) {
-      all = all.filter(
-        (n) => n.targetRole === filter.role || n.targetRole === "all" || !n.targetRole
-      );
-    }
-
-    // 2. Lọc theo trạng thái chưa đọc
-    if (filter?.unread !== undefined) {
-      all = all.filter((n) => (filter.unread ? !n.daDoc : true));
-    }
-
-    // 3. Lọc theo Nhóm thông báo
-    if (filter?.group && filter.group !== "ALL") {
-      all = all.filter((n) => n.nhom === filter.group);
-    }
-
-    const page = filter?.page || 1;
-    const limit = filter?.limit || 20;
-    const total = all.length;
-    const startIndex = (page - 1) * limit;
-    const paginated = all.slice(startIndex, startIndex + limit).map((item) => ({
-      ...item,
-      duLieu: {
-        ...item.duLieu,
-        _isMockFallback: true,
-      },
-    }));
-
-    return {
-      items: paginated,
-      tong: total,
-      trang: page,
-      soLuong: limit,
-    };
   }
 }
 

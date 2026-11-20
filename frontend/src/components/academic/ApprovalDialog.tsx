@@ -12,7 +12,6 @@ import {
   FileText,
   Scale,
 } from "lucide-react";
-import { useTriggerNotification } from "@/src/hooks/use-notifications";
 
 export type ApprovalDecision = "approve" | "revise" | "reject";
 
@@ -65,7 +64,6 @@ export function ApprovalDialog({
   milestoneName = "Mốc 3: Báo cáo chuyên đề 1",
   currentStep = "academic_review",
 }: ApprovalDialogProps) {
-  const triggerNotification = useTriggerNotification();
 
   const [decision, setDecision] = useState<ApprovalDecision>("approve");
   const [notes, setNotes] = useState("");
@@ -99,73 +97,6 @@ export function ApprovalDialog({
 
   const handleFinalConfirm = () => {
     const finalQuyetDinh = quyetDinhId === "custom" ? customQuyetDinh.trim() : quyetDinhId;
-
-    // Trigger Notification chuẩn mực tương ứng theo từng Role
-    if (decision === "approve") {
-      const qdObj = LEGAL_DECISIONS.find((q) => q.id === quyetDinhId);
-      const qdDisplay = quyetDinhId === "custom" ? customQuyetDinh : qdObj?.code || "142/QĐ-ĐHAG";
-
-      // 1. Gửi tới Nghiên cứu sinh (MOC_DUOC_DUYET)
-      triggerNotification({
-        nhom: "TIEN_DO",
-        loai: "MOC_DUOC_DUYET",
-        tieuDe: `Mốc ${milestoneName.slice(0, 6)} của bạn đã được duyệt`,
-        noiDung: `Minh chứng ${milestoneName} của bạn đã được phê duyệt đạt theo Căn cứ Quyết định số ${qdDisplay}. Mốc tiếp theo đã được mở để bạn nộp minh chứng.`.replace(/\s+/g, " "),
-        duLieu: {
-          thuTu: milestoneName,
-          soQuyetDinh: qdDisplay,
-          quyetDinhId: finalQuyetDinh,
-        },
-        targetRole: "student",
-        targetUrl: "/student/progress",
-      });
-
-      // 2. Gửi tới Giảng viên Hướng dẫn (GVHD_MOC_DUOC_DUYET)
-      triggerNotification({
-        nhom: "TIEN_DO",
-        loai: "GVHD_MOC_DUOC_DUYET",
-        tieuDe: `Mốc ${milestoneName.slice(0, 6)} của NCS ${studentName} đã được duyệt`,
-        noiDung: `Minh chứng ${milestoneName} của NCS ${studentName} (${studentCode}) đã được phê duyệt đạt theo Căn cứ Quyết định số ${qdDisplay}. Mốc tiếp theo đã được mở.`.replace(/\s+/g, " "),
-        duLieu: {
-          tenNcs: studentName,
-          mshv: studentCode,
-          thuTu: milestoneName,
-          soQuyetDinh: qdDisplay,
-        },
-        targetRole: "supervisor",
-        targetUrl: "/supervisor/dashboard",
-      });
-    } else if (decision === "reject") {
-      // 1. Gửi tới Nghiên cứu sinh (MOC_BI_TU_CHOI)
-      triggerNotification({
-        nhom: "TIEN_DO",
-        loai: "MOC_BI_TU_CHOI",
-        tieuDe: `Mốc ${milestoneName.slice(0, 6)} cần nộp lại`,
-        noiDung: `Minh chứng ${milestoneName} của bạn chưa được chấp nhận. Lý do: ${notes}. Vui lòng bổ sung và nộp lại.`.replace(/\s+/g, " "),
-        duLieu: {
-          thuTu: milestoneName,
-          lyDo: notes,
-        },
-        targetRole: "student",
-        targetUrl: "/student/progress",
-      });
-
-      // 2. Gửi tới Giảng viên Hướng dẫn (GVHD_MOC_BI_TU_CHOI)
-      triggerNotification({
-        nhom: "TIEN_DO",
-        loai: "GVHD_MOC_BI_TU_CHOI",
-        tieuDe: `Mốc ${milestoneName.slice(0, 6)} của NCS ${studentName} cần nộp lại`,
-        noiDung: `Minh chứng ${milestoneName} của NCS ${studentName} (${studentCode}) chưa được chấp nhận. Lý do: ${notes}.`.replace(/\s+/g, " "),
-        duLieu: {
-          tenNcs: studentName,
-          mshv: studentCode,
-          thuTu: milestoneName,
-          lyDo: notes,
-        },
-        targetRole: "supervisor",
-        targetUrl: "/supervisor/dashboard",
-      });
-    }
 
     onSubmit({
       decision,
@@ -499,9 +430,6 @@ export function ApprovalDialog({
                     </strong>
                   </p>
                 )}
-                <p className="text-[11px] text-amber-700 pt-1">
-                  Hệ thống sẽ ngay lập tức đồng bộ thông báo tới tài khoản Nghiên cứu sinh và Giảng viên Hướng dẫn.
-                </p>
               </div>
             </div>
 
@@ -519,7 +447,7 @@ export function ApprovalDialog({
                 className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-6 py-2 text-xs font-bold text-white hover:bg-emerald-700 transition-colors shadow-xs cursor-pointer"
               >
                 <CheckCircle2 className="size-4" />
-                <span>Xác nhận Ban hành &amp; Gửi thông báo</span>
+                <span>Xác nhận cập nhật quyết định</span>
               </button>
             </div>
           </div>
