@@ -78,7 +78,6 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     title: "Quản lý GVHD & Hạn ngạch",
     icon: UserCheck,
     group: "main",
-    badge: "2.5/3",
     badgeColor: "bg-emerald-100 text-emerald-800 font-bold",
     href: "/academic/supervisors",
     matchPaths: ["/academic/supervisors"],

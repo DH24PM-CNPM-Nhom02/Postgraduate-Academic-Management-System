@@ -57,7 +57,7 @@ export class SupervisorController {
 
   @MessagePattern({ cmd: 'phd.gvhd.assignment-deactivate' })
   deactivateAssignment(@Payload() d: { actorId: string; id: string; data: DeactivateAssignmentDto }) {
-    return this.gvhd.deactivateAssignment(d.actorId, d.id, d.data.lyDo);
+    return this.gvhd.deactivateAssignment(d.actorId, d.id, d.data);
   }
 
   @MessagePattern({ cmd: 'phd.gvhd.assignment-list' })
@@ -83,5 +83,10 @@ export class SupervisorController {
   @MessagePattern({ cmd: 'phd.gvhd.accessible-ncs-ids' })
   getAccessibleNcsIds(@Payload() d: { userId: string }) {
     return this.gvhd.getAccessibleNcsIdsForGvhd(d.userId);
+  }
+
+  @MessagePattern({ cmd: 'phd.gvhd.don-vi.list' })
+  getDanhSachDonVi(@Payload() d?: { loai?: any }) {
+    return this.gvhd.getDanhSachDonVi(d?.loai);
   }
 }

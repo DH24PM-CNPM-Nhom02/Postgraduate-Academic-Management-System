@@ -65,9 +65,22 @@ export interface BackendSupervisorNcsRaw {
 export interface BackendDonViRaw {
   id?: string;
   ten?: string;
+  loai?: string;
   parent?: {
     id?: string;
     ten?: string;
+    loai?: string;
+  } | null;
+}
+
+export interface DonViItem {
+  id: string;
+  ten: string;
+  loai: 'KHOA' | 'BO_MON' | 'PHONG_BAN';
+  parentId?: string | null;
+  parent?: {
+    id: string;
+    ten: string;
   } | null;
 }
 
@@ -97,6 +110,10 @@ export interface BackendAssignmentRaw {
     id: string;
     mshv?: string;
     hoTen?: string;
+    email?: string | null;
+    soDienThoai?: string | null;
+    khoaHoc?: string | null;
+    ngayNhapHoc?: string | null;
     trangThai?: string;
   } | null;
   quyetDinh?: {
@@ -104,6 +121,7 @@ export interface BackendAssignmentRaw {
     soQuyetDinh?: string;
     ngayQuyetDinh?: string;
     loai?: string;
+    trichYeu?: string;
   } | null;
 }
 
@@ -112,19 +130,60 @@ export interface BackendAssignmentRaw {
  */
 export interface BackendGvhdRaw {
   id: string;
+  userId?: string | null;
   maGv?: string | null;
   hoTen: string;
   gioiTinh?: string | null;
   ngaySinh?: string | null;
   email?: string | null;
+  soDienThoai?: string | null;
   hocHamHocVi?: string;
   maxNcsChoPhep?: number;
   soNcsDangHuongDan?: number | string;
   chuyenNganh?: string | null;
   quocGiaTotNghiep?: string | null;
   trangThai?: boolean;
+  donViId?: string | null;
   donVi?: BackendDonViRaw | null;
   phanCongs?: BackendAssignmentRaw[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ImportGvhdPreviewRow {
+  row: number;
+  maGv: string;
+  ok: boolean;
+  hanhDong: "TAO_MOI" | "CAP_NHAT" | string;
+  errors: string[];
+  willCreateAccount: boolean;
+}
+
+export interface ImportGvhdPreviewResponse {
+  total: number;
+  validCount: number;
+  errorCount: number;
+  createCount: number;
+  updateCount: number;
+  newAccountCount: number;
+  rows: ImportGvhdPreviewRow[];
+}
+
+export interface ImportGvhdConfirmRow {
+  hanhDong: "TAO_MOI" | "CAP_NHAT" | string;
+  maGv: string;
+  duLieu: Record<string, unknown>;
+}
+
+export interface UpdateGvhdPayload {
+  hoTen?: string;
+  ngaySinh?: string;
+  gioiTinh?: "NAM" | "NU";
+  email?: string;
+  hocHamHocVi?: "GIAO_SU" | "PHO_GIAO_SU" | "TIEN_SI_KHOA_HOC" | "TIEN_SI";
+  chuyenNganh?: string;
+  donVi?: string;
+  quocGiaTotNghiep?: string;
 }
 
 /**
@@ -176,6 +235,12 @@ export interface CreateAssignmentPayload {
   gvhdId: string;
   vaiTro: VaiTroHuongDan;
   quyetDinhId: string;
+}
+
+export interface DeactivateAssignmentPayload {
+  lyDo: string;
+  gvhdChinhMoiId?: string;
+  quyetDinhMoiId?: string;
 }
 
 /**
@@ -257,15 +322,15 @@ export function mapBackendGvhdToSupervisorQuota(
     raw.soNcsDangHuongDan !== undefined
       ? Number(raw.soNcsDangHuongDan)
       : myAssignments[0]?.gvhd?.soNcsDangHuongDan !== undefined
-      ? Number(myAssignments[0].gvhd.soNcsDangHuongDan)
-      : undefined;
+        ? Number(myAssignments[0].gvhd.soNcsDangHuongDan)
+        : undefined;
 
   const usedQuota =
     myAssignments.length > 0
       ? computedUsed
       : rawCacheUsed !== undefined && !isNaN(rawCacheUsed)
-      ? Number(rawCacheUsed.toFixed(1))
-      : 0;
+        ? Number(rawCacheUsed.toFixed(1))
+        : 0;
 
   const maxQuota = Number(raw.maxNcsChoPhep ?? 3);
   const remainingQuota = Math.max(0, Number((maxQuota - usedQuota).toFixed(1)));
@@ -283,6 +348,7 @@ export function mapBackendGvhdToSupervisorQuota(
     name: formatSupervisorDisplayName(raw.hoTen, raw.hocHamHocVi),
     code: raw.maGv || "N/A",
     department: raw.donVi?.ten || raw.donVi?.parent?.ten || raw.chuyenNganh || "Chưa cập nhật đơn vị",
+    parentDepartment: raw.donVi?.parent?.ten || (raw.donVi?.ten && !raw.donVi.parent ? raw.donVi.ten : undefined),
     degree: formatDegreeLabel(raw.hocHamHocVi),
     independentCount,
     coCount,
@@ -315,9 +381,9 @@ export function mapBackendMySupervisorToItem(
     typeof gvhd.donVi === "string"
       ? gvhd.donVi
       : gvhd.donVi?.ten ||
-        gvhd.donVi?.parent?.ten ||
-        gvhd.chuyenNganh ||
-        "Trường Đại học An Giang";
+      gvhd.donVi?.parent?.ten ||
+      gvhd.chuyenNganh ||
+      "Trường Đại học An Giang";
 
   return {
     id: raw.phanCongId || gvhd.id || "",
@@ -553,9 +619,9 @@ export function mapBackendNcsToSupervisedStudent(
   const coMocCanHoanThien = Boolean(rejectedTienTrinh);
   const thongTinMocTuChoi: SupervisedStudentRejectedInfo | undefined = rejectedTienTrinh
     ? {
-        mocSo: rejectedTienTrinh.mocThuTu,
-        tenMoc: rejectedTienTrinh.tenMoc,
-      }
+      mocSo: rejectedTienTrinh.mocThuTu,
+      tenMoc: rejectedTienTrinh.tenMoc,
+    }
     : undefined;
 
   // Ánh xạ trạng thái học tập từ Backend TrangThaiHocTap:
@@ -947,10 +1013,10 @@ export function mapBackendNcsDetailToSupervisedStudent(
   const coMocCanHoanThien = Boolean(rejectedMilestone);
   const thongTinMocTuChoi: SupervisedStudentRejectedInfo | undefined = rejectedMilestone
     ? {
-        mocSo: rejectedMilestone.thuTu,
-        tenMoc: rejectedMilestone.tenMoc,
-        lyDoTuChoi: rejectedMilestone.lyDoTuChoi,
-      }
+      mocSo: rejectedMilestone.thuTu,
+      tenMoc: rejectedMilestone.tenMoc,
+      lyDoTuChoi: rejectedMilestone.lyDoTuChoi,
+    }
     : undefined;
 
   let trangThaiHocTap: SupervisedStudentStatus = baseStudent?.trangThaiHocTap || "DANG_THUC_HIEN";
@@ -1065,6 +1131,15 @@ export const GvhdService = {
     }
   },
 
+  updateSupervisor: async (id: string, payload: UpdateGvhdPayload): Promise<BackendGvhdRaw> => {
+    try {
+      const response = await apiClient.patch<BackendGvhdRaw>(`/gvhd/${id}`, payload);
+      return response.data;
+    } catch (error) {
+      throwApiError(error);
+    }
+  },
+
   /**
    * 3. Lấy danh sách phân công GVHD (lọc theo NCS, GVHD, trạng thái)
    * Endpoint: GET /gvhd/assignments
@@ -1100,11 +1175,11 @@ export const GvhdService = {
    */
   deactivateAssignment: async (
     id: string,
-    lyDo: string
+    payload: DeactivateAssignmentPayload
   ): Promise<BackendAssignmentRaw> => {
     const response = await apiClient.patch<BackendAssignmentRaw>(
       `/gvhd/assignments/${id}/deactivate`,
-      { lyDo }
+      payload
     );
     return response.data;
   },
@@ -1141,10 +1216,10 @@ export const GvhdService = {
    * 8. Upload file Excel xem trước dữ liệu GVHD
    * Endpoint: POST /gvhd/import/preview
    */
-  previewImportExcel: async (file: File): Promise<Record<string, unknown>> => {
+  previewImportExcel: async (file: File): Promise<ImportGvhdPreviewResponse> => {
     const formData = new FormData();
     formData.append("file", file);
-    const response = await apiClient.post<Record<string, unknown>>(
+    const response = await apiClient.post<ImportGvhdPreviewResponse>(
       "/gvhd/import/preview",
       formData,
       {
@@ -1158,10 +1233,10 @@ export const GvhdService = {
    * 9. Xác nhận nạp file Excel GVHD vào cơ sở dữ liệu
    * Endpoint: POST /gvhd/import/confirm
    */
-  confirmImportExcel: async (file: File): Promise<Record<string, unknown>> => {
+  confirmImportExcel: async (file: File): Promise<ImportGvhdConfirmRow[]> => {
     const formData = new FormData();
     formData.append("file", file);
-    const response = await apiClient.post<Record<string, unknown>>(
+    const response = await apiClient.post<ImportGvhdConfirmRow[]>(
       "/gvhd/import/confirm",
       formData,
       {
@@ -1222,6 +1297,21 @@ export const GvhdService = {
         `/gvhd/me/ncs/${encodeURIComponent(ncsId)}`
       );
       return response.data;
+    } catch (error) {
+      throwApiError(error);
+    }
+  },
+
+  /**
+   * 14. Lấy danh sách toàn bộ Đơn vị trong trường (Khoa, Bộ môn, Phòng ban)
+   * Endpoint: GET /gvhd/don-vi
+   */
+  getDonViList: async (loai?: string): Promise<DonViItem[]> => {
+    try {
+      const response = await apiClient.get<DonViItem[]>("/gvhd/don-vi", {
+        params: loai ? { loai } : undefined,
+      });
+      return unwrapArrayResponse<DonViItem>(response.data);
     } catch (error) {
       throwApiError(error);
     }

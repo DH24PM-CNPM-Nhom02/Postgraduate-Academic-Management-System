@@ -17,14 +17,18 @@ import {
 } from "lucide-react";
 import { Input } from "@/src/components/ui/input";
 import { Label } from "@/src/components/ui/label";
-import { supervisorImportSchema } from "@/src/lib/schemas";
+import { ApiClientError } from "@/src/lib/api";
 import type { StudentDossier, SupervisorQuotaRecord } from "@/src/types/academic";
 import {
   useDownloadNcsTemplate,
   usePreviewNcsImport,
   useConfirmNcsImport,
+  useDownloadGvhdTemplate,
+  usePreviewGvhdImport,
+  useConfirmGvhdImport,
 } from "@/src/hooks/use-academic";
 import { mapBackendNcsToStudentDossier, type BackendNcsRaw } from "@/src/services/ncs";
+import type { ImportGvhdPreviewResponse } from "@/src/services/gvhd";
 
 export type EntityImportType = "student" | "supervisor";
 
@@ -40,28 +44,22 @@ export type ImportedEntityItem = StudentDossier | SupervisorQuotaRecord;
 
 export type ExcelImportModalProps =
   | {
-      isOpen: boolean;
-      onClose: () => void;
-      entityType: "student";
-      onSuccess?: (importedItems: StudentDossier[]) => void;
-    }
+    isOpen: boolean;
+    onClose: () => void;
+    entityType: "student";
+    onSuccess?: (importedItems: StudentDossier[]) => void;
+  }
   | {
-      isOpen: boolean;
-      onClose: () => void;
-      entityType: "supervisor";
-      onSuccess?: (importedItems: SupervisorQuotaRecord[]) => void;
-    }
-  | {
-      isOpen: boolean;
-      onClose: () => void;
-      entityType: EntityImportType;
-      onSuccess?: (importedItems: ImportedEntityItem[]) => void;
-    };
+    isOpen: boolean;
+    onClose: () => void;
+    entityType: "supervisor";
+    onSuccess?: (importedCount: number) => void;
+  };
 
 export function ExcelImportModal({
   isOpen,
   onClose,
-  entityType = "student",
+  entityType,
   onSuccess,
 }: ExcelImportModalProps) {
   const fileInputId = useId();
@@ -76,12 +74,16 @@ export function ExcelImportModal({
   const [validationStatus, setValidationStatus] = useState<"idle" | "validating" | "valid" | "error">("idle");
   const [errorsList, setErrorsList] = useState<ValidationErrorItem[]>([]);
   const [parsedData, setParsedData] = useState<ImportedEntityItem[]>([]);
+  const [gvhdPreview, setGvhdPreview] = useState<ImportGvhdPreviewResponse | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
   // TanStack Query Mutations cho Import NCS (Hooks phải đặt ở đầu component)
   const downloadTemplateMutation = useDownloadNcsTemplate();
   const previewImportMutation = usePreviewNcsImport();
   const confirmImportMutation = useConfirmNcsImport();
+  const downloadGvhdTemplateMutation = useDownloadGvhdTemplate();
+  const previewGvhdImportMutation = usePreviewGvhdImport();
+  const confirmGvhdImportMutation = useConfirmGvhdImport();
 
   if (!isOpen) return null;
 
@@ -99,6 +101,7 @@ export function ExcelImportModal({
     setValidationStatus("idle");
     setErrorsList([]);
     setParsedData([]);
+    setGvhdPreview(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -118,25 +121,27 @@ export function ExcelImportModal({
       } catch (err) {
         console.warn("Không thể tải template từ backend API, sử dụng file mẫu dự phòng:", err);
       }
-    }
-
-    let csvContent = "";
-    if (isStudent) {
-      csvContent =
-        "\uFEFF" +
-        "STT,Mã NCS,Họ và tên,Email,Số điện thoại,Khoa / Chuyên ngành,GVHD Chính,Đồng GVHD,Tên đề tài luận án,Khóa học\n" +
-        '1,NCS240101,Hoàng Minh Đức,duc.ncs24@agu.edu.vn,0912345678,Khoa học Máy tính,TS. Bùi Lê Tuấn Anh,PGS.TS. Trần Văn Minh,"Nghiên cứu thị giác máy tính trong phân loại nông sản tự động",Khóa 2024\n' +
-        '2,NCS240102,Lê Thị Thanh Thảo,thao.ncs24@agu.edu.vn,0987654321,Công nghệ Sinh học,PGS.TS. Nguyễn Văn Hùng,TS. Bùi Lê Tuấn Anh,"Tuyển chọn vi sinh vật cố định đạm phục vụ canh tác lúa hữu cơ",Khóa 2024\n' +
-        '3,NCS240103,Nguyễn Gia Bảo,bao.ncs24@agu.edu.vn,0903112233,Quản trị Kinh doanh,GS.TS. Trần Minh Tâm,TS. Phạm Thu Trang,"Chuỗi cung ứng xanh nông sản xuất khẩu vùng ĐBSCL",Khóa 2024\n';
     } else {
-      csvContent =
-        "\uFEFF" +
-        "STT,Mã GVHD,Họ và tên,Học vị / Học hàm,Email,Số điện thoại,Khoa / Bộ môn,Định mức tối đa (NCS),Lĩnh vực nghiên cứu\n" +
-        '1,CB-2024-090,TS. Vũ Đức Anh,Tiến sĩ,anhvd@agu.edu.vn,0912345678,Khoa Công nghệ Thông tin,3.0,"Trí tuệ nhân tạo, Xử lý ảnh nông nghiệp"\n' +
-        '2,CB-2024-091,PGS.TS. Nguyễn Thanh Trúc,Phó Giáo sư,trucnt@agu.edu.vn,0987654321,Khoa Nông nghiệp - TNMT,3.5,"Công nghệ sinh học phân tử cây trồng"\n' +
-        '3,CB-2024-092,TS. Lê Hoài Phương,Tiến sĩ,phuonglh@agu.edu.vn,0903112233,Khoa Kinh tế - QTKD,3.0,"Quản trị chuỗi cung ứng, Kinh tế nông nghiệp"\n';
+      try {
+        await downloadGvhdTemplateMutation.mutateAsync();
+      } catch (error) {
+        setErrorsList([{
+          row: 1,
+          field: "Tệp mẫu GVHD",
+          value: "",
+          message: error instanceof Error ? error.message : "Không thể tải file mẫu GVHD.",
+          hint: "Kiểm tra quyền truy cập hoặc thử lại sau.",
+        }]);
+        setValidationStatus("error");
+      }
+      return;
     }
-
+    const csvContent =
+      "\uFEFF" +
+      "STT,Mã NCS,Họ và tên,Email,Số điện thoại,Khoa / Chuyên ngành,GVHD Chính,Đồng GVHD,Tên đề tài luận án,Khóa học\n" +
+      '1,NCS240101,Hoàng Minh Đức,duc.ncs24@agu.edu.vn,0912345678,Khoa học Máy tính,TS. Bùi Lê Tuấn Anh,PGS.TS. Trần Văn Minh,"Nghiên cứu thị giác máy tính trong phân loại nông sản tự động",Khóa 2024\n' +
+      '2,NCS240102,Lê Thị Thanh Thảo,thao.ncs24@agu.edu.vn,0987654321,Công nghệ Sinh học,PGS.TS. Nguyễn Văn Hùng,TS. Bùi Lê Tuấn Anh,"Tuyển chọn vi sinh vật cố định đạm phục vụ canh tác lúa hữu cơ",Khóa 2024\n' +
+      '3,NCS240103,Nguyễn Gia Bảo,bao.ncs24@agu.edu.vn,0903112233,Quản trị Kinh doanh,GS.TS. Trần Minh Tâm,TS. Phạm Thu Trang,"Chuỗi cung ứng xanh nông sản xuất khẩu vùng ĐBSCL",Khóa 2024\n';
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -162,6 +167,7 @@ export function ExcelImportModal({
     setValidationStatus("idle");
     setErrorsList([]);
     setParsedData([]);
+    setGvhdPreview(null);
   };
 
   // 3. PREVIEW & ERROR CHECK LOGIC
@@ -252,135 +258,71 @@ export function ExcelImportModal({
       return;
     }
 
-    // B. Thẩm định cho Giảng viên Hướng dẫn
+    // B. Preview GVHD bằng API thật; không mô phỏng kết quả ở trình duyệt.
     setValidationStatus("validating");
+    setParsedData([]);
+    try {
+      const response = await previewGvhdImportMutation.mutateAsync(selectedFile);
+      setGvhdPreview(response);
 
-    setTimeout(() => {
-      const isErrorNamed =
-        fileName.toLowerCase().includes("loi") ||
-        fileName.toLowerCase().includes("error") ||
-        fileName.toLowerCase().includes("fail");
+      if (response.errorCount > 0) {
+        const detectedErrors: ValidationErrorItem[] = response.rows
+          .filter((row) => !row.ok)
+          .flatMap((row) =>
+            row.errors.map((message) => {
+              let field = "Dữ liệu GVHD";
+              const lowerErr = message.toLowerCase();
+              if (lowerErr.includes("mã gv") || lowerErr.includes("mã giảng viên")) field = "Mã GV";
+              else if (lowerErr.includes("họ tên") || lowerErr.includes("tên")) field = "Họ và tên";
+              else if (lowerErr.includes("email")) field = "Email";
+              else if (lowerErr.includes("học hàm") || lowerErr.includes("học vị")) field = "Học hàm / Học vị";
+              else if (lowerErr.includes("đơn vị")) field = "Đơn vị";
+              else if (lowerErr.includes("chuyên ngành")) field = "Chuyên ngành";
+              else if (lowerErr.includes("nước") || lowerErr.includes("quốc gia")) field = "Nước tốt nghiệp";
+              else if (lowerErr.includes("ngày sinh")) field = "Ngày sinh";
+              else if (lowerErr.includes("giới tính")) field = "Giới tính";
 
-      if (isErrorNamed) {
-        const detectedErrors: ValidationErrorItem[] = [
-          {
-            row: 2,
-            field: "Mã GVHD",
-            value: "CB-2018-012",
-            message: "Mã cán bộ trùng lặp với giảng viên hiện có (TS. Bùi Lê Tuấn Anh).",
-            hint: "Mỗi giảng viên hướng dẫn phải có mã định danh duy nhất trong toàn trường.",
-          },
-          {
-            row: 3,
-            field: "Học vị / Học hàm",
-            value: "Thạc sĩ",
-            message: "Học vị không đủ tiêu chuẩn hướng dẫn NCS theo Quy chế BR-09 (Yêu cầu tối thiểu Tiến sĩ).",
-            hint: "Chỉ giảng viên có học vị Tiến sĩ, chức danh PGS hoặc GS mới được phân công hướng dẫn NCS.",
-          },
-          {
-            row: 4,
-            field: "Định mức tối đa",
-            value: "5.5",
-            message: "Định mức 5.5 NCS vượt quá trần quy định (Tối đa 3.0 với TS, 4.0 với PGS/GS có đề tài Bộ).",
-            hint: "Hiệu chỉnh lại định mức trong khoảng từ 1.0 đến tối đa 4.0 theo đúng quy chế BR-09.",
-          },
-        ];
-
+              return {
+                row: row.row,
+                field,
+                value: row.maGv || "[Thiếu mã GV]",
+                message,
+                hint: "Sửa dòng được báo lỗi trong Excel rồi tải file lên kiểm tra lại.",
+              };
+            })
+          );
         setErrorsList(detectedErrors);
-        setParsedData([]);
         setValidationStatus("error");
-        return;
+      } else {
+        setErrorsList([]);
+        setValidationStatus("valid");
       }
-
-      const rawSupervisors: SupervisorQuotaRecord[] = [
+    } catch (err) {
+      const errObj = err as { response?: { data?: { message?: string | string[] } }; message?: string };
+      const serverMsg =
+        errObj?.response?.data?.message ||
+        errObj?.message ||
+        "Không thể kiểm tra file Excel. Vui lòng kiểm tra định dạng file .xlsx và kết nối mạng.";
+      setErrorsList([
         {
-          id: `gv-imp-${Date.now()}-1`,
-          name: "TS. Vũ Đức Anh",
-          code: "CB-2024-090",
-          department: "Khoa Công nghệ Thông tin",
-          degree: "Tiến sĩ",
-          independentCount: 0,
-          coCount: 0,
-          usedQuota: 0.0,
-          maxQuota: 3.0,
-          remainingQuota: 3.0,
-          statusText: "Còn 3.0 chỉ tiêu",
-          statusColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
-          assignedStudents: [],
+          row: 1,
+          field: "Tệp tin Excel",
+          value: selectedFile.name,
+          message: Array.isArray(serverMsg) ? serverMsg.join(", ") : String(serverMsg),
+          hint: "Hệ thống chỉ chấp nhận file Excel định dạng .xlsx có cấu trúc tiêu đề đúng mẫu của trường.",
         },
-        {
-          id: `gv-imp-${Date.now()}-2`,
-          name: "PGS.TS. Nguyễn Thanh Trúc",
-          code: "CB-2024-091",
-          department: "Khoa Nông nghiệp - TNMT",
-          degree: "Phó Giáo sư",
-          independentCount: 0,
-          coCount: 1,
-          usedQuota: 0.5,
-          maxQuota: 3.5,
-          remainingQuota: 3.0,
-          statusText: "Còn 3.0 chỉ tiêu",
-          statusColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
-          assignedStudents: ["1 NCS Đồng hướng dẫn"],
-        },
-        {
-          id: `gv-imp-${Date.now()}-3`,
-          name: "TS. Lê Hoài Phương",
-          code: "CB-2024-092",
-          department: "Khoa Kinh tế - QTKD",
-          degree: "Tiến sĩ",
-          independentCount: 1,
-          coCount: 0,
-          usedQuota: 1.0,
-          maxQuota: 3.0,
-          remainingQuota: 2.0,
-          statusText: "Còn 2.0 chỉ tiêu",
-          statusColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
-          assignedStudents: ["1 NCS Độc lập"],
-        },
-      ];
-
-      const validatedSupervisors: SupervisorQuotaRecord[] = [];
-      const detectedErrors: ValidationErrorItem[] = [];
-
-      rawSupervisors.forEach((sup, idx) => {
-        const parseResult = supervisorImportSchema.safeParse(sup);
-        if (parseResult.success) {
-          validatedSupervisors.push(parseResult.data as SupervisorQuotaRecord);
-        } else {
-          parseResult.error.issues.forEach((issue) => {
-            const propKey = String(issue.path[0] ?? "");
-            const propVal = propKey ? (sup as unknown as Record<string, unknown>)[propKey] : "";
-            detectedErrors.push({
-              row: idx + 2,
-              field: propKey || "Dữ liệu",
-              value: String(propVal ?? ""),
-              message: issue.message,
-              hint: "Kiểm tra và chuẩn hóa dữ liệu theo Quy chế BR-09.",
-            });
-          });
-        }
-      });
-
-      if (detectedErrors.length > 0) {
-        setErrorsList(detectedErrors);
-        setParsedData([]);
-        setValidationStatus("error");
-        return;
-      }
-
-      setParsedData(validatedSupervisors);
-      setErrorsList([]);
-      setValidationStatus("valid");
-    }, 450);
+      ]);
+      setGvhdPreview(null);
+      setValidationStatus("error");
+    }
   };
 
   // 4. CONFIRM & IMPORT ACTION
   const handleConfirmImport = async () => {
-    if (validationStatus !== "valid" || parsedData.length === 0) return;
+    if (validationStatus !== "valid") return;
 
     if (isStudent) {
-      if (!selectedFile) return;
+      if (!selectedFile || parsedData.length === 0) return;
       try {
         const res = await confirmImportMutation.mutateAsync(selectedFile);
         const importedStudents: StudentDossier[] =
@@ -404,11 +346,24 @@ export function ExcelImportModal({
       return;
     }
 
-    if (onSuccess) {
-      const supervisorItems = parsedData as SupervisorQuotaRecord[];
-      (onSuccess as (items: SupervisorQuotaRecord[]) => void)(supervisorItems);
+    if (!selectedFile || !gvhdPreview || gvhdPreview.validCount === 0) return;
+    try {
+      const importedSupervisors = await confirmGvhdImportMutation.mutateAsync(selectedFile);
+      (onSuccess as ((importedCount: number) => void) | undefined)?.(importedSupervisors.length);
+      handleClose();
+    } catch (error) {
+      const messages = error instanceof ApiClientError
+        ? error.messages
+        : [error instanceof Error ? error.message : "Không thể nhập danh sách GVHD."];
+      setErrorsList(messages.map((message) => ({
+        row: 1,
+        field: "Xác nhận import GVHD",
+        value: selectedFile.name,
+        message,
+        hint: "Không có dữ liệu nào được nhập. Kiểm tra lại file rồi thử lại.",
+      })));
+      setValidationStatus("error");
     }
-    handleClose();
   };
 
   // Determine button states based on strict requirements:
@@ -419,9 +374,14 @@ export function ExcelImportModal({
   const isPendingAction =
     validationStatus === "validating" ||
     previewImportMutation.isPending ||
-    confirmImportMutation.isPending;
+    confirmImportMutation.isPending ||
+    previewGvhdImportMutation.isPending ||
+    confirmGvhdImportMutation.isPending;
   const isPreviewDisabled = !hasFile || isPendingAction;
-  const showConfirmButton = hasFile && validationStatus === "valid" && errorsList.length === 0;
+  const previewRecordCount = isStudent ? parsedData.length : gvhdPreview?.validCount ?? 0;
+  const showConfirmButton = hasFile && validationStatus === "valid" && errorsList.length === 0 && previewRecordCount > 0;
+  const isTemplatePending = isStudent ? downloadTemplateMutation.isPending : downloadGvhdTemplateMutation.isPending;
+  const isConfirmPending = isStudent ? confirmImportMutation.isPending : confirmGvhdImportMutation.isPending;
 
   return (
     <div
@@ -442,9 +402,6 @@ export function ExcelImportModal({
                 <h2 className="text-base font-bold text-white tracking-tight">
                   Thêm {entityTitle} bằng file Excel
                 </h2>
-                <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold text-blue-100 border border-white/20">
-                  Import Wizard
-                </span>
               </div>
               <p className="text-xs text-blue-100 mt-0.5">
                 Nhập danh sách {isStudent ? "nghiên cứu sinh" : "giảng viên hướng dẫn"} hàng loạt từ bảng tính Excel / CSV
@@ -473,9 +430,6 @@ export function ExcelImportModal({
                 <div>
                   <h3 className="text-xs font-bold text-slate-900 flex items-center gap-2">
                     <span>1. Tải biểu mẫu Excel chuẩn (Template)</span>
-                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded">
-                      Định dạng chuẩn ĐHQG
-                    </span>
                   </h3>
                   <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
                     Sử dụng file mẫu có sẵn tiêu đề cột để tránh lỗi định dạng và sai lệch thông tin khi hệ thống quét dữ liệu.
@@ -486,10 +440,10 @@ export function ExcelImportModal({
               <button
                 type="button"
                 onClick={handleDownloadTemplate}
-                disabled={downloadTemplateMutation.isPending}
+                disabled={isTemplatePending}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 text-xs font-bold shadow-xs transition-all shrink-0 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
               >
-                {downloadTemplateMutation.isPending ? (
+                {isTemplatePending ? (
                   <>
                     <RefreshCw className="size-4 animate-spin" />
                     <span>Đang tải template...</span>
@@ -536,7 +490,7 @@ export function ExcelImportModal({
                 id={fileInputId}
                 ref={fileInputRef}
                 type="file"
-                accept=".xlsx, .xls, .csv, text/csv, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                accept=".xlsx, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 onChange={handleFileInputChange}
                 className="h-10 text-xs text-slate-700 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#164E9B] file:text-white hover:file:bg-[#123E7C] file:cursor-pointer cursor-pointer border-slate-300 bg-slate-50/50 focus-visible:ring-[#164E9B]"
               />
@@ -560,15 +514,15 @@ export function ExcelImportModal({
                   setValidationStatus("idle");
                   setErrorsList([]);
                   setParsedData([]);
+                  setGvhdPreview(null);
                 }
               }}
-              className={`rounded-xl border-2 border-dashed p-4 text-center transition-all ${
-                isDragOver
+              className={`rounded-xl border-2 border-dashed p-4 text-center transition-all ${isDragOver
                   ? "border-[#164E9B] bg-blue-50/60"
                   : hasFile
-                  ? "border-emerald-300 bg-emerald-50/30"
-                  : "border-slate-200 bg-slate-50/40 hover:bg-slate-50"
-              }`}
+                    ? "border-emerald-300 bg-emerald-50/30"
+                    : "border-slate-200 bg-slate-50/40 hover:bg-slate-50"
+                }`}
             >
               {hasFile ? (
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
@@ -596,10 +550,10 @@ export function ExcelImportModal({
                       {validationStatus === "idle"
                         ? "Chưa kiểm tra (Bấm Preview bên dưới)"
                         : validationStatus === "validating"
-                        ? "Đang quét dữ liệu..."
-                        : validationStatus === "valid"
-                        ? "✓ Đã thẩm định: Hợp lệ"
-                        : "⚠ Đã thẩm định: Có lỗi"}
+                          ? "Đang quét dữ liệu..."
+                          : validationStatus === "valid"
+                            ? "✓ Đã thẩm định: Hợp lệ"
+                            : "⚠ Đã thẩm định: Có lỗi"}
                     </span>
                   </div>
                 </div>
@@ -743,10 +697,12 @@ export function ExcelImportModal({
                     <CheckCircle2 className="size-5 text-emerald-600 shrink-0 mt-0.5" />
                     <div className="space-y-0.5 text-xs">
                       <p className="font-bold text-emerald-900">
-                        Dữ liệu hoàn toàn hợp lệ! Sẵn sàng nhập {parsedData.length} bản ghi vào hệ thống.
+                        Dữ liệu hoàn toàn hợp lệ! Sẵn sàng nhập {previewRecordCount} bản ghi vào hệ thống.
                       </p>
                       <p className="text-[11px] text-emerald-700 leading-relaxed">
-                        Tất cả các dòng dữ liệu đều đáp ứng chuẩn định dạng, không bị trùng mã và tuân thủ quy chế BR-09. Nút Xác nhận đã được kích hoạt.
+                        {isStudent
+                          ? "Tất cả các dòng dữ liệu đều hợp lệ. Nút xác nhận đã được kích hoạt."
+                          : `Tạo mới: ${gvhdPreview?.createCount ?? 0} · Cập nhật: ${gvhdPreview?.updateCount ?? 0} · Tài khoản mới: ${gvhdPreview?.newAccountCount ?? 0}. Nút xác nhận đã được kích hoạt.`}
                       </p>
                     </div>
                   </div>
@@ -756,50 +712,42 @@ export function ExcelImportModal({
                     <table className="w-full text-left text-xs">
                       <thead className="bg-emerald-100/60 text-[11px] font-bold uppercase tracking-wider text-emerald-950">
                         <tr>
-                          <th className="px-3 py-2 w-12 text-center">STT</th>
-                          <th className="px-3 py-2 w-28">Mã số</th>
-                          <th className="px-3 py-2 w-44">Họ và tên</th>
-                          <th className="px-3 py-2 w-44">Khoa / Đơn vị</th>
-                          <th className="px-3 py-2">
-                            {isStudent ? "GVHD Chính & Đề tài" : "Học vị & Định mức"}
-                          </th>
+                          <th className="w-12 px-3 py-2 text-center">STT</th>
+                          {isStudent ? (
+                            <>
+                              <th className="w-28 px-3 py-2">Mã số</th>
+                              <th className="w-44 px-3 py-2">Họ và tên</th>
+                              <th className="w-44 px-3 py-2">Khoa / Đơn vị</th>
+                              <th className="px-3 py-2">GVHD Chính &amp; Đề tài</th>
+                            </>
+                          ) : (
+                            <>
+                              <th className="w-36 px-3 py-2">Mã GV</th>
+                              <th className="px-3 py-2">Hành động</th>
+                              <th className="px-3 py-2">Tài khoản</th>
+                              <th className="px-3 py-2">Trạng thái</th>
+                            </>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-emerald-100">
-                        {parsedData.map((item, idx) => (
-                          <tr key={idx} className="hover:bg-emerald-50/40">
-                            <td className="px-3 py-2 text-center text-slate-500 font-bold">
-                              {idx + 1}
-                            </td>
-                            <td className="px-3 py-2 font-mono font-bold text-[#164E9B]">
-                              {item.code}
-                            </td>
-                            <td className="px-3 py-2 font-semibold text-slate-900">
-                              {item.name}
-                            </td>
-                            <td className="px-3 py-2 text-slate-600">
-                              {item.department}
-                            </td>
+                        {isStudent ? (parsedData as StudentDossier[]).map((item, idx) => (
+                          <tr key={item.id || idx} className="hover:bg-emerald-50/40">
+                            <td className="px-3 py-2 text-center font-bold text-slate-500">{idx + 1}</td>
+                            <td className="px-3 py-2 font-mono font-bold text-[#164E9B]">{item.code}</td>
+                            <td className="px-3 py-2 font-semibold text-slate-900">{item.name}</td>
+                            <td className="px-3 py-2 text-slate-600">{item.department}</td>
                             <td className="px-3 py-2 text-[11px] text-slate-700">
-                              {isStudent ? (
-                                <div>
-                                  <span className="font-bold text-slate-800">
-                                    {(item as StudentDossier).supervisorMain}
-                                  </span>{" "}
-                                  - <span className="italic text-slate-600 truncate">{(item as StudentDossier).thesisTopic}</span>
-                                </div>
-                              ) : (
-                                <div>
-                                  <span className="font-bold text-slate-800">
-                                    {(item as SupervisorQuotaRecord).degree}
-                                  </span>{" "}
-                                  • Định mức tối đa:{" "}
-                                  <span className="font-bold text-emerald-700">
-                                    {(item as SupervisorQuotaRecord).maxQuota} NCS
-                                  </span>
-                                </div>
-                              )}
+                              <span className="font-bold text-slate-800">{item.supervisorMain}</span> - <span className="italic text-slate-600">{item.thesisTopic}</span>
                             </td>
+                          </tr>
+                        )) : (gvhdPreview?.rows ?? []).map((row, idx) => (
+                          <tr key={`${row.row}-${row.maGv}`} className="hover:bg-emerald-50/40">
+                            <td className="px-3 py-2 text-center font-bold text-slate-500">{idx + 1}</td>
+                            <td className="px-3 py-2 font-mono font-bold text-[#164E9B]">{row.maGv}</td>
+                            <td className="px-3 py-2">{row.hanhDong === "TAO_MOI" ? "Tạo mới" : "Cập nhật hồ sơ"}</td>
+                            <td className="px-3 py-2">{row.willCreateAccount ? "Sẽ tạo tài khoản" : "Đã có tài khoản"}</td>
+                            <td className="px-3 py-2 font-semibold text-emerald-700">Hợp lệ</td>
                           </tr>
                         ))}
                       </tbody>
@@ -844,18 +792,17 @@ export function ExcelImportModal({
               type="button"
               onClick={handlePreviewCheck}
               disabled={isPreviewDisabled}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shadow-xs ${
-                isPreviewDisabled
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all shadow-xs ${isPreviewDisabled
                   ? "bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-200"
                   : "bg-white border border-[#164E9B] text-[#164E9B] hover:bg-blue-50 active:bg-blue-100 cursor-pointer"
-              }`}
+                }`}
               title={
                 !hasFile
                   ? "Vui lòng chọn tệp Excel trước khi kiểm tra"
                   : "Kiểm tra dữ liệu và tìm lỗi trong tệp"
               }
             >
-              {validationStatus === "validating" || previewImportMutation.isPending ? (
+              {validationStatus === "validating" || previewImportMutation.isPending || previewGvhdImportMutation.isPending ? (
                 <>
                   <RefreshCw className="size-4 animate-spin text-[#164E9B]" />
                   <span>Đang kiểm tra...</span>
@@ -874,10 +821,10 @@ export function ExcelImportModal({
               <button
                 type="button"
                 onClick={handleConfirmImport}
-                disabled={confirmImportMutation.isPending}
+                disabled={isConfirmPending}
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-xs font-bold shadow-xs transition-all animate-in zoom-in-95 duration-150 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
               >
-                {confirmImportMutation.isPending ? (
+                {isConfirmPending ? (
                   <>
                     <RefreshCw className="size-4 animate-spin" />
                     <span>Đang nạp vào CSDL...</span>

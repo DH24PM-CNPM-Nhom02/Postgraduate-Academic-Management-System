@@ -30,6 +30,16 @@ export class DeactivateAssignmentDto {
   @IsString()
   @MinLength(1)
   lyDo!: string;
+
+  /** Required when deactivating the current primary supervisor unless an active co-supervisor is promoted. */
+  @IsOptional()
+  @IsUUID()
+  gvhdChinhMoiId?: string;
+
+  /** Required when assigning a new primary supervisor; ignored when promoting the active co-supervisor. */
+  @IsOptional()
+  @IsUUID()
+  quyetDinhMoiId?: string;
 }
 
 export class ListAssignmentQueryDto extends PaginationQueryDto {
