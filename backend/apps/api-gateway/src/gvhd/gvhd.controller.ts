@@ -125,6 +125,19 @@ export class GvhdController {
     return this.send('phd.gvhd.assignment-list', { query });
   }
 
+  // Danh mục đơn vị trong trường (Khoa, Bộ môn, Phòng ban)
+  @Get('don-vi')
+  @RequirePermissions(PERMISSIONS.GVHD_READ)
+  getDonViList(@Query('loai') loai?: string) {
+    return this.send('phd.gvhd.don-vi.list', { loai });
+  }
+
+  @Get('catalogs/don-vi')
+  @RequirePermissions(PERMISSIONS.GVHD_READ)
+  getDonViCatalog(@Query('loai') loai?: string) {
+    return this.send('phd.gvhd.don-vi.list', { loai });
+  }
+
   // Chi tiết một GVHD (Giáo vụ xem)
   @Get(':id')
   @RequirePermissions(PERMISSIONS.GVHD_READ)

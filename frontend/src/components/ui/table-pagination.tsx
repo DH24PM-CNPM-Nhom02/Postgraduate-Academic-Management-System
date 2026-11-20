@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useId } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/src/components/ui/select";
 
 export interface TablePaginationProps {
   currentPage: number;
@@ -12,6 +13,8 @@ export interface TablePaginationProps {
   className?: string;
   disabled?: boolean;
   activeColor?: string;
+  pageSizeOptions?: number[];
+  onPageSizeChange?: (pageSize: number) => void;
 }
 
 export function TablePagination({
@@ -23,8 +26,14 @@ export function TablePagination({
   className = "",
   disabled = false,
   activeColor,
+  pageSizeOptions,
+  onPageSizeChange,
 }: TablePaginationProps) {
+  const pageSizeSelectId = useId();
   const safePageSize = Math.max(1, pageSize);
+  const validPageSizeOptions = pageSizeOptions
+    ? [...new Set([...pageSizeOptions, safePageSize])].filter((size) => Number.isInteger(size) && size > 0)
+    : [];
   const totalPages = Math.max(1, Math.ceil(totalItems / safePageSize));
   const safePage = Math.min(Math.max(1, currentPage), totalPages);
 
@@ -66,15 +75,42 @@ export function TablePagination({
       className={`flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 pt-3 gap-3 border-t border-slate-100 ${className}`}
     >
       {/* Bên trái: Thông tin hiển thị */}
-      <div className="tabular-nums">
-        {totalItems > 0 ? (
-          <span>
-            Hiển thị <span className="font-semibold text-slate-700">{startItem}</span> -{" "}
-            <span className="font-semibold text-slate-700">{endItem}</span> của{" "}
-            <span className="font-semibold text-slate-700">{totalItems}</span> {itemLabel}
-          </span>
-        ) : (
-          <span>Không có {itemLabel} nào</span>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+        <div className="tabular-nums">
+          {totalItems > 0 ? (
+            <span>
+              Hiển thị <span className="font-semibold text-slate-700">{startItem}</span> -{" "}
+              <span className="font-semibold text-slate-700">{endItem}</span> của{" "}
+              <span className="font-semibold text-slate-700">{totalItems}</span> {itemLabel}
+            </span>
+          ) : (
+            <span>Không có {itemLabel} nào</span>
+          )}
+        </div>
+
+        {onPageSizeChange && pageSizeOptions && pageSizeOptions.length > 0 && (
+          <div className="flex items-center gap-2">
+            <label className="whitespace-nowrap text-slate-500" htmlFor={pageSizeSelectId}>
+              Số dòng/trang
+            </label>
+            <Select
+              items={validPageSizeOptions.map((size) => ({ value: String(size), label: String(size) }))}
+              value={String(pageSize)}
+              onValueChange={(value) => {
+                const nextSize = Number(value);
+                if (Number.isInteger(nextSize) && nextSize > 0) onPageSizeChange(nextSize);
+              }}
+            >
+              <SelectTrigger id={pageSizeSelectId} className="h-8 w-[4.5rem] rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700">
+                <SelectValue>{(value) => value}</SelectValue>
+              </SelectTrigger>
+              <SelectContent className="min-w-20 rounded-lg border border-slate-200 bg-white text-xs shadow-xl">
+                {validPageSizeOptions.map((size) => (
+                  <SelectItem key={size} value={String(size)}>{size}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         )}
       </div>
 

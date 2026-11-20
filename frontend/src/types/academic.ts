@@ -56,6 +56,7 @@ export interface SupervisorQuotaRecord {
   name: string;
   code: string;
   department: string;
+  parentDepartment?: string;
   degree: string;
   independentCount: number;
   coCount: number;

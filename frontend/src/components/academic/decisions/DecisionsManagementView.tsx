@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { MOCK_DECISIONS, MOCK_STUDENTS } from "../mockData";
 import { TablePagination } from "@/src/components/ui/table-pagination";
-import type { StudentDossier } from "../StudentDetailModal";
+import type { StudentDossier } from "../students/StudentDetailModal";
 import type { DecisionItem, DecisionType } from "@/src/types/academic";
 
 /* =========================================================================
@@ -225,9 +225,8 @@ function CreateDecisionModal({ isOpen, onClose, onSubmit }: CreateDecisionModalP
                   <div
                     key={st.id}
                     onClick={() => toggleSelectNcs(st.id)}
-                    className={`p-1.5 rounded-lg flex justify-between cursor-pointer ${
-                      checked ? "bg-blue-100 font-bold text-[#164E9B]" : "hover:bg-slate-100 text-slate-700"
-                    }`}
+                    className={`p-1.5 rounded-lg flex justify-between cursor-pointer ${checked ? "bg-blue-100 font-bold text-[#164E9B]" : "hover:bg-slate-100 text-slate-700"
+                      }`}
                   >
                     <span>{st.name} ({st.code})</span>
                     {checked && <Check className="size-3.5 text-[#164E9B]" />}

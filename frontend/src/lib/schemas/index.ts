@@ -8,4 +8,6 @@
 
 export * from "./student";
 export * from "./student-update";
+export * from "./supervisor-update";
+export * from "./decision-create";
 export * from "./supervisor";

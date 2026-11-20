@@ -95,6 +95,11 @@ export const MAU_THONG_BAO: Record<string, Mau> = {
         tieuDe: () => 'Bạn được phân công hướng dẫn nghiên cứu sinh mới',
         noiDung: (d) => `Nghiên cứu sinh ${chuoi(d.tenNcs, 'chưa rõ')} (${chuoi(d.mshv, 'chưa rõ MSHV')}) đã được phân công cho bạn.`,
     },
+    GVHD_TRO_THANH_GVHD_CHINH: {
+        nhom: 'TIEN_DO',
+        tieuDe: (d) => `Bạn trở thành GVHD chính của NCS ${chuoi(d.tenNcs, chuoi(d.mshv))}`,
+        noiDung: (d) => `Phân công hướng dẫn NCS ${chuoi(d.tenNcs)} (${chuoi(d.mshv)}) đã được chuyển thành GVHD chính của bạn.`,
+    },
     THAY_DOI_PHAN_CONG_GVHD: {
         nhom: 'TIEN_DO',
         tieuDe: () => 'Thay đổi phân công giảng viên hướng dẫn',
@@ -274,7 +279,7 @@ export const MAU_THONG_BAO: Record<string, Mau> = {
         nhom: 'NHAC_HAN',
         tieuDe: (d) => `Sắp đến hạn: ${chuoi(d.tenHan, 'hạn học tập')}`,
         noiDung: (d) => {
-            let nd = `${chuoi(d.tenHan, 'Hạn học tập')} của bạn là ngày ${ngayVN(d.ngayHan)}`;
+            let nd:string = `${chuoi(d.tenHan, 'Hạn học tập')} của bạn là ngày ${ngayVN(d.ngayHan)}`;
             if (d.soNgayConLai !== undefined && d.soNgayConLai !== null) nd += ` (còn ${chuoi(d.soNgayConLai)} ngày)`;
             return nd + '.';
         },
