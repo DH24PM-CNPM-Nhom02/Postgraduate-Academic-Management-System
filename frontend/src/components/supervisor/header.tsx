@@ -17,6 +17,7 @@ import { useAuth } from "@/src/hooks/use-auth";
 import { NotificationBellPopover } from "@/src/components/notification";
 import { mockSupervisorProfile, mockSupervisorQuota } from "@/src/mocks/supervisor";
 import type { SupervisorProfile, SupervisorQuota } from "@/src/types/ui/supervisor";
+import { HoverLogo } from "./HoverLogo";
 
 
 export interface SupervisorHeaderProps {
@@ -85,14 +86,21 @@ export function SupervisorHeader({
           </button>
         )}
 
-        <div className="hidden sm:block">
-          <p className="text-sm font-semibold text-[#0F2744]">
-            Phân hệ Giảng viên Hướng dẫn
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Hệ thống Quản lý Đào tạo Sau đại học
-          </p>
-        </div>
+        <Link
+          href="/"
+          className="flex items-center gap-2.5 transition-transform hover:scale-102"
+          title="Về Trang chủ"
+        >
+          <HoverLogo sizeClass="size-8.5" />
+          <div className="hidden sm:block">
+            <p className="text-sm font-semibold text-[#0F2744]">
+              Phân hệ Giảng viên Hướng dẫn
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Hệ thống Quản lý Đào tạo Sau đại học
+            </p>
+          </div>
+        </Link>
       </div>
 
       <div className="flex items-center gap-2.5">

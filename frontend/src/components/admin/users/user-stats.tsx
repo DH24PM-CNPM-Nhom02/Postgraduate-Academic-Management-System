@@ -85,7 +85,7 @@ export function UserStatsOverview({
       subtext: `${stats.byRole.GVHD} GVHD • ${stats.byRole.GIAO_VU} Giáo vụ SĐH`,
       icon: Briefcase,
       iconTone:
-        "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300",
+        "bg-blue-50 text-[#164E9B] dark:bg-blue-950/70 dark:text-blue-300",
       isSelected:
         activeRoleFilter === "GVHD" || activeRoleFilter === "GIAO_VU",
       onClick: onQuickFilter

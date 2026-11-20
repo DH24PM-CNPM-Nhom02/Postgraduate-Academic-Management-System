@@ -87,10 +87,6 @@ export class UpdateNcsDto {
   gioiTinh?: (typeof GIOI_TINH)[number];
 
   @IsOptional()
-  @Matches(CCCD_PATTERN, { message: 'CCCD phải là 12 chữ số (hoặc 9 chữ số với CMND cũ)' })
-  cccd?: string;
-
-  @IsOptional()
   @IsEmail()
   @Length(1, 100)
   email?: string;
@@ -154,4 +150,8 @@ export class ListNcsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsString()
   nganhId?: string;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
 }

@@ -29,6 +29,16 @@ export class NcsController {
     return this.ncs.getAllNcs(d?.query);
   }
 
+  @MessagePattern({ cmd: 'phd.ncs.catalog.majors' })
+  getNganhDaoTao() {
+    return this.ncs.getNganhDaoTao();
+  }
+
+  @MessagePattern({ cmd: 'phd.ncs.catalog.cohorts' })
+  getKhoaHocNcs() {
+    return this.ncs.getKhoaHocNcs();
+  }
+
   @MessagePattern({ cmd: 'phd.ncs.get' })
   getDetailNcs(@Payload() d: { id?: string; userId?: string }) {
     return this.ncs.getDetailNcs(d);

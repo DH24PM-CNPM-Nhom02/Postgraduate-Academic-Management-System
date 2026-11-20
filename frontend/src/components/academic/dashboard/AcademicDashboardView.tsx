@@ -1,72 +1,27 @@
 "use client";
 
-import React, { useTransition } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import React from "react";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Users,
   FileCheck2,
   FileEdit,
   Gauge,
-  LayoutDashboard,
   ArrowRight,
 } from "lucide-react";
 import { HoverLogo } from "@/src/components/academic";
-import { StudentsManagementView } from "@/src/components/academic/students/StudentsManagementView";
-import { SupervisorsManagementView } from "@/src/components/academic/supervisors/SupervisorsManagementView";
-import { EvidenceManagementView } from "@/src/components/academic/evidence/EvidenceManagementView";
-import { TopicChangesManagementView } from "@/src/components/academic/topic-changes/TopicChangesManagementView";
-import type { AcademicTabKey } from "@/src/types/academic";
 
-interface TabItemDef {
-  key: AcademicTabKey;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  badge?: string | number;
-  badgeColor?: string;
-}
+export function AcademicDashboardView() {
+  const router = useRouter();
+  const pathname = usePathname();
 
-const DASHBOARD_TABS: TabItemDef[] = [
-  {
-    key: "dashboard",
-    label: "Tổng quan",
-    icon: LayoutDashboard,
-  },
-  {
-    key: "students",
-    label: "Bảng Nghiên cứu sinh",
-    icon: Users,
-    badge: 18,
-    badgeColor: "bg-blue-100 text-[#164E9B]",
-  },
-  {
-    key: "supervisors",
-    label: "Bảng GVHD & Hạn ngạch",
-    icon: Gauge,
-    badge: "2.5/3",
-    badgeColor: "bg-emerald-100 text-emerald-800",
-  },
-  {
-    key: "evidence",
-    label: "Bảng Thẩm định minh chứng",
-    icon: FileCheck2,
-    badge: 5,
-    badgeColor: "bg-amber-100 text-amber-800",
-  },
-  {
-    key: "topic-changes",
-    label: "Bảng Duyệt đổi đề tài",
-    icon: FileEdit,
-    badge: 2,
-    badgeColor: "bg-rose-500 text-white",
-  },
-];
+  // Xác định prefix route (/admin hoặc /academic) để chuyển hướng đúng phân hệ
+  const prefix = pathname?.startsWith("/admin") ? "/admin" : "/academic";
 
-/** Component Overview tĩnh chỉ render khi ở Tab Dashboard */
-function DashboardOverviewSection({
-  onSelectTab,
-}: {
-  onSelectTab: (tab: AcademicTabKey) => void;
-}) {
+  const navigateTo = (path: string) => {
+    router.push(`${prefix}/${path}`);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
       {/* DASHBOARD HERO SECTION */}
@@ -99,25 +54,36 @@ function DashboardOverviewSection({
             <div className="flex flex-wrap items-center gap-1.5 pt-2 text-xs">
               <span className="text-slate-400 font-medium text-[11px]">Chuyển nhanh:</span>
               <button
-                onClick={() => onSelectTab("students")}
+                type="button"
+                onClick={() => navigateTo("students")}
                 className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-[#164E9B]/10 hover:text-[#164E9B] transition-colors cursor-pointer"
               >
                 Quản lý NCS toàn trường
               </button>
               <button
-                onClick={() => onSelectTab("supervisors")}
+                type="button"
+                onClick={() => navigateTo("supervisors")}
                 className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-[#164E9B]/10 hover:text-[#164E9B] transition-colors cursor-pointer"
               >
                 Hạn ngạch GVHD (BR-09)
               </button>
               <button
-                onClick={() => onSelectTab("evidence")}
+                type="button"
+                onClick={() => navigateTo("milestone-review")}
+                className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-[#164E9B]/10 hover:text-[#164E9B] transition-colors cursor-pointer"
+              >
+                Hàng chờ duyệt 9 mốc
+              </button>
+              <button
+                type="button"
+                onClick={() => navigateTo("evidence")}
                 className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-[#164E9B]/10 hover:text-[#164E9B] transition-colors cursor-pointer"
               >
                 Thẩm định bài báo WoS/Scopus
               </button>
               <button
-                onClick={() => onSelectTab("topic-changes")}
+                type="button"
+                onClick={() => navigateTo("topic-changes")}
                 className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-[#164E9B]/10 hover:text-[#164E9B] transition-colors cursor-pointer"
               >
                 Duyệt đổi đề tài
@@ -147,7 +113,7 @@ function DashboardOverviewSection({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Students */}
         <div
-          onClick={() => onSelectTab("students")}
+          onClick={() => navigateTo("students")}
           className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-[#164E9B]/60 hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="space-y-2">
@@ -177,7 +143,7 @@ function DashboardOverviewSection({
 
         {/* Card 2: Evidences */}
         <div
-          onClick={() => onSelectTab("evidence")}
+          onClick={() => navigateTo("evidence")}
           className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-amber-400 hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="space-y-2">
@@ -207,7 +173,7 @@ function DashboardOverviewSection({
 
         {/* Card 3: Topic Changes */}
         <div
-          onClick={() => onSelectTab("topic-changes")}
+          onClick={() => navigateTo("topic-changes")}
           className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-rose-400 hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="space-y-2">
@@ -237,7 +203,7 @@ function DashboardOverviewSection({
 
         {/* Card 4: Quota */}
         <div
-          onClick={() => onSelectTab("supervisors")}
+          onClick={() => navigateTo("supervisors")}
           className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="space-y-2">
@@ -267,86 +233,4 @@ function DashboardOverviewSection({
   );
 }
 
-export function AcademicDashboardView() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const [, startTransition] = useTransition();
-
-  // Single Source of Truth: Tab lấy trực tiếp từ URL query `tab` (fallback "dashboard")
-  const activeTab = (searchParams.get("tab") as AcademicTabKey) || "dashboard";
-
-  // Chuyển tab động: Cập nhật URL mà không cần cascading state
-  const handleTabChange = (newTab: AcademicTabKey) => {
-    startTransition(() => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (newTab === "dashboard") {
-        params.delete("tab");
-      } else {
-        params.set("tab", newTab);
-      }
-      const newQuery = params.toString();
-      router.push(newQuery ? `${pathname}?${newQuery}` : pathname);
-    });
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* DYNAMIC TAB BAR: Cho phép chuyển đổi linh hoạt giữa các bảng */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200">
-        {DASHBOARD_TABS.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.key;
-
-          return (
-            <button
-              key={tab.key}
-              onClick={() => handleTabChange(tab.key)}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                isActive
-                  ? "bg-[#164E9B] text-white shadow-xs"
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80"
-              }`}
-            >
-              <Icon className={`size-4 ${isActive ? "text-white" : "text-slate-500"}`} />
-              <span>{tab.label}</span>
-              {tab.badge !== undefined && (
-                <span
-                  className={`rounded-full px-2 py-0.2 text-[10px] font-black ${
-                    isActive ? "bg-white/20 text-white" : tab.badgeColor || "bg-slate-100 text-slate-700"
-                  }`}
-                >
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* CONDITIONAL DYNAMIC RENDERING:
-          Chỉ render bảng tương ứng, UNMOUNT toàn bộ các bảng khác để giải phóng DOM, RAM và tránh gọi API ngầm */}
-      <div className="transition-all duration-150">
-        {activeTab === "dashboard" && (
-          <DashboardOverviewSection onSelectTab={handleTabChange} />
-        )}
-
-        {activeTab === "students" && (
-          <StudentsManagementView embedded />
-        )}
-
-        {activeTab === "supervisors" && (
-          <SupervisorsManagementView embedded />
-        )}
-
-        {activeTab === "evidence" && (
-          <EvidenceManagementView embedded />
-        )}
-
-        {activeTab === "topic-changes" && (
-          <TopicChangesManagementView embedded />
-        )}
-      </div>
-    </div>
-  );
-}
+export default AcademicDashboardView;

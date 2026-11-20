@@ -25,14 +25,14 @@ export const SYSTEM_ROLE_META: Record<SystemRole, RoleMeta> = {
     shortLabel: "ADMIN",
     description: "Toàn quyền quản trị tài khoản, phân quyền và nhật ký hệ thống",
     badgeClass:
-      "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/70 dark:bg-rose-950/60 dark:text-rose-300",
+      "border-slate-300 bg-slate-100 text-slate-800 font-bold dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
   },
   GIAO_VU: {
     label: "Giáo vụ SĐH",
     shortLabel: "GIAO_VU",
     description: "Quản lý hồ sơ NCS, đề tài, phân công hướng dẫn và quyết định",
     badgeClass:
-      "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800/70 dark:bg-indigo-950/60 dark:text-indigo-300",
+      "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800/70 dark:bg-blue-950/60 dark:text-blue-300",
   },
   GVHD: {
     label: "Giảng viên HD",

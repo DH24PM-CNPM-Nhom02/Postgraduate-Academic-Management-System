@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { ConfirmDialog } from "@/src/components/shared/ConfirmDialog";
 import { PdfViewer } from "@/src/components/upload/PdfViewer";
+import { TablePagination } from "@/src/components/ui/table-pagination";
 import type {
   SupervisorProxyRequestFormValues,
   SupervisorProxyRequestItem,
@@ -334,6 +335,8 @@ export function SupervisorRequestsWorkspace({
     useState<SupervisorProxyRequestItem | null>(null);
   const [activePdf, setActivePdf] = useState<ActivePdfState | null>(null);
   const [feedbackBanner, setFeedbackBanner] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 8;
 
   const selectedRequest = useMemo(
     () => requestsState.find((item) => item.id === selectedRequestId) ?? null,
@@ -372,6 +375,11 @@ export function SupervisorRequestsWorkspace({
       );
     });
   }, [requestsState, searchQuery, typeFilter]);
+
+  const paginatedRequests = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredRequests.slice(start, start + PAGE_SIZE);
+  }, [filteredRequests, currentPage]);
 
   const handleCreateSubmit = async (values: SupervisorProxyRequestFormValues) => {
     if (onCreateRequest) {
@@ -628,7 +636,10 @@ export function SupervisorRequestsWorkspace({
                   key={opt.id}
                   type="button"
                   aria-pressed={active}
-                  onClick={() => setTypeFilter(opt.id)}
+                  onClick={() => {
+                    setTypeFilter(opt.id);
+                    setCurrentPage(1);
+                  }}
                   className={`inline-flex min-h-10 items-center rounded-lg border px-3.5 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none ${
                     active
                       ? "border-[#164E9B] bg-[#164E9B] text-white"
@@ -650,7 +661,10 @@ export function SupervisorRequestsWorkspace({
               type="search"
               aria-label="Tìm theo mã đơn, tên NCS hoặc đề tài"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="Tìm mã đơn, tên NCS, nội dung..."
               className="h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
             />
@@ -690,7 +704,7 @@ export function SupervisorRequestsWorkspace({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredRequests.map((item) => {
+                {paginatedRequests.map((item) => {
                   const typeMeta = PROXY_REQUEST_TYPE_META[item.loaiDon];
                   const statusMeta = getSupervisorRequestStatusMeta(item.trangThai);
                   return (
@@ -760,6 +774,16 @@ export function SupervisorRequestsWorkspace({
             </table>
           </div>
         )}
+
+        <div className="border-t border-border px-5 py-3">
+          <TablePagination
+            currentPage={currentPage}
+            totalItems={filteredRequests.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+            itemLabel="đơn đề xuất"
+          />
+        </div>
       </section>
 
       {selectedRequest && (

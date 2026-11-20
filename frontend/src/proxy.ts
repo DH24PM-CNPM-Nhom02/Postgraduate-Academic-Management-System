@@ -1,7 +1,6 @@
 import { auth } from "@/src/auth";
 import { NextResponse } from "next/server";
 import type { UserRole } from "@/src/lib/auth/constants";
-import type { IUser } from "@/types/next-auth";
 
 export const config = {
   matcher: [

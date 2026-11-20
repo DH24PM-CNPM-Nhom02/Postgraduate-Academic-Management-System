@@ -11,7 +11,7 @@ import { TrangThaiHocTap, TrangThaiMoc } from '../generated/prisma/index.js';
 import { chuanHoaChuoi, validateEmail, validatePhoneNumber } from '../helpers/validateData.util.js';
 import { Prisma } from '../generated/prisma/index.js';
 import { goiService } from '../helpers/call-service.util.js';
-import { congThang } from '../helpers/date.util.js';
+import { congThang, congNgayLamViec, congNgay } from '../helpers/date.util.js';
 import { NotificationClient } from '../notification/notification.client.js';
 type AuthUser = {
   id: string;
@@ -102,6 +102,20 @@ export class NcsService {
    */
   async callAuth<T>(cmd: string, payload: unknown, ms = 5000): Promise<T> {
     return goiService<T>(this.auth, cmd, payload, ms);
+  }
+
+  async getNganhDaoTao() {
+    return this.prisma.nganhDaoTao.findMany({
+      select: { id: true, maNganh: true, tenNganh: true },
+      orderBy: [{ tenNganh: 'asc' }, { maNganh: 'asc' }],
+    });
+  }
+
+  async getKhoaHocNcs() {
+    return this.prisma.khoaHocNcs.findMany({
+      select: { id: true, maKhoaHoc: true, namTuyenSinh: true, ghiChu: true },
+      orderBy: [{ namTuyenSinh: 'desc' }, { maKhoaHoc: 'asc' }],
+    });
   }
 
   /**
@@ -577,24 +591,111 @@ export class NcsService {
     if (query?.trangThai) where.trangThai = query.trangThai as TrangThaiHocTap;
     if (query?.khoaHocId) where.khoaHocId = query.khoaHocId;
     if (query?.nganhId) where.nganhId = Number(query.nganhId) || undefined;
+    if (query?.search) {
+      const s = query.search.trim();
+      if (s) {
+        where.OR = [
+          { hoTen: { contains: s } },
+          { mshv: { contains: s } },
+          { email: { contains: s } },
+          { soDienThoai: { contains: s } },
+          { lop: { contains: s } },
+        ];
+      }
+    }
 
     return paginatePrisma(this.prisma.nghienCuuSinh, {
       page: query?.page,
       limit: query?.limit,
       where: Object.keys(where).length ? where : undefined,
-      orderBy: { mshv: 'asc' },
-      select: {
-        id: true,
-        mshv: true,
-        hoTen: true,
-        lop: true,
-        trangThai: true,
-        ngayNhapHoc: true,
-        hanChinhQuy: true,
-        hanGiaHan: true,
-        hanBuocThoiHoc: true,
-        khoaHocNcs: { select: { maKhoaHoc: true } },
-        nganh: { select: { maNganh: true, tenNganh: true } },
+      orderBy: [{ createdAt: 'desc' }, { mshv: 'desc' }],
+      include: {
+        khoaHocNcs: { select: { id: true, maKhoaHoc: true, namTuyenSinh: true } },
+        nganh: { select: { id: true, maNganh: true, tenNganh: true } },
+        deTais: {
+          where: { trangThai: 'HIEU_LUC' },
+          select: { id: true, tenDeTai: true, trangThai: true, quyetDinhId: true },
+          orderBy: { createdAt: 'desc' },
+        },
+        phanCongs: {
+          where: { trangThai: 'DANG_HIEU_LUC' },
+          include: {
+            gvhd: {
+              select: {
+                id: true,
+                maGv: true,
+                hoTen: true,
+                hocHamHocVi: true,
+                email: true,
+              },
+            },
+          },
+          orderBy: { vaiTro: 'asc' },
+        },
+        tienTrinhs: {
+          include: {
+            moc: { select: { id: true, thuTu: true, tenMoc: true, yeuCauDiem: true } },
+          },
+          orderBy: { moc: { thuTu: 'asc' } },
+        },
+      },
+      transform: (item: any) => {
+        const gvhdChinh = item.phanCongs?.find((p: any) => p.vaiTro === 'HUONG_DAN_CHINH');
+        const dongGvhd = item.phanCongs?.find((p: any) => p.vaiTro === 'DONG_HUONG_DAN');
+
+        const formatAcademicTitle = (title?: string | null): string | null => {
+          if (!title) return null;
+          const t = title.toUpperCase().trim();
+          switch (t) {
+            case 'GIAO_SU':
+            case 'GS':
+              return 'GS.TS';
+            case 'PHO_GIAO_SU':
+            case 'PGS':
+              return 'PGS.TS';
+            case 'TIEN_SI':
+            case 'TS':
+              return 'TS';
+            case 'THAC_SI':
+            case 'THS':
+              return 'ThS';
+            default:
+              return title;
+          }
+        };
+
+        const formatGvName = (g?: { hoTen?: string; hocHamHocVi?: string | null }) => {
+          if (!g || !g.hoTen) return null;
+          const title = formatAcademicTitle(g.hocHamHocVi);
+          if (!title) return g.hoTen;
+          if (
+            g.hoTen.startsWith(title) ||
+            g.hoTen.startsWith('GS.') ||
+            g.hoTen.startsWith('PGS.') ||
+            g.hoTen.startsWith('TS.') ||
+            g.hoTen.startsWith('ThS.')
+          ) {
+            return g.hoTen;
+          }
+          return `${title}. ${g.hoTen}`;
+        };
+
+        const deTaiHieuLuc = item.deTais?.[0]?.tenDeTai ?? null;
+        const gvhdName = formatGvName(gvhdChinh?.gvhd);
+        const dongGvhdName = formatGvName(dongGvhd?.gvhd);
+        const namTuyenSinh = item.khoaHocNcs?.namTuyenSinh || (item.ngayNhapHoc ? new Date(item.ngayNhapHoc).getFullYear() : null);
+
+        return {
+          ...item,
+          namTuyenSinh,
+          admissionYear: namTuyenSinh,
+          deTai: deTaiHieuLuc,
+          thesisTopic: deTaiHieuLuc,
+          gvhd: gvhdName,
+          dongGvhd: dongGvhdName,
+          supervisorMain: gvhdName,
+          supervisorCo: dongGvhdName,
+        };
       },
     });
   }
@@ -620,8 +721,35 @@ export class NcsService {
       include: {
         nganh: true,
         khoaHocNcs: true,
+        deTais: {
+          where: { trangThai: 'HIEU_LUC' },
+          select: { id: true, tenDeTai: true, trangThai: true },
+          orderBy: { createdAt: 'desc' },
+        },
         tienTrinhs: {
-          include: { moc: true },
+          include: {
+            moc: {
+              include: {
+                hans: true,
+              },
+            },
+            minhChungs: {
+              orderBy: { lanNop: 'asc' },
+              include: {
+                phieuNhanXets: {
+                  orderBy: { createdAt: 'asc' },
+                },
+                quyetDinh: {
+                  select: {
+                    id: true,
+                    soQuyetDinh: true,
+                    ngayQuyetDinh: true,
+                    fileId: true,
+                  },
+                },
+              },
+            },
+          },
           orderBy: { moc: { thuTu: 'asc' } },
         },
         phanCongs: {
@@ -634,6 +762,7 @@ export class NcsService {
                 hoTen: true,
                 hocHamHocVi: true,
                 email: true,
+                chuyenNganh: true,
               },
             },
             quyetDinh: {
@@ -641,10 +770,23 @@ export class NcsService {
                 id: true,
                 soQuyetDinh: true,
                 ngayQuyetDinh: true,
+                fileId: true,
               },
             },
           },
           orderBy: { vaiTro: 'asc' },
+        },
+        quyetDinhs: {
+          select: {
+            id: true,
+            soQuyetDinh: true,
+            ngayQuyetDinh: true,
+            loai: true,
+            trangThai: true,
+            ghiChu: true,
+            fileId: true,
+          },
+          orderBy: { ngayQuyetDinh: 'desc' },
         },
       },
     });
@@ -656,7 +798,166 @@ export class NcsService {
       });
     }
 
-    return hoSo;
+    const gvhdChinh = hoSo.phanCongs?.find((p: any) => p.vaiTro === 'HUONG_DAN_CHINH');
+    const dongGvhd = hoSo.phanCongs?.find((p: any) => p.vaiTro === 'DONG_HUONG_DAN');
+    const formatAcademicTitle = (title?: string | null): string | null => {
+      if (!title) return null;
+      const t = title.toUpperCase().trim();
+      switch (t) {
+        case 'GIAO_SU':
+        case 'GS':
+          return 'GS.TS';
+        case 'PHO_GIAO_SU':
+        case 'PGS':
+          return 'PGS.TS';
+        case 'TIEN_SI':
+        case 'TS':
+          return 'TS';
+        case 'THAC_SI':
+        case 'THS':
+          return 'ThS';
+        default:
+          return title;
+      }
+    };
+    const formatGvName = (g?: { hoTen?: string; hocHamHocVi?: string | null }) => {
+      if (!g || !g.hoTen) return null;
+      const title = formatAcademicTitle(g.hocHamHocVi);
+      if (!title) return g.hoTen;
+      if (
+        g.hoTen.startsWith(title) ||
+        g.hoTen.startsWith('GS.') ||
+        g.hoTen.startsWith('PGS.') ||
+        g.hoTen.startsWith('TS.') ||
+        g.hoTen.startsWith('ThS.')
+      ) {
+        return g.hoTen;
+      }
+      return `${title}. ${g.hoTen}`;
+    };
+    const deTaiHieuLuc = hoSo.deTais?.[0]?.tenDeTai ?? null;
+    const namTuyenSinh = hoSo.khoaHocNcs?.namTuyenSinh || (hoSo.ngayNhapHoc ? new Date(hoSo.ngayNhapHoc).getFullYear() : null);
+
+    const ngayNhapHoc = hoSo.ngayNhapHoc ? new Date(hoSo.ngayNhapHoc) : null;
+    const hanChinhQuy = hoSo.hanChinhQuy ? new Date(hoSo.hanChinhQuy) : null;
+    const hanGiaHan = hoSo.hanGiaHan ? new Date(hoSo.hanGiaHan) : null;
+    const hanBuocThoiHoc = hoSo.hanBuocThoiHoc ? new Date(hoSo.hanBuocThoiHoc) : null;
+
+    // Danh sách ngày đạt của các mốc (làm gốc cho hạn kiểu NGAY_MOC_DAT)
+    const ngayDatCuaMoc = new Map<number, Date>();
+    for (const tt of hoSo.tienTrinhs ?? []) {
+      if (tt.passedAt) {
+        ngayDatCuaMoc.set(tt.moc.thuTu, new Date(tt.passedAt));
+      }
+    }
+
+    const tienTrinhsEnriched = hoSo.tienTrinhs?.map((t: any) => {
+      const thuTu = t.moc?.thuTu;
+      const cacMocHan = t.moc?.hans ?? [];
+
+      const hanDaTinh: Array<{
+        maHan: string;
+        tenHan: string;
+        han: Date | null;
+        hanStr: string | null;
+        laHanMem: boolean;
+        canCu: string | null;
+      }> = [];
+
+      for (const h of cacMocHan) {
+        let goc: Date | null = null;
+        if (h.mocGoc === 'NGAY_NHAP_HOC') {
+          goc = ngayNhapHoc;
+        } else if (h.mocGoc === 'NGAY_MOC_DAT') {
+          goc = h.gocThuTu ? (ngayDatCuaMoc.get(h.gocThuTu) ?? null) : null;
+        } else if (h.mocGoc === 'HET_HAN_CHINH_QUY') {
+          goc = hanGiaHan ?? hanChinhQuy;
+        }
+
+        let han: Date | null = null;
+        if (goc) {
+          if (h.donVi === 'THANG') {
+            han = congThang(goc, h.soDonVi);
+          } else if (h.donVi === 'NGAY') {
+            han = congNgay(goc, h.soDonVi);
+          } else if (h.donVi === 'NGAY_LAM_VIEC') {
+            han = congNgayLamViec(goc, h.soDonVi);
+          }
+
+          if (han && hanBuocThoiHoc && han > hanBuocThoiHoc) {
+            han = hanBuocThoiHoc;
+          }
+        }
+
+        hanDaTinh.push({
+          maHan: h.maHan,
+          tenHan: h.tenHan,
+          han,
+          hanStr: han ? han.toISOString().slice(0, 10) : null,
+          laHanMem: Boolean(h.laHanMem),
+          canCu: h.canCu ?? null,
+        });
+      }
+
+      let hanQuyDinh: string | null = null;
+      let moTaHan: string | null = null;
+
+      if (cacMocHan.length > 0) {
+        // Hạn cứng quy định: ưu tiên hạn hoàn thành hoặc hạn sớm nhất trong các hạn cứng
+        const hanCungList = hanDaTinh.filter((x) => !x.laHanMem && x.han);
+        if (hanCungList.length > 0) {
+          const primary = hanCungList.find((x) => x.maHan === 'HOAN_THANH' || x.maHan === 'BAO_VE_CO_SO') ?? hanCungList[0];
+          hanQuyDinh = primary.hanStr;
+          moTaHan = primary.canCu || primary.tenHan;
+        } else {
+          const primary = cacMocHan.find((x: any) => !x.laHanMem && (x.maHan === 'HOAN_THANH' || x.maHan === 'BAO_VE_CO_SO')) ?? cacMocHan[0];
+          moTaHan = primary?.canCu || primary?.tenHan || null;
+        }
+      } else {
+        if (thuTu === 1) {
+          moTaHan = 'Hoàn thành khi ban hành QĐ công nhận NCS và đề tài';
+        } else if (thuTu === 6) {
+          moTaHan = 'Định kỳ tháng 6 và tháng 12 hàng năm (không có hạn cố định)';
+        }
+      }
+
+      // Ưu tiên hạn kế hoạch (nếu có)
+      const hanKeHoachStr = t.hanKeHoach
+        ? new Date(t.hanKeHoach).toISOString().slice(0, 10)
+        : null;
+
+      const hanApDung = hanKeHoachStr || hanQuyDinh;
+      const loaiHan = hanKeHoachStr ? 'KE_HOACH' : hanQuyDinh ? 'QUY_DINH' : 'KHONG_CO';
+
+      return {
+        ...t,
+        hanKeHoach: hanKeHoachStr,
+        hanQuyDinh,
+        moTaHan,
+        hanApDung,
+        loaiHan,
+        cacHan: hanDaTinh,
+      };
+    });
+
+    const phuongThucDaoTaoText =
+      hoSo.phuongThucDaoTao === 'PHUONG_THUC_1'
+        ? 'Nghiên cứu chuyên sâu toàn thời gian'
+        : 'Nghiên cứu kết hợp các học phần chuyên môn';
+
+    return {
+      ...hoSo,
+      phuongThucDaoTaoText,
+      namTuyenSinh,
+      admissionYear: namTuyenSinh,
+      deTai: deTaiHieuLuc,
+      thesisTopic: deTaiHieuLuc,
+      gvhd: formatGvName(gvhdChinh?.gvhd) ?? null,
+      dongGvhd: formatGvName(dongGvhd?.gvhd) ?? null,
+      supervisorMain: formatGvName(gvhdChinh?.gvhd) ?? null,
+      supervisorCo: formatGvName(dongGvhd?.gvhd) ?? null,
+      tienTrinhs: tienTrinhsEnriched,
+    };
   }
 
 
@@ -794,7 +1095,7 @@ export class NcsService {
   // ==========Update NCS==============
   async updateNcs(actorId: string, ncsId: string, data: UpdateNcsDto) {
     const allowedFields = new Set([
-      'hoTen', 'ngaySinh', 'gioiTinh', 'cccd', 'email',
+      'hoTen', 'ngaySinh', 'gioiTinh', 'email',
       'soDienThoai', 'nganh', 'khoaHoc', 'lop',
     ]);
     if (!data || typeof data !== 'object' || Object.keys(data).length === 0) {
@@ -850,10 +1151,6 @@ export class NcsService {
         if (input.gioiTinh !== undefined) {
           if (!['NAM', 'NU'].includes(input.gioiTinh)) throw new RpcException({ statusCode: 400, message: 'Giới tính không hợp lệ' });
           setChange('gioiTinh', 'gioiTinh', hoSoCu.gioiTinh, input.gioiTinh);
-        }
-        if (input.cccd !== undefined) {
-          if (!CCCD_PATTERN.test(input.cccd)) throw new RpcException({ statusCode: 400, message: 'CCCD phải là 12 chữ số (hoặc 9 chữ số với CMND cũ)' });
-          setChange('cccd', 'cccd', hoSoCu.cccd, input.cccd);
         }
         if (input.soDienThoai !== undefined) {
           if (!validatePhoneNumber(input.soDienThoai)) throw new RpcException({ statusCode: 400, message: 'Số điện thoại không hợp lệ' });

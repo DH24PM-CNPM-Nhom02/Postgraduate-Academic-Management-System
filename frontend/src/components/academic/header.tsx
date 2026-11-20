@@ -44,7 +44,7 @@ export function AcademicHeader({
 
         <div className="flex items-center gap-3">
           <Link
-            href="/academic"
+            href="/"
             className="flex items-center gap-2.5 transition-transform hover:scale-102"
           >
             <HoverLogo sizeClass="size-8.5" />

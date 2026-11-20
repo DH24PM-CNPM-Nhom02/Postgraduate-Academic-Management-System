@@ -17,6 +17,9 @@ const MAX_ROWS = 200;
 type RowResult = {
   row: number;            // số dòng trong file Excel
   mshv: string;
+  hoTen?: string;
+  nganh?: string;
+  khoaHoc?: string;
   ok: boolean;
   willCreateAccount: boolean; // true = MSHV này chưa có tài khoản, sẽ được tạo 
   errors: string[];
@@ -217,6 +220,9 @@ export class NcsImportService {
     const results: RowResult[] = rows.map((r) => ({
       row: r.row,
       mshv: (r.mshv ?? '').trim(),
+      hoTen: r.hoTen?.trim(),
+      nganh: r.nganh?.trim(),
+      khoaHoc: r.khoaHoc?.trim(),
       ok: true,
       willCreateAccount: false,
       errors: validateRow(r),
