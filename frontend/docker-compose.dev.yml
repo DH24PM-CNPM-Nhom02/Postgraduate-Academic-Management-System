@@ -1,0 +1,30 @@
+name: pams-fe
+
+# Chạy frontend sau backend:
+# docker compose -f frontend/docker-compose.dev.yml up --build
+
+services:
+  frontend:
+    build:
+      context: .
+      target: dev
+    environment:
+      API_INTERNAL_URL: http://api-gateway:8080/api/v1
+      NEXT_PUBLIC_API_URL: http://localhost:${API_GATEWAY_HOST_PORT}/api/v1
+      AUTH_TRUST_HOST: true
+      AUTH_URL: http://localhost:${FRONTEND_PORT}
+      NEXTAUTH_URL: http://localhost:${FRONTEND_PORT}
+      AUTH_SECRET: ${AUTH_SECRET}
+    ports:
+      - "${FRONTEND_PORT}:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - pams-network
+
+networks:
+  pams-network:
+    external: true
+    name: pams-network
