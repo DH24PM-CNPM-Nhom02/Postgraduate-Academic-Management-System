@@ -189,6 +189,7 @@ export function SupervisorAssignmentModal({
   const effectiveDecisionId = decisions.some((d) => d.id === quyetDinhId)
     ? quyetDinhId
     : decisions[0]?.id || "";
+  const selectedDecision = decisions.find((d) => d.id === effectiveDecisionId) ?? null;
 
   // Quyết định đã dùng cho các phân công hiện tại của NCS
   const usedAssignmentDecisionIds = new Set(
