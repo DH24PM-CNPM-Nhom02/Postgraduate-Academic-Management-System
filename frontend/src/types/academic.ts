@@ -145,6 +145,7 @@ export interface ImportedEntityItem {
 
 /** Các loại Quyết định pháp lý */
 export type DecisionType =
+  | "HOC_TIEP"
   | "CAN_CU_DUYET_MOC"
   | "GIA_HAN"
   | "BAO_LUU"

@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import {
@@ -51,12 +53,7 @@ export function EvidenceManagementView({ embedded = false }: EvidenceManagementV
   const [evalModalOpen, setEvalModalOpen] = useState(false);
   const [evalData, setEvalData] = useState<EvidenceItem | null>(null);
 
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4500);
-  };
 
   const filteredEvidences = useMemo(() => {
     if (evidenceFilter === "all") return evidencesList;
@@ -80,27 +77,13 @@ export function EvidenceManagementView({ embedded = false }: EvidenceManagementV
         : "Đã từ chối";
 
     setRemovedIds((prev) => [...prev, approvalData.id]);
-    triggerToast(
+    toast.success(
       `${actionLabel} minh chứng cho NCS ${approvalData.studentName}.`
     );
   };
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
-      {/* Toast Alert */}
-      {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 flex items-center gap-3 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 shadow-xl text-xs font-semibold text-emerald-900 animate-in slide-in-from-top duration-200">
-          <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
-          <span>{toastMessage}</span>
-          <button
-            onClick={() => setToastMessage(null)}
-            className="rounded p-1 hover:bg-emerald-100 text-emerald-700 cursor-pointer"
-          >
-            ×
-          </button>
-        </div>
-      )}
-
       {/* Breadcrumb & Header */}
       <div>
         {!embedded && (
@@ -365,7 +348,7 @@ export function EvidenceManagementView({ embedded = false }: EvidenceManagementV
             : 2
         }
         onSavedSuccess={(evals, avg) => {
-          triggerToast(
+          toast.success(
             `Đã lưu kết quả phiếu nhận xét! Điểm trung bình: ${avg.toFixed(1)}/10.`
           );
         }}

@@ -209,11 +209,10 @@ export function ThesisAssignmentModal({
             {/* CẢNH BÁO RÀNG BUỘC NGHIỆP VỤ */}
             {validation.isBlocked && validation.message && (
               <div
-                className={`flex items-start gap-3 rounded-xl border p-4 text-xs ${
-                  validation.type === "warning"
+                className={`flex items-start gap-3 rounded-xl border p-4 text-xs ${validation.type === "warning"
                     ? "border-amber-300 bg-amber-50 text-amber-900"
                     : "border-rose-300 bg-rose-50 text-rose-900"
-                }`}
+                  }`}
               >
                 {validation.type === "warning" ? (
                   <AlertTriangle className="size-4 text-amber-600 shrink-0 mt-0.5" />
@@ -276,7 +275,7 @@ export function ThesisAssignmentModal({
                   {targetNcs && (
                     <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-3 text-xs text-slate-700">
                       <p>
-                        Khóa đào tạo: <strong>{targetNcs.khoaHoc}</strong> • Trạng thái:{" "}
+                        Trạng thái:{" "}
                         <strong>{targetNcs.trangThaiHocTap || "Đang học"}</strong>
                       </p>
                     </div>
@@ -295,13 +294,12 @@ export function ThesisAssignmentModal({
                   Tên Đề tài Luận án Tiến sĩ <span className="text-rose-500">*</span>
                 </label>
                 <span
-                  className={`text-[11px] font-mono ${
-                    trimmedLength > 500
+                  className={`text-[11px] font-mono ${trimmedLength > 500
                       ? "text-rose-600 font-bold"
                       : trimmedLength >= 5
-                      ? "text-emerald-600 font-semibold"
-                      : "text-slate-400"
-                  }`}
+                        ? "text-emerald-600 font-semibold"
+                        : "text-slate-400"
+                    }`}
                 >
                   {trimmedLength} / 500 ký tự
                 </span>
@@ -371,7 +369,7 @@ export function ThesisAssignmentModal({
                     className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-amber-300 px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition-colors shadow-2xs"
                   >
                     <PlusCircle className="size-3.5 text-amber-700" />
-                    <span>+ Tạo Quyết định mới tại Quản lý Quyết định</span>
+                    <span>Tạo Quyết định mới tại Quản lý Quyết định</span>
                     <ExternalLink className="size-3 text-amber-600 ml-0.5" />
                   </Link>
                 </div>
@@ -380,10 +378,8 @@ export function ThesisAssignmentModal({
           </div>
 
           {/* FOOTER ACTIONS */}
-          <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-4">
-            <div className="text-[11px] text-slate-500">
-              * Bắt buộc hoàn tất các trường thông tin
-            </div>
+          <div className="flex items-center justify-end border-t border-slate-200 bg-slate-50 px-6 py-4">
+            
             <div className="flex items-center gap-2">
               <button
                 type="button"

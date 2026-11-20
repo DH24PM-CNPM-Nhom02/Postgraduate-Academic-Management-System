@@ -12,6 +12,7 @@ export const DOCUMENT_TYPES = [
   "QUYET_DINH",
   "MINH_CHUNG_NGOAI_NGU",
   "MINH_CHUNG_CONG_NO",
+  "PHIEU_NHAN_XET",
   "DON_TU",
   "BIEU_MAU",
   "QUY_DINH",

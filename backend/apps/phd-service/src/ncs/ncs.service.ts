@@ -737,6 +737,7 @@ export class NcsService {
               orderBy: { lanNop: 'asc' },
               include: {
                 phieuNhanXets: {
+                  where: { deletedAt: null },
                   orderBy: { createdAt: 'asc' },
                 },
                 quyetDinh: {

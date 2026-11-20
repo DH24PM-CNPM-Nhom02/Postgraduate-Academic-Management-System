@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+
 import React, { useState, useMemo } from "react";
 import {
   X,
@@ -217,7 +219,7 @@ export function StudentDetailModal({
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1500);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Không thể tải file PDF");
+      toast.error(err instanceof Error ? err.message : "Không thể tải file PDF");
     }
   };
 
@@ -350,7 +352,7 @@ export function StudentDetailModal({
         return <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-800">Buộc thôi học</span>;
       case "NGUNG_HOC":
         return <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-700">Ngừng học</span>;
-      case "TOT_NGHIEP":
+      case "DA_TOT_NGHIEP":
         return <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">Đã tốt nghiệp</span>;
       default:
         return <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">Đang học</span>;

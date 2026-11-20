@@ -234,7 +234,7 @@ export function ThesisDetailDrawer({
                         className="inline-flex items-center gap-1.5 rounded-xl bg-[#164E9B] px-4 py-2 text-xs font-bold text-white hover:bg-[#123E7C] transition-colors shadow-xs cursor-pointer"
                       >
                         <PlusCircle className="size-4" />
-                        <span>+ Giao đề tài ngay</span>
+                        <span>Giao đề tài ngay</span>
                       </button>
                     )}
                   </div>

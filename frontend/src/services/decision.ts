@@ -31,7 +31,46 @@ export interface CreateDecisionResponse {
   canhBao: string[];
 }
 
+export interface BackendDecision {
+  id: string;
+  ncsId: string | null;
+  soQuyetDinh: string;
+  ngayQuyetDinh: string;
+  loai: DecisionType;
+  trangThai: "HIEU_LUC" | "DEACTIVATE";
+  ncs: { mshv: string; hoTen: string } | null;
+  fileId: string | null;
+  ghiChu: string | null;
+  createdAt: string;
+}
+
 export const DecisionService = {
+  list: async (signal?: AbortSignal): Promise<import("@/src/types/academic").DecisionItem[]> => {
+    try {
+      const response = await apiClient.get<BackendDecision[] | { data: BackendDecision[] }>("/decisions", {
+        signal,
+        timeout: 15_000,
+      });
+      const items = Array.isArray(response.data) ? response.data : response.data.data;
+      return items.map((item) => ({
+        ...item,
+        ngayQuyetDinh: item.ngayQuyetDinh.slice(0, 10),
+        trangThai: item.trangThai === "DEACTIVATE" ? "VO_HIEU_HOA" : "HIEU_LUC",
+        ncs: item.ncs && item.ncsId ? { ...item.ncs, id: item.ncsId } : null,
+        ngayTao: item.createdAt,
+      }));
+    } catch (error) {
+      throwApiError(error);
+    }
+  },
+  deactivate: async (id: string, lyDo: string): Promise<{ canhBao: string[] }> => {
+    try {
+      const response = await apiClient.patch<{ canhBao: string[] }>(`/decisions/${id}/deactivate`, { lyDo });
+      return response.data;
+    } catch (error) {
+      throwApiError(error);
+    }
+  },
   create: async (payload: CreateDecisionPayload): Promise<CreateDecisionResponse> => {
     try {
       const response = await apiClient.post<CreateDecisionResponse>("/decisions", payload);

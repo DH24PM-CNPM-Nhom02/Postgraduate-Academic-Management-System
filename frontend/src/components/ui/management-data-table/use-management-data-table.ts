@@ -12,6 +12,9 @@ import {
   type Updater,
 } from "@tanstack/react-table";
 
+// A new filter array on each render would repeatedly trigger TanStack's page reset.
+const EMPTY_COLUMN_FILTERS: ColumnFiltersState = [];
+
 export interface UseManagementDataTableOptions<TData> {
   data: TData[];
   columns: ColumnDef<TData>[];
@@ -28,7 +31,7 @@ export function useManagementDataTable<TData>({
   columns,
   globalFilter,
   onGlobalFilterChange,
-  columnFilters = [],
+  columnFilters = EMPTY_COLUMN_FILTERS,
   globalFilterFn,
   initialPageSize = 8,
 }: UseManagementDataTableOptions<TData>) {

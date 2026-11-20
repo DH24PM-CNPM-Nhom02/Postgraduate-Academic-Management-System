@@ -7,6 +7,9 @@ import type {
   MilestoneEvidenceApi,
   MilestoneItemApi,
   MyProgressResponse,
+  PendingReviewMilestone,
+  EvaluationPayload,
+  ReviewEvaluations,
   SubmitMilestoneRequest,
   SubmitMilestoneResponse,
   SubmitMilestoneWithFileVariables,
@@ -229,12 +232,49 @@ export function mapMyProgressToUi(
   };
 }
 
+async function progressRequest<T>(request: Promise<{ data: T }>): Promise<T> {
+  try {
+    return (await request).data;
+  } catch (error) {
+    throwApiError(error);
+  }
+}
+
 /**
  * ProgressService
  *
  * Service gọi Backend cho phân hệ Tiến trình 9 mốc của NCS (`ProgressController`).
  */
 export const ProgressService = {
+  listPendingReviews: (signal: AbortSignal, thuTu?: number) =>
+    progressRequest(apiClient.get<PendingReviewMilestone[]>("/progress/pending", {
+      params: { thuTu },
+      signal,
+      timeout: 15_000,
+    })),
+
+  getNcsProgress: (ncsId: string, signal: AbortSignal) =>
+    progressRequest(apiClient.get<MyProgressResponse>(`/progress/ncs/${ncsId}`, { signal, timeout: 15_000 })),
+
+  listEvaluations: (evidenceId: string, signal: AbortSignal) =>
+    progressRequest(apiClient.get<ReviewEvaluations>(`/progress/evidences/${evidenceId}/evaluations`, { signal, timeout: 15_000 })),
+
+  saveEvaluation: (evidenceId: string, payload: EvaluationPayload, evaluationId?: string) => {
+    const endpoint = `/progress/evidences/${evidenceId}/evaluations`;
+    return progressRequest(evaluationId
+      ? apiClient.patch(`${endpoint}/${evaluationId}`, payload)
+      : apiClient.post(endpoint, payload));
+  },
+
+  deleteEvaluation: (evidenceId: string, evaluationId: string) =>
+    progressRequest(apiClient.delete(`/progress/evidences/${evidenceId}/evaluations/${evaluationId}`)),
+
+  reviewMilestone: (id: string, review: { quyetDinhId: string } | { lyDo: string }) => {
+    const action = "quyetDinhId" in review ? "approve" : "reject";
+    return progressRequest(apiClient.post(`/progress/reviews/${id}/${action}`, review));
+  },
+
+
   /**
    * 1. Lấy lộ trình 9 mốc, thời hạn hiệu lực và lịch sử minh chứng của NCS đang đăng nhập
    * Endpoint: GET /progress/me

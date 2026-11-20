@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+
 import React, { useState } from "react";
 import {
   X,
@@ -69,7 +71,7 @@ export function DocumentPreviewModal({
               href="#"
               onClick={(e) => {
                 e.preventDefault();
-                alert(`Đang tải xuống tài liệu gốc: ${documentTitle}.pdf (Bản có chữ ký số xác thực).`);
+                toast.info(`Đang tải xuống tài liệu gốc: ${documentTitle}.pdf (Bản có chữ ký số xác thực).`);
               }}
               className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/25 transition-colors"
             >

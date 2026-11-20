@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+
 import React, { useState } from "react";
 import {
   X,
@@ -180,7 +182,7 @@ export function TopicChangeModal({
                   type="button"
                   onClick={() => {
                     if (!rejectReason.trim()) {
-                      alert("Vui lòng nhập lý do cụ thể.");
+                      toast.warning("Vui lòng nhập lý do cụ thể.");
                       return;
                     }
                     onDecision(data.id, "reject", rejectReason);

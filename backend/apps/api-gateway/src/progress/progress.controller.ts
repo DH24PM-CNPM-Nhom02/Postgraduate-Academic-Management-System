@@ -1,11 +1,11 @@
-import { BadRequestException, Body, Controller, Get, Inject, Param, ParseIntPipe, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, ParseIntPipe, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator.js';
 import { PHD_SERVICE } from '../common/constants/service.js';
 import type { AuthUser } from '../common/interface/auth-user.interface.js';
-import { SubmitMilestoneDto, ApproveMilestoneDto, RejectMilestoneDto, CreateEvaluationDto, SetPlanDeadlineDto, ListPendingMilestonesQueryDto } from '../../../../lib/contracts/src/dto/progress.dto.js';
+import { SubmitMilestoneDto, ApproveMilestoneDto, RejectMilestoneDto, CreateEvaluationDto, UpdateEvaluationDto, SetPlanDeadlineDto, ListPendingMilestonesQueryDto } from '../../../../lib/contracts/src/dto/progress.dto.js';
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
 
 @Controller('progress')
@@ -97,6 +97,27 @@ export class ProgressController {
   ) {
     // actorId và minhChungId do server gán, dto chứa phần body từ client
     return this.send('phd.evaluation.create', { actorId: u.id, minhChungId, dto: body });
+  }
+
+  @Patch('evidences/:minhChungId/evaluations/:phieuId')
+  @RequirePermissions(PERMISSIONS.MILESTONE_APPROVE)
+  updateEvaluation(
+    @CurrentUser() u: AuthUser,
+    @Param('minhChungId', ParseUUIDPipe) minhChungId: string,
+    @Param('phieuId', ParseUUIDPipe) phieuId: string,
+    @Body() body: UpdateEvaluationDto,
+  ) {
+    return this.send('phd.evaluation.update', { actorId: u.id, minhChungId, phieuId, dto: body });
+  }
+
+  @Delete('evidences/:minhChungId/evaluations/:phieuId')
+  @RequirePermissions(PERMISSIONS.MILESTONE_APPROVE)
+  deleteEvaluation(
+    @CurrentUser() u: AuthUser,
+    @Param('minhChungId', ParseUUIDPipe) minhChungId: string,
+    @Param('phieuId', ParseUUIDPipe) phieuId: string,
+  ) {
+    return this.send('phd.evaluation.delete', { actorId: u.id, minhChungId, phieuId });
   }
 
   // Giáo vụ xem các phiếu và điểm trung bình của một lần nộp

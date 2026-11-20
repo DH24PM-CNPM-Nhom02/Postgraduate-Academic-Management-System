@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -7,8 +9,6 @@ import {
   ArrowLeft,
   Plus,
   Download,
-  CheckCircle2,
-  AlertCircle,
   Loader2,
 } from "lucide-react";
 import type {
@@ -100,19 +100,6 @@ function ThesesManagementViewContent({
   const [selectedItem, setSelectedItem] =
     useState<AcademicThesisNcsItem | null>(null);
 
-  // Toast State
-  const [toast, setToast] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
-
-  const showToast = (message: string, type: "success" | "error" = "success") => {
-    setToast({ message, type });
-    setTimeout(() => {
-      setToast(null);
-    }, 5000);
-  };
-
   // HANDLERS BỘ LỌC (Tuân thủ Guardrail 2: gọi setPage(1) trực tiếp trong handler)
   const handleSearchChange = (val: string) => {
     setSearch(val);
@@ -164,7 +151,7 @@ function ThesesManagementViewContent({
   // XUẤT FILE CSV / EXCEL ĐỊNH DẠNG UTF-8 CÓ BOM
   const handleExportCsv = () => {
     if (thesisItems.length === 0) {
-      showToast("Không có dữ liệu đề tài để trích xuất.", "error");
+      toast.error("Không có dữ liệu đề tài để trích xuất.");
       return;
     }
 
@@ -218,36 +205,11 @@ function ThesesManagementViewContent({
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    showToast("Đã trích xuất danh sách đề tài luận án thành công.");
+    toast.success("Đã trích xuất danh sách đề tài luận án thành công.");
   };
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
-      {/* TOAST ALERT NOTIFICATION */}
-      {toast && (
-        <div
-          className={`fixed top-20 right-6 z-50 flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-xl text-xs font-semibold animate-in slide-in-from-top duration-200 ${
-            toast.type === "success"
-              ? "border-emerald-300 bg-emerald-50 text-emerald-900"
-              : "border-rose-300 bg-rose-50 text-rose-900"
-          }`}
-        >
-          {toast.type === "success" ? (
-            <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
-          ) : (
-            <AlertCircle className="size-4 text-rose-600 shrink-0" />
-          )}
-          <span>{toast.message}</span>
-          <button
-            type="button"
-            onClick={() => setToast(null)}
-            className="rounded p-1 hover:bg-black/5 cursor-pointer ml-2"
-          >
-            ×
-          </button>
-        </div>
-      )}
-
       {/* HEADER & ACTIONS */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -359,7 +321,7 @@ function ThesesManagementViewContent({
         }}
         student={selectedItem}
         students={thesisItems}
-        onSuccess={(msg) => showToast(msg, "success")}
+        onSuccess={toast.success}
       />
 
       {/* MODAL HỦY ĐỀ TÀI (reset qua key prop) */}
@@ -371,7 +333,7 @@ function ThesesManagementViewContent({
           setSelectedItem(null);
         }}
         item={selectedItem}
-        onSuccess={(msg) => showToast(msg, "success")}
+        onSuccess={toast.success}
       />
 
       {/* DRAWER CHI TIẾT & LỊCH SỬ ĐỀ TÀI */}
