@@ -58,6 +58,16 @@ export interface MilestoneEvidenceApi {
   lyDoTuChoi: string | null;
   ngayNop: string;
   ngayDuyet: string | null;
+  phieuNhanXets?: MilestoneReviewApi[];
+}
+
+export interface MilestoneReviewApi {
+  id: string;
+  tenNguoiCham: string;
+  donViNguoiCham: string | null;
+  diem: number | string;
+  createdAt: string;
+  nhanXet: string | null;
 }
 
 /** Thông tin từng mốc tiến trình trả về từ GET /progress/me */

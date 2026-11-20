@@ -3,18 +3,6 @@
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { UserRole } from "@/src/lib/auth/constants";
-
-/**
- * Trang mặc định sau khi đăng nhập thành công, tùy theo vai trò.
- * Giữ đồng bộ với ROLE_HOME trong proxy.ts (middleware).
- */
-const ROLE_HOME: Record<UserRole, string> = {
-    NCS: "/student/progress",
-    GVHD: "/supervisor",
-    GIAO_VU: "/academic",
-    ADMIN: "/admin",
-};
 
 export function useAuth() {
     const { data: session, status } = useSession();

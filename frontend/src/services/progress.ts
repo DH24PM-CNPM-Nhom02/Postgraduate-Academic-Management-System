@@ -116,18 +116,18 @@ export function mapMyProgressToUi(
         .reverse()
         .find((ev) => ev.diemTrungBinh !== undefined);
 
-      const mcWithReviews = [...(item.minhChungs || [])]
-        .sort((a: any, b: any) => (b.lanNop ?? 0) - (a.lanNop ?? 0))
-        .find((mc: any) => mc.phieuNhanXets && mc.phieuNhanXets.length > 0);
+      const mcWithReviews = [...item.minhChungs]
+        .sort((a, b) => b.lanNop - a.lanNop)
+        .find((mc) => mc.phieuNhanXets?.length);
 
-      const phieuNhanXets: PhieuNhanXetItem[] = ((mcWithReviews as any)?.phieuNhanXets || []).map((pnx: any) => ({
+      const phieuNhanXets: PhieuNhanXetItem[] = (mcWithReviews?.phieuNhanXets ?? []).map((pnx) => ({
         id: pnx.id,
         tenNguoiCham: pnx.tenNguoiCham,
         chucDanh: pnx.donViNguoiCham || "Thành viên Hội đồng",
         diem: Number(pnx.diem),
         fileName: `Phieu_nhan_xet_${pnx.tenNguoiCham?.replace(/\s+/g, "_") || "nguoi_cham"}.pdf`,
         ngayDanhGia: formatDateShortVi(pnx.createdAt),
-        nhanXet: pnx.nhanXet,
+        nhanXet: pnx.nhanXet ?? undefined,
       }));
 
       return {

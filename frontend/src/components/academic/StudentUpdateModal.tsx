@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, Pencil, X } from "lucide-react";
 import {
   useNcsCohorts,
@@ -74,15 +74,9 @@ export function StudentUpdateModal({ isOpen, onClose, student, onSuccess }: Stud
   const updateMutation = useUpdateAcademicStudentProfile();
   const majorsQuery = useNcsTrainingMajors(isOpen);
   const cohortsQuery = useNcsCohorts(isOpen);
-  const [form, setForm] = useState<StudentUpdateForm>(EMPTY_FORM);
+  const [form, setForm] = useState<StudentUpdateForm>(() => student ? getFormFromStudent(student) : EMPTY_FORM);
   const [formErrors, setFormErrors] = useState<string[]>([]);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (student) setForm(getFormFromStudent(student));
-    setFormErrors([]);
-    setFormSuccess(null);
-  }, [student, isOpen]);
 
   const initialForm = useMemo(() => student ? getFormFromStudent(student) : EMPTY_FORM, [student]);
   if (!isOpen || !student) return null;

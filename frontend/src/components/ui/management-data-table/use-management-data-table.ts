@@ -14,9 +14,9 @@ import {
 
 export interface UseManagementDataTableOptions<TData> {
   data: TData[];
-  columns: ColumnDef<TData, any>[];
+  columns: ColumnDef<TData>[];
   globalFilter: string;
-  onGlobalFilterChange: (updater: Updater<any>) => void;
+  onGlobalFilterChange: (updater: Updater<string>) => void;
   columnFilters?: ColumnFiltersState;
   globalFilterFn?: FilterFn<TData>;
   initialPageSize?: number;
@@ -34,6 +34,8 @@ export function useManagementDataTable<TData>({
 }: UseManagementDataTableOptions<TData>) {
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: initialPageSize });
 
+  // TanStack Table instances expose mutable APIs that React Compiler cannot memoize safely.
+  // eslint-disable-next-line react-hooks/incompatible-library
   return useReactTable({
     data,
     columns,

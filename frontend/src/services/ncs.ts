@@ -88,8 +88,36 @@ export interface BackendNcsRaw {
     hanApDung?: string | null;
     loaiHan?: "KE_HOACH" | "QUY_DINH" | "KHONG_CO" | string;
     moc?: { id?: number; thuTu?: number; tenMoc?: string; yeuCauDiem?: boolean; moTa?: string | null };
-    minhChungs?: any[];
+    minhChungs?: BackendNcsEvidenceRaw[];
   }>;
+}
+
+export interface BackendNcsReviewRaw {
+  id?: string;
+  tenNguoiCham?: string;
+  donViNguoiCham?: string | null;
+  diem?: number | string | null;
+  createdAt?: string;
+  nhanXet?: string | null;
+}
+
+export interface BackendNcsEvidenceRaw {
+  id?: string;
+  lanNop?: number;
+  fileId?: string | null;
+  ghiChuNcs?: string | null;
+  trangThai?: string;
+  diemTrungBinh?: number | string | null;
+  lyDoTuChoi?: string | null;
+  ngayNop?: string | Date;
+  ngayDuyet?: string | Date | null;
+  phieuNhanXets?: BackendNcsReviewRaw[];
+  quyetDinh?: {
+    id?: string;
+    soQuyetDinh?: string;
+    ngayQuyetDinh?: string | Date;
+    fileId?: string | null;
+  };
 }
 
 export interface UpdateNcsPayload {

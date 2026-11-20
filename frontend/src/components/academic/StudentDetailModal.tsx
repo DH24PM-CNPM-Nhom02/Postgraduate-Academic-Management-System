@@ -18,7 +18,6 @@ import {
   Eye,
   Download,
   Award,
-  AlertCircle,
 } from "lucide-react";
 import type { StudentDossier } from "@/src/types/academic";
 import { useAcademicStudentDetail } from "@/src/hooks/use-academic";
@@ -61,19 +60,6 @@ function formatDate(value?: string | Date | null): string {
 function addMonths(date: Date, months: number): Date {
   const d = new Date(date);
   d.setMonth(d.getMonth() + months);
-  return d;
-}
-
-function addWorkingDays(startDate: Date, days: number): Date {
-  const d = new Date(startDate);
-  let count = 0;
-  while (count < days) {
-    d.setDate(d.getDate() + 1);
-    const day = d.getDay();
-    if (day !== 0 && day !== 6) {
-      count++;
-    }
-  }
   return d;
 }
 
@@ -209,11 +195,12 @@ export function StudentDetailModal({
         fileUrl: url,
         isLoading: false,
       }));
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Không thể tải tài liệu PDF từ máy chủ";
       setPdfModal((prev) => ({
         ...prev,
         isLoading: false,
-        error: err?.message || "Không thể tải tài liệu PDF từ máy chủ",
+        error: errorMessage,
       }));
     }
   };
@@ -229,8 +216,8 @@ export function StudentDetailModal({
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1500);
-    } catch (err: any) {
-      alert(err?.message || "Không thể tải file PDF");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Không thể tải file PDF");
     }
   };
 
@@ -304,7 +291,7 @@ export function StudentDetailModal({
       return {
         ...def,
         existing,
-        minhChungs: (existing as any)?.minhChungs || [],
+        minhChungs: existing?.minhChungs || [],
         isPassed,
         isCurrent,
         trangThai: existing?.trangThai || (isPassed ? "PASSED" : isCurrent ? "IN_PROGRESS" : "CHUA_MO"),
@@ -629,7 +616,7 @@ export function StudentDetailModal({
                           </p>
                         )}
                         {(() => {
-                          const qd = gvhdChinhPhanCong?.quyetDinh as any;
+                          const qd = gvhdChinhPhanCong?.quyetDinh;
                           if (!qd?.soQuyetDinh) return null;
                           return (
                             <div className="flex flex-wrap items-center gap-2 pt-0.5">
@@ -704,7 +691,7 @@ export function StudentDetailModal({
                           </p>
                         )}
                         {(() => {
-                          const qd = dongGvhdPhanCong?.quyetDinh as any;
+                          const qd = dongGvhdPhanCong?.quyetDinh;
                           if (!qd?.soQuyetDinh) return null;
                           return (
                             <div className="flex flex-wrap items-center gap-2 pt-0.5">
@@ -766,7 +753,7 @@ export function StudentDetailModal({
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-100">
-                      {quyetDinhsList.map((qd: any, idx: number) => (
+                      {quyetDinhsList.map((qd, idx) => (
                         <div key={qd.id || idx} className="py-2.5 flex items-center justify-between text-xs gap-3">
                           <div className="space-y-0.5 min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
@@ -974,16 +961,16 @@ export function StudentDetailModal({
                                 <FileText className="size-3.5 text-[#164E9B]" />
                                 Hồ sơ minh chứng ({m.minhChungs.length} lần nộp)
                               </span>
-                              {m.minhChungs.some((mc: any) => mc.diemTrungBinh != null) && (
+                              {m.minhChungs.some((mc) => mc.diemTrungBinh != null) && (
                                 <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 font-mono text-[11px] font-bold text-emerald-800">
                                   <Award className="size-3 text-emerald-700" />
-                                  Điểm TB: {Number(m.minhChungs.find((mc: any) => mc.diemTrungBinh != null)?.diemTrungBinh).toFixed(1)} / 10.0
+                                  Điểm TB: {Number(m.minhChungs.find((mc) => mc.diemTrungBinh != null)?.diemTrungBinh).toFixed(1)} / 10.0
                                 </span>
                               )}
                             </div>
 
                             <div className="space-y-2">
-                              {m.minhChungs.map((mc: any, mcIdx: number) => {
+                              {m.minhChungs.map((mc, mcIdx) => {
                                 const mcStatusBadge =
                                   mc.trangThai === "PASSED" ? (
                                     <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
@@ -1080,7 +1067,7 @@ export function StudentDetailModal({
                                           </span>
                                         </div>
                                         <div className="divide-y divide-slate-100 rounded-lg border border-slate-200 overflow-hidden text-[11px]">
-                                          {mc.phieuNhanXets.map((pnx: any, pIdx: number) => (
+                                          {mc.phieuNhanXets.map((pnx, pIdx) => (
                                             <div
                                               key={pnx.id || pIdx}
                                               className="flex flex-wrap items-center justify-between gap-2 bg-slate-50/60 p-2 hover:bg-slate-50"
@@ -1096,7 +1083,7 @@ export function StudentDetailModal({
                                                 </div>
                                                 {pnx.nhanXet && (
                                                   <p className="text-slate-600 text-[11px] italic">
-                                                    "{pnx.nhanXet}"
+                                                    &ldquo;{pnx.nhanXet}&rdquo;
                                                   </p>
                                                 )}
                                               </div>
