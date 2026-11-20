@@ -24,7 +24,19 @@ import type {
   SupervisorQuotaRecord,
   EvidenceItem,
   TopicChangeItem,
+  ListAcademicStudentsQuery,
 } from "@/src/types/academic";
+
+export {
+  academicStudentKeys,
+  useAcademicStudentDetail,
+  useUpdateAcademicStudentProfile,
+  useNcsTrainingMajors,
+  useNcsCohorts,
+  useDownloadNcsTemplate,
+  usePreviewNcsImport,
+  useConfirmNcsImport,
+} from "./use-academic-students";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -32,12 +44,12 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
  * Custom hook lấy danh sách Nghiên cứu sinh (Học vụ)
  * Sử dụng React Query, chỉ fetch khi Component Bảng NCS được mount vào DOM.
  */
-export function useAcademicStudents() {
+export function useAcademicStudents(params?: ListAcademicStudentsQuery) {
   return useQuery<StudentDossier[]>({
-    queryKey: ["academic", "students"],
+    queryKey: ["academic", "students", params],
     queryFn: async () => {
       try {
-        const response = await NcsService.getAllStudents();
+        const response = await NcsService.getAllStudents(params);
         if (response && Array.isArray(response) && response.length > 0) {
           return response;
         }
