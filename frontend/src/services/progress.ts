@@ -14,6 +14,7 @@ import type {
 import type {
   EvidenceItem,
   MilestoneProgressItem,
+  PhieuNhanXetItem,
   StudentProgressData,
 } from "@/src/types/ui/progress";
 
@@ -115,6 +116,20 @@ export function mapMyProgressToUi(
         .reverse()
         .find((ev) => ev.diemTrungBinh !== undefined);
 
+      const mcWithReviews = [...item.minhChungs]
+        .sort((a, b) => b.lanNop - a.lanNop)
+        .find((mc) => mc.phieuNhanXets?.length);
+
+      const phieuNhanXets: PhieuNhanXetItem[] = (mcWithReviews?.phieuNhanXets ?? []).map((pnx) => ({
+        id: pnx.id,
+        tenNguoiCham: pnx.tenNguoiCham,
+        chucDanh: pnx.donViNguoiCham || "Thành viên Hội đồng",
+        diem: Number(pnx.diem),
+        fileName: `Phieu_nhan_xet_${pnx.tenNguoiCham?.replace(/\s+/g, "_") || "nguoi_cham"}.pdf`,
+        ngayDanhGia: formatDateShortVi(pnx.createdAt),
+        nhanXet: pnx.nhanXet ?? undefined,
+      }));
+
       return {
         id: item.id,
         thuTu: item.moc.thuTu,
@@ -134,8 +149,7 @@ export function mapMyProgressToUi(
         ghiChuHeThong: buildMilestoneSystemNote(item),
         minhChungHienTai: latestEvidence,
         lichSuMinhChung: history,
-        // Lưu ý: Backend chưa mở API xem từng phiếu nhận xét lẻ cho vai trò NCS (chỉ trả diemTrungBinh)
-        phieuNhanXets: [],
+        phieuNhanXets,
       };
     });
 

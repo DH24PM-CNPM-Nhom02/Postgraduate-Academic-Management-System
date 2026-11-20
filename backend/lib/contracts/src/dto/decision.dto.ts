@@ -25,13 +25,12 @@ export class CreateDecisionDto {
   // Quyết định áp dụng riêng cho một NCS thì điền, quyết định chung thì bỏ trống
   @IsOptional()
   @IsArray()
-  @IsUUID('all', {each:true})
+  @IsUUID('all', { each: true })
   ncsIds?: string[];
 
   // id file scan đã upload với documentType = QUYET_DINH
-  @IsOptional()
   @IsUUID()
-  fileId?: string;
+  fileId!: string;
 
   @IsOptional()
   @IsString()
