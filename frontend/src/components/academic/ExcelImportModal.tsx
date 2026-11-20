@@ -11,15 +11,20 @@ import {
   FileCheck,
   Check,
   Trash2,
-  Sparkles,
   Info,
   RefreshCw,
   HelpCircle,
 } from "lucide-react";
 import { Input } from "@/src/components/ui/input";
 import { Label } from "@/src/components/ui/label";
-import { studentImportSchema, supervisorImportSchema } from "@/src/lib/schemas";
+import { supervisorImportSchema } from "@/src/lib/schemas";
 import type { StudentDossier, SupervisorQuotaRecord } from "@/src/types/academic";
+import {
+  useDownloadNcsTemplate,
+  usePreviewNcsImport,
+  useConfirmNcsImport,
+} from "@/src/hooks/use-academic";
+import { mapBackendNcsToStudentDossier, type BackendNcsRaw } from "@/src/services/ncs";
 
 export type EntityImportType = "student" | "supervisor";
 
@@ -66,13 +71,17 @@ export function ExcelImportModal({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState<string>("");
   const [fileSize, setFileSize] = useState<string>("");
-  const [isTestScenario, setIsTestScenario] = useState<"none" | "valid" | "error">("none");
 
   // Validation State: idle -> validating -> valid | error
   const [validationStatus, setValidationStatus] = useState<"idle" | "validating" | "valid" | "error">("idle");
   const [errorsList, setErrorsList] = useState<ValidationErrorItem[]>([]);
   const [parsedData, setParsedData] = useState<ImportedEntityItem[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // TanStack Query Mutations cho Import NCS (Hooks phải đặt ở đầu component)
+  const downloadTemplateMutation = useDownloadNcsTemplate();
+  const previewImportMutation = usePreviewNcsImport();
+  const confirmImportMutation = useConfirmNcsImport();
 
   if (!isOpen) return null;
 
@@ -87,7 +96,6 @@ export function ExcelImportModal({
     setSelectedFile(null);
     setFileName("");
     setFileSize("");
-    setIsTestScenario("none");
     setValidationStatus("idle");
     setErrorsList([]);
     setParsedData([]);
@@ -102,7 +110,16 @@ export function ExcelImportModal({
   };
 
   // 1. GENERATE & DOWNLOAD EXCEL / CSV TEMPLATE
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = async () => {
+    if (isStudent) {
+      try {
+        await downloadTemplateMutation.mutateAsync();
+        return;
+      } catch (err) {
+        console.warn("Không thể tải template từ backend API, sử dụng file mẫu dự phòng:", err);
+      }
+    }
+
     let csvContent = "";
     if (isStudent) {
       csvContent =
@@ -131,84 +148,6 @@ export function ExcelImportModal({
     URL.revokeObjectURL(url);
   };
 
-  // DOWNLOAD TEST FILES (One valid, one with errors)
-  const handleDownloadTestFile = (withError: boolean) => {
-    let content = "";
-    let name = "";
-    if (isStudent) {
-      if (withError) {
-        name = "Test_NCS_CoLoi.csv";
-        content =
-          "\uFEFF" +
-          "STT,Mã NCS,Họ và tên,Email,Số điện thoại,Khoa / Chuyên ngành,GVHD Chính,Đồng GVHD,Tên đề tài luận án,Khóa học\n" +
-          '1,NCS230104,Trần Văn Thử Nghiệm,test.ncs@agu.edu.vn,0912345678,Khoa học Máy tính,TS. Bùi Lê Tuấn Anh,PGS.TS. Trần Văn Minh,"Đề tài thử nghiệm trùng mã số",Khóa 2024\n' +
-          '2,NCS240108,Lê Thị Minh Hương,huong.email-khong-hop-le,0987654321,Công nghệ Sinh học,PGS.TS. Nguyễn Văn Hùng,TS. Bùi Lê Tuấn Anh,"Nghiên cứu vi sinh vật xử lý phế phẩm",Khóa 2024\n' +
-          '3,NCS240109,Phạm Hữu Long,long.ncs24@agu.edu.vn,0903112233,Quản trị Kinh doanh,,,,"Khóa 2024\n';
-      } else {
-        name = "Test_NCS_HopLe.csv";
-        content =
-          "\uFEFF" +
-          "STT,Mã NCS,Họ và tên,Email,Số điện thoại,Khoa / Chuyên ngành,GVHD Chính,Đồng GVHD,Tên đề tài luận án,Khóa học\n" +
-          '1,NCS240101,Hoàng Minh Đức,duc.ncs24@agu.edu.vn,0912345678,Khoa học Máy tính,TS. Bùi Lê Tuấn Anh,PGS.TS. Trần Văn Minh,"Nghiên cứu thị giác máy tính trong phân loại nông sản tự động",Khóa 2024\n' +
-          '2,NCS240102,Lê Thị Thanh Thảo,thao.ncs24@agu.edu.vn,0987654321,Công nghệ Sinh học,PGS.TS. Nguyễn Văn Hùng,TS. Bùi Lê Tuấn Anh,"Tuyển chọn vi sinh vật cố định đạm phục vụ canh tác lúa hữu cơ",Khóa 2024\n' +
-          '3,NCS240103,Nguyễn Gia Bảo,bao.ncs24@agu.edu.vn,0903112233,Quản trị Kinh doanh,GS.TS. Trần Minh Tâm,TS. Phạm Thu Trang,"Chuỗi cung ứng xanh nông sản xuất khẩu vùng ĐBSCL",Khóa 2024\n';
-      }
-    } else {
-      if (withError) {
-        name = "Test_GVHD_CoLoi.csv";
-        content =
-          "\uFEFF" +
-          "STT,Mã GVHD,Họ và tên,Học vị / Học hàm,Email,Số điện thoại,Khoa / Bộ môn,Định mức tối đa (NCS),Lĩnh vực nghiên cứu\n" +
-          '1,CB-2018-012,TS. Bùi Lê Tuấn Anh,Tiến sĩ,tuananh@agu.edu.vn,0912345678,Khoa Công nghệ Thông tin,3.0,"Trí tuệ nhân tạo"\n' +
-          '2,CB-2024-099,ThS. Nguyễn Văn Thử,Thạc sĩ,thunv@agu.edu.vn,0987654321,Khoa Nông nghiệp,3.0,"Nông nghiệp thông minh"\n' +
-          '3,CB-2024-100,TS. Trần Hoàng Nam,Tiến sĩ,namth@agu.edu.vn,0903112233,Khoa Kinh tế,5.5,"Kinh tế tuần hoàn"\n';
-      } else {
-        name = "Test_GVHD_HopLe.csv";
-        content =
-          "\uFEFF" +
-          "STT,Mã GVHD,Họ và tên,Học vị / Học hàm,Email,Số điện thoại,Khoa / Bộ môn,Định mức tối đa (NCS),Lĩnh vực nghiên cứu\n" +
-          '1,CB-2024-090,TS. Vũ Đức Anh,Tiến sĩ,anhvd@agu.edu.vn,0912345678,Khoa Công nghệ Thông tin,3.0,"Trí tuệ nhân tạo, Xử lý ảnh nông nghiệp"\n' +
-          '2,CB-2024-091,PGS.TS. Nguyễn Thanh Trúc,Phó Giáo sư,trucnt@agu.edu.vn,0987654321,Khoa Nông nghiệp - TNMT,3.5,"Công nghệ sinh học phân tử cây trồng"\n' +
-          '3,CB-2024-092,TS. Lê Hoài Phương,Tiến sĩ,phuonglh@agu.edu.vn,0903112233,Khoa Kinh tế - QTKD,3.0,"Quản trị chuỗi cung ứng, Kinh tế nông nghiệp"\n';
-      }
-    }
-
-    const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", name);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  // 2. QUICK TEST CASES LOADER (FOR USER TESTING)
-  const handleLoadTestScenario = (scenario: "valid" | "error") => {
-    setIsTestScenario(scenario);
-    setValidationStatus("idle"); // Must click Preview to validate, per prompt
-    setErrorsList([]);
-    setParsedData([]);
-
-    if (scenario === "valid") {
-      setFileName(isStudent ? "Danh_Sach_NCS_HopLe_K2024.xlsx" : "Danh_Sach_GVHD_HopLe_2026.xlsx");
-      setFileSize("38.4 KB");
-      // Create a virtual File object
-      const dummyFile = new File(["dummy content"], isStudent ? "Danh_Sach_NCS_HopLe_K2024.xlsx" : "Danh_Sach_GVHD_HopLe_2026.xlsx", {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-      setSelectedFile(dummyFile);
-    } else {
-      setFileName(isStudent ? "Danh_Sach_NCS_BiLoi_DuLieu.xlsx" : "Danh_Sach_GVHD_BiLoi_DinhMuc.xlsx");
-      setFileSize("42.1 KB");
-      const dummyFile = new File(["dummy content"], isStudent ? "Danh_Sach_NCS_BiLoi_DuLieu.xlsx" : "Danh_Sach_GVHD_BiLoi_DinhMuc.xlsx", {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-      setSelectedFile(dummyFile);
-    }
-  };
-
   // Handle actual File Input change
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -220,77 +159,132 @@ export function ExcelImportModal({
     setSelectedFile(file);
     setFileName(file.name);
     setFileSize(`${(file.size / 1024).toFixed(1)} KB`);
-    setIsTestScenario("none");
     setValidationStatus("idle");
     setErrorsList([]);
     setParsedData([]);
   };
 
   // 3. PREVIEW & ERROR CHECK LOGIC
-  const handlePreviewCheck = () => {
+  const handlePreviewCheck = async () => {
     if (!selectedFile) return;
 
+    // A. Xử lý qua Backend API cho Sinh viên (NCS)
+    if (isStudent) {
+      setValidationStatus("validating");
+      try {
+        const res = await previewImportMutation.mutateAsync(selectedFile);
+        if (res.errorCount > 0) {
+          const detectedErrors: ValidationErrorItem[] = [];
+          res.rows
+            .filter((r) => !r.ok)
+            .forEach((r) => {
+              r.errors.forEach((err) => {
+                let field = "Dữ liệu dòng";
+                const lowerErr = err.toLowerCase();
+                if (lowerErr.includes("mshv")) field = "Mã NCS (MSHV)";
+                else if (lowerErr.includes("họ tên")) field = "Họ và tên";
+                else if (lowerErr.includes("nhập học")) field = "Ngày nhập học";
+                else if (lowerErr.includes("ngày sinh")) field = "Ngày sinh";
+                else if (lowerErr.includes("email")) field = "Email";
+                else if (lowerErr.includes("điện thoại") || lowerErr.includes("số điện thoại")) field = "Số điện thoại";
+                else if (lowerErr.includes("cccd")) field = "CCCD";
+                else if (lowerErr.includes("ngành")) field = "Chuyên ngành";
+                else if (lowerErr.includes("khóa")) field = "Khóa tuyển sinh";
+                else if (lowerErr.includes("lớp")) field = "Lớp";
+                else if (lowerErr.includes("đầu vào")) field = "Trình độ đầu vào";
+                else if (lowerErr.includes("phương thức")) field = "Phương thức đào tạo";
+
+                detectedErrors.push({
+                  row: r.row,
+                  field,
+                  value: r.mshv || "[Để trống]",
+                  message: err,
+                  hint: "Vui lòng kiểm tra và hiệu chỉnh ô dữ liệu này trong file Excel theo mẫu chuẩn.",
+                });
+              });
+            });
+
+          setErrorsList(detectedErrors);
+          setParsedData([]);
+          setValidationStatus("error");
+        } else {
+          // Tất cả các dòng đều hợp lệ
+          const previewStudents: StudentDossier[] = res.rows.map((r, idx) => ({
+            id: `std-prev-${r.mshv || idx}`,
+            name: r.hoTen || `NCS ${r.mshv}`,
+            code: r.mshv,
+            cohort: r.khoaHoc ? `Khóa ${r.khoaHoc}` : "Khóa mới",
+            department: r.nganh || "Chưa phân ngành",
+            thesisTopic: r.willCreateAccount ? "Sẽ tạo tài khoản mới tự động" : "Đã có tài khoản hệ thống",
+            supervisorMain: "Theo hồ sơ import",
+            remainingMonths: 36,
+            currentMilestoneIndex: 1,
+            publicationPoints: 0.0,
+            status: "active",
+            email: "",
+            phone: "",
+          }));
+
+          setParsedData(previewStudents);
+          setErrorsList([]);
+          setValidationStatus("valid");
+        }
+      } catch (err: unknown) {
+        console.error("Lỗi khi kiểm tra file Excel qua backend API:", err);
+        const errObj = err as { response?: { data?: { message?: string | string[] } }; message?: string };
+        const serverMsg =
+          errObj?.response?.data?.message ||
+          errObj?.message ||
+          "Không thể kiểm tra file Excel. Vui lòng kiểm tra định dạng file .xlsx và kết nối mạng.";
+
+        setErrorsList([
+          {
+            row: 1,
+            field: "Tệp tin Excel",
+            value: selectedFile.name,
+            message: Array.isArray(serverMsg) ? serverMsg.join(", ") : String(serverMsg),
+            hint: "Hệ thống chỉ chấp nhận file Excel định dạng .xlsx có cấu trúc tiêu đề đúng mẫu của trường.",
+          },
+        ]);
+        setParsedData([]);
+        setValidationStatus("error");
+      }
+      return;
+    }
+
+    // B. Thẩm định cho Giảng viên Hướng dẫn
     setValidationStatus("validating");
 
     setTimeout(() => {
-      // SCENARIO 1: Explicit test preset "error" OR file has "loi" / "error" in its name
       const isErrorNamed =
-        isTestScenario === "error" ||
         fileName.toLowerCase().includes("loi") ||
         fileName.toLowerCase().includes("error") ||
         fileName.toLowerCase().includes("fail");
 
       if (isErrorNamed) {
-        let detectedErrors: ValidationErrorItem[] = [];
-        if (isStudent) {
-          detectedErrors = [
-            {
-              row: 2,
-              field: "Mã NCS",
-              value: "NCS230104",
-              message: "Mã số nghiên cứu sinh đã tồn tại trong hệ thống (Hồ sơ của NCS Nguyễn Văn An).",
-              hint: "Vui lòng kiểm tra lại mã NCS để tránh ghi đè dữ liệu nghiên cứu sinh hiện hành.",
-            },
-            {
-              row: 3,
-              field: "Email liên lạc",
-              value: "huong.email-khong-hop-le",
-              message: "Địa chỉ email không đúng định dạng chuẩn theo tên miền đào tạo.",
-              hint: "Email phải có cấu trúc hợp lệ dạng ten.ncs@domain.edu.vn hoặc tương đương.",
-            },
-            {
-              row: 4,
-              field: "GVHD Chính & Đề tài",
-              value: "[Để trống]",
-              message: "Thiếu thông tin bắt buộc: Giảng viên hướng dẫn chính và Tên đề tài luận án.",
-              hint: "Theo quy chế đào tạo tiến sĩ, hồ sơ NCS bắt buộc phải có GVHD chính ngay khi tiếp nhận.",
-            },
-          ];
-        } else {
-          detectedErrors = [
-            {
-              row: 2,
-              field: "Mã GVHD",
-              value: "CB-2018-012",
-              message: "Mã cán bộ trùng lặp với giảng viên hiện có (TS. Bùi Lê Tuấn Anh).",
-              hint: "Mỗi giảng viên hướng dẫn phải có mã định danh duy nhất trong toàn trường.",
-            },
-            {
-              row: 3,
-              field: "Học vị / Học hàm",
-              value: "Thạc sĩ",
-              message: "Học vị không đủ tiêu chuẩn hướng dẫn NCS theo Quy chế BR-09 (Yêu cầu tối thiểu Tiến sĩ).",
-              hint: "Chỉ giảng viên có học vị Tiến sĩ, chức danh PGS hoặc GS mới được phân công hướng dẫn NCS.",
-            },
-            {
-              row: 4,
-              field: "Định mức tối đa",
-              value: "5.5",
-              message: "Định mức 5.5 NCS vượt quá trần quy định (Tối đa 3.0 với TS, 4.0 với PGS/GS có đề tài Bộ).",
-              hint: "Hiệu chỉnh lại định mức trong khoảng từ 1.0 đến tối đa 4.0 theo đúng quy chế BR-09.",
-            },
-          ];
-        }
+        const detectedErrors: ValidationErrorItem[] = [
+          {
+            row: 2,
+            field: "Mã GVHD",
+            value: "CB-2018-012",
+            message: "Mã cán bộ trùng lặp với giảng viên hiện có (TS. Bùi Lê Tuấn Anh).",
+            hint: "Mỗi giảng viên hướng dẫn phải có mã định danh duy nhất trong toàn trường.",
+          },
+          {
+            row: 3,
+            field: "Học vị / Học hàm",
+            value: "Thạc sĩ",
+            message: "Học vị không đủ tiêu chuẩn hướng dẫn NCS theo Quy chế BR-09 (Yêu cầu tối thiểu Tiến sĩ).",
+            hint: "Chỉ giảng viên có học vị Tiến sĩ, chức danh PGS hoặc GS mới được phân công hướng dẫn NCS.",
+          },
+          {
+            row: 4,
+            field: "Định mức tối đa",
+            value: "5.5",
+            message: "Định mức 5.5 NCS vượt quá trần quy định (Tối đa 3.0 với TS, 4.0 với PGS/GS có đề tài Bộ).",
+            hint: "Hiệu chỉnh lại định mức trong khoảng từ 1.0 đến tối đa 4.0 theo đúng quy chế BR-09.",
+          },
+        ];
 
         setErrorsList(detectedErrors);
         setParsedData([]);
@@ -298,189 +292,121 @@ export function ExcelImportModal({
         return;
       }
 
-      // SCENARIO 2: Valid data validated via Zod schema
-      if (isStudent) {
-        const rawStudents: StudentDossier[] = [
-          {
-            id: `std-imp-${Date.now()}-1`,
-            name: "Hoàng Minh Đức",
-            code: "NCS240101",
-            cohort: "Khóa 2024",
-            department: "Khoa học Máy tính",
-            thesisTopic: "Nghiên cứu thị giác máy tính trong phân loại nông sản tự động",
-            supervisorMain: "TS. Bùi Lê Tuấn Anh",
-            supervisorCo: "PGS.TS. Trần Văn Minh",
-            remainingMonths: 48,
-            currentMilestoneIndex: 1,
-            publicationPoints: 0.0,
-            status: "active",
-            email: "duc.ncs24@agu.edu.vn",
-            phone: "0912345678",
-          },
-          {
-            id: `std-imp-${Date.now()}-2`,
-            name: "Lê Thị Thanh Thảo",
-            code: "NCS240102",
-            cohort: "Khóa 2024",
-            department: "Công nghệ Sinh học",
-            thesisTopic: "Tuyển chọn vi sinh vật cố định đạm phục vụ canh tác lúa hữu cơ",
-            supervisorMain: "PGS.TS. Nguyễn Văn Hùng",
-            supervisorCo: "TS. Bùi Lê Tuấn Anh",
-            remainingMonths: 48,
-            currentMilestoneIndex: 1,
-            publicationPoints: 0.0,
-            status: "active",
-            email: "thao.ncs24@agu.edu.vn",
-            phone: "0987654321",
-          },
-          {
-            id: `std-imp-${Date.now()}-3`,
-            name: "Nguyễn Gia Bảo",
-            code: "NCS240103",
-            cohort: "Khóa 2024",
-            department: "Quản trị Kinh doanh",
-            thesisTopic: "Chuỗi cung ứng xanh nông sản xuất khẩu vùng ĐBSCL trong bối cảnh mới",
-            supervisorMain: "GS.TS. Trần Minh Tâm",
-            supervisorCo: "TS. Phạm Thu Trang",
-            remainingMonths: 48,
-            currentMilestoneIndex: 1,
-            publicationPoints: 0.0,
-            status: "active",
-            email: "bao.ncs24@agu.edu.vn",
-            phone: "0903112233",
-          },
-        ];
+      const rawSupervisors: SupervisorQuotaRecord[] = [
+        {
+          id: `gv-imp-${Date.now()}-1`,
+          name: "TS. Vũ Đức Anh",
+          code: "CB-2024-090",
+          department: "Khoa Công nghệ Thông tin",
+          degree: "Tiến sĩ",
+          independentCount: 0,
+          coCount: 0,
+          usedQuota: 0.0,
+          maxQuota: 3.0,
+          remainingQuota: 3.0,
+          statusText: "Còn 3.0 chỉ tiêu",
+          statusColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
+          assignedStudents: [],
+        },
+        {
+          id: `gv-imp-${Date.now()}-2`,
+          name: "PGS.TS. Nguyễn Thanh Trúc",
+          code: "CB-2024-091",
+          department: "Khoa Nông nghiệp - TNMT",
+          degree: "Phó Giáo sư",
+          independentCount: 0,
+          coCount: 1,
+          usedQuota: 0.5,
+          maxQuota: 3.5,
+          remainingQuota: 3.0,
+          statusText: "Còn 3.0 chỉ tiêu",
+          statusColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
+          assignedStudents: ["1 NCS Đồng hướng dẫn"],
+        },
+        {
+          id: `gv-imp-${Date.now()}-3`,
+          name: "TS. Lê Hoài Phương",
+          code: "CB-2024-092",
+          department: "Khoa Kinh tế - QTKD",
+          degree: "Tiến sĩ",
+          independentCount: 1,
+          coCount: 0,
+          usedQuota: 1.0,
+          maxQuota: 3.0,
+          remainingQuota: 2.0,
+          statusText: "Còn 2.0 chỉ tiêu",
+          statusColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
+          assignedStudents: ["1 NCS Độc lập"],
+        },
+      ];
 
-        // Zod validation check
-        const validatedStudents: StudentDossier[] = [];
-        const detectedErrors: ValidationErrorItem[] = [];
+      const validatedSupervisors: SupervisorQuotaRecord[] = [];
+      const detectedErrors: ValidationErrorItem[] = [];
 
-        rawStudents.forEach((student, idx) => {
-          const parseResult = studentImportSchema.safeParse(student);
-          if (parseResult.success) {
-            validatedStudents.push(parseResult.data as StudentDossier);
-          } else {
-            parseResult.error.issues.forEach((issue) => {
-              const propKey = String(issue.path[0] ?? "");
-              const propVal = propKey ? (student as unknown as Record<string, unknown>)[propKey] : "";
-              detectedErrors.push({
-                row: idx + 2,
-                field: propKey || "Dữ liệu",
-                value: String(propVal ?? ""),
-                message: issue.message,
-                hint: "Kiểm tra và chuẩn hóa dữ liệu theo định dạng quy định.",
-              });
+      rawSupervisors.forEach((sup, idx) => {
+        const parseResult = supervisorImportSchema.safeParse(sup);
+        if (parseResult.success) {
+          validatedSupervisors.push(parseResult.data as SupervisorQuotaRecord);
+        } else {
+          parseResult.error.issues.forEach((issue) => {
+            const propKey = String(issue.path[0] ?? "");
+            const propVal = propKey ? (sup as unknown as Record<string, unknown>)[propKey] : "";
+            detectedErrors.push({
+              row: idx + 2,
+              field: propKey || "Dữ liệu",
+              value: String(propVal ?? ""),
+              message: issue.message,
+              hint: "Kiểm tra và chuẩn hóa dữ liệu theo Quy chế BR-09.",
             });
-          }
-        });
-
-        if (detectedErrors.length > 0) {
-          setErrorsList(detectedErrors);
-          setParsedData([]);
-          setValidationStatus("error");
-          return;
+          });
         }
+      });
 
-        setParsedData(validatedStudents);
-      } else {
-        const rawSupervisors: SupervisorQuotaRecord[] = [
-          {
-            id: `gv-imp-${Date.now()}-1`,
-            name: "TS. Vũ Đức Anh",
-            code: "CB-2024-090",
-            department: "Khoa Công nghệ Thông tin",
-            degree: "Tiến sĩ",
-            independentCount: 0,
-            coCount: 0,
-            usedQuota: 0.0,
-            maxQuota: 3.0,
-            remainingQuota: 3.0,
-            statusText: "Còn 3.0 chỉ tiêu",
-            statusColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
-            assignedStudents: [],
-          },
-          {
-            id: `gv-imp-${Date.now()}-2`,
-            name: "PGS.TS. Nguyễn Thanh Trúc",
-            code: "CB-2024-091",
-            department: "Khoa Nông nghiệp - TNMT",
-            degree: "Phó Giáo sư",
-            independentCount: 0,
-            coCount: 1,
-            usedQuota: 0.5,
-            maxQuota: 3.5,
-            remainingQuota: 3.0,
-            statusText: "Còn 3.0 chỉ tiêu",
-            statusColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
-            assignedStudents: ["1 NCS Đồng hướng dẫn"],
-          },
-          {
-            id: `gv-imp-${Date.now()}-3`,
-            name: "TS. Lê Hoài Phương",
-            code: "CB-2024-092",
-            department: "Khoa Kinh tế - QTKD",
-            degree: "Tiến sĩ",
-            independentCount: 1,
-            coCount: 0,
-            usedQuota: 1.0,
-            maxQuota: 3.0,
-            remainingQuota: 2.0,
-            statusText: "Còn 2.0 chỉ tiêu",
-            statusColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
-            assignedStudents: ["1 NCS Độc lập"],
-          },
-        ];
-
-        // Zod validation check
-        const validatedSupervisors: SupervisorQuotaRecord[] = [];
-        const detectedErrors: ValidationErrorItem[] = [];
-
-        rawSupervisors.forEach((sup, idx) => {
-          const parseResult = supervisorImportSchema.safeParse(sup);
-          if (parseResult.success) {
-            validatedSupervisors.push(parseResult.data as SupervisorQuotaRecord);
-          } else {
-            parseResult.error.issues.forEach((issue) => {
-              const propKey = String(issue.path[0] ?? "");
-              const propVal = propKey ? (sup as unknown as Record<string, unknown>)[propKey] : "";
-              detectedErrors.push({
-                row: idx + 2,
-                field: propKey || "Dữ liệu",
-                value: String(propVal ?? ""),
-                message: issue.message,
-                hint: "Kiểm tra và chuẩn hóa dữ liệu theo Quy chế BR-09.",
-              });
-            });
-          }
-        });
-
-        if (detectedErrors.length > 0) {
-          setErrorsList(detectedErrors);
-          setParsedData([]);
-          setValidationStatus("error");
-          return;
-        }
-
-        setParsedData(validatedSupervisors);
+      if (detectedErrors.length > 0) {
+        setErrorsList(detectedErrors);
+        setParsedData([]);
+        setValidationStatus("error");
+        return;
       }
 
+      setParsedData(validatedSupervisors);
       setErrorsList([]);
       setValidationStatus("valid");
     }, 450);
   };
 
   // 4. CONFIRM & IMPORT ACTION
-  const handleConfirmImport = () => {
+  const handleConfirmImport = async () => {
     if (validationStatus !== "valid" || parsedData.length === 0) return;
 
-    if (onSuccess) {
-      if (isStudent) {
-        const studentItems = parsedData as StudentDossier[];
-        (onSuccess as (items: StudentDossier[]) => void)(studentItems);
-      } else {
-        const supervisorItems = parsedData as SupervisorQuotaRecord[];
-        (onSuccess as (items: SupervisorQuotaRecord[]) => void)(supervisorItems);
+    if (isStudent) {
+      if (!selectedFile) return;
+      try {
+        const res = await confirmImportMutation.mutateAsync(selectedFile);
+        const importedStudents: StudentDossier[] =
+          Array.isArray(res.profiles) && res.profiles.length > 0
+            ? res.profiles.map((p) => mapBackendNcsToStudentDossier(p as unknown as BackendNcsRaw))
+            : (parsedData as StudentDossier[]);
+
+        if (onSuccess) {
+          (onSuccess as (items: StudentDossier[]) => void)(importedStudents);
+        }
+        handleClose();
+      } catch (err: unknown) {
+        console.error("Lỗi khi xác nhận import NCS:", err);
+        const errObj = err as { response?: { data?: { message?: string | string[] } }; message?: string };
+        const serverMsg =
+          errObj?.response?.data?.message ||
+          errObj?.message ||
+          "Có lỗi xảy ra trong quá trình nạp dữ liệu vào cơ sở dữ liệu.";
+        alert(`Không thể nhập khẩu: ${Array.isArray(serverMsg) ? serverMsg.join(", ") : String(serverMsg)}`);
       }
+      return;
+    }
+
+    if (onSuccess) {
+      const supervisorItems = parsedData as SupervisorQuotaRecord[];
+      (onSuccess as (items: SupervisorQuotaRecord[]) => void)(supervisorItems);
     }
     handleClose();
   };
@@ -490,7 +416,11 @@ export function ExcelImportModal({
   // 2. Đã để file vào mà bị lỗi: chỉ có nút preview, không có nút xác nhận
   // 3. Đã để file vào và ok hết: hiện nút xác nhận ra
   const hasFile = selectedFile !== null;
-  const isPreviewDisabled = !hasFile || validationStatus === "validating";
+  const isPendingAction =
+    validationStatus === "validating" ||
+    previewImportMutation.isPending ||
+    confirmImportMutation.isPending;
+  const isPreviewDisabled = !hasFile || isPendingAction;
   const showConfirmButton = hasFile && validationStatus === "valid" && errorsList.length === 0;
 
   return (
@@ -556,10 +486,20 @@ export function ExcelImportModal({
               <button
                 type="button"
                 onClick={handleDownloadTemplate}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 text-xs font-bold shadow-xs transition-all shrink-0 cursor-pointer"
+                disabled={downloadTemplateMutation.isPending}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 text-xs font-bold shadow-xs transition-all shrink-0 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
               >
-                <Download className="size-4" />
-                <span>Tải template Excel về</span>
+                {downloadTemplateMutation.isPending ? (
+                  <>
+                    <RefreshCw className="size-4 animate-spin" />
+                    <span>Đang tải template...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="size-4" />
+                    <span>Tải template Excel về</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -617,7 +557,6 @@ export function ExcelImportModal({
                   setSelectedFile(file);
                   setFileName(file.name);
                   setFileSize(`${(file.size / 1024).toFixed(1)} KB`);
-                  setIsTestScenario("none");
                   setValidationStatus("idle");
                   setErrorsList([]);
                   setParsedData([]);
@@ -648,11 +587,6 @@ export function ExcelImportModal({
                       </div>
                       <p className="text-[11px] text-slate-500 mt-0.5">
                         Dung lượng: <span className="font-semibold text-slate-700">{fileSize}</span>
-                        {isTestScenario !== "none" && (
-                          <span className="ml-2 text-indigo-600 font-semibold">
-                            (Dữ liệu mẫu thử nghiệm: {isTestScenario === "error" ? "File có lỗi" : "File hợp lệ"})
-                          </span>
-                        )}
                       </p>
                     </div>
                   </div>
@@ -680,86 +614,6 @@ export function ExcelImportModal({
                   </p>
                 </div>
               )}
-            </div>
-
-            {/* PRE-BUILT TEST CASES (SATISFIES: "tự tạo thử trường hợp bị lỗi và không bị lỗi và chưa input") */}
-            <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 text-xs space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-[#164E9B] text-[11px] flex items-center gap-1.5">
-                  <Sparkles className="size-3.5 text-indigo-600" />
-                  <span>Bộ dữ liệu thử nghiệm nhanh (Dành cho kiểm thử hệ thống):</span>
-                </span>
-                <span className="text-[10px] text-indigo-600 font-medium">
-                  Nhấn để nạp sẵn dữ liệu kiểm tra 3 trường hợp
-                </span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {/* 1. Test case: Bị lỗi */}
-                <button
-                  type="button"
-                  onClick={() => handleLoadTestScenario("error")}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold border transition-all cursor-pointer ${
-                    isTestScenario === "error"
-                      ? "bg-rose-600 text-white border-rose-600 shadow-2xs"
-                      : "bg-white text-rose-700 border-rose-200 hover:bg-rose-50"
-                  }`}
-                  title="Tải sẵn dữ liệu mẫu chứa 3 lỗi vi phạm quy chế để kiểm tra"
-                >
-                  <AlertTriangle className="size-3.5 text-rose-500 in-data-[active=true]:text-white" />
-                  <span>1. Thử file CÓ LỖI (3 lỗi)</span>
-                </button>
-
-                {/* 2. Test case: Không bị lỗi */}
-                <button
-                  type="button"
-                  onClick={() => handleLoadTestScenario("valid")}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold border transition-all cursor-pointer ${
-                    isTestScenario === "valid"
-                      ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
-                      : "bg-white text-emerald-800 border-emerald-200 hover:bg-emerald-50"
-                  }`}
-                  title="Tải sẵn dữ liệu mẫu hợp lệ 100% để kiểm tra nút xác nhận"
-                >
-                  <CheckCircle2 className="size-3.5 text-emerald-600 in-data-[active=true]:text-white" />
-                  <span>2. Thử file HỢP LỆ (0 lỗi)</span>
-                </button>
-
-                {/* 3. Test case: Chưa input file nào */}
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold border transition-all cursor-pointer ${
-                    !hasFile
-                      ? "bg-slate-700 text-white border-slate-700 shadow-2xs"
-                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
-                  }`}
-                  title="Xóa tệp để thử nghiệm trường hợp chưa input file nào"
-                >
-                  <Trash2 className="size-3 text-slate-400" />
-                  <span>3. Chưa input file nào</span>
-                </button>
-
-                {/* Download actual sample files to disk if user wants to upload themselves */}
-                <div className="ml-auto hidden sm:flex items-center gap-2">
-                  <span className="text-[10px] text-slate-400">Tải file về máy để test:</span>
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadTestFile(true)}
-                    className="text-[10px] font-semibold text-rose-600 hover:underline cursor-pointer"
-                  >
-                    File lỗi (.csv)
-                  </button>
-                  <span className="text-slate-300">•</span>
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadTestFile(false)}
-                    className="text-[10px] font-semibold text-emerald-700 hover:underline cursor-pointer"
-                  >
-                    File chuẩn (.csv)
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -793,7 +647,7 @@ export function ExcelImportModal({
                     Chưa có tệp dữ liệu nào được tải lên
                   </p>
                   <p className="text-[11px] text-slate-500 max-w-md mx-auto leading-relaxed">
-                    Vui lòng chọn tệp Excel hoặc bấm vào các nút thử nghiệm ở bước 2. Khi chưa có tệp, nút Preview bên dưới sẽ bị khóa và không có nút Xác nhận.
+                    Vui lòng chọn hoặc kéo thả tệp Excel ở bước 2. Khi chưa có tệp, nút Preview bên dưới sẽ bị khóa và không có nút Xác nhận.
                   </p>
                 </div>
               )}
@@ -1001,7 +855,7 @@ export function ExcelImportModal({
                   : "Kiểm tra dữ liệu và tìm lỗi trong tệp"
               }
             >
-              {validationStatus === "validating" ? (
+              {validationStatus === "validating" || previewImportMutation.isPending ? (
                 <>
                   <RefreshCw className="size-4 animate-spin text-[#164E9B]" />
                   <span>Đang kiểm tra...</span>
@@ -1020,10 +874,20 @@ export function ExcelImportModal({
               <button
                 type="button"
                 onClick={handleConfirmImport}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-xs font-bold shadow-xs transition-all animate-in zoom-in-95 duration-150 cursor-pointer"
+                disabled={confirmImportMutation.isPending}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-xs font-bold shadow-xs transition-all animate-in zoom-in-95 duration-150 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
               >
-                <Check className="size-4" />
-                <span>Xác nhận nhập khẩu</span>
+                {confirmImportMutation.isPending ? (
+                  <>
+                    <RefreshCw className="size-4 animate-spin" />
+                    <span>Đang nạp vào CSDL...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="size-4" />
+                    <span>Xác nhận nhập khẩu</span>
+                  </>
+                )}
               </button>
             )}
           </div>

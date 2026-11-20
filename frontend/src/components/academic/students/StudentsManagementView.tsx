@@ -6,29 +6,40 @@ import {
   Users,
   Search,
   RefreshCw,
-  Eye,
   Filter,
   AlertTriangle,
   Clock,
-  Award,
   ArrowLeft,
   Download,
   Plus,
   CheckCircle2,
   Loader2,
   UserCheck,
-  UserPlus,
   Scale,
 } from "lucide-react";
 import {
+  type ColumnDef,
+  type ColumnFiltersState,
+  type FilterFn,
+} from "@tanstack/react-table";
+import { ManagementDataTable, useManagementDataTable } from "@/src/components/ui/management-data-table";
+import {
   StudentDetailModal,
+  StudentUpdateModal,
   ExcelImportModal,
   SupervisorAssignmentModal,
   DecisionIssueModal,
   MOCK_STUDENTS,
   MOCK_SUPERVISORS,
 } from "@/src/components/academic";
-import { TablePagination } from "@/src/components/ui/table-pagination";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/src/components/ui/select";
+import { StudentCellAction } from "./StudentCellAction";
 import { useAcademicStudents, useAcademicSupervisors } from "@/src/hooks/use-academic";
 import type { StudentDossier } from "@/src/types/academic";
 
@@ -37,9 +48,26 @@ interface StudentsManagementViewProps {
   embedded?: boolean;
 }
 
+const headerStyles: Record<string, string> = {
+  name: "py-3 px-3.5 whitespace-nowrap min-w-[140px]",
+  department: "py-3 px-3 min-w-[160px]",
+  thesisTopic: "py-3 px-3 min-w-[280px] lg:min-w-[340px]",
+  currentMilestoneIndex: "py-3 px-3 whitespace-nowrap min-w-[125px]",
+  status: "py-3 px-3 whitespace-nowrap min-w-[125px]",
+  actions: "py-3 px-3 text-right whitespace-nowrap min-w-[80px]",
+};
+
+const cellStyles: Record<string, string> = {
+  name: "py-3.5 px-3.5 whitespace-nowrap min-w-[140px]",
+  department: "py-3.5 px-3 min-w-[160px]",
+  thesisTopic: "py-3.5 px-3 whitespace-normal min-w-[280px] lg:min-w-[340px]",
+  currentMilestoneIndex: "py-3.5 px-3 whitespace-nowrap min-w-[125px]",
+  status: "py-3.5 px-3 whitespace-nowrap min-w-[125px]",
+  actions: "py-3.5 px-3 text-right whitespace-nowrap min-w-[80px]",
+};
+
 export function StudentsManagementView({ embedded = false }: StudentsManagementViewProps) {
-  // Chỉ gọi API NCS khi component này được mount!
-  // Kết nối API NCS từ Backend qua React Query Hook
+  // Kết nối API NCS từ Backend qua React Query Hook (chỉ fetch 1 lần)
   const { data: initialData, isLoading, refetch, isFetching } = useAcademicStudents();
   const { data: supervisorsData } = useAcademicSupervisors();
 
@@ -58,10 +86,11 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
   >({});
 
   // Dữ liệu hợp nhất từ API (hoặc MOCK_STUDENTS) kết hợp các bản ghi import thêm và cập nhật GVHD tức thì
+  // Luôn sắp xếp giảm dần: NCS mới tạo hiển thị trước NCS tạo lâu rồi
   const studentsList = useMemo(() => {
     const base = initialData && Array.isArray(initialData) && initialData.length > 0 ? initialData : MOCK_STUDENTS;
     const merged = [...importedStudents, ...base];
-    return merged.map((std) => {
+    const withUpdates = merged.map((std) => {
       const update = localSupervisorUpdates[std.id];
       if (!update) return std;
       return {
@@ -69,6 +98,13 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
         supervisorMain: update.supervisorMain ?? std.supervisorMain,
         supervisorCo: update.supervisorCo ?? std.supervisorCo,
       };
+    });
+
+    return [...withUpdates].sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (timeA !== timeB) return timeB - timeA;
+      return (b.code || "").localeCompare(a.code || "");
     });
   }, [initialData, importedStudents, localSupervisorUpdates]);
 
@@ -81,15 +117,12 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
   // Modal State
   const [studentModalOpen, setStudentModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentDossier | null>(null);
+  const [studentToUpdate, setStudentToUpdate] = useState<StudentDossier | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [decisionModalOpen, setDecisionModalOpen] = useState(false);
   const [actionStudent, setActionStudent] = useState<StudentDossier | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
 
   // Handle Excel Import Success
   const handleImportSuccess = (newStudents: StudentDossier[]) => {
@@ -100,54 +133,222 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
     setTimeout(() => setToastMessage(null), 5000);
   };
 
-  // Filtered Students List
-  const filteredStudents = useMemo(() => {
-    return studentsList.filter((s) => {
-      const query = studentSearchText.toLowerCase();
-      const matchSearch =
-        s.name.toLowerCase().includes(query) ||
-        s.code.toLowerCase().includes(query) ||
-        s.thesisTopic.toLowerCase().includes(query) ||
-        s.supervisorMain.toLowerCase().includes(query) ||
-        (s.supervisorCo && s.supervisorCo.toLowerCase().includes(query));
-
-      const matchDept =
-        departmentFilter === "all" || s.department === departmentFilter;
-      const matchStatus = statusFilter === "all" || s.status === statusFilter;
-      const matchMilestone =
-        milestoneFilter === "all" ||
-        s.currentMilestoneIndex.toString() === milestoneFilter;
-
-      return matchSearch && matchDept && matchStatus && matchMilestone;
+  // Danh sách các chuyên ngành xuất hiện trong dữ liệu để lọc linh hoạt
+  const departmentOptions = useMemo(() => {
+    const set = new Set<string>();
+    studentsList.forEach((s) => {
+      if (s.department) set.add(s.department);
     });
-  }, [
-    studentsList,
-    studentSearchText,
-    departmentFilter,
-    statusFilter,
-    milestoneFilter,
-  ]);
+    return Array.from(set).sort();
+  }, [studentsList]);
 
-  // Pagination logic
-  const paginatedStudents = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredStudents.slice(start, start + itemsPerPage);
-  }, [filteredStudents, currentPage, itemsPerPage]);
+  const departmentItems = useMemo(() => [
+    { value: "all", label: "Tất cả chuyên ngành" },
+    ...departmentOptions.map((dept) => ({ value: dept, label: dept })),
+  ], [departmentOptions]);
 
-  const activeCount = studentsList.filter((s) => s.status === "active").length;
-  const warningCount = studentsList.filter(
-    (s) => s.status === "warning" || s.status === "overdue"
-  ).length;
-  const paperPassCount = studentsList.filter(
-    (s) => s.publicationPoints >= 2.0
-  ).length;
+  const milestoneItems = useMemo(() => [
+    { value: "all", label: "Tất cả các mốc đào tạo" },
+    { value: "1", label: "Mốc 1: Nhận QĐ công nhận NCS & Đề tài" },
+    { value: "2", label: "Mốc 2: Tiểu luận tổng quan" },
+    { value: "3", label: "Mốc 3: Đề cương nghiên cứu" },
+    { value: "4", label: "Mốc 4: Chuyên đề 1" },
+    { value: "5", label: "Mốc 5: Chuyên đề 2" },
+    { value: "6", label: "Mốc 6: Báo cáo định kỳ" },
+    { value: "7", label: "Mốc 7: Seminar cuối khóa" },
+    { value: "8", label: "Mốc 8: Bảo vệ cấp ĐVCM" },
+    { value: "9", label: "Mốc 9: Bảo vệ cấp cơ sở đào tạo" },
+  ], []);
+
+  const statusItems = useMemo(() => [
+    { value: "all", label: "Tất cả trạng thái tiến độ" },
+    { value: "active", label: "Đúng tiến độ (>12 tháng)" },
+    { value: "warning", label: "Cảnh báo (<12 tháng)" },
+    { value: "overdue", label: "Cảnh báo khẩn (<3 tháng)" },
+  ], []);
+
+  // Bộ lọc cột dành cho TanStack Table
+  const columnFilters = useMemo<ColumnFiltersState>(() => {
+    const filters: ColumnFiltersState = [];
+    if (departmentFilter !== "all") {
+      filters.push({ id: "department", value: departmentFilter });
+    }
+    if (statusFilter !== "all") {
+      filters.push({ id: "status", value: statusFilter });
+    }
+    if (milestoneFilter !== "all") {
+      filters.push({ id: "currentMilestoneIndex", value: Number(milestoneFilter) });
+    }
+    return filters;
+  }, [departmentFilter, statusFilter, milestoneFilter]);
+
+  // Hàm tìm kiếm toàn cục đa trường (client-side)
+  const globalFilterFn: FilterFn<StudentDossier> = (row, _columnId, filterValue) => {
+    const query = String(filterValue || "").trim().toLowerCase();
+    if (!query) return true;
+    const s = row.original;
+    return (
+      s.name.toLowerCase().includes(query) ||
+      s.code.toLowerCase().includes(query) ||
+      s.thesisTopic.toLowerCase().includes(query) ||
+      s.supervisorMain.toLowerCase().includes(query) ||
+      Boolean(s.supervisorCo && s.supervisorCo.toLowerCase().includes(query))
+    );
+  };
+
+  // Định nghĩa các cột cho TanStack Table
+  const columns = useMemo<ColumnDef<StudentDossier>[]>(
+    () => [
+      {
+        id: "name",
+        accessorKey: "name",
+        header: () => <span>Họ tên &amp; MSSV</span>,
+        cell: ({ row }) => (
+          <div>
+            <span className="font-bold text-slate-900 block text-xs">
+              {row.original.name}
+            </span>
+            <span className="text-[11px] font-mono text-slate-500 font-medium">
+              {row.original.code}
+            </span>
+          </div>
+        ),
+      },
+      {
+        id: "department",
+        accessorKey: "department",
+        header: () => <span>Ngành &amp; Năm tuyển sinh</span>,
+        cell: ({ row }) => (
+          <div>
+            <span className="font-semibold text-slate-800 block text-xs">
+              {row.original.department}
+            </span>
+            <span className="text-[11px] text-slate-500 block">
+              {row.original.admissionYear
+                ? `Năm tuyển sinh: ${row.original.admissionYear}`
+                : row.original.cohort}
+            </span>
+          </div>
+        ),
+        filterFn: (row, columnId, filterValue) => {
+          if (!filterValue || filterValue === "all") return true;
+          return row.getValue(columnId) === filterValue;
+        },
+      },
+      {
+        id: "thesisTopic",
+        accessorKey: "thesisTopic",
+        header: () => <span>Đề tài luận án &amp; GVHD</span>,
+        cell: ({ row }) => (
+          <div>
+            <p className="line-clamp-2 text-slate-700 italic">
+              “{row.original.thesisTopic}”
+            </p>
+            <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 mt-1">
+              <span>
+                GVHD chính: <strong>{row.original.supervisorMain}</strong>
+              </span>
+              {row.original.supervisorCo && (
+                <span>
+                  Đồng HD: <strong>{row.original.supervisorCo}</strong>
+                </span>
+              )}
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "currentMilestoneIndex",
+        accessorKey: "currentMilestoneIndex",
+        header: () => <span>Mốc hiện tại</span>,
+        cell: ({ row }) => (
+          <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-[#164E9B] px-3 py-1 text-[11px] font-bold whitespace-nowrap">
+            Mốc {row.original.currentMilestoneIndex} / 9
+          </span>
+        ),
+        filterFn: (row, columnId, filterValue) => {
+          if (!filterValue || filterValue === "all") return true;
+          return Number(row.getValue(columnId)) === Number(filterValue);
+        },
+      },
+      {
+        id: "status",
+        accessorKey: "status",
+        header: () => <span>Thời gian còn lại</span>,
+        cell: ({ row }) => {
+          const { remainingMonths } = row.original;
+          return remainingMonths > 12 ? (
+            <span className="rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-[10px] font-bold whitespace-nowrap">
+              {remainingMonths} tháng
+            </span>
+          ) : remainingMonths > 3 ? (
+            <span className="rounded-full bg-amber-100 text-amber-800 px-2.5 py-0.5 text-[10px] font-bold whitespace-nowrap">
+              {remainingMonths} tháng (Cảnh báo)
+            </span>
+          ) : (
+            <span className="rounded-full bg-rose-100 text-rose-800 px-2.5 py-0.5 text-[10px] font-bold whitespace-nowrap animate-pulse">
+              {remainingMonths} tháng (Khẩn)
+            </span>
+          );
+        },
+        filterFn: (row, columnId, filterValue) => {
+          if (!filterValue || filterValue === "all") return true;
+          return row.getValue(columnId) === filterValue;
+        },
+      },
+      {
+        id: "actions",
+        header: () => <span className="text-right block pr-1">Thao tác</span>,
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end pr-1">
+            <StudentCellAction
+              student={row.original}
+              onAssignSupervisor={(std) => {
+                setActionStudent(std);
+                setAssignModalOpen(true);
+              }}
+              onIssueDecision={(std) => {
+                setActionStudent(std);
+                setDecisionModalOpen(true);
+              }}
+              onViewDetail={(std) => {
+                setSelectedStudent(std);
+                setStudentModalOpen(true);
+              }}
+              onUpdateInfo={setStudentToUpdate}
+            />
+          </div>
+        ),
+      },
+    ],
+    []
+  );
+
+  const table = useManagementDataTable({
+    data: studentsList,
+    columns,
+    globalFilter: studentSearchText,
+    onGlobalFilterChange: setStudentSearchText,
+    columnFilters,
+    globalFilterFn,
+    initialPageSize: 8,
+  });
+
+  const activeCount = useMemo(
+    () => studentsList.filter((s) => s.status === "active").length,
+    [studentsList]
+  );
+  const warningCount = useMemo(
+    () => studentsList.filter((s) => s.status === "warning" || s.status === "overdue").length,
+    [studentsList]
+  );
 
   const handleResetFilters = () => {
     setStudentSearchText("");
     setDepartmentFilter("all");
     setStatusFilter("all");
     setMilestoneFilter("all");
-    setCurrentPage(1);
+    table.setPageIndex(0);
   };
 
   return (
@@ -161,12 +362,11 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
             onClick={() => setToastMessage(null)}
             className="rounded p-1 hover:bg-emerald-100 text-emerald-700 cursor-pointer"
           >
-            ×
           </button>
         </div>
       )}
 
-      {/* PAGE HEADER & BREADCRUMBS (Ẩn link quay lại nếu ở chế độ embedded tab) */}
+      {/* PAGE HEADER & BREADCRUMBS */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           {!embedded && (
@@ -251,7 +451,7 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
       </div>
 
       {/* QUICK STAT METRICS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4.5 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
@@ -268,7 +468,7 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
             <span className="text-xs text-slate-500">nghiên cứu sinh</span>
           </div>
           <p className="text-[11px] text-slate-500 mt-1">
-            Thuộc 4 Khoa chuyên ngành trọng điểm
+            Thuộc các Khoa chuyên ngành trọng điểm
           </p>
         </div>
 
@@ -317,28 +517,6 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
             Cần đôn đốc nộp hồ sơ bảo vệ cấp ĐVCM
           </p>
         </div>
-
-        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/30 p-4.5 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-900">
-              Đạt chuẩn bài báo (≥2.0đ)
-            </span>
-            <div className="flex size-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-800">
-              <Award className="size-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-indigo-950">
-              {paperPassCount}
-            </span>
-            <span className="text-xs font-semibold text-indigo-700">
-              / {studentsList.length} NCS
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-600 mt-1">
-            Đủ điều kiện xuất bản WoS/Scopus Q1-Q3
-          </p>
-        </div>
       </div>
 
       {/* FILTER & SEARCH PANEL */}
@@ -381,217 +559,100 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
               value={studentSearchText}
               onChange={(e) => {
                 setStudentSearchText(e.target.value);
-                setCurrentPage(1);
+                table.setPageIndex(0);
               }}
               placeholder="Tìm theo họ tên, MSSV, đề tài, GVHD..."
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-9 pr-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-[#164E9B] focus:ring-1 focus:ring-[#164E9B] outline-none"
+              className="w-full h-9 rounded-xl border border-slate-200 bg-slate-50/50 pl-9 pr-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-[#164E9B] focus:ring-1 focus:ring-[#164E9B] outline-none"
             />
           </div>
 
           {/* Department Filter */}
-          <select
+          <Select
+            items={departmentItems}
             value={departmentFilter}
-            onChange={(e) => {
-              setDepartmentFilter(e.target.value);
-              setCurrentPage(1);
+            onValueChange={(val) => {
+              setDepartmentFilter(val ?? "all");
+              table.setPageIndex(0);
             }}
-            className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-700 focus:bg-white focus:border-[#164E9B] outline-none cursor-pointer"
           >
-            <option value="all">Tất cả chuyên ngành</option>
-            <option value="Khoa học Máy tính">Khoa học Máy tính</option>
-            <option value="Công nghệ Sinh học">Công nghệ Sinh học</option>
-            <option value="Khoa học Cây trồng">Khoa học Cây trồng</option>
-            <option value="Quản trị Kinh doanh">Quản trị Kinh doanh</option>
-          </select>
+            <SelectTrigger className="w-full h-9 rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-700 focus:bg-white focus:border-[#164E9B] cursor-pointer">
+              <SelectValue placeholder="Tất cả chuyên ngành">
+                {(val) => departmentItems.find((it) => it.value === val)?.label || "Tất cả chuyên ngành"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className="max-h-60 rounded-xl border border-slate-200 bg-white shadow-xl text-xs z-50"  alignItemWithTrigger={false}>
+              {departmentItems.map((dept) => (
+                <SelectItem key={dept.value} value={dept.value}>
+                  {dept.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           {/* Milestone Filter */}
-          <select
+          <Select
+            items={milestoneItems}
             value={milestoneFilter}
-            onChange={(e) => {
-              setMilestoneFilter(e.target.value);
-              setCurrentPage(1);
+            onValueChange={(val) => {
+              setMilestoneFilter(val ?? "all");
+              table.setPageIndex(0);
             }}
-            className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-700 focus:bg-white focus:border-[#164E9B] outline-none cursor-pointer"
           >
-            <option value="all">Tất cả các mốc đào tạo</option>
-            <option value="1">Mốc 1: Quyết định công nhận NCS</option>
-            <option value="2">Mốc 2: Học phần tiến sĩ bổ sung</option>
-            <option value="3">Mốc 3: Báo cáo chuyên đề 01</option>
-            <option value="4">Mốc 4: Báo cáo chuyên đề 02</option>
-            <option value="5">Mốc 5: Bảo vệ đề cương chi tiết</option>
-            <option value="6">Mốc 6: Báo cáo chuyên đề 03</option>
-            <option value="7">Mốc 7: Báo cáo tiến độ 6 tháng</option>
-            <option value="8">Mốc 8: Thẩm định bài báo WoS/Scopus</option>
-            <option value="9">Mốc 9: Bảo vệ luận án cấp Trường</option>
-          </select>
+            <SelectTrigger className="w-full h-9 rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-700 focus:bg-white focus:border-[#164E9B] cursor-pointer">
+              <SelectValue placeholder="Tất cả các mốc đào tạo">
+                {(val) => milestoneItems.find((it) => it.value === val)?.label || "Tất cả các mốc đào tạo"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className="max-h-60 rounded-xl border border-slate-200 bg-white shadow-xl text-xs z-50"  alignItemWithTrigger={false}>
+              {milestoneItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           {/* Status Filter */}
-          <select
+          <Select
+            items={statusItems}
             value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setCurrentPage(1);
+            onValueChange={(val) => {
+              setStatusFilter(val ?? "all");
+              table.setPageIndex(0);
             }}
-            className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-700 focus:bg-white focus:border-[#164E9B] outline-none cursor-pointer"
           >
-            <option value="all">Tất cả trạng thái tiến độ</option>
-            <option value="active">Đúng tiến độ (&gt;12 tháng)</option>
-            <option value="warning">Cảnh báo (&lt;12 tháng)</option>
-            <option value="overdue">Cảnh báo khẩn (&lt;3 tháng)</option>
-          </select>
+            <SelectTrigger className="w-full h-9 rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-700 focus:bg-white focus:border-[#164E9B] cursor-pointer">
+              <SelectValue placeholder="Tất cả trạng thái tiến độ">
+                {(val) => statusItems.find((it) => it.value === val)?.label || "Tất cả trạng thái tiến độ"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className="max-h-60 rounded-xl border border-slate-200 bg-white shadow-xl text-xs z-50"  alignItemWithTrigger={false}>
+              {statusItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* RESULTS TABLE */}
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full text-left text-xs text-slate-700">
-            <thead className="bg-slate-50 text-[11px] font-bold uppercase text-slate-600 border-b border-slate-200">
-              <tr>
-                <th className="py-3 px-3.5">Họ tên &amp; MSSV</th>
-                <th className="py-3 px-3">Chuyên ngành &amp; Khóa</th>
-                <th className="py-3 px-3 max-w-sm">Đề tài luận án &amp; GVHD</th>
-                <th className="py-3 px-3">Mốc hiện tại</th>
-                <th className="py-3 px-3">Thời gian còn lại</th>
-                <th className="py-3 px-3">Bài báo WoS/Scopus</th>
-                <th className="py-3 px-3 text-right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {paginatedStudents.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
-                    <Users className="size-8 mx-auto text-slate-300 mb-2" />
-                    <p className="font-semibold text-slate-600">
-                      Không tìm thấy nghiên cứu sinh nào phù hợp với điều kiện tìm kiếm.
-                    </p>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Thử điều chỉnh từ khóa tìm kiếm hoặc bấm &ldquo;Đặt lại bộ lọc&rdquo;.
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                paginatedStudents.map((std) => (
-                  <tr
-                    key={std.id}
-                    className="hover:bg-blue-50/40 transition-colors"
-                  >
-                    <td className="py-3.5 px-3.5">
-                      <span className="font-bold text-slate-900 block text-xs">
-                        {std.name}
-                      </span>
-                      <span className="text-[11px] font-mono text-slate-500 font-medium">
-                        {std.code}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3">
-                      <span className="font-semibold text-slate-800 block">
-                        {std.department}
-                      </span>
-                      <span className="text-[11px] text-slate-500">
-                        {std.cohort}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3 max-w-sm">
-                      <p className="line-clamp-2 text-slate-700 italic">
-                        “{std.thesisTopic}”
-                      </p>
-                      <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 mt-1">
-                        <span>
-                          GVHD chính: <strong>{std.supervisorMain}</strong>
-                        </span>
-                        {std.supervisorCo && (
-                          <span>
-                            • Đồng HD: <strong>{std.supervisorCo}</strong>
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-3">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-[#164E9B] px-2.5 py-0.5 text-[11px] font-bold">
-                        Mốc {std.currentMilestoneIndex} / 9
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3">
-                      {std.remainingMonths > 12 ? (
-                        <span className="rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
-                          {std.remainingMonths} tháng
-                        </span>
-                      ) : std.remainingMonths > 3 ? (
-                        <span className="rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold">
-                          {std.remainingMonths} tháng (Cảnh báo)
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-rose-100 text-rose-800 px-2 py-0.5 text-[10px] font-bold animate-pulse">
-                          {std.remainingMonths} tháng (Khẩn)
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-[#0F2744]">
-                          {std.publicationPoints?.toFixed(1)} / 2.0đ
-                        </span>
-                        {std.publicationPoints >= 2.0 ? (
-                          <span className="text-emerald-600 font-bold text-[10px]">
-                            ✓ Đạt
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 text-[10px]">Thiếu</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-3 text-right">
-                      <div className="inline-flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActionStudent(std);
-                            setAssignModalOpen(true);
-                          }}
-                          className="inline-flex items-center gap-1 rounded-lg border border-[#164E9B]/30 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-[#164E9B] hover:bg-[#164E9B] hover:text-white transition-all shadow-2xs cursor-pointer whitespace-nowrap active:scale-95"
-                          title="Thêm hoặc phân công GVHD cho NCS này"
-                        >
-                          <UserPlus className="size-3.5 shrink-0" />
-                          <span>+ Thêm GVHD</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActionStudent(std);
-                            setDecisionModalOpen(true);
-                          }}
-                          className="rounded-lg border border-amber-200 bg-amber-50/70 p-1.5 text-amber-900 hover:bg-amber-100 transition-colors shadow-2xs cursor-pointer"
-                          title="Ban hành quyết định thay đổi trạng thái"
-                        >
-                          <Scale className="size-3.5 text-amber-700" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedStudent(std);
-                            setStudentModalOpen(true);
-                          }}
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-[#164E9B] hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
-                        >
-                          <Eye className="size-3.5" />
-                          <span>Hồ sơ</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* TABLE PAGINATION */}
-        <TablePagination
-          currentPage={currentPage}
-          totalItems={filteredStudents.length}
-          pageSize={itemsPerPage}
-          onPageChange={setCurrentPage}
+        <ManagementDataTable
+          table={table}
+          headerStyles={headerStyles}
+          cellStyles={cellStyles}
           itemLabel="nghiên cứu sinh"
-          className="pt-2"
+          emptyState={
+            <>
+              <Users className="size-8 mx-auto text-slate-300 mb-2" />
+              <p className="font-semibold text-slate-600">
+                Không tìm thấy nghiên cứu sinh nào phù hợp với điều kiện tìm kiếm.
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Thử điều chỉnh từ khóa tìm kiếm hoặc bấm &ldquo;Đặt lại bộ lọc&rdquo;.
+              </p>
+            </>
+          }
         />
       </div>
 
@@ -603,6 +664,17 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
           setSelectedStudent(null);
         }}
         student={selectedStudent}
+      />
+
+      <StudentUpdateModal
+        key={studentToUpdate?.id ?? "student-update"}
+        isOpen={Boolean(studentToUpdate)}
+        onClose={() => setStudentToUpdate(null)}
+        student={studentToUpdate}
+        onSuccess={(msg) => {
+          setToastMessage(msg);
+          setTimeout(() => setToastMessage(null), 5000);
+        }}
       />
 
       {/* EXCEL IMPORT MODAL */}

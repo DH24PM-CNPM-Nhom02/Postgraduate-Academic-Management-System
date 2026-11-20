@@ -13,6 +13,7 @@ export { SupervisorAssignmentModal } from "./SupervisorAssignmentModal";
 export { DecisionIssueModal } from "./DecisionIssueModal";
 export { TopicChangeModal, type TopicChangeItem } from "./TopicChangeModal";
 export { StudentDetailModal, type StudentDossier } from "./StudentDetailModal";
+export { StudentUpdateModal, type StudentUpdateModalProps } from "./StudentUpdateModal";
 export {
   ExcelImportModal,
   type EntityImportType,
@@ -25,6 +26,7 @@ export * from "./mockData";
 
 // Clean Architecture View Components
 export { StudentsManagementView } from "./students/StudentsManagementView";
+export { StudentCellAction, type StudentCellActionProps } from "./students/StudentCellAction";
 export { SupervisorsManagementView } from "./supervisors/SupervisorsManagementView";
 export { EvidenceManagementView } from "./evidence/EvidenceManagementView";
 export { TopicChangesManagementView } from "./topic-changes/TopicChangesManagementView";

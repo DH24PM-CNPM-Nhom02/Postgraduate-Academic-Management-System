@@ -7,4 +7,5 @@
  */
 
 export * from "./student";
+export * from "./student-update";
 export * from "./supervisor";

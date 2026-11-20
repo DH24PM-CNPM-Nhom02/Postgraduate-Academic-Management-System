@@ -81,6 +81,18 @@ export class NcsController {
     return this.send('phd.ncs.list', { query });
   }
 
+  @Get('catalogs/nganh-dao-tao')
+  @RequirePermissions(PERMISSIONS.NCS_READ)
+  getNganhDaoTao() {
+    return this.send('phd.ncs.catalog.majors', {});
+  }
+
+  @Get('catalogs/khoa-hoc')
+  @RequirePermissions(PERMISSIONS.NCS_READ)
+  getKhoaHocNcs() {
+    return this.send('phd.ncs.catalog.cohorts', {});
+  }
+
   @Get('me')
   me(@CurrentUser() u: AuthUser) {
     return this.send('phd.ncs.get', { userId: u.id });
