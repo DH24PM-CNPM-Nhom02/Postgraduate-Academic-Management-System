@@ -2,12 +2,15 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Menu,
   LogOut,
   User,
   Shield,
   ChevronDown,
+  ChevronRight,
+  GraduationCap,
   BookOpen,
   X,
   ClipboardList,
@@ -22,6 +25,30 @@ import { NotificationBellPopover } from "@/src/components/notification";
 
 interface StudentHeaderProps {
   onToggleSidebar?: () => void;
+}
+
+const STUDENT_PAGE_TITLES: Record<string, string> = {
+  "/student/progress": "Tiến độ đào tạo 9 mốc",
+  "/student/thesis": "Đề tài luận án",
+  "/student/supervisors": "Giảng viên hướng dẫn",
+  "/student/extensions": "Đơn đề nghị & Gia hạn",
+  "/student/graduation": "Xét tốt nghiệp",
+  "/student/procedures": "Thủ tục & Biểu mẫu học vụ",
+  "/student/regulations": "Quy chế & Quy định",
+  "/student/faq": "Hỏi đáp & Liên hệ",
+  "/student/profile": "Hồ sơ nghiên cứu sinh",
+  "/student": "Cổng Nghiên cứu sinh",
+};
+
+function getStudentPageTitle(pathname: string | null): string {
+  if (!pathname) return "Tiến độ đào tạo 9 mốc";
+  if (STUDENT_PAGE_TITLES[pathname]) return STUDENT_PAGE_TITLES[pathname];
+  for (const [route, title] of Object.entries(STUDENT_PAGE_TITLES)) {
+    if (route !== "/student" && pathname.startsWith(route)) {
+      return title;
+    }
+  }
+  return "Tiến độ đào tạo 9 mốc";
 }
 
 const HANDBOOK_LINKS = [
@@ -196,6 +223,8 @@ function StudentHandbookDialog({
 
 export function StudentHeader({ onToggleSidebar }: StudentHeaderProps) {
   const { user, logout } = useAuth();
+  const pathname = usePathname();
+  const pageTitle = getStudentPageTitle(pathname);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [handbookOpen, setHandbookOpen] = useState(false);
 
@@ -213,7 +242,7 @@ export function StudentHeader({ onToggleSidebar }: StudentHeaderProps) {
   return (
     <>
       <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur-md sm:px-6">
-        {/* Left: Mobile Toggle & Brand Identity đồng bộ toàn hệ thống */}
+        {/* Left: Mobile Toggle & Brand/Breadcrumb Identity */}
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -224,22 +253,41 @@ export function StudentHeader({ onToggleSidebar }: StudentHeaderProps) {
             <Menu className="size-5" />
           </button>
 
-          <div className="flex items-center gap-3">
+          {/* Mobile: Chỉ hiện Logo ở Header khi màn hình nhỏ (do Sidebar đã ẩn) */}
+          <div className="flex items-center gap-2 lg:hidden">
             <Link
               href="/"
-              className="flex items-center gap-2.5 transition-transform hover:scale-102 motion-reduce:hover:scale-100"
+              className="flex items-center gap-2 transition-transform active:scale-98"
             >
-              <HoverLogo sizeClass="size-8.5" />
+              <HoverLogo sizeClass="size-8" />
               <div className="flex flex-col">
-                <span className="text-xs font-black uppercase leading-none tracking-tight text-[#0F2744] sm:text-sm">
-                  TRƯỜNG ĐẠI HỌC AN GIANG – ĐHQG-HCM
+                <span className="text-xs font-black tracking-tight text-[#0F2744] uppercase leading-none">
+                  AGU SĐH
                 </span>
-                <span className="mt-0.5 text-[10px] font-semibold text-[#164E9B] sm:text-[11px]">
-                  Cổng Quản lý Đào tạo Sau Đại học • Nghiên cứu sinh
+                <span className="text-[10px] font-semibold text-[#164E9B] mt-0.5">
+                  Cổng NCS
                 </span>
               </div>
             </Link>
           </div>
+
+          {/* Desktop: Sidebar bên trái đã có Logo AGU, Header hiển thị Breadcrumb & Vị trí làm việc để tránh trùng lặp */}
+          <nav aria-label="Điều hướng vị trí" className="hidden lg:flex items-center gap-2 text-xs">
+            <Link
+              href="/student/progress"
+              className="flex items-center gap-1.5 font-semibold text-slate-500 hover:text-[#164E9B] transition-colors"
+            >
+              <GraduationCap className="size-4 text-[#164E9B]" />
+              <span>Cổng NCS</span>
+            </Link>
+            <ChevronRight className="size-3.5 text-slate-400" />
+            <span className="font-bold text-slate-800">
+              {pageTitle}
+            </span>
+            <span className="ml-1 rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold text-[#164E9B] tracking-wide">
+              HỌC VỤ TIẾN SĨ
+            </span>
+          </nav>
         </div>
 
         {/* Right: Actions, Notifications & Profile */}

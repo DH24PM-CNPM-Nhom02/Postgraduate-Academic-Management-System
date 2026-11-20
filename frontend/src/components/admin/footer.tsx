@@ -6,12 +6,8 @@ import {
   MapPin,
   Phone,
   Mail,
-  Clock,
-  ShieldCheck,
   ExternalLink,
   BookOpen,
-  Terminal,
-  Cpu,
 } from "lucide-react";
 import { HoverLogo } from "@/src/components/academic/HoverLogo";
 
@@ -19,7 +15,7 @@ export function AdminFooter() {
   return (
     <footer className="w-full border-t border-slate-200 bg-white text-slate-700 mt-auto">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Cột 1: Thông tin cơ quan chủ quản */}
           <div className="space-y-3 md:col-span-1">
             <div className="flex items-center gap-2.5">
@@ -32,7 +28,7 @@ export function AdminFooter() {
               Đại học Quốc gia TP. Hồ Chí Minh
             </p>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Phân hệ Quản trị Hệ thống (Admin Console) — Giám sát hoạt động đào tạo Sau Đại học, phân quyền tài khoản RBAC, kiểm toán bảo mật và hỗ trợ vận hành quy chế BR-09.
+              Phân hệ Quản trị Hệ thống — Giám sát hoạt động đào tạo Sau Đại học.
             </p>
           </div>
 
@@ -52,11 +48,7 @@ export function AdminFooter() {
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="size-3.5 shrink-0 text-[#164E9B]" />
-                <span>admin@agu.edu.vn • sdh@agu.edu.vn</span>
-              </li>
-              <li className="flex items-center gap-2 text-slate-500 text-[11px]">
-                <Clock className="size-3.5 shrink-0 text-slate-400" />
-                <span>Hỗ trợ kỹ thuật: 24/7 (Đội ngũ IT &amp; Quản trị máy chủ)</span>
+                <span>admin@agu.edu.vn | sdh@agu.edu.vn</span>
               </li>
             </ul>
           </div>
@@ -106,37 +98,6 @@ export function AdminFooter() {
             </ul>
           </div>
 
-          {/* Cột 4: Thông tin máy chủ & Bảo mật */}
-          <div className="space-y-2.5 md:col-span-1">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-              Hệ thống &amp; Giám sát bảo mật
-            </h4>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2 text-xs">
-              <div className="flex items-center justify-between text-emerald-700 font-semibold">
-                <span className="flex items-center gap-1.5">
-                  <ShieldCheck className="size-4 text-emerald-600" />
-                  <span>RBAC Security: Enabled</span>
-                </span>
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded-full">
-                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Active
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
-                Môi trường: Production (v1.0.0) • DB Cluster &amp; Microservices hoạt động ổn định.
-              </p>
-              <div className="text-[10px] text-slate-400 border-t border-slate-200 pt-1.5 flex justify-between">
-                <span className="flex items-center gap-1">
-                  <Cpu className="size-3 text-[#164E9B]" />
-                  <span>Phân hệ: System Admin</span>
-                </span>
-                <span className="flex items-center gap-1">
-                  <Terminal className="size-3" />
-                  <span>Build 2026.10</span>
-                </span>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Bottom sub-footer */}
