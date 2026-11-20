@@ -21,6 +21,7 @@ export type NotificationType =
   | "CAP_NHAT_HAN_KE_HOACH"
   | "NCS_DUOC_PHAN_CONG_GVHD"
   | "GVHD_NHAN_NCS"
+  | "GVHD_TRO_THANH_GVHD_CHINH"
   | "THAY_DOI_PHAN_CONG_GVHD"
   | "CAP_NHAT_TRANG_THAI_HOC_TAP"
   // Quyết định pháp lý

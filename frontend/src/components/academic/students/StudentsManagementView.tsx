@@ -28,7 +28,6 @@ import {
   StudentDetailModal,
   StudentUpdateModal,
   ExcelImportModal,
-  SupervisorAssignmentModal,
   DecisionIssueModal,
   MOCK_STUDENTS,
   MOCK_SUPERVISORS,
@@ -43,6 +42,7 @@ import {
 import { StudentCellAction } from "./StudentCellAction";
 import { useAcademicStudents, useAcademicSupervisors } from "@/src/hooks/use-academic";
 import type { StudentDossier } from "@/src/types/academic";
+import SupervisorAssignmentModal from "../SupervisorAssignmentModal";
 
 interface StudentsManagementViewProps {
   /** Khi được nhúng trong dashboard tab, có thể ẩn breadcrumb quay lại */
@@ -717,12 +717,14 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
 
       {/* DECISION ISSUE MODAL */}
       <DecisionIssueModal
+        key={`decision-${decisionModalOpen}-${actionStudent?.id ?? "none"}`}
         isOpen={decisionModalOpen}
         onClose={() => {
           setDecisionModalOpen(false);
           setActionStudent(null);
         }}
         selectedStudent={actionStudent}
+        students={studentsList}
         onSuccess={(msg) => {
           setToastMessage(msg);
           setTimeout(() => setToastMessage(null), 5000);

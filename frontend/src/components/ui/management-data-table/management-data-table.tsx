@@ -19,7 +19,10 @@ export interface ManagementDataTableProps<TData> {
   emptyState: ReactNode;
   itemLabel?: string;
   minWidth?: string;
+  pageSizeOptions?: number[];
 }
+
+const DEFAULT_PAGE_SIZE_OPTIONS = [8, 16, 32, 64];
 
 /** Shared renderer for management tables. Column definitions and empty state stay page-specific. */
 export function ManagementDataTable<TData>({
@@ -29,6 +32,7 @@ export function ManagementDataTable<TData>({
   emptyState,
   itemLabel = "mục",
   minWidth = "min-w-[980px]",
+  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
 }: ManagementDataTableProps<TData>) {
   const rows = table.getRowModel().rows;
 
@@ -76,6 +80,11 @@ export function ManagementDataTable<TData>({
         totalItems={table.getFilteredRowModel().rows.length}
         pageSize={table.getState().pagination.pageSize}
         onPageChange={(page) => table.setPageIndex(page - 1)}
+        pageSizeOptions={pageSizeOptions}
+        onPageSizeChange={(pageSize) => {
+          table.setPageSize(pageSize);
+          table.setPageIndex(0);
+        }}
         itemLabel={itemLabel}
       />
     </>

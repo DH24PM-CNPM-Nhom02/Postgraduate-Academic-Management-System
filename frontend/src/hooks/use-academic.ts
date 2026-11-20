@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { NcsService } from "@/src/services/ncs";
+import { DecisionService, type CreateDecisionPayload } from "@/src/services/decision";
 import {
   GvhdService,
   mapBackendGvhdToSupervisorProfile,
@@ -10,7 +11,9 @@ import {
   type BackendAssignmentDecisionRaw,
   type BackendNcsDetailRaw,
   type CreateAssignmentPayload,
+  type UpdateGvhdPayload,
   type BackendGvhdRaw,
+  type DonViItem,
 } from "@/src/services/gvhd";
 import type { SupervisedStudent, SupervisorProfile } from "@/src/types/ui/supervisor";
 import {
@@ -128,6 +131,41 @@ export function useAcademicSupervisors() {
     },
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
+  });
+}
+
+export function useDownloadGvhdTemplate() {
+  return useMutation({
+    mutationFn: async () => {
+      const blob = await GvhdService.downloadImportTemplate();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "mau-import-gvhd.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    },
+  });
+}
+
+export function usePreviewGvhdImport() {
+  return useMutation({
+    mutationFn: (file: File) => {
+      return GvhdService.previewImportExcel(file)
+    },
+  });
+}
+
+export function useConfirmGvhdImport() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: File) => GvhdService.confirmImportExcel(file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["academic", "supervisors"] });
+    },
   });
 }
 
@@ -317,6 +355,33 @@ export function useCreateAssignment() {
   });
 }
 
+export function useUpdateAcademicSupervisor() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateGvhdPayload }) =>
+      GvhdService.updateSupervisor(id, data),
+    onSuccess: (_result, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["academic", "supervisors"] });
+      queryClient.invalidateQueries({ queryKey: ["academic", "supervisor-detail", variables.id] });
+    },
+  });
+}
+
+/** Tạo quyết định học vụ mới (POST /decisions). */
+export function useCreateDecision() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreateDecisionPayload) => DecisionService.create(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["academic", "decisions"] });
+      queryClient.invalidateQueries({ queryKey: ["academic", "assignment-decisions"] });
+      queryClient.invalidateQueries({ queryKey: ["academic", "students"] });
+    },
+  });
+}
+
 /**
  * Custom hook hủy phân công GVHD hiện hành (PATCH /gvhd/assignments/:id/deactivate)
  */
@@ -324,8 +389,8 @@ export function useDeactivateAssignment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, lyDo }: { id: string; lyDo: string }) => {
-      return await GvhdService.deactivateAssignment(id, lyDo);
+    mutationFn: async ({ id, data }: { id: string; data: Parameters<typeof GvhdService.deactivateAssignment>[1] }) => {
+      return await GvhdService.deactivateAssignment(id, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["academic", "supervisors"] });
@@ -362,6 +427,20 @@ export function useAcademicTopicChanges() {
       return MOCK_TOPIC_CHANGES;
     },
     staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * Custom hook lấy danh sách Đơn vị trong trường (Khoa, Bộ môn, Phòng ban)
+ */
+export function useDonViList(loai?: string) {
+  return useQuery<DonViItem[]>({
+    queryKey: ["academic", "don-vi", loai ?? "all"],
+    queryFn: async () => {
+      return await GvhdService.getDonViList(loai);
+    },
+    staleTime: 1000 * 60 * 10,
     refetchOnWindowFocus: false,
   });
 }
