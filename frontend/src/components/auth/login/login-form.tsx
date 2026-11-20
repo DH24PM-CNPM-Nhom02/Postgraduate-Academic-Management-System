@@ -172,11 +172,10 @@ export function LoginForm() {
                     }}
                     placeholder="VD: MSHV20240189"
                     disabled={isLoading}
-                    className={`w-full rounded-lg border bg-white py-2 sm:py-2.5 pl-10 pr-4 text-sm font-normal text-[#172B4D] placeholder-gray-400 transition-all duration-150 focus:outline-none focus:ring-4 ${
-                      fieldErrors.username
-                        ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
-                        : 'border-[#D0D5DD] focus:border-[#155EEF] focus:ring-[#EAF2FF]'
-                    }`}
+                    className={`w-full rounded-lg border bg-white py-2 sm:py-2.5 pl-10 pr-4 text-sm font-normal text-[#172B4D] placeholder-gray-400 transition-all duration-150 focus:outline-none focus:ring-4 ${fieldErrors.username
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
+                      : 'border-[#D0D5DD] focus:border-[#155EEF] focus:ring-[#EAF2FF]'
+                      }`}
                   />
                 </div>
                 {fieldErrors.username && (
@@ -207,11 +206,10 @@ export function LoginForm() {
                     }}
                     placeholder="••••••••••••"
                     disabled={isLoading}
-                    className={`w-full rounded-lg border bg-white py-2 sm:py-2.5 pl-10 pr-11 text-sm font-normal text-[#172B4D] placeholder-gray-400 transition-all duration-150 focus:outline-none focus:ring-4 ${
-                      fieldErrors.password
-                        ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
-                        : 'border-[#D0D5DD] focus:border-[#155EEF] focus:ring-[#EAF2FF]'
-                    }`}
+                    className={`w-full rounded-lg border bg-white py-2 sm:py-2.5 pl-10 pr-11 text-sm font-normal text-[#172B4D] placeholder-gray-400 transition-all duration-150 focus:outline-none focus:ring-4 ${fieldErrors.password
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
+                      : 'border-[#D0D5DD] focus:border-[#155EEF] focus:ring-[#EAF2FF]'
+                      }`}
                   />
                   <button
                     type="button"

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   BookOpen,
   ArrowLeft,
@@ -92,12 +93,13 @@ export const REGULATIONS_LIST = [
   },
 ];
 
-export function RegulationsView({
+function RegulationsViewContent({
   roleContext = "academic",
   backHref,
   backLabel,
 }: RegulationsViewProps) {
-  const [searchTerm, setSearchTerm] = useState("");
+  const searchParams = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(() => searchParams?.get("search") || "");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const defaultBackHref =
@@ -248,6 +250,20 @@ export function RegulationsView({
         ))}
       </div>
     </div>
+  );
+}
+
+export function RegulationsView(props: RegulationsViewProps) {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="flex h-64 items-center justify-center text-xs text-slate-500">
+          Đang tải danh sách quy chế...
+        </div>
+      }
+    >
+      <RegulationsViewContent {...props} />
+    </React.Suspense>
   );
 }
 

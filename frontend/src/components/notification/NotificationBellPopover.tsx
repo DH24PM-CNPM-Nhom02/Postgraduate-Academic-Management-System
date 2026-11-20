@@ -125,13 +125,13 @@ export function NotificationBellPopover({
     } else if (currentRole === "supervisor") {
       router.push("/supervisor/dashboard");
     } else if (item.nhom === "QUYET_DINH") {
-      router.push("/academic?tab=students");
+      router.push("/academic/decisions");
     } else if (item.nhom === "NHAC_HAN") {
-      router.push("/academic?tab=calendar");
+      router.push("/academic/calendar");
     } else if (item.loai.startsWith("DE_NGHI_DOI_DE_TAI") || item.loai.startsWith("DE_NGHI_DIEU_CHINH")) {
-      router.push("/academic?tab=topic-changes");
+      router.push("/academic/topic-changes");
     } else if (item.nhom === "TIEN_DO") {
-      router.push("/academic?tab=evidences");
+      router.push("/academic/evidence");
     } else {
       router.push("/academic");
     }
