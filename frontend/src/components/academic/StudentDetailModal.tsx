@@ -617,19 +617,20 @@ export function StudentDetailModal({
                         )}
                         {(() => {
                           const qd = gvhdChinhPhanCong?.quyetDinh;
-                          if (!qd?.soQuyetDinh) return null;
+                          const fileId = qd?.fileId;
+                          if (!qd?.soQuyetDinh || !fileId) return null;
                           return (
                             <div className="flex flex-wrap items-center gap-2 pt-0.5">
                               <p className="text-[#164E9B] font-medium">
                                 QĐ phân công: {qd.soQuyetDinh} ({formatDate(qd.ngayQuyetDinh)})
                               </p>
-                              {qd.fileId && (
+                              {fileId && (
                                 <div className="flex items-center gap-1">
                                   <button
                                     type="button"
                                     onClick={() =>
                                       handleViewDocument(
-                                        qd.fileId,
+                                        fileId,
                                         `QD_Phan_cong_${(qd.soQuyetDinh || "gvhd").replace(/[\/\\]/g, "_")}.pdf`,
                                         `Quyết định phân công GVHD chính: ${qd.soQuyetDinh}`,
                                         `NCS: ${fullStudent.name}`
@@ -645,7 +646,7 @@ export function StudentDetailModal({
                                     type="button"
                                     onClick={() =>
                                       handleDownloadDocument(
-                                        qd.fileId,
+                                        fileId,
                                         `QD_Phan_cong_${(qd.soQuyetDinh || "gvhd").replace(/[\/\\]/g, "_")}.pdf`
                                       )
                                     }
@@ -692,19 +693,20 @@ export function StudentDetailModal({
                         )}
                         {(() => {
                           const qd = dongGvhdPhanCong?.quyetDinh;
-                          if (!qd?.soQuyetDinh) return null;
+                          const fileId = qd?.fileId;
+                          if (!qd?.soQuyetDinh || !fileId) return null;
                           return (
                             <div className="flex flex-wrap items-center gap-2 pt-0.5">
                               <p className="text-[#164E9B] font-medium">
                                 QĐ phân công: {qd.soQuyetDinh} ({formatDate(qd.ngayQuyetDinh)})
                               </p>
-                              {qd.fileId && (
+                              {fileId && (
                                 <div className="flex items-center gap-1">
                                   <button
                                     type="button"
                                     onClick={() =>
                                       handleViewDocument(
-                                        qd.fileId,
+                                        fileId,
                                         `QD_Phan_cong_${(qd.soQuyetDinh || "dong_gvhd").replace(/[\/\\]/g, "_")}.pdf`,
                                         `Quyết định phân công Đồng GVHD: ${qd.soQuyetDinh}`,
                                         `NCS: ${fullStudent.name}`
@@ -720,7 +722,7 @@ export function StudentDetailModal({
                                     type="button"
                                     onClick={() =>
                                       handleDownloadDocument(
-                                        qd.fileId,
+                                        fileId,
                                         `QD_Phan_cong_${(qd.soQuyetDinh || "dong_gvhd").replace(/[\/\\]/g, "_")}.pdf`
                                       )
                                     }
@@ -753,7 +755,9 @@ export function StudentDetailModal({
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-100">
-                      {quyetDinhsList.map((qd, idx) => (
+                      {quyetDinhsList.map((qd, idx) => {
+                        const fileId = qd.fileId;
+                        return (
                         <div key={qd.id || idx} className="py-2.5 flex items-center justify-between text-xs gap-3">
                           <div className="space-y-0.5 min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
@@ -772,13 +776,13 @@ export function StudentDetailModal({
                             <p className="text-slate-700">{qd.ghiChu || "Quyết định học vụ"}</p>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
-                            {qd.fileId ? (
+                            {fileId ? (
                               <>
                                 <button
                                   type="button"
                                   onClick={() =>
                                     handleViewDocument(
-                                      qd.fileId,
+                                      fileId,
                                       `Quyet_dinh_${(qd.soQuyetDinh || "hoc_vu").replace(/[\/\\]/g, "_")}.pdf`,
                                       `Quyết định: ${qd.soQuyetDinh || "Học vụ"}`,
                                       `${qd.loai || "Quyết định"} • Ngày: ${formatDate(qd.ngayQuyetDinh)}`
@@ -794,7 +798,7 @@ export function StudentDetailModal({
                                   type="button"
                                   onClick={() =>
                                     handleDownloadDocument(
-                                      qd.fileId,
+                                      fileId,
                                       `Quyet_dinh_${(qd.soQuyetDinh || "hoc_vu").replace(/[\/\\]/g, "_")}.pdf`
                                     )
                                   }
@@ -812,7 +816,8 @@ export function StudentDetailModal({
                             )}
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -971,6 +976,7 @@ export function StudentDetailModal({
 
                             <div className="space-y-2">
                               {m.minhChungs.map((mc, mcIdx) => {
+                                const fileId = mc.fileId;
                                 const mcStatusBadge =
                                   mc.trangThai === "PASSED" ? (
                                     <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
@@ -1004,13 +1010,13 @@ export function StudentDetailModal({
 
                                       {/* Nút Xem và Tải file minh chứng */}
                                       <div className="flex items-center gap-1.5">
-                                        {mc.fileId ? (
+                                        {fileId ? (
                                           <>
                                             <button
                                               type="button"
                                               onClick={() =>
                                                 handleViewDocument(
-                                                  mc.fileId,
+                                                  fileId,
                                                   `Minh_chung_Moc_${m.index}_Lan_${mc.lanNop}.pdf`,
                                                   `Minh chứng ${m.name} (Lần ${mc.lanNop})`,
                                                   `NCS: ${fullStudent.name} (${fullStudent.code}) • Nộp: ${formatDate(mc.ngayNop)}`
@@ -1026,7 +1032,7 @@ export function StudentDetailModal({
                                               type="button"
                                               onClick={() =>
                                                 handleDownloadDocument(
-                                                  mc.fileId,
+                                                  fileId,
                                                   `Minh_chung_Moc_${m.index}_Lan_${mc.lanNop}.pdf`
                                                 )
                                               }
