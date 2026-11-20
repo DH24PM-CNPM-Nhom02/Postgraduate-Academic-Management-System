@@ -33,3 +33,4 @@ export { TopicChangesManagementView } from "./topic-changes/TopicChangesManageme
 export { AcademicDashboardView } from "./dashboard/AcademicDashboardView";
 export { DecisionsManagementView } from "./decisions/DecisionsManagementView";
 export { MilestoneReviewView } from "./milestone-review/MilestoneReviewView";
+export * from "./theses";

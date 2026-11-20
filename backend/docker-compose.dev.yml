@@ -55,9 +55,9 @@ services:
       NOTIFICATION_SERVICE_PORT: 3003
       PHD_SERVICE_HOST: phd-service
       PHD_SERVICE_PORT: 3004
-      FRONTEND_ORIGIN: http://localhost:${FRONTEND_PORT}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3000}
     ports:
-      - "${API_GATEWAY_HOST_PORT}:8080"
+      - "${API_GATEWAY_PORT}:8080"
     depends_on:
       - auth-service
       - document-service
@@ -78,9 +78,13 @@ services:
       AUTH_SERVICE_PORT: 3001
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
       AUTH_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/auth_db
+      NOTIFICATION_HOST: notification-service
+      NOTIFICATION_PORT: 3003
     depends_on:
       mariadb:
         condition: service_healthy
+      notification-service:
+        condition: service_started
     networks:
       - pams-network
 
@@ -148,10 +152,20 @@ services:
       PHD_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/phd_db
       AUTH_SERVICE_HOST: auth-service
       AUTH_SERVICE_PORT: 3001
+      DOCUMENT_SERVICE_HOST: document-service
+      DOCUMENT_SERVICE_PORT: 3002
+      NOTIFICATION_HOST: notification-service
+      NOTIFICATION_PORT: 3003
+      NOTIFICATION_SERVICE_HOST: notification-service
+      NOTIFICATION_SERVICE_PORT: 3003
     depends_on:
       mariadb:
         condition: service_healthy
       auth-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+      document-service:
         condition: service_started
     networks:
       - pams-network

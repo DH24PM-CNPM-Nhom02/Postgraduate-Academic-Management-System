@@ -273,10 +273,10 @@ export function StudentHeader({ onToggleSidebar }: StudentHeaderProps) {
               </div>
               <div className="hidden text-left md:block">
                 <p className="line-clamp-1 text-xs font-bold text-slate-900">
-                  {user?.fullName || "Nguyễn Văn A"}
+                  {user?.fullName || user?.username || "Tài khoản"}
                 </p>
                 <p className="text-[10px] font-medium text-slate-500">
-                  {user?.username ? `Mã NCS: ${user.username}` : "NCS Khóa 32"}
+                  {user?.username ? `Mã NCS: ${user.username}` : "Nghiên cứu sinh"}
                 </p>
               </div>
               <ChevronDown className="size-3.5 text-slate-400" />
@@ -296,29 +296,26 @@ export function StudentHeader({ onToggleSidebar }: StudentHeaderProps) {
                 >
                   <div className="border-b border-slate-100 px-3 py-2.5">
                     <p className="text-xs font-bold text-slate-900">
-                      {user?.fullName || "Nguyễn Văn A"}
+                      {user?.fullName || user?.username || "Tài khoản"}
                     </p>
                     <p className="truncate text-[11px] text-slate-500">
-                      {user?.email ||
-                        (user?.username
-                          ? `${user.username}@agu.edu.vn`
-                          : "a.nguyen@agu.edu.vn")}
+                      {user?.email || user?.username || ""}
                     </p>
                   </div>
 
                   <div className="py-1">
                     <Link
                       role="menuitem"
-                      href="/student/profile"
+                    href="/profile#account"
                       onClick={() => setDropdownOpen(false)}
                       className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 focus-visible:bg-slate-100 focus-visible:outline-none"
                     >
                       <User className="size-4 text-slate-400" />
-                      <span>Hồ sơ nghiên cứu sinh</span>
+                      <span>Hồ sơ cá nhân</span>
                     </Link>
                     <Link
                       role="menuitem"
-                      href="/student/profile?tab=security"
+                    href="/profile#security"
                       onClick={() => setDropdownOpen(false)}
                       className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 focus-visible:bg-slate-100 focus-visible:outline-none"
                     >

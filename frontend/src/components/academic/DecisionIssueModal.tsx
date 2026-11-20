@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Clock,
 } from "lucide-react";
-import { useTriggerNotification } from "@/src/hooks/use-notifications";
 import { MOCK_STUDENTS } from "@/src/components/academic/mockData";
 import type { StudentDossier } from "@/src/types/academic";
 
@@ -70,7 +69,6 @@ export function DecisionIssueModal({
   selectedStudent,
   onSuccess,
 }: DecisionIssueModalProps) {
-  const triggerNotification = useTriggerNotification();
 
   const [studentId, setStudentId] = useState<string>(
     selectedStudent?.id || MOCK_STUDENTS[0]?.id || ""
@@ -101,49 +99,8 @@ export function DecisionIssueModal({
     }
 
     const typeMeta = DECISION_TYPES.find((d) => d.id === loaiQuyetDinh);
-    const tenLoaiText = typeMeta?.label.toLowerCase() || "quyết định";
-
-    // 1. Kích hoạt thông báo cho NCS (QUYET_DINH_DOI_TRANG_THAI)
-    triggerNotification({
-      nhom: "QUYET_DINH",
-      loai: "QUYET_DINH_DOI_TRANG_THAI",
-      tieuDe: `Quyết định ${tenLoaiText}`,
-      noiDung: `Quyết định ${tenLoaiText} số ${soQuyetDinh} ngày ${ngayQuyetDinh} đã được áp dụng cho hồ sơ của bạn.${
-        loaiQuyetDinh === "GIA_HAN" ? ` Hạn học tập mới: ${hanMoi}.` : ""
-      }${ghiChu ? ` Ghi chú: ${ghiChu}.` : ""}`.replace(/\s+/g, " "),
-      duLieu: {
-        loaiQuyetDinh,
-        soQuyetDinh,
-        ngayQuyetDinh,
-        hanMoi: loaiQuyetDinh === "GIA_HAN" ? hanMoi : undefined,
-        ghiChu,
-      },
-      targetRole: "student",
-      targetUrl: "/student/progress",
-    });
-
-    // 2. Kích hoạt thông báo cho GVHD (targetRole = 'supervisor')
-    triggerNotification({
-      nhom: "QUYET_DINH",
-      loai: "GVHD_QUYET_DINH_DOI_TRANG_THAI",
-      tieuDe: `Quyết định ${tenLoaiText} của NCS ${currentStudent.name} (${currentStudent.code})`,
-      noiDung: `Quyết định ${tenLoaiText} số ${soQuyetDinh} ngày ${ngayQuyetDinh} đã được áp dụng cho NCS ${currentStudent.name} (${currentStudent.code}). Trạng thái học tập của NCS đã chuyển sang ${tenLoaiText}.${
-        loaiQuyetDinh === "GIA_HAN" ? ` Hạn học tập mới: ${hanMoi}.` : ""
-      }`.replace(/\s+/g, " "),
-      duLieu: {
-        loaiQuyetDinh,
-        soQuyetDinh,
-        ngayQuyetDinh,
-        tenNcs: currentStudent.name,
-        mshv: currentStudent.code,
-        hanMoi: loaiQuyetDinh === "GIA_HAN" ? hanMoi : undefined,
-      },
-      targetRole: "supervisor",
-      targetUrl: "/supervisor/dashboard",
-    });
-
     onSuccess?.(
-      `Đã ban hành Quyết định số ${soQuyetDinh} (${typeMeta?.label}) cho NCS ${currentStudent.name}. Hệ thống đã gửi thông báo tới NCS và GVHD.`
+      `Đã ban hành Quyết định số ${soQuyetDinh} (${typeMeta?.label}) cho NCS ${currentStudent.name}.`
     );
     onClose();
   };
@@ -277,7 +234,7 @@ export function DecisionIssueModal({
                 <span>Hạn học tập mới sau gia hạn <span className="text-rose-600">*</span></span>
               </div>
               <p className="text-[11px] text-amber-800">
-                Hệ thống sẽ cập nhật ngày hết hạn mới này vào hồ sơ NCS và tự động đặt lịch quét thông báo nhắc hạn.
+                Ngày hết hạn mới sẽ được lưu cùng thông tin quyết định gia hạn.
               </p>
               <input
                 type="date"
@@ -338,7 +295,7 @@ export function DecisionIssueModal({
                 className="inline-flex items-center gap-1.5 rounded-lg bg-[#164E9B] px-5 py-2 text-xs font-bold text-white hover:bg-[#113E7D] transition-colors shadow-xs cursor-pointer"
               >
                 <CheckCircle2 className="size-4" />
-                <span>Ký ban hành &amp; Gửi thông báo</span>
+                <span>Ký ban hành quyết định</span>
               </button>
             </div>
           </div>

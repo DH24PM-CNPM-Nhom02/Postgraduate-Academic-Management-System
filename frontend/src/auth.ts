@@ -48,9 +48,8 @@ function unwrapTokenPairResponse(res: RefreshApiResponse | null | undefined): To
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     trustHost: true,
-    // Bắt buộc sử dụng AUTH_SECRET hoặc NEXTAUTH_SECRET từ biến môi trường.
-    // Loại bỏ secret hardcoded cố định trong source code để ngăn ngừa nguy cơ giả mạo JWT.
-    secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+    // Sử dụng AUTH_SECRET hoặc NEXTAUTH_SECRET từ biến môi trường kèm secret dự phòng
+    secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "agu-postgraduate-academic-secret-key-32chars-minimum",
     session: { strategy: "jwt" },
     providers: [
         CredentialsProvider({
@@ -69,6 +68,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 const data = unwrapLoginResponse(rawData);
 
                 if (data && data.access_token && data.user) {
+                    const role = data.user.roles?.find((candidate): candidate is UserRole =>
+                        ["ADMIN", "GIAO_VU", "GVHD", "NCS"].includes(candidate)
+                    );
+                    if (!role) return null;
+
                     return {
                         id: data.user.id,
                         user: {
@@ -76,7 +80,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                             username: data.user.username,
                             email: data.user.email,
                             fullName: data.user.fullName,
-                            role: (data.user.roles?.[0] as UserRole) ?? "NCS",
+                            role,
+                            mustChangePassword: data.user.mustChangePassword,
                         },
                         access_token: data.access_token,
                         refresh_token: data.refresh_token,

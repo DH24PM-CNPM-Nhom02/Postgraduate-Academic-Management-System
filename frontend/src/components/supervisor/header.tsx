@@ -6,30 +6,25 @@ import {
   CalendarClock,
   ChevronDown,
   ClipboardCheck,
-  FilePenLine,
-  Gauge,
-  LayoutDashboard,
   LogOut,
   Menu,
-  Users,
+  UserRound,
+  KeyRound,
 } from "lucide-react";
 import { useAuth } from "@/src/hooks/use-auth";
 import { NotificationBellPopover } from "@/src/components/notification";
-import { mockSupervisorProfile, mockSupervisorQuota } from "@/src/mocks/supervisor";
-import type { SupervisorProfile, SupervisorQuota } from "@/src/types/ui/supervisor";
+import type { SupervisorProfile } from "@/src/types/ui/supervisor";
 import { HoverLogo } from "./HoverLogo";
 
 
 export interface SupervisorHeaderProps {
   onToggleSidebar?: () => void;
   profile?: SupervisorProfile;
-  quota?: SupervisorQuota;
 }
 
 export function SupervisorHeader({
   onToggleSidebar,
-  profile = mockSupervisorProfile,
-  quota = mockSupervisorQuota,
+  profile,
 }: SupervisorHeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const menuContainerRef = useRef<HTMLDivElement>(null);
@@ -61,16 +56,9 @@ export function SupervisorHeader({
     };
   }, [dropdownOpen]);
 
-  const displayName = user?.fullName || profile.hoTen;
-  const displayCode = user?.username || profile.maCanBo;
+  const displayName = user?.fullName || profile?.hoTen || user?.username || "Tài khoản";
+  const displayCode = user?.username || profile?.maCanBo;
   const initialChar = displayName.trim().slice(0, 1).toUpperCase() || "G";
-
-  const quotaBadgeClasses =
-    quota.mucCanhBao === "EXCEEDED" || quota.mucCanhBao === "FULL"
-      ? "bg-rose-50 text-rose-700"
-      : quota.mucCanhBao === "WARNING"
-      ? "bg-amber-50 text-amber-800"
-      : "bg-[#164E9B]/10 text-[#164E9B]";
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-border bg-card px-4 sm:px-6">
@@ -150,74 +138,29 @@ export function SupervisorHeader({
             <div
               role="menu"
               aria-label="Menu tài khoản Giảng viên"
-              className="absolute right-0 z-50 mt-2 w-72 rounded-xl border border-border bg-card p-2 shadow-lg"
+              className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-border bg-card p-2 shadow-lg"
             >
-              <div className="rounded-lg bg-[#F0F5FA] p-3">
-                <p className="truncate text-sm font-bold text-[#0F2744]">
+              <div className="border-b border-border px-3 py-2.5">
+                <p className="truncate text-xs font-bold text-foreground">
                   {displayName}
                 </p>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {displayCode} • {profile.donVi}
+                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                  {profile?.email || displayCode || ""}
                 </p>
-                <div
-                  className={`mt-2 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold tabular-nums ${quotaBadgeClasses}`}
-                >
-                  <Gauge className="size-3.5 shrink-0" aria-hidden="true" />
-                  <span>
-                    Định mức: {quota.tongTrongSo.toFixed(1)}/{quota.hanMucToiDa.toFixed(1)} ({quota.tyLeSuDungPhanTram}%)
-                  </span>
-                </div>
               </div>
 
-              <div className="mt-2 space-y-1">
-                <Link
-                  href="/supervisor/dashboard"
-                  role="menuitem"
-                  onClick={() => setDropdownOpen(false)}
-                  className="flex min-h-10 items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none"
-                >
-                  <LayoutDashboard className="size-4 text-[#164E9B]" aria-hidden="true" />
-                  <span>Bàn làm việc GVHD</span>
+              <div className="py-1">
+                <Link href="/profile#account" role="menuitem" onClick={() => setDropdownOpen(false)} className="flex min-h-10 items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none">
+                  <UserRound className="size-4 text-[#164E9B]" aria-hidden="true" />
+                  <span>Hồ sơ cá nhân</span>
                 </Link>
-                <Link
-                  href="/supervisor/students"
-                  role="menuitem"
-                  onClick={() => setDropdownOpen(false)}
-                  className="flex min-h-10 items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none"
-                >
-                  <Users className="size-4 text-[#164E9B]" aria-hidden="true" />
-                  <span>Danh sách NCS hướng dẫn</span>
-                </Link>
-                <Link
-                  href="/supervisor/extensions"
-                  role="menuitem"
-                  onClick={() => setDropdownOpen(false)}
-                  className="flex min-h-10 items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none"
-                >
-                  <CalendarClock className="size-4 text-[#164E9B]" aria-hidden="true" />
-                  <span>Thẩm định đơn gia hạn</span>
-                </Link>
-                <Link
-                  href="/supervisor/requests"
-                  role="menuitem"
-                  onClick={() => setDropdownOpen(false)}
-                  className="flex min-h-10 items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none"
-                >
-                  <FilePenLine className="size-4 text-[#164E9B]" aria-hidden="true" />
-                  <span>Đề xuất thay NCS</span>
-                </Link>
-                <Link
-                  href="/supervisor/quota"
-                  role="menuitem"
-                  onClick={() => setDropdownOpen(false)}
-                  className="flex min-h-10 items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none"
-                >
-                  <Gauge className="size-4 text-[#164E9B]" aria-hidden="true" />
-                  <span>Chi tiết định mức BR-09</span>
+                <Link href="/profile#security" role="menuitem" onClick={() => setDropdownOpen(false)} className="flex min-h-10 items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none">
+                  <KeyRound className="size-4 text-[#164E9B]" aria-hidden="true" />
+                  <span>Đổi mật khẩu &amp; Bảo mật</span>
                 </Link>
               </div>
 
-              <div className="mt-2 border-t border-border pt-2">
+              <div className="border-t border-border pt-1">
                 <button
                   type="button"
                   role="menuitem"
@@ -225,7 +168,7 @@ export function SupervisorHeader({
                     setDropdownOpen(false);
                     void logout();
                   }}
-                  className="flex min-h-10 w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-600 motion-reduce:transition-none"
+                  className="flex min-h-10 w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium text-rose-700 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-600 motion-reduce:transition-none"
                 >
                   <LogOut className="size-4 shrink-0" aria-hidden="true" />
                   <span>Đăng xuất</span>

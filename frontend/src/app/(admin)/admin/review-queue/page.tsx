@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function AdminReviewQueuePage() {
-  redirect("/admin/evidence");
+  redirect("/admin/milestone-review");
 }

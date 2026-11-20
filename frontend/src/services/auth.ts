@@ -1,4 +1,4 @@
-import { publicApiClient } from "@/src/lib/api";
+import { apiClient, publicApiClient, throwApiError } from "@/src/lib/api";
 import {
   InvalidParameters,
   UnauthorizedError,
@@ -12,13 +12,18 @@ export interface LoginPayload {
   password: string;
 }
 
+export interface ChangePasswordPayload {
+  oldPassword: string;
+  newPassword: string;
+}
+
 export interface AuthUserResponse {
   id: string;
   username: string;
   email?: string;
   fullName: string;
-  roles?: string[];
-  mustChangePassword?: boolean;
+  roles: string[];
+  mustChangePassword: boolean;
 }
 
 export interface TokenPairResponse {
@@ -115,6 +120,22 @@ export const authService = {
       throw new Error(
         err?.response?.data?.message || "Refresh token thất bại"
       );
+    }
+  },
+
+  changePassword: async (
+    payload: ChangePasswordPayload,
+    accessToken: string
+  ): Promise<{ message: string }> => {
+    try {
+      const res = await apiClient.post<{ message: string }>(
+        "/auth/change-password",
+        payload,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      return res.data;
+    } catch (error) {
+      throwApiError(error);
     }
   },
 

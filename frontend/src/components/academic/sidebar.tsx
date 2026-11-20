@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { useSearchParams, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -12,6 +12,7 @@ import {
   ClipboardList,
   CalendarDays,
   BookOpen,
+  BookOpenCheck,
   Award,
   FileSpreadsheet,
   HelpCircle,
@@ -61,6 +62,16 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     badgeColor: "bg-blue-100 text-[#164E9B]",
     href: "/academic/students",
     matchPaths: ["/academic/students", "/students"],
+  },
+  {
+    id: "theses",
+    title: "Quản lý Đề tài Luận án",
+    icon: BookOpenCheck,
+    group: "main",
+    badge: 5,
+    badgeColor: "bg-amber-100 text-amber-800 font-bold",
+    href: "/academic/theses",
+    matchPaths: ["/academic/theses", "/academic/thesis"],
   },
   {
     id: "supervisors",
@@ -159,7 +170,6 @@ export function AcademicSidebar({
   onTabChange,
 }: AcademicSidebarProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   const isItemActive = (item: NavItemDef): boolean => {
     // 0. Nếu prop activeTab được truyền trực tiếp từ component cha
@@ -169,20 +179,10 @@ export function AcademicSidebar({
 
     // 1. Dashboard / Tổng quan: CHỈ active khi pathname là chính xác /academic hoặc /academic/
     if (item.id === "dashboard") {
-      if (pathname === "/academic" || pathname === "/academic/") {
-        const tab = searchParams.get("tab");
-        return !tab || tab === "dashboard";
-      }
-      return false;
+      return pathname === "/academic" || pathname === "/academic/";
     }
 
-    // 2. Nếu đang ở /academic?tab=... thì so sánh theo tab query param
-    if (pathname === "/academic" || pathname === "/academic/") {
-      const tab = searchParams.get("tab");
-      return tab === item.id;
-    }
-
-    // 3. So khớp theo route pathname thực tế (ví dụ: /academic/milestone-review, /academic/evidence)
+    // 2. So khớp theo route pathname thực tế (ví dụ: /academic/theses, /academic/milestone-review)
     const targetHref = item.href;
     if (targetHref && targetHref !== "/academic") {
       if (pathname === targetHref || pathname?.startsWith(`${targetHref}/`)) {
@@ -190,7 +190,7 @@ export function AcademicSidebar({
       }
     }
 
-    // 4. So khớp qua danh sách matchPaths nếu có (ví dụ: /review-queue, /graduation-check, /publications)
+    // 3. So khớp qua danh sách matchPaths nếu có (ví dụ: /review-queue, /graduation-check)
     if (item.matchPaths && item.matchPaths.length > 0) {
       return item.matchPaths.some((p) => {
         if (p === "/academic") {
@@ -232,7 +232,7 @@ export function AcademicSidebar({
           return (
             <Link
               key={item.id}
-              href={item.href || `/academic?tab=${item.id}`}
+              href={item.href || `/academic/${item.id}`}
               onClick={() => handleNavClick(item)}
               title={isCollapsed ? item.title : undefined}
               className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${

@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
 import { firstValueFrom, timeout, catchError, throwError } from 'rxjs';
 
 import { ROLES } from '../../../../lib/contracts/src/permissions.js';
-import { CCCD_PATTERN, type CreateNcsItemDto, type ListNcsQueryDto, type UpdateNcsDto, type UpdateNcsStatusDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
+import { CCCD_PATTERN, type CreateNcsItemDto, type ListNcsQueryDto, type UpdateMyNcsProfileDto, type UpdateNcsDto, type UpdateNcsStatusDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
 import { paginatePrisma } from '../helpers/pagination.util.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TrangThaiHocTap, TrangThaiMoc } from '../generated/prisma/index.js';
@@ -1093,6 +1093,25 @@ export class NcsService {
   }
 
   // ==========Update NCS==============
+  async updateMyProfile(userId: string, data: UpdateMyNcsProfileDto) {
+    const allowedFields = new Set(['hoTen', 'soDienThoai']);
+    if (!data || typeof data !== 'object' || Object.keys(data).length === 0) {
+      throw new RpcException({ statusCode: 400, message: 'Không có thông tin nào để sửa' });
+    }
+    const unknownFields = Object.keys(data).filter((field) => !allowedFields.has(field));
+    if (unknownFields.length) {
+      throw new RpcException({ statusCode: 400, message: `Trường không được hỗ trợ: ${unknownFields.join(', ')}` });
+    }
+
+    const profile = await this.prisma.nghienCuuSinh.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!profile) throw new RpcException({ statusCode: 404, message: 'Bạn chưa có hồ sơ NCS' });
+
+    return this.updateNcs(userId, profile.id, data);
+  }
+
   async updateNcs(actorId: string, ncsId: string, data: UpdateNcsDto) {
     const allowedFields = new Set([
       'hoTen', 'ngaySinh', 'gioiTinh', 'email',
