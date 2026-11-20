@@ -1,6 +1,6 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import type { ListPendingMilestonesQueryDto } from '../../../../lib/contracts/src/dto/progress.dto.js';
+import type { CreateEvaluationDto, ListPendingMilestonesQueryDto } from '../../../../lib/contracts/src/dto/progress.dto.js';
 import { ProgressService } from './progress.service.js';
 import { DeadlineService } from './deadline.service.js';
 
@@ -41,8 +41,7 @@ export class ProgressController {
 
     @MessagePattern({ cmd: 'phd.evaluation.create' })
     nhapPhieu(@Payload() d: {
-        actorId: string; minhChungId: string; tenNguoiCham: string;
-        donViNguoiCham?: string; diem: number; nhanXet?: string; xacNhanTrung?: boolean;
+        actorId: string; minhChungId: string; dto: CreateEvaluationDto
     }) {
         return this.progress.nhapPhieuNhanXet(d);
     }

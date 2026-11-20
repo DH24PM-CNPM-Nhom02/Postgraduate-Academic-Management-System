@@ -24,7 +24,15 @@ const toUserView = (u: any) => ({ ...u, roles: u.roles.map((r: any) => r.role.na
 @Injectable()
 export class AuthService {
   // Grace period: nhiều request cùng lúc mang cùng 1 refresh token sẽ nhận chung kết quả
-  private refreshCache = new Map<string, { promise: Promise<TokenPair>; expiresAt: number }>();
+  private refreshCache = new Map<string, { promise: Promise<TokenPair>; expiresAt: number; userId?: string }>();
+
+  private clearUserRefreshCache(userId: string) {
+    for (const [hash, item] of this.refreshCache.entries()) {
+      if (item.userId === userId) {
+        this.refreshCache.delete(hash);
+      }
+    }
+  }
 
   constructor(
     private readonly prisma: PrismaService,
@@ -76,7 +84,7 @@ export class AuthService {
     if (cached && cached.expiresAt > Date.now()) return cached.promise;
 
     const promise = this.rotate(tokenHash, payload.sub);
-    this.refreshCache.set(tokenHash, { promise, expiresAt: Date.now() + 15_000 });
+    this.refreshCache.set(tokenHash, { promise, expiresAt: Date.now() + 15_000, userId: payload.sub });
     promise.catch(() => this.refreshCache.delete(tokenHash)); // lỗi thì không cache
     setTimeout(() => this.refreshCache.delete(tokenHash), 15_000).unref();
     return promise;
@@ -125,10 +133,20 @@ export class AuthService {
 
   async logout(refreshToken?: string) {
     if (refreshToken) {
+      const tokenHash = hashToken(refreshToken);
       await this.prisma.refreshToken.updateMany({
-        where: { tokenHash: hashToken(refreshToken), revokedAt: null },
+        where: { tokenHash, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      this.refreshCache.delete(tokenHash);
+      try {
+        const payload = this.jwt.decode(refreshToken) as { sub?: string };
+        if (payload?.sub) {
+          this.clearUserRefreshCache(payload.sub);
+        }
+      } catch {
+        // ignore decoding errors
+      }
     }
     return { message: 'Đăng xuất thành công' };
   }
@@ -136,14 +154,16 @@ export class AuthService {
   // ---------- Thông tin & phân quyền ----------
   async getMe(userId: string) {
     const user = await this.prisma.user.findFirst({
-      where: { id: userId, deletedAt: null },
+      where: { id: userId, deletedAt: null},
       include: WITH_RBAC,
     });
     if (!user) throw new RpcException({ statusCode: 404, message: 'Không tìm thấy tài khoản' });
+    if(!user.isActive) throw new RpcException({ statusCode: 400, message: 'Tài khoản của bạn đã bị khóa' });
     return {
       id: user.id,
       username: user.username,
       fullName: user.fullName,
+      email:user.email,
       mustChangePassword: user.mustChangePassword,
       roles: user.roles.map((r) => r.role.name),
       permissions: this.flattenPermissions(user),
@@ -161,8 +181,17 @@ export class AuthService {
 
   // ---------- Mật khẩu & cấp tài khoản ----------
   async changePassword(userId: string, dto: ChangePasswordDto) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user || !(await bcrypt.compare(dto.oldPassword, user.password))) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: userId,
+        deletedAt: null,
+        isActive: true
+      }
+    });
+    if (!user) {
+      throw new RpcException({ statusCode: 400, message: 'Không tìm thấy tài khoản' });
+    }
+    if (!(await bcrypt.compare(dto.oldPassword, user.password))) {
       throw new RpcException({ statusCode: 400, message: 'Mật khẩu cũ không chính xác' });
     }
     await this.prisma.$transaction([
@@ -176,6 +205,7 @@ export class AuthService {
         data: { revokedAt: new Date() },
       }),
     ]);
+    this.clearUserRefreshCache(userId);
 
     try {
       this.notifClient.emit('notification.create', {
@@ -190,7 +220,37 @@ export class AuthService {
     return { message: 'Đổi mật khẩu thành công' };
   }
 
-  async createUsers(dto: CreateUsersDto) {
+  async createUsers(dto: CreateUsersDto, actorId?: string, actorRoles?: string[]) {
+    // Không cho phép Giáo vụ tạo tài khoản ADMIN (ngăn chặn leo thang đặc quyền)
+    const hasAdminOrStaff = dto.users.some(
+      (u) => u.role === ROLES.ADMIN || u.role === ROLES.GIAO_VU,
+    );
+
+    if (hasAdminOrStaff) {
+      let isActorAdmin = actorRoles?.includes(ROLES.ADMIN);
+      if (!isActorAdmin && actorId) {
+        const actor = await this.prisma.user.findFirst({
+          where: { id: actorId, deletedAt: null, isActive: true },
+          include: WITH_ROLES,
+        });
+        isActorAdmin = actor?.roles.some((r) => r.role.name === ROLES.ADMIN) ?? false;
+      }
+
+      const hasAdmin = dto.users.some((u) => u.role === ROLES.ADMIN);
+      if (hasAdmin && !isActorAdmin) {
+        throw new RpcException({
+          statusCode: 403,
+          message: 'Không được phép tạo tài khoản có vai trò ADMIN. Chỉ Admin mới có quyền tạo tài khoản Quản trị viên',
+        });
+      }
+
+      if (!isActorAdmin) {
+        throw new RpcException({
+          statusCode: 403,
+          message: 'Giáo vụ chỉ được phép tạo tài khoản cho NCS hoặc GVHD. Chỉ Admin mới có quyền tạo tài khoản Giáo vụ hoặc Admin',
+        });
+      }
+    }
     //validate duplicate data in payload
     const usernames = dto.users.map((u) => u.username);
 
@@ -355,7 +415,7 @@ export class AuthService {
 
   // ---------- Set user status --------
   async setUserStatus(actorId: string, targetId: string, isActive: boolean) {
-    if (actorId === targetId) throw new RpcException({ statusCode: 400, message: 'Không thể tự khóa tài khoản của mình' });
+    if (actorId === targetId && !isActive) throw new RpcException({ statusCode: 400, message: 'Không thể tự khóa tài khoản của mình' });
 
     const target = await this.getUser(targetId);
     if (target.roles.includes(ROLES.NCS) || target.roles.includes(ROLES.GVHD)) {
@@ -391,6 +451,7 @@ export class AuthService {
         data: { revokedAt: new Date() },
       }),
     ]);
+    this.clearUserRefreshCache(targetId);
 
     // Chỉ trả một lần, giống createUsers
     return { username: target.username, initialPassword: plain };
@@ -410,6 +471,9 @@ export class AuthService {
         });
       }
     });
+    if (!isActive) {
+      this.clearUserRefreshCache(userId);
+    }
     return { id: userId, isActive };
   }
 

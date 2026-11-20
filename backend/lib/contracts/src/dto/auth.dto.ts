@@ -1,6 +1,6 @@
 // auth/dto/auth.dto.ts
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsBoolean, IsNotEmpty, IsOptional, IsString, MinLength, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, MinLength, ValidateNested } from 'class-validator';
 import { PaginationQueryDto } from './pagination.dto.js';
 
 export class LoginDto {
@@ -60,6 +60,7 @@ export class ListUsersQueryDto extends PaginationQueryDto {
 
   @IsOptional()
   @IsString()
+  @IsIn(["active", "locked"])
   status?: 'active' | 'locked';
 
   @IsOptional()

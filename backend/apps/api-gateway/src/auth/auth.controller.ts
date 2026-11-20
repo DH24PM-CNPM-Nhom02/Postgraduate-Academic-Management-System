@@ -16,9 +16,13 @@ import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import type { AuthUser } from "../common/interface/auth-user.interface.js";
 import { AllowMustChange } from "../common/decorators/must-change-password.decorator.js";
 import { LimitStrict, LimitMedium, SkipAllLimits } from '../common/decorators/rate-limit.decorator.js';
+import { PermissionsService } from './services/permissions.service.js';
 @Controller('auth')
 export class AuthController {
-  constructor(@Inject('AUTH_SERVICE') private auth: ClientProxy) {}
+  constructor(
+    @Inject('AUTH_SERVICE') private auth: ClientProxy,
+    private permissionsService: PermissionsService,
+  ) {}
 
   private send<T>(cmd: string, payload: unknown) {
     return firstValueFrom(this.auth.send<T>({ cmd }, payload).pipe(timeout(5000)));
@@ -59,8 +63,8 @@ export class AuthController {
   @Post('users')
   @LimitMedium()
   @RequirePermissions(PERMISSIONS.USER_CREATE)
-  createUsers(@Body() dto: CreateUsersDto) { 
-    return this.send('auth.create-users', dto); 
+  createUsers(@CurrentUser() u: AuthUser, @Body() dto: CreateUsersDto) { 
+    return this.send('auth.create-users', { actorId: u.id, actorRoles: u.roles, ...dto }); 
   }
 
   @Get('users')
@@ -77,14 +81,16 @@ export class AuthController {
 
   @Patch('users/:id/status')
   @RequirePermissions(PERMISSIONS.USER_UPDATE)
-  setUserStatus(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: SetUserStatusDto) {
-    return this.send('auth.set-user-status', { actorId: u.id, targetId: id, isActive: dto.isActive });
+  async setUserStatus(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: SetUserStatusDto) {
+    const result = await this.send('auth.set-user-status', { actorId: u.id, targetId: id, isActive: dto.isActive });
+    this.permissionsService.invalidate(id);
+    return result;
   }
 
   @Patch('users/:id/reset-password')
   @LimitMedium()
   @RequirePermissions(PERMISSIONS.USER_RESET_PASSWORD)
-  resetPassword(@CurrentUser() u: AuthUser, @Param('id') id: string) {
+  resetPassword(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.send('auth.reset-password', { actorRoles: u.roles, targetId: id });
   }
 }

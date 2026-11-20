@@ -5,7 +5,7 @@ import { goiService } from '../helpers/call-service.util.js';
 import { DeadlineService } from './deadline.service.js';
 import { layNgay } from '../helpers/date.util.js';
 import { NotificationClient } from '../notification/notification.client.js';
-import type { ListPendingMilestonesQueryDto } from '../../../../lib/contracts/src/dto/progress.dto.js';
+import type { CreateEvaluationDto, ListPendingMilestonesQueryDto } from '../../../../lib/contracts/src/dto/progress.dto.js';
 
 const DIEM_DAT = 7;            // điểm trung bình tối thiểu để đạt (thang 10)
 const SO_PHIEU_TOI_THIEU = 3;  // quy định của trường: tối thiểu 3 phiếu nhận xét
@@ -161,7 +161,7 @@ export class ProgressService {
     async tienTrinhCuaToi(userId: string) {
         const ncs = await this.prisma.nghienCuuSinh.findUnique({
             where: { userId },
-            select: { id: true, mshv: true, hoTen: true, lop: true },
+            select: { id: true, mshv: true, hoTen: true, lop: true, trangThai: true, hanBuocThoiHoc: true },
         });
         if (!ncs) {
             throw new RpcException({ statusCode: 404, message: 'Bạn chưa có hồ sơ NCS' });
@@ -173,7 +173,7 @@ export class ProgressService {
     async tienTrinhCuaNcs(ncsId: string) {
         const ncs = await this.prisma.nghienCuuSinh.findUnique({
             where: { id: ncsId },
-            select: { id: true, mshv: true, hoTen: true, lop: true },
+            select: { id: true, mshv: true, hoTen: true, lop: true, trangThai: true, hanBuocThoiHoc: true },
         });
         if (!ncs) {
             throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ NCS' });
@@ -182,7 +182,14 @@ export class ProgressService {
     }
 
     //lấy 9 mốc tiến trình kèm lịch sử nộp của từng mốc
-    private async layTienTrinh(ncs: { id: string, mshv: string, hoTen: string, lop: string | null }) {
+    private async layTienTrinh(ncs: {
+        id: string;
+        mshv: string;
+        hoTen: string;
+        lop: string | null;
+        trangThai: string;
+        hanBuocThoiHoc: Date;
+    }) {
         const danhSach = await this.prisma.tienTrinhNcs.findMany({
             where: { ncsId: ncs.id },
             orderBy: { moc: { thuTu: "asc" } },
@@ -220,13 +227,17 @@ export class ProgressService {
             }
         })
         const hanNcs = await this.han.tinhHanCacMoc(ncs.id);
+        const duDieuKienNop =
+            (ncs.trangThai === 'DANG_HOC' || ncs.trangThai === 'GIA_HAN') &&
+            (!ncs.hanBuocThoiHoc || layNgay(new Date()) <= ncs.hanBuocThoiHoc);
+
         return {
             ncs,
             hanCuaNcs: hanNcs.hanCuaNcs,
             tienTrinhs: danhSach.map((tt) => ({
                 ...tt,
                 //FE dùng cờ này để bật tắt nút nộp minh chứng của mốc đó
-                coTheNop: tt.trangThai === "UNLOCKED" || tt.trangThai === "REJECTED",
+                coTheNop: duDieuKienNop && (tt.trangThai === "UNLOCKED" || tt.trangThai === "REJECTED"),
                 han: hanNcs.hanHieuLucCuaMoc[tt.moc.thuTu] ?? null,
             }))
         }
@@ -302,6 +313,8 @@ export class ProgressService {
                         userId: true,
                         hoTen: true,
                         mshv: true,
+                        trangThai: true,
+                        hanBuocThoiHoc: true,
                     },
                 },
                 minhChungs: {
@@ -317,6 +330,21 @@ export class ProgressService {
         }
         if (tienTrinh.trangThai !== 'PENDING_REVIEW') {
             throw new RpcException({ statusCode: 409, message: 'Mốc không ở trạng thái chờ duyệt' });
+        }
+        if (!tienTrinh.ncs) {
+            throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ NCS liên kết' });
+        }
+        if (tienTrinh.ncs.trangThai !== 'DANG_HOC' && tienTrinh.ncs.trangThai !== 'GIA_HAN') {
+            throw new RpcException({
+                statusCode: 403,
+                message: 'Hồ sơ NCS không ở trạng thái đang học, không thể duyệt hoặc từ chối mốc',
+            });
+        }
+        if (tienTrinh.ncs.hanBuocThoiHoc && layNgay(new Date()) > tienTrinh.ncs.hanBuocThoiHoc) {
+            throw new RpcException({
+                statusCode: 403,
+                message: 'NCS đã vượt quá tổng thời gian đào tạo tối đa (72 tháng), không thể duyệt hoặc từ chối mốc',
+            });
         }
         const minhChung = tienTrinh.minhChungs[0];
         if (!minhChung || minhChung.trangThai !== 'PENDING_REVIEW') {
@@ -368,6 +396,23 @@ export class ProgressService {
 
         const now = new Date();
         const ketQua = await this.prisma.$transaction(async (tx) => {
+            const currentNcs = await tx.nghienCuuSinh.findUnique({
+                where: { id: tienTrinh.ncsId },
+                select: { trangThai: true, hanBuocThoiHoc: true },
+            });
+            if (!currentNcs || (currentNcs.trangThai !== 'DANG_HOC' && currentNcs.trangThai !== 'GIA_HAN')) {
+                throw new RpcException({
+                    statusCode: 403,
+                    message: 'Hồ sơ NCS không ở trạng thái đang học, không thể duyệt mốc',
+                });
+            }
+            if (currentNcs.hanBuocThoiHoc && layNgay(now) > currentNcs.hanBuocThoiHoc) {
+                throw new RpcException({
+                    statusCode: 403,
+                    message: 'NCS đã vượt quá tổng thời gian đào tạo tối đa (72 tháng), không thể duyệt mốc',
+                });
+            }
+
             // Chỉ cập nhật nếu mốc vẫn còn đúng version và đang chờ duyệt (chống duyệt trùng)
             const kq = await tx.tienTrinhNcs.updateMany({
                 where: {
@@ -487,6 +532,23 @@ export class ProgressService {
         const { tienTrinh, minhChung } = await this.layMocChoDuyet(tienTrinhId);
         const now = new Date();
         const ketQua = await this.prisma.$transaction(async (tx) => {
+            const currentNcs = await tx.nghienCuuSinh.findUnique({
+                where: { id: tienTrinh.ncsId },
+                select: { trangThai: true, hanBuocThoiHoc: true },
+            });
+            if (!currentNcs || (currentNcs.trangThai !== 'DANG_HOC' && currentNcs.trangThai !== 'GIA_HAN')) {
+                throw new RpcException({
+                    statusCode: 403,
+                    message: 'Hồ sơ NCS không ở trạng thái đang học, không thể từ chối mốc',
+                });
+            }
+            if (currentNcs.hanBuocThoiHoc && layNgay(now) > currentNcs.hanBuocThoiHoc) {
+                throw new RpcException({
+                    statusCode: 403,
+                    message: 'NCS đã vượt quá tổng thời gian đào tạo tối đa (72 tháng), không thể từ chối mốc',
+                });
+            }
+
             const kq = await tx.tienTrinhNcs.updateMany({
                 where: { id: tienTrinh.id, version: tienTrinh.version, trangThai: 'PENDING_REVIEW' },
                 data: { trangThai: 'REJECTED', version: { increment: 1 } },
@@ -588,8 +650,7 @@ export class ProgressService {
     }
 
     async nhapPhieuNhanXet(d: {
-        actorId: string; minhChungId: string; tenNguoiCham: string;
-        donViNguoiCham?: string; diem: number; nhanXet?: string; xacNhanTrung?: boolean;
+        actorId: string; minhChungId:string; dto: CreateEvaluationDto
     }) {
         const minhChung = await this.prisma.minhChungMoc.findUnique({
             where: {
@@ -613,13 +674,16 @@ export class ProgressService {
             throw new RpcException({ statusCode: 409, message: 'Lần nộp này đã được xử lý, không thể thêm phiếu' });
         }
 
-        const tenNguoiCham = d.tenNguoiCham.trim();
-        const donVi = d.donViNguoiCham?.trim() || null;
+        const tenNguoiCham = d.dto.tenNguoiCham.trim() || "";
+        if(!tenNguoiCham){
+            throw new RpcException({ statusCode: 400, message: 'Tên người chấm không được bỏ trống' });
+        }
+        const donVi = d.dto.donViNguoiCham?.trim() || null;
 
         // So sánh trong code, giữ nguyên dấu tiếng Việt, không phụ thuộc collation của DB
         const chuanHoa = (s?: string | null) => (s ?? '').trim().normalize('NFC').toLowerCase();
 
-        if (!d.xacNhanTrung) {
+        if (!d.dto.xacNhanTrung) {
             // Mỗi lần nộp chỉ có vài phiếu nên lấy hết ra so sánh cũng nhẹ
             const cacPhieu = await this.prisma.phieuNhanXet.findMany({
                 where: { minhChungId: minhChung.id },
@@ -644,9 +708,9 @@ export class ProgressService {
                 data: {
                     minhChungId: minhChung.id,
                     tenNguoiCham,
-                    donViNguoiCham: d.donViNguoiCham?.trim() || null,
-                    diem: d.diem,
-                    nhanXet: d.nhanXet?.trim() || null,
+                    donViNguoiCham: d.dto.donViNguoiCham?.trim() || null,
+                    diem: d.dto.diem,
+                    nhanXet: d.dto.nhanXet?.trim() || null,
                     nhapBoiId: d.actorId,
                 },
             });
@@ -700,7 +764,7 @@ export class ProgressService {
                         minhChungId: minhChung.id,
                         thuTu: minhChung.tienTrinh.moc.thuTu,
                         tenNguoiCham,
-                        diem: d.diem,
+                        diem: d.dto.diem,
                     },
                 },
             });
@@ -731,7 +795,7 @@ export class ProgressService {
                     duLieu: {
                         thuTu: minhChung.tienTrinh.moc.thuTu,
                         tenNguoiCham,
-                        diem: d.diem,
+                        diem: d.dto.diem,
                         tenNcs: ncs?.hoTen,
                         mshv: ncs?.mshv,
                     },
