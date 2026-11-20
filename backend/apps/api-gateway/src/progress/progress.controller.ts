@@ -95,8 +95,8 @@ export class ProgressController {
     @Param('minhChungId', new ParseUUIDPipe()) minhChungId: string,
     @Body() body: CreateEvaluationDto,
   ) {
-    // actorId và minhChungId đặt sau body để client không ghi đè được
-    return this.send('phd.evaluation.create', { ...body, actorId: u.id, minhChungId });
+    // actorId và minhChungId do server gán, dto chứa phần body từ client
+    return this.send('phd.evaluation.create', { actorId: u.id, minhChungId, dto: body });
   }
 
   // Giáo vụ xem các phiếu và điểm trung bình của một lần nộp

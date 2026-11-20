@@ -1,4 +1,4 @@
-import { IsBoolean, IsDateString, IsNumber, IsOptional, IsString, IsUUID, Length, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import { IsBoolean, IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Length, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 
 // Body khi NCS nộp minh chứng cho một mốc (số thứ tự mốc nằm trên URL)
 export class SubmitMilestoneDto {
@@ -26,7 +26,7 @@ export class RejectMilestoneDto {
 
 export class CreateEvaluationDto {
   @IsString()
-  @Length(1, 150)
+  @IsNotEmpty()
   tenNguoiCham!: string;
 
   @IsOptional()

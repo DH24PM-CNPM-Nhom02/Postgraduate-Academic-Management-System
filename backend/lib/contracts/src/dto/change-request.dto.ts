@@ -38,7 +38,6 @@ export class CreateChangeRequestDto {
     @ValidateIf((o) => o.loai === 'GIA_HAN')
     @IsNotEmpty({ message: 'Đơn đề nghị gia hạn bắt buộc phải có file minh chứng / báo cáo tiến độ' })
     @IsString()
-    @IsOptional()
     fileId?: string;
 
     /** Gửi quá hạn nhưng thuộc trường hợp bất khả kháng */
@@ -124,7 +123,7 @@ export class ApproveDeNghiDto {
     /** Số quyết định gia hạn/thay đổi (nếu nhập trực tiếp thay vì chọn quyetDinhId có sẵn) */
     @IsOptional()
     @IsString()
-    @MaxLength(100)
+    @MaxLength(50)
     soQuyetDinh?: string;
 
     /** Ngày quyết định (định dạng YYYY-MM-DD) */
