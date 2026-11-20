@@ -77,6 +77,11 @@ describe('ChangeRequestService - Luồng gia hạn học tập (GIA_HAN)', () =>
                 create: vi.fn(),
                 count: vi.fn(),
             },
+            deTai: {
+                findFirst: vi.fn(),
+                create: vi.fn(),
+                update: vi.fn(),
+            },
             auditLog: {
                 create: vi.fn(),
             },
@@ -671,5 +676,187 @@ describe('ChangeRequestService - Luồng gia hạn học tập (GIA_HAN)', () =>
                 }),
             })
         );
+    });
+
+    describe('Đề nghị đổi đề tài (DOI_DE_TAI)', () => {
+        it('NCS tạo đơn đổi đề tài -> yêu cầu GVHD xác nhận (trạng thái CHO_GVHD_XAC_NHAN)', async () => {
+            mockPrisma.nghienCuuSinh.findUnique = vi.fn((params: any) => {
+                if (params?.where?.userId === 'user-ncs-1') return Promise.resolve(fakeNcs);
+                if (params?.where?.id === fakeNcs.id) return Promise.resolve(fakeNcs);
+                return Promise.resolve(null);
+            });
+            mockPrisma.deTai.findFirst.mockResolvedValue({
+                id: 'dt-1',
+                ncsId: fakeNcs.id,
+                tenDeTai: 'Đề tài cũ',
+                trangThai: 'HIEU_LUC',
+            });
+            mockPrisma.tienTrinhNcs.findFirst.mockResolvedValue(null);
+            mockPrisma.phanCongHuongDan.findMany.mockResolvedValue([
+                { id: 'pc-1', gvhdId: fakeGvhd1.id, gvhd: fakeGvhd1 },
+            ]);
+            mockPrisma.deNghiDieuChinh.count.mockResolvedValue(0);
+
+            const fakeCreated = {
+                id: 'dn-dt-ncs',
+                ncsId: fakeNcs.id,
+                loai: 'DOI_DE_TAI',
+                trangThai: 'CHO_GVHD_XAC_NHAN',
+                tenDeTaiMoi: 'Đề tài mới hoàn toàn',
+                xacNhanGvhds: [{ id: 'xn-1', gvhdId: fakeGvhd1.id }],
+            };
+            mockPrisma.deNghiDieuChinh.create.mockResolvedValue(fakeCreated);
+
+            const result = await service.create('user-ncs-1', {
+                loai: 'DOI_DE_TAI',
+                lyDo: 'Hướng nghiên cứu mới',
+                tenDeTaiMoi: 'Đề tài mới hoàn toàn',
+            });
+
+            expect(result).toBeDefined();
+            expect(mockPrisma.deNghiDieuChinh.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        loai: 'DOI_DE_TAI',
+                        trangThai: 'CHO_GVHD_XAC_NHAN',
+                        xacNhanGvhds: {
+                            create: [{ gvhdId: fakeGvhd1.id }],
+                        },
+                    }),
+                })
+            );
+            expect(mockNotification.gui).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    loai: 'DE_NGHI_DOI_DE_TAI_CAN_XAC_NHAN',
+                    userIds: ['user-gv-1'],
+                })
+            );
+        });
+
+        it('GVHD tạo đơn đổi đề tài cho NCS của mình -> không cần xác nhận (trạng thái CHO_DUYET)', async () => {
+            mockPrisma.nghienCuuSinh.findUnique = vi.fn((params: any) => {
+                if (params?.where?.userId === 'user-gv-1') return Promise.resolve(null);
+                if (params?.where?.id === fakeNcs.id) return Promise.resolve(fakeNcs);
+                return Promise.resolve(null);
+            });
+            mockPrisma.giangVienHuongDan.findUnique.mockResolvedValue(fakeGvhd1);
+            mockPrisma.phanCongHuongDan.findFirst.mockResolvedValue({
+                id: 'pc-1',
+                ncsId: fakeNcs.id,
+                gvhdId: fakeGvhd1.id,
+                trangThai: 'DANG_HIEU_LUC',
+            });
+            mockPrisma.deTai.findFirst.mockResolvedValue({
+                id: 'dt-1',
+                ncsId: fakeNcs.id,
+                tenDeTai: 'Đề tài cũ',
+                trangThai: 'HIEU_LUC',
+            });
+            mockPrisma.tienTrinhNcs.findFirst.mockResolvedValue(null);
+            mockPrisma.deNghiDieuChinh.count.mockResolvedValue(0);
+
+            const fakeCreated = {
+                id: 'dn-dt-gvhd',
+                ncsId: fakeNcs.id,
+                loai: 'DOI_DE_TAI',
+                trangThai: 'CHO_DUYET',
+                tenDeTaiMoi: 'Đề tài do GVHD đề xuất',
+            };
+            mockPrisma.deNghiDieuChinh.create.mockResolvedValue(fakeCreated);
+
+            const result = await service.create('user-gv-1', {
+                ncsId: fakeNcs.id,
+                loai: 'DOI_DE_TAI',
+                lyDo: 'GVHD đề xuất đổi hướng',
+                tenDeTaiMoi: 'Đề tài do GVHD đề xuất',
+            });
+
+            expect(result).toBeDefined();
+            expect(mockPrisma.deNghiDieuChinh.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        loai: 'DOI_DE_TAI',
+                        trangThai: 'CHO_DUYET',
+                    }),
+                })
+            );
+        });
+
+        it('GVHD từ chối đề nghị đổi đề tài -> chuyển sang TU_CHOI', async () => {
+            mockPrisma.giangVienHuongDan.findUnique.mockResolvedValue(fakeGvhd1);
+            mockPrisma.deNghiDieuChinh.findUnique.mockResolvedValue({
+                id: 'dn-dt-1',
+                ncsId: fakeNcs.id,
+                loai: 'DOI_DE_TAI',
+                trangThai: 'CHO_GVHD_XAC_NHAN',
+                ncs: fakeNcs,
+            });
+            mockPrisma.xacNhanGvhdDeNghi.findUnique.mockResolvedValue({
+                id: 'xn-1',
+                deNghiId: 'dn-dt-1',
+                gvhdId: fakeGvhd1.id,
+                dongY: null,
+            });
+            mockPrisma.xacNhanGvhdDeNghi.update.mockResolvedValue({});
+            mockPrisma.deNghiDieuChinh.update.mockResolvedValue({});
+
+            await service.xacNhanGvhd('user-gv-1', 'dn-dt-1', {
+                dongY: false,
+                nhanXet: 'Đề tài mới không phù hợp hướng nghiên cứu',
+            });
+
+            expect(mockPrisma.deNghiDieuChinh.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        trangThai: 'TU_CHOI',
+                    }),
+                })
+            );
+            expect(mockNotification.gui).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    loai: 'DE_NGHI_DOI_DE_TAI_GVHD_TU_CHOI',
+                    userIds: ['user-ncs-1'],
+                })
+            );
+        });
+
+        it('GVHD đồng ý đề nghị đổi đề tài -> chuyển sang CHO_DUYET cho Giáo vụ', async () => {
+            mockPrisma.giangVienHuongDan.findUnique.mockResolvedValue(fakeGvhd1);
+            mockPrisma.deNghiDieuChinh.findUnique.mockResolvedValue({
+                id: 'dn-dt-1',
+                ncsId: fakeNcs.id,
+                loai: 'DOI_DE_TAI',
+                trangThai: 'CHO_GVHD_XAC_NHAN',
+                ncs: fakeNcs,
+            });
+            mockPrisma.xacNhanGvhdDeNghi.findUnique.mockResolvedValue({
+                id: 'xn-1',
+                deNghiId: 'dn-dt-1',
+                gvhdId: fakeGvhd1.id,
+                dongY: null,
+            });
+            mockPrisma.xacNhanGvhdDeNghi.count.mockResolvedValue(0); // không còn ai chưa đồng ý
+            mockPrisma.xacNhanGvhdDeNghi.update.mockResolvedValue({});
+            mockPrisma.deNghiDieuChinh.update.mockResolvedValue({});
+
+            await service.xacNhanGvhd('user-gv-1', 'dn-dt-1', {
+                dongY: true,
+                nhanXet: 'Đồng ý đổi đề tài',
+            });
+
+            expect(mockPrisma.deNghiDieuChinh.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        trangThai: 'CHO_DUYET',
+                    }),
+                })
+            );
+            expect(mockNotification.gui).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    loai: 'DE_NGHI_DOI_DE_TAI_GVHD_DONG_Y',
+                    userIds: ['user-ncs-1'],
+                })
+            );
+        });
     });
 });

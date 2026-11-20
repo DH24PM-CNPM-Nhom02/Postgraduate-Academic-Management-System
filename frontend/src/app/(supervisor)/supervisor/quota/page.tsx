@@ -1,11 +1,6 @@
 import type { Metadata } from "next";
 import { SupervisorQuotaWorkspace } from "@/src/components/supervisor";
-import {
-  mockSupervisedStudents,
-  mockSupervisorProfile,
-  mockSupervisorQuota,
-  mockSupervisorQuotaScenarios,
-} from "@/src/mocks/supervisor";
+import { mockSupervisorQuotaScenarios } from "@/src/mocks/supervisor";
 
 export const metadata: Metadata = {
   title: "Định mức hướng dẫn BR-09 | Cổng GVHD",
@@ -16,9 +11,6 @@ export const metadata: Metadata = {
 export default function SupervisorQuotaPage() {
   return (
     <SupervisorQuotaWorkspace
-      profile={mockSupervisorProfile}
-      quota={mockSupervisorQuota}
-      students={mockSupervisedStudents}
       scenarios={mockSupervisorQuotaScenarios}
     />
   );

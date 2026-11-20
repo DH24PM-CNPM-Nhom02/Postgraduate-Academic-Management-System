@@ -17,6 +17,7 @@ import type {
   ChangeRequestTableProps,
   ChangeRequestType,
 } from "@/src/types/ui/change-request";
+import { TablePagination } from "@/src/components/ui/table-pagination";
 import {
   CHANGE_REQUEST_STATUS_META,
   CHANGE_REQUEST_TYPE_META,
@@ -49,6 +50,8 @@ export function ChangeRequestTable({
 
   const [typeFilter, setTypeFilter] = useState<ChangeRequestType | "ALL">("ALL");
   const [statusFilter, setStatusFilter] = useState<ChangeRequestStatus | "ALL">("ALL");
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 8;
 
   const resolvedHasPending =
     hasPendingRequest ?? requests.some((r) => isPendingRequestStatus(r.trangThai));
@@ -60,6 +63,11 @@ export function ChangeRequestTable({
       return true;
     });
   }, [requests, statusFilter, typeFilter]);
+
+  const paginatedRequests = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredRequests.slice(start, start + PAGE_SIZE);
+  }, [filteredRequests, currentPage]);
 
   const hasActiveFilters = typeFilter !== "ALL" || statusFilter !== "ALL";
 
@@ -179,9 +187,10 @@ export function ChangeRequestTable({
             <select
               id={typeFilterId}
               value={typeFilter}
-              onChange={(e) =>
-                setTypeFilter(e.target.value as ChangeRequestType | "ALL")
-              }
+              onChange={(e) => {
+                setTypeFilter(e.target.value as ChangeRequestType | "ALL");
+                setCurrentPage(1);
+              }}
               className="h-9 w-full rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
             >
               <option value="ALL">Tất cả loại đơn</option>
@@ -198,9 +207,10 @@ export function ChangeRequestTable({
             <select
               id={statusFilterId}
               value={statusFilter}
-              onChange={(e) =>
-                setStatusFilter(e.target.value as ChangeRequestStatus | "ALL")
-              }
+              onChange={(e) => {
+                setStatusFilter(e.target.value as ChangeRequestStatus | "ALL");
+                setCurrentPage(1);
+              }}
               className="h-9 w-full rounded-lg border border-border bg-card px-3 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
             >
               <option value="ALL">Tất cả trạng thái</option>
@@ -218,6 +228,7 @@ export function ChangeRequestTable({
               onClick={() => {
                 setTypeFilter("ALL");
                 setStatusFilter("ALL");
+                setCurrentPage(1);
               }}
               className="inline-flex h-9 items-center rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] cursor-pointer"
             >
@@ -296,7 +307,7 @@ export function ChangeRequestTable({
               </thead>
 
               <tbody className="divide-y divide-border">
-                {filteredRequests.map((item) => {
+                {paginatedRequests.map((item) => {
                   const typeMeta = CHANGE_REQUEST_TYPE_META[item.loaiDon];
                   const statusMeta = CHANGE_REQUEST_STATUS_META[item.trangThai];
                   const TypeIcon = typeMeta.Icon;
@@ -392,7 +403,7 @@ export function ChangeRequestTable({
 
           {/* Danh sách Mobile */}
           <ul className="divide-y divide-border md:hidden">
-            {filteredRequests.map((item) => {
+            {paginatedRequests.map((item) => {
               const typeMeta = CHANGE_REQUEST_TYPE_META[item.loaiDon];
               const statusMeta = CHANGE_REQUEST_STATUS_META[item.trangThai];
               const TypeIcon = typeMeta.Icon;
@@ -463,6 +474,16 @@ export function ChangeRequestTable({
               );
             })}
           </ul>
+
+          <div className="border-t border-border px-5 py-3 sm:px-6">
+            <TablePagination
+              currentPage={currentPage}
+              totalItems={filteredRequests.length}
+              pageSize={PAGE_SIZE}
+              onPageChange={setCurrentPage}
+              itemLabel="đơn đề nghị"
+            />
+          </div>
         </>
       )}
     </section>

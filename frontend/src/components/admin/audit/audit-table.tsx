@@ -4,8 +4,6 @@ import { useState } from "react";
 import {
   AlertCircle,
   Check,
-  ChevronLeft,
-  ChevronRight,
   Copy,
   Eye,
   GitCompare,
@@ -14,6 +12,7 @@ import {
   RotateCcw,
   UserX,
 } from "lucide-react";
+import { TablePagination } from "@/src/components/ui/table-pagination";
 import { SYSTEM_ROLE_META } from "../users/user-meta";
 import { AuditBadge } from "./audit-badge";
 import {
@@ -55,14 +54,11 @@ export function AuditTable({
   total,
   totalPages,
   onPageChange,
-  onLimitChange,
 }: AuditTableProps) {
   const [copiedEntityKey, setCopiedEntityKey] = useState<string | null>(null);
 
   const safeTotalPages = Math.max(1, totalPages);
   const safePage = Math.min(Math.max(1, page), safeTotalPages);
-  const startIndex = total === 0 ? 0 : (safePage - 1) * limit + 1;
-  const endIndex = Math.min(safePage * limit, total);
 
   const handleCopyEntityId = async (rowId: string, entityId: string) => {
     try {
@@ -245,9 +241,8 @@ export function AuditTable({
                             </span>
                             <span aria-hidden="true">•</span>
                             <span
-                              className={`inline-flex rounded border px-1.5 py-0 text-[10px] font-semibold ${
-                                SYSTEM_ROLE_META[log.actor.role].badgeClass
-                              }`}
+                              className={`inline-flex rounded border px-1.5 py-0 text-[10px] font-semibold ${SYSTEM_ROLE_META[log.actor.role].badgeClass
+                                }`}
                             >
                               {log.actor.role}
                             </span>
@@ -347,86 +342,15 @@ export function AuditTable({
       </div>
 
       {/* Pagination Bar */}
-      <div className="flex flex-col gap-3 border-t border-border bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground tabular-nums">
-          <span>
-            Hiển thị{" "}
-            <strong className="font-semibold text-foreground">
-              {startIndex}–{endIndex}
-            </strong>{" "}
-            trên tổng{" "}
-            <strong className="font-semibold text-foreground">{total}</strong>{" "}
-            bản ghi
-          </span>
-
-          {onLimitChange && (
-            <div className="flex items-center gap-1.5">
-              <label htmlFor="audit-page-limit" className="text-xs">
-                Số dòng:
-              </label>
-              <select
-                id="audit-page-limit"
-                value={limit}
-                onChange={(event) => onLimitChange(Number(event.target.value))}
-                className="h-7 rounded-md border border-border bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40"
-              >
-                <option value={5}>5</option>
-                <option value={8}>8</option>
-                <option value={15}>15</option>
-                <option value={30}>30</option>
-              </select>
-            </div>
-          )}
-        </div>
-
-        <nav
-          aria-label="Phân trang nhật ký kiểm toán"
-          className="flex items-center gap-1"
-        >
-          <button
-            type="button"
-            onClick={() => onPageChange(safePage - 1)}
-            disabled={safePage <= 1 || isLoading}
-            aria-label="Trang trước"
-            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <ChevronLeft className="size-3.5" aria-hidden="true" />
-            <span>Trước</span>
-          </button>
-
-          {Array.from({ length: safeTotalPages }).map((_, idx) => {
-            const pageNum = idx + 1;
-            const isActive = pageNum === safePage;
-            return (
-              <button
-                key={pageNum}
-                type="button"
-                onClick={() => onPageChange(pageNum)}
-                disabled={isLoading}
-                aria-current={isActive ? "page" : undefined}
-                aria-label={`Trang ${pageNum}`}
-                className={`inline-flex size-8 items-center justify-center rounded-lg text-xs font-semibold tabular-nums transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 ${
-                  isActive
-                    ? "bg-rose-600 text-white"
-                    : "border border-border bg-background text-foreground hover:bg-muted"
-                }`}
-              >
-                {pageNum}
-              </button>
-            );
-          })}
-
-          <button
-            type="button"
-            onClick={() => onPageChange(safePage + 1)}
-            disabled={safePage >= safeTotalPages || isLoading}
-            aria-label="Trang sau"
-            className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <span>Sau</span>
-            <ChevronRight className="size-3.5" aria-hidden="true" />
-          </button>
-        </nav>
+      <div className="border-t border-border bg-card px-4 py-3">
+        <TablePagination
+          currentPage={safePage}
+          totalItems={total}
+          pageSize={limit}
+          onPageChange={onPageChange}
+          itemLabel="bản ghi nhật ký"
+          disabled={isLoading}
+        />
       </div>
     </div>
   );

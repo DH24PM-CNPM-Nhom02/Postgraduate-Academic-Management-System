@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Loader2,
   UserCheck,
+  UserPlus,
   Scale,
 } from "lucide-react";
 import {
@@ -27,6 +28,7 @@ import {
   MOCK_STUDENTS,
   MOCK_SUPERVISORS,
 } from "@/src/components/academic";
+import { TablePagination } from "@/src/components/ui/table-pagination";
 import { useAcademicStudents, useAcademicSupervisors } from "@/src/hooks/use-academic";
 import type { StudentDossier } from "@/src/types/academic";
 
@@ -50,11 +52,25 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
   // Danh sách NCS mới được import qua Excel
   const [importedStudents, setImportedStudents] = useState<StudentDossier[]>([]);
 
-  // Dữ liệu hợp nhất từ API (hoặc MOCK_STUDENTS) kết hợp các bản ghi import thêm
+  // Lưu vết cập nhật GVHD cục bộ để hiển thị ngay tức thì lên giao diện
+  const [localSupervisorUpdates, setLocalSupervisorUpdates] = useState<
+    Record<string, { supervisorMain?: string; supervisorCo?: string }>
+  >({});
+
+  // Dữ liệu hợp nhất từ API (hoặc MOCK_STUDENTS) kết hợp các bản ghi import thêm và cập nhật GVHD tức thì
   const studentsList = useMemo(() => {
     const base = initialData && Array.isArray(initialData) && initialData.length > 0 ? initialData : MOCK_STUDENTS;
-    return [...importedStudents, ...base];
-  }, [initialData, importedStudents]);
+    const merged = [...importedStudents, ...base];
+    return merged.map((std) => {
+      const update = localSupervisorUpdates[std.id];
+      if (!update) return std;
+      return {
+        ...std,
+        supervisorMain: update.supervisorMain ?? std.supervisorMain,
+        supervisorCo: update.supervisorCo ?? std.supervisorCo,
+      };
+    });
+  }, [initialData, importedStudents, localSupervisorUpdates]);
 
   const supervisorsList = useMemo(() => {
     return supervisorsData && Array.isArray(supervisorsData) && supervisorsData.length > 0
@@ -113,7 +129,6 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
   ]);
 
   // Pagination logic
-  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage) || 1;
   const paginatedStudents = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredStudents.slice(start, start + itemsPerPage);
@@ -527,16 +542,19 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
                     <td className="py-3.5 px-3 text-right">
                       <div className="inline-flex items-center gap-1.5">
                         <button
+                          type="button"
                           onClick={() => {
                             setActionStudent(std);
                             setAssignModalOpen(true);
                           }}
-                          className="rounded-lg border border-blue-200 bg-blue-50/70 p-1.5 text-[#164E9B] hover:bg-blue-100 transition-colors shadow-2xs cursor-pointer"
-                          title="Phân công hoặc thay đổi GVHD"
+                          className="inline-flex items-center gap-1 rounded-lg border border-[#164E9B]/30 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-[#164E9B] hover:bg-[#164E9B] hover:text-white transition-all shadow-2xs cursor-pointer whitespace-nowrap active:scale-95"
+                          title="Thêm hoặc phân công GVHD cho NCS này"
                         >
-                          <UserCheck className="size-3.5" />
+                          <UserPlus className="size-3.5 shrink-0" />
+                          <span>+ Thêm GVHD</span>
                         </button>
                         <button
+                          type="button"
                           onClick={() => {
                             setActionStudent(std);
                             setDecisionModalOpen(true);
@@ -547,6 +565,7 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
                           <Scale className="size-3.5 text-amber-700" />
                         </button>
                         <button
+                          type="button"
                           onClick={() => {
                             setSelectedStudent(std);
                             setStudentModalOpen(true);
@@ -566,42 +585,14 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
         </div>
 
         {/* TABLE PAGINATION */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 pt-2 gap-2">
-          <span>
-            Hiển thị {filteredStudents.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} -{" "}
-            {Math.min(currentPage * itemsPerPage, filteredStudents.length)} của{" "}
-            {filteredStudents.length} nghiên cứu sinh
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage <= 1}
-              className="rounded-lg border px-3 py-1 text-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed hover:bg-slate-50 cursor-pointer"
-            >
-              Trang trước
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-              <button
-                key={p}
-                onClick={() => setCurrentPage(p)}
-                className={`rounded-lg border px-3 py-1 font-bold cursor-pointer ${
-                  p === currentPage
-                    ? "bg-[#164E9B] text-white"
-                    : "bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-            <button
-              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-              disabled={currentPage >= totalPages}
-              className="rounded-lg border px-3 py-1 text-slate-600 disabled:text-slate-400 disabled:cursor-not-allowed hover:bg-slate-50 cursor-pointer"
-            >
-              Trang sau
-            </button>
-          </div>
-        </div>
+        <TablePagination
+          currentPage={currentPage}
+          totalItems={filteredStudents.length}
+          pageSize={itemsPerPage}
+          onPageChange={setCurrentPage}
+          itemLabel="nghiên cứu sinh"
+          className="pt-2"
+        />
       </div>
 
       {/* STUDENT DETAIL MODAL */}
@@ -633,7 +624,18 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
         selectedStudent={actionStudent}
         students={studentsList}
         supervisors={supervisorsList}
-        onSuccess={(msg) => {
+        onSuccess={(msg, studentId, supervisorName, role) => {
+          if (studentId && supervisorName && role) {
+            setLocalSupervisorUpdates((prev) => ({
+              ...prev,
+              [studentId]: {
+                ...prev[studentId],
+                ...(role === "HUONG_DAN_CHINH"
+                  ? { supervisorMain: supervisorName }
+                  : { supervisorCo: supervisorName }),
+              },
+            }));
+          }
           setToastMessage(msg);
           setTimeout(() => setToastMessage(null), 5000);
         }}

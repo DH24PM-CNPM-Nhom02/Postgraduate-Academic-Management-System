@@ -107,8 +107,7 @@ jobs:
             docker logout ghcr.io
 
       # ---------- Đóng port 22 (luôn chạy, kể cả khi deploy fail) ----------
-      - name: Đóng port 22Nguyễn Thị Mỹ Truyền
-
+      - name: Đóng port 22
         if: ${{ always() && steps.open_sg.outcome == 'success' }}
         run: |
           aws ec2 revoke-security-group-ingress \

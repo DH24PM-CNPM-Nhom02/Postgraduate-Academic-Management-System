@@ -198,7 +198,7 @@ export function AuditLogWorkspace() {
         </div>
 
         <div className="inline-flex items-center gap-2 self-start rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground sm:self-auto">
-          <ShieldCheck className="size-4 text-rose-600" aria-hidden="true" />
+          <ShieldCheck className="size-4 text-[#164E9B]" aria-hidden="true" />
           <span>Chế độ chỉ đọc (Immutable Log)</span>
         </div>
       </div>

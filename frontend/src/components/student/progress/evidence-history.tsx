@@ -15,7 +15,9 @@ import {
   XCircle,
 } from "lucide-react";
 import type { EvidenceItem, EvidenceStatus } from "@/src/types/ui/progress";
+import { formatDateTime } from "@/src/lib/utils";
 import { DocumentViewButton } from "./document-view-button";
+import { TablePagination } from "@/src/components/ui/table-pagination";
 
 interface EvidenceHistoryProps {
   history?: EvidenceItem[];
@@ -27,17 +29,11 @@ export function EvidenceHistory({
   defaultOpen = false,
 }: EvidenceHistoryProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 5;
 
   const formatDateTimeStr = (isoString?: string): string => {
-    if (!isoString) return "--/--/----";
-    const d = new Date(isoString);
-    if (Number.isNaN(d.getTime())) return isoString;
-    const day = String(d.getUTCDate()).padStart(2, "0");
-    const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-    const year = d.getUTCFullYear();
-    const hours = String(d.getUTCHours()).padStart(2, "0");
-    const minutes = String(d.getUTCMinutes()).padStart(2, "0");
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
+    return formatDateTime(isoString);
   };
 
   const renderStatusBadge = (status: EvidenceStatus) => {
@@ -71,6 +67,10 @@ export function EvidenceHistory({
   const sortedHistory = hasHistory
     ? [...history].sort((a, b) => b.lanNop - a.lanNop)
     : [];
+  const paginatedHistory = sortedHistory.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
 
   return (
     <div className="mt-4 overflow-hidden rounded-xl border border-border bg-muted/25">
@@ -116,12 +116,13 @@ export function EvidenceHistory({
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-border">
-              {sortedHistory.map((item) => (
-                <div
-                  key={item.id || item.lanNop}
-                  className="space-y-2.5 pt-3.5 first:pt-0"
-                >
+            <div className="space-y-3">
+              <div className="divide-y divide-border">
+                {paginatedHistory.map((item) => (
+                  <div
+                    key={item.id || item.lanNop}
+                    className="space-y-2.5 pt-3.5 first:pt-0"
+                  >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="rounded-md border border-border bg-card px-2 py-0.5 font-mono text-xs font-bold tabular-nums text-[#0F2744]">
@@ -212,7 +213,20 @@ export function EvidenceHistory({
                 </div>
               ))}
             </div>
-          )}
+
+            {sortedHistory.length > PAGE_SIZE && (
+              <div className="pt-2">
+                <TablePagination
+                  currentPage={currentPage}
+                  totalItems={sortedHistory.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setCurrentPage}
+                  itemLabel="lần nộp"
+                />
+              </div>
+            )}
+          </div>
+        )}
         </div>
       )}
     </div>

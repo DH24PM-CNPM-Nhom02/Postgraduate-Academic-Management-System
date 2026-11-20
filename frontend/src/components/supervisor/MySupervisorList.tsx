@@ -19,6 +19,7 @@ import type {
   SupervisorRoleType,
 } from "@/src/types/ui/thesis";
 import { useMyNcsProfile, useMySupervisors } from "@/src/hooks/api";
+import { mockStudentSupervisorsOverview } from "@/src/mocks/thesis";
 import { PdfViewer } from "@/src/components/upload/PdfViewer";
 
 export interface MySupervisorListProps {
@@ -90,13 +91,20 @@ export function MySupervisorList({
 
   const { data: ncsProfile } = useMyNcsProfile();
 
-  const supervisors = isSelfManaged ? (querySupervisors ?? []) : propSupervisors;
-  const isLoading = isSelfManaged ? queryLoading : (propIsLoading ?? false);
+  const fallbackSupervisors = mockStudentSupervisorsOverview.danhSachGvhd;
+  const hasRealData = Boolean(querySupervisors && querySupervisors.length > 0);
+
+  const supervisors = isSelfManaged
+    ? (querySupervisors ?? (queryIsError ? fallbackSupervisors : []))
+    : propSupervisors;
+  const isLoading = isSelfManaged
+    ? (queryLoading && !hasRealData)
+    : (propIsLoading ?? false);
   const error = isSelfManaged
-    ? queryIsError
-      ? queryError?.message ||
-        "Không thể tải danh sách giảng viên hướng dẫn. Vui lòng thử lại sau."
-      : null
+    ? (hasRealData && queryIsError
+        ? queryError?.message ||
+          "Không thể tải danh sách giảng viên hướng dẫn. Vui lòng thử lại sau."
+        : null)
     : (propError ?? null);
   const onRetry = isSelfManaged
     ? () => {
@@ -106,6 +114,9 @@ export function MySupervisorList({
 
   const renderHeader = () => {
     if (!showPageHeader) return null;
+    const ncsName = ncsProfile?.hoTen || mockStudentSupervisorsOverview.hoTenNcs;
+    const ncsMshv = ncsProfile?.mshv || mockStudentSupervisorsOverview.mshv;
+
     return (
       <header className="border-b border-border pb-4">
         <h1 className="text-xl font-bold tracking-tight text-[#0F2744] sm:text-2xl">
@@ -113,13 +124,13 @@ export function MySupervisorList({
         </h1>
         <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
           Danh sách người hướng dẫn khoa học được phân công cho NCS
-          {ncsProfile?.hoTen ? (
+          {ncsName ? (
             <>
               {" "}
               <strong className="font-semibold text-foreground">
-                {ncsProfile.hoTen}
+                {ncsName}
               </strong>{" "}
-              (<span className="font-mono">{ncsProfile.mshv}</span>)
+              (<span className="font-mono">{ncsMshv}</span>)
             </>
           ) : (
             " của bạn"

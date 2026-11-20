@@ -20,6 +20,7 @@ import {
   EvaluationInputModal,
   MOCK_EVIDENCES,
 } from "@/src/components/academic";
+import { TablePagination } from "@/src/components/ui/table-pagination";
 import { useAcademicEvidences } from "@/src/hooks/use-academic";
 import type { EvidenceItem } from "@/src/types/academic";
 
@@ -33,6 +34,8 @@ export function EvidenceManagementView({ embedded = false }: EvidenceManagementV
 
   const [evidenceFilter, setEvidenceFilter] = useState("all");
   const [removedIds, setRemovedIds] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 8;
 
   const evidencesList = useMemo(() => {
     const base = initialData && Array.isArray(initialData) && initialData.length > 0 ? initialData : MOCK_EVIDENCES;
@@ -61,6 +64,11 @@ export function EvidenceManagementView({ embedded = false }: EvidenceManagementV
     if (evidenceFilter === "academic") return evidencesList.filter((e) => e.step === "academic_review");
     return evidencesList;
   }, [evidenceFilter, evidencesList]);
+
+  const paginatedEvidences = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredEvidences.slice(start, start + pageSize);
+  }, [filteredEvidences, currentPage, pageSize]);
 
   const handleApprovalSubmit = (result: { decision: string; notes: string; score?: number }) => {
     if (!approvalData) return;
@@ -196,7 +204,10 @@ export function EvidenceManagementView({ embedded = false }: EvidenceManagementV
               <Filter className="size-3.5 text-slate-400" />
               <select
                 value={evidenceFilter}
-                onChange={(e) => setEvidenceFilter(e.target.value)}
+                onChange={(e) => {
+                  setEvidenceFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-700 focus:bg-white focus:border-[#164E9B] outline-none cursor-pointer"
               >
                 <option value="all">Tất cả bước duyệt</option>
@@ -220,7 +231,7 @@ export function EvidenceManagementView({ embedded = false }: EvidenceManagementV
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredEvidences.length === 0 ? (
+              {paginatedEvidences.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400">
                     <CheckCircle2 className="size-8 mx-auto text-emerald-500 mb-2" />
@@ -230,7 +241,7 @@ export function EvidenceManagementView({ embedded = false }: EvidenceManagementV
                   </td>
                 </tr>
               ) : (
-                filteredEvidences.map((item) => (
+                paginatedEvidences.map((item) => (
                   <tr key={item.id} className="hover:bg-blue-50/40 transition-colors">
                     <td className="py-3 px-3">
                       <span className="font-bold text-slate-900 block">{item.studentName}</span>
@@ -304,6 +315,16 @@ export function EvidenceManagementView({ embedded = false }: EvidenceManagementV
             </tbody>
           </table>
         </div>
+
+        {/* Phân trang danh sách minh chứng */}
+        <TablePagination
+          currentPage={currentPage}
+          totalItems={filteredEvidences.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          itemLabel="minh chứng học vụ"
+          className="pt-2"
+        />
       </div>
 
       {/* DOCUMENT PREVIEW MODAL */}

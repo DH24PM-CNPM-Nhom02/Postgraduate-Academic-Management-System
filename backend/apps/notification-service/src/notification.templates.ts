@@ -140,6 +140,21 @@ export const MAU_THONG_BAO: Record<string, Mau> = {
         tieuDe: () => 'Tập thể GVHD đã đồng ý đề nghị gia hạn học tập',
         noiDung: () => 'Tập thể GVHD đã xác nhận đồng ý đề nghị gia hạn học tập của bạn. Đơn đã được chuyển đến Phòng Đào tạo để trình Ban Giám hiệu ra quyết định.',
     },
+    DE_NGHI_DOI_DE_TAI_CAN_XAC_NHAN: {
+        nhom: 'TIEN_DO',
+        tieuDe: (d) => `NCS ${chuoi(d.tenNcs, chuoi(d.mshv))} gửi đề nghị đổi đề tài luận án`,
+        noiDung: (d) => `Nghiên cứu sinh ${chuoi(d.tenNcs)} (${chuoi(d.mshv)}) đã gửi đơn đề nghị đổi đề tài luận án thành “${chuoi(d.tenDeTaiMoi)}”. Vui lòng xem xét và xác nhận ý kiến.`,
+    },
+    DE_NGHI_DOI_DE_TAI_GVHD_TU_CHOI: {
+        nhom: 'TIEN_DO',
+        tieuDe: () => 'Đề nghị đổi đề tài luận án không được GVHD chấp thuận',
+        noiDung: (d) => `Đề nghị đổi đề tài luận án của bạn đã bị từ chối bởi GVHD ${chuoi(d.tenGvhd)}.${d.lyDo ? ` Lý do: ${chuoi(d.lyDo)}.` : ''}`,
+    },
+    DE_NGHI_DOI_DE_TAI_GVHD_DONG_Y: {
+        nhom: 'TIEN_DO',
+        tieuDe: () => 'Tập thể GVHD đã đồng ý đề nghị đổi đề tài luận án',
+        noiDung: () => 'Tập thể GVHD đã xác nhận đồng ý đề nghị đổi đề tài luận án của bạn. Đơn đã được chuyển đến Phòng Đào tạo để trình Ban Giám hiệu ra quyết định.',
+    },
     DE_NGHI_DIEU_CHINH_TU_CHOI: {
         nhom: 'TIEN_DO',
         tieuDe: (d) => `Đề nghị ${chuoi(d.tenLoaiDeNghi, 'điều chỉnh')} đã bị từ chối`,
