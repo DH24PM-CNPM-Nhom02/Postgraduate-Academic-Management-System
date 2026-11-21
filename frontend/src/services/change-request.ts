@@ -22,7 +22,7 @@ export const ChangeRequestService = {
       );
       return response.data;
     } catch (err) {
-      throwApiError(err, "Không thể tải danh sách đơn đề nghị.");
+      throwApiError(err);
     }
   },
 
@@ -36,7 +36,7 @@ export const ChangeRequestService = {
       );
       return response.data;
     } catch (err) {
-      throwApiError(err, "Không thể tải chi tiết đơn đề nghị.");
+      throwApiError(err);
     }
   },
 
@@ -53,7 +53,7 @@ export const ChangeRequestService = {
       );
       return response.data;
     } catch (err) {
-      throwApiError(err, "Không thể gửi đơn đề nghị.");
+      throwApiError(err);
     }
   },
 
@@ -67,7 +67,7 @@ export const ChangeRequestService = {
       );
       return response.data;
     } catch (err) {
-      throwApiError(err, "Không thể hủy đơn đề nghị.");
+      throwApiError(err);
     }
   },
 };

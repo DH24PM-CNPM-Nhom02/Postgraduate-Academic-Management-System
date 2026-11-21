@@ -44,12 +44,10 @@ export function StudentChangeRequestLiveView({
 
       // Nếu có tệp đính kèm, tải lên document-service trước
       if (values.tepDinhKemFile) {
-        const uploadRes = await DocumentService.uploadDocument(
-          values.tepDinhKemFile,
-          {
-            documentType: "DON_TU",
-          }
-        );
+        const uploadRes = await DocumentService.uploadPdf({
+          file: values.tepDinhKemFile,
+          documentType: "DON_TU",
+        });
         fileId = uploadRes.id;
       }
 

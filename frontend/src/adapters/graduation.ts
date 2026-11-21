@@ -29,7 +29,7 @@ export function buildStudentGraduationOverview(
   const mshv = profile?.mshv || progress?.ncs?.mshv || "NCS";
   const chuyenNganh =
     profile?.nganh?.tenNganh ||
-    profile?.khoaHocNcs?.tenKhoaHoc ||
+    profile?.khoaHocNcs?.maKhoaHoc ||
     "Tiến sĩ chuyên ngành";
   const khoaHoc = profile?.khoaHocNcs?.maKhoaHoc || "Khóa NCS";
 

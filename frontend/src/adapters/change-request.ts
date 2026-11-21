@@ -82,6 +82,14 @@ export function mapChangeRequestApiToUi(
   };
 }
 
+interface NcsProfileWithThesis extends BackendNcsMeResponse {
+  deTais?: Array<{
+    id: string;
+    tenDeTai: string;
+    trangThai: string;
+  }>;
+}
+
 /**
  * Tổng hợp toàn bộ dữ liệu Đơn đề nghị & Gia hạn học tập từ API
  */
@@ -94,10 +102,12 @@ export function buildStudentChangeRequestsOverview(
   const hoTenNcs = profile?.hoTen || progress?.ncs?.hoTen || "Nghiên cứu sinh";
   const mshv = profile?.mshv || progress?.ncs?.mshv || "NCS";
 
+  const extendedProfile = profile as NcsProfileWithThesis | undefined | null;
+
   // Đề tài hiện tại
   const tenDeTaiHienTai =
-    profile?.deTais?.find((d) => d.trangThai === "HIEU_LUC")?.tenDeTai ||
-    profile?.deTais?.[0]?.tenDeTai ||
+    extendedProfile?.deTais?.find((d) => d.trangThai === "HIEU_LUC")?.tenDeTai ||
+    extendedProfile?.deTais?.[0]?.tenDeTai ||
     "Chưa đăng ký đề tài";
 
   // GVHD hiện tại
@@ -108,11 +118,14 @@ export function buildStudentChangeRequestsOverview(
     giangVienId: pc.gvhd?.id || pc.id,
     hoTen: pc.gvhd?.hoTen || "Chưa rõ",
     hocHamHocVi: pc.gvhd?.hocHamHocVi || "",
-    email: pc.gvhd?.email,
+    email: pc.gvhd?.email || "",
     vaiTro: (pc.vaiTro as SupervisorRoleType) || "HUONG_DAN_CHINH",
-    trongSo: 1.0,
+    trongSo: Number(pc.trongSo) === 0.5 ? 0.5 : 1.0,
     trangThai: "DANG_HUONG_DAN",
     donViCongTac: "Trường Đại học An Giang",
+    soQuyetDinh: pc.quyetDinh?.soQuyetDinh || "Chưa có QĐ",
+    ngayKyQuyetDinh: pc.quyetDinh?.ngayQuyetDinh || "",
+    ngayBatDau: pc.ngayBatDau || "",
   }));
 
   // Kiểm tra hoàn thành Mốc 2 và Mốc 8
