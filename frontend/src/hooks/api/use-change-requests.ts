@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ApiClientError } from "@/src/lib/api";
+import { throwApiError, type ApiClientError } from "@/src/lib/api";
 import { ChangeRequestService } from "@/src/services/change-request";
 import {
   buildStudentChangeRequestsOverview,
@@ -10,7 +10,7 @@ import {
 import type {
   ChangeRequestApiItem,
   CreateChangeRequestApiPayload,
-  ListChangeRequestsApiResponse,
+  ChangeRequestListResponse,
 } from "@/src/types/api/change-request";
 import type { StudentChangeRequestsOverview } from "@/src/types/ui/change-request";
 import { useMyNcsProfile } from "./use-ncs";
@@ -29,9 +29,9 @@ export const changeRequestKeys = {
  * Hook tải danh sách đơn đề nghị của NCS
  */
 export function useChangeRequests() {
-  return useQuery<ListChangeRequestsApiResponse, ApiClientError>({
+  return useQuery<ChangeRequestListResponse, ApiClientError>({
     queryKey: changeRequestKeys.list(),
-    queryFn: () => ChangeRequestService.list(),
+    queryFn: ({ signal }) => ChangeRequestService.list(undefined, signal).catch(throwApiError),
     staleTime: 1000 * 60 * 2, // 2 phút
     refetchOnWindowFocus: false,
   });
