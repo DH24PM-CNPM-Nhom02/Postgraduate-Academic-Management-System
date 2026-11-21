@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Header, Inject, Param, Patch, Post, Query, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Header, HttpCode, Inject, Param, Patch, Post, Query, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
@@ -9,8 +9,9 @@ import type { AuthUser } from '../common/interface/auth-user.interface.js';
 import { CreateGvhdBatchDto, ListGvhdQueryDto, UpdateGvhdDto, UpdateGvhdStatusDto } from '../../../../lib/contracts/src/dto/gvhd.dto.js';
 import { CreateAssignmentDto, DeactivateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
-import { buildGvhdTemplate, parseGvhdExcel } from './gvhd-excel.js';
+import { buildGvhdListWorkbook, buildGvhdTemplate, parseGvhdExcel, type GvhdExportRecord } from './gvhd-excel.js';
 import { LimitStrict, LimitBulk, LimitHeavyRead } from '../common/decorators/rate-limit.decorator.js';
+import { downloadWorkbook, ExportExcelDto, selectExportRows } from '../common/list-excel.js';
 
 //header content type
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -80,6 +81,15 @@ export class GvhdController {
   @RequirePermissions(PERMISSIONS.GVHD_READ)
   list(@Query() query: ListGvhdQueryDto) {
     return this.send('phd.gvhd.list', { query });
+  }
+
+  @Post('export')
+  @HttpCode(200)
+  @LimitHeavyRead()
+  @RequirePermissions(PERMISSIONS.GVHD_READ)
+  async exportExcel(@Body() body: ExportExcelDto) {
+    const records = await this.send<GvhdExportRecord[]>('phd.gvhd.list', { query: {} }, 20000);
+    return downloadWorkbook(buildGvhdListWorkbook(selectExportRows(records, body.ids)), 'danh-sach-gvhd.xlsx');
   }
 
   @Get('me')

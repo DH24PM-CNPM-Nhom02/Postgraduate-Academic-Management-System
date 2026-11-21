@@ -14,6 +14,7 @@ export interface DocumentViewButtonProps {
   showLabel?: boolean;
   error?: string | null;
   className?: string;
+  Trigger?: React.ComponentType<{ openPreview: () => void }>;
 }
 
 /**
@@ -33,6 +34,7 @@ export function DocumentViewButton({
   showLabel = true,
   error = null,
   className = "",
+  Trigger,
 }: DocumentViewButtonProps) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -91,8 +93,7 @@ export function DocumentViewButton({
     error ?? localError ?? previewMutation.error?.message ?? null;
   const resolvedUrl = fileUrl || objectUrl;
 
-  const handleOpen = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleOpen = () => {
     isOpenRef.current = true;
     setIsPreviewOpen(true);
 
@@ -134,29 +135,35 @@ export function DocumentViewButton({
 
   const variantStyles = {
     default: "bg-[#164E9B] text-white hover:bg-[#113E7D]",
-    outline:
-      "border border-border bg-card text-foreground hover:bg-muted",
+    outline: "border border-border bg-card text-foreground hover:bg-muted",
     ghost: "text-muted-foreground hover:bg-muted hover:text-foreground",
     link: "text-[#164E9B] hover:underline p-0 min-h-0 h-auto",
   }[variant];
 
   return (
     <div className="inline-flex flex-col items-end gap-1">
-      <button
-        type="button"
-        onClick={handleOpen}
-        aria-label={`Xem minh chứng ${fileName}`}
-        title={`Xem tài liệu: ${fileName}`}
-        className={`${baseStyles} ${sizeStyles} ${variantStyles} ${className}`}
-      >
-        <Eye
-          className={`size-3.5 ${
-            variant === "default" ? "text-white" : "text-[#164E9B]"
-          }`}
-          aria-hidden="true"
-        />
-        {showLabel && <span>Xem minh chứng</span>}
-      </button>
+      {Trigger ? (
+        <Trigger openPreview={handleOpen} />
+      ) : (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            handleOpen();
+          }}
+          aria-label={`Xem minh chứng ${fileName}`}
+          title={`Xem tài liệu: ${fileName}`}
+          className={`${baseStyles} ${sizeStyles} ${variantStyles} ${className}`}
+        >
+          <Eye
+            className={`size-3.5 ${
+              variant === "default" ? "text-white" : "text-[#164E9B]"
+            }`}
+            aria-hidden="true"
+          />
+          {showLabel && <span>Xem minh chứng</span>}
+        </button>
+      )}
 
       {resolvedError && !isPreviewOpen && (
         <span

@@ -985,6 +985,9 @@ export class NcsService {
       select: { id: true, userId: true, mshv: true, hoTen: true, trangThai: true, ngayChuyenTrangThai: true, lyDoChuyenTrangThai: true },
     });
     if (!profile) throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ NCS' });
+    if (profile.trangThai === 'DA_TOT_NGHIEP') {
+      throw new RpcException({ statusCode: 409, message: 'Hồ sơ NCS đã tốt nghiệp chỉ được xem' });
+    }
 
     const accountActiveBefore = !['BAO_LUU', 'NGUNG_HOC'].includes(profile.trangThai);
     const accountActiveAfter = data.trangThai === 'DANG_HOC';
@@ -1144,6 +1147,9 @@ export class NcsService {
         if (!hoSoCu) {
           throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ NCS' });
         }
+        if (hoSoCu.trangThai === 'DA_TOT_NGHIEP') {
+          throw new RpcException({ statusCode: 409, message: 'Hồ sơ NCS đã tốt nghiệp chỉ được xem' });
+        }
 
         const duLieuCapNhat: Prisma.NghienCuuSinhUncheckedUpdateInput = {};
         const oldValue: Record<string, unknown> = {};
@@ -1214,7 +1220,10 @@ export class NcsService {
           throw new RpcException({ statusCode: 400, message: 'Không có thay đổi nào để cập nhật' });
         }
 
-        const updated = await tx.nghienCuuSinh.update({ where: { id: ncsId }, data: duLieuCapNhat });
+        const updated = await tx.nghienCuuSinh.update({
+          where: { id: ncsId, trangThai: { not: 'DA_TOT_NGHIEP' } },
+          data: duLieuCapNhat,
+        });
         await tx.auditLog.create({
           data: {
             actorId,
@@ -1230,6 +1239,9 @@ export class NcsService {
       });
       return ketQua;
     } catch (error: unknown) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        throw new RpcException({ statusCode: 409, message: 'Hồ sơ NCS đã thay đổi hoặc đã tốt nghiệp. Vui lòng tải lại.' });
+      }
       if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') {
         const target = 'meta' in error && typeof error.meta === 'object' && error.meta !== null && 'target' in error.meta
           ? String(error.meta.target)

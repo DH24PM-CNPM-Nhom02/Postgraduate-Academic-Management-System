@@ -27,6 +27,7 @@ export interface StudentProfileData {
   trangThai: string;
   hoTen: string;
   soDienThoai: string;
+  readOnly?: boolean;
 }
 
 interface GeneralInfoFormProps {
@@ -56,6 +57,7 @@ export function GeneralInfoForm({ initialData }: GeneralInfoFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (profile.readOnly) return;
     setErrorMessage(null);
 
     // Validation
@@ -297,10 +299,10 @@ export function GeneralInfoForm({ initialData }: GeneralInfoFormProps) {
         <div className="rounded-2xl border border-border bg-card p-6 shadow-xs">
           <div className="mb-4 border-b border-border pb-3">
             <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-              Thông tin cá nhân và liên hệ (Có thể chỉnh sửa)
+              Thông tin cá nhân và liên hệ
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Cập nhật họ tên và số điện thoại liên hệ của bạn.
+              {profile.readOnly ? "Hồ sơ đã tốt nghiệp ở chế độ chỉ đọc." : "Cập nhật họ tên và số điện thoại liên hệ của bạn."}
             </p>
           </div>
 
@@ -311,7 +313,7 @@ export function GeneralInfoForm({ initialData }: GeneralInfoFormProps) {
                 htmlFor="hoTen"
                 className="block text-xs font-semibold text-foreground"
               >
-                Họ và tên nghiên cứu sinh <span className="text-rose-500">*</span>
+                Họ và tên nghiên cứu sinh {!profile.readOnly && <span className="text-rose-500">*</span>}
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
@@ -320,8 +322,9 @@ export function GeneralInfoForm({ initialData }: GeneralInfoFormProps) {
                 <input
                   id="hoTen"
                   type="text"
-                  required
-                  value={hoTen}
+                  readOnly={profile.readOnly}
+                  required={!profile.readOnly}
+                  value={profile.readOnly ? profile.hoTen : hoTen}
                   onChange={(e) => setHoTen(e.target.value)}
                   placeholder="Ví dụ: Nguyễn Văn A"
                   className="w-full rounded-xl border border-input bg-background py-2.5 pl-9 pr-3 text-sm text-foreground transition-all duration-150 placeholder:text-muted-foreground hover:border-blue-400 focus-visible:outline-none focus-visible:border-blue-600 focus-visible:ring-2 focus-visible:ring-blue-600/20"
@@ -335,7 +338,7 @@ export function GeneralInfoForm({ initialData }: GeneralInfoFormProps) {
                 htmlFor="soDienThoai"
                 className="block text-xs font-semibold text-foreground"
               >
-                Số điện thoại liên hệ <span className="text-rose-500">*</span>
+                Số điện thoại liên hệ {!profile.readOnly && <span className="text-rose-500">*</span>}
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
@@ -344,8 +347,9 @@ export function GeneralInfoForm({ initialData }: GeneralInfoFormProps) {
                 <input
                   id="soDienThoai"
                   type="tel"
-                  required
-                  value={soDienThoai}
+                  readOnly={profile.readOnly}
+                  required={!profile.readOnly}
+                  value={profile.readOnly ? profile.soDienThoai : soDienThoai}
                   onChange={(e) => setSoDienThoai(e.target.value)}
                   placeholder="0912 345 678"
                   className="w-full rounded-xl border border-input bg-background py-2.5 pl-9 pr-3 text-sm text-foreground transition-all duration-150 placeholder:text-muted-foreground hover:border-blue-400 focus-visible:outline-none focus-visible:border-blue-600 focus-visible:ring-2 focus-visible:ring-blue-600/20"
@@ -356,7 +360,7 @@ export function GeneralInfoForm({ initialData }: GeneralInfoFormProps) {
           </div>
 
           {/* Action Button: Save Changes */}
-          <div className="mt-8 flex items-center justify-end border-t border-border pt-4">
+          {!profile.readOnly && <div className="mt-8 flex items-center justify-end border-t border-border pt-4">
             <button
               type="submit"
               disabled={updateProfile.isPending}
@@ -374,7 +378,7 @@ export function GeneralInfoForm({ initialData }: GeneralInfoFormProps) {
                 </>
               )}
             </button>
-          </div>
+          </div>}
         </div>
       </form>
     </div>

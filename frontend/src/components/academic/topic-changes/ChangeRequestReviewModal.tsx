@@ -143,6 +143,8 @@ function RequestDetail({ request, onPreview }: { request: ChangeRequestDetail; o
   const accepted = request.xacNhanGvhds.filter((item) => item.dongY === true).length;
   const fileTitle = request.loai === "GIA_HAN" ? "Báo cáo tiến độ / minh chứng" : "Đơn đề nghị đính kèm";
   const decision = request.quyetDinh;
+  const reviewer = request.nguoiDuyet;
+  const isReviewed = request.trangThai === "DA_DUYET" || request.trangThai === "TU_CHOI";
   const author = request.nguoiDeNghi;
   const student = request.ncs;
   const priorAssignment = request.phanCongCu;
@@ -304,10 +306,15 @@ function RequestDetail({ request, onPreview }: { request: ChangeRequestDetail; o
         </section>
       )}
 
-      {(request.lyDoTuChoi || decision || request.ngayDuyet) && (
+      {(isReviewed || reviewer || request.lyDoTuChoi || decision || request.ngayDuyet) && (
         <section className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
           <h3 className="text-sm font-semibold text-slate-900">Kết quả xử lý</h3>
           <dl className="grid gap-3 sm:grid-cols-2">
+            {(isReviewed || reviewer) && (
+              <DetailField label="Người xử lý">
+                {reviewer?.hoTen || reviewer?.username || "Không có thông tin"}
+              </DetailField>
+            )}
             {request.ngayDuyet && <DetailField label="Thời điểm xử lý">{formatDateTime(request.ngayDuyet)}</DetailField>}
             {decision && (
               <>

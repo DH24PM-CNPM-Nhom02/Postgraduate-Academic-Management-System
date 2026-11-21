@@ -1,3 +1,4 @@
+import { guardDocumentAttachment } from '../helpers/document-link.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -140,6 +141,7 @@ export class DecisionService {
         const dsDich = dsNcs.length > 0 ? dsNcs : [null];
 
         const quyetDinhs = await this.prisma.$transaction(async (tx) => {
+            await guardDocumentAttachment(tx, d.fileId);
             const ketQua = [];
             for (const ncs of dsDich) {
                 const qd = await tx.quyetDinh.create({

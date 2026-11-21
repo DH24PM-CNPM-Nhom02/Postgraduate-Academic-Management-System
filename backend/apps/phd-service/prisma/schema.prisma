@@ -588,6 +588,11 @@ model XetTotNghiep {
   ngayDuyet     DateTime?          @map("ngay_duyet")
   /// Ngày hiệu lực công nhận tốt nghiệp theo quyết định (khác ngày Giáo vụ bấm duyệt)
   ngayTotNghiep DateTime?          @map("ngay_tot_nghiep") @db.Date
+  ngayBaoVeCapTruong DateTime?     @map("ngay_bao_ve_cap_truong") @db.Date
+  soHieuBang         String?       @map("so_hieu_bang") @db.VarChar(100)
+  ngayCapBang        DateTime?     @map("ngay_cap_bang") @db.Date
+  /// Tên GVHD tại thời điểm xác nhận, giữ lại khi phân công thay đổi.
+  nguoiHuongDan      Json?         @map("nguoi_huong_dan")
   quyetDinhId   String?            @map("quyet_dinh_id")
   createdAt     DateTime           @default(now()) @map("created_at")
   updatedAt     DateTime           @updatedAt @map("updated_at")
@@ -619,4 +624,12 @@ model AuditLog {
   @@index([ncsId])
   @@index([createdAt])
   @@map("audit_log")
+}
+
+/// Tuần tự hóa việc gắn file với việc xóa mềm ở document-service.
+model DocumentLinkGuard {
+  documentId String  @id @map("document_id")
+  deleting   Boolean @default(false)
+
+  @@map("document_link_guard")
 }

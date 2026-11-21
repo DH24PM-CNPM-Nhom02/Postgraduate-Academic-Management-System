@@ -14,6 +14,7 @@ import {
   AlertCircle,
   ShieldCheck,
   Info,
+  Download,
   Plus,
   Loader2,
 } from "lucide-react";
@@ -31,6 +32,7 @@ import {
   useAcademicSupervisors,
   useAcademicStudents,
   useDonViList,
+  useExportGvhd,
 } from "@/src/hooks/use-academic";
 import type { SupervisorQuotaRecord } from "@/src/types/academic";
 
@@ -43,6 +45,7 @@ export function SupervisorsManagementView({ embedded = false, area = "academic" 
   // Chỉ gọi hook khi component này được mount!
   const { data: initialData, isLoading, isError, refetch, isFetching } = useAcademicSupervisors();
   const { data: studentsData } = useAcademicStudents();
+  const excelExport = useExportGvhd();
 
   const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(() => searchParams?.get("search") || "");
@@ -333,6 +336,7 @@ export function SupervisorsManagementView({ embedded = false, area = "academic" 
     globalFilterFn,
     initialPageSize: 8,
   });
+  const exportRows = table.getPrePaginationRowModel().rows;
 
   const totalSupervisors = supervisorsList.length;
   const availableSupervisors = supervisorsList.filter((s) => s.remainingQuota > 0).length;
@@ -367,7 +371,7 @@ export function SupervisorsManagementView({ embedded = false, area = "academic" 
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
           {isLoading && (
             <div className="flex items-center gap-1.5 text-xs text-slate-400 mr-2">
               <Loader2 className="size-3.5 animate-spin text-[#164E9B]" />
@@ -394,6 +398,18 @@ export function SupervisorsManagementView({ embedded = false, area = "academic" 
           >
             <Plus className="size-4" />
             <span>Thêm GVHD</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={excelExport.isPending || exportRows.length === 0}
+            onClick={() => excelExport.mutate(
+              searchTerm || columnFilters.length ? exportRows.map(({ original }) => original.id) : undefined
+            )}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download className="size-4 text-emerald-600" />
+            <span>{excelExport.isPending ? "Đang xuất Excel…" : "Xuất Excel"}</span>
           </button>
         </div>
       </div>

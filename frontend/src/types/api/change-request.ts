@@ -80,6 +80,7 @@ type ChangeRequestAuthor = {
 
 export interface ChangeRequestDetail extends ChangeRequestItem {
   nguoiDeNghi: ChangeRequestAuthor | null;
+  nguoiDuyet: { id: string; hoTen: string; username: string; roles: string[] } | null;
   ncs: ChangeRequestStudent & {
     email: string | null;
     trangThai: string;

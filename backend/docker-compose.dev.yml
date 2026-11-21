@@ -108,6 +108,8 @@ services:
         APP_NAME: document-service
     volumes: *backend-src
     environment:
+      PHD_SERVICE_HOST: phd-service
+      PHD_SERVICE_PORT: "3004"
       DOCUMENT_SERVICE_HOST: 0.0.0.0
       DOCUMENT_SERVICE_PORT: 3002
       DOCUMENT_DATABASE_URL: mysql://pams_user:${MARIADB_PASSWORD}@mariadb:3306/document_db

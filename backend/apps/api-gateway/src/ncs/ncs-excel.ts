@@ -1,6 +1,62 @@
 import { BadRequestException } from '@nestjs/common';
 import ExcelJS from 'exceljs';
 import type { ImportNcsRow } from '../../../../lib/contracts/src/dto/ncs.dto.js';
+import { addListWorksheet } from '../common/list-excel.js';
+
+export interface NcsExportRecord {
+  id: string;
+  mshv: string;
+  hoTen: string;
+  email: string | null;
+  soDienThoai: string | null;
+  khoaHoc: string | null;
+  khoaHocNcs?: { maKhoaHoc: string } | null;
+  nganh?: { tenNganh: string } | null;
+  deTai: string | null;
+  gvhd: string | null;
+  dongGvhd: string | null;
+  trangThai: string;
+  tienTrinhs: { trangThai: string; moc: { thuTu: number } }[];
+}
+
+const STUDY_STATUS: Record<string, string> = {
+  DANG_HOC: 'Đang học',
+  DA_TOT_NGHIEP: 'Đã tốt nghiệp',
+  GIA_HAN: 'Gia hạn',
+  BUOC_THOI_HOC: 'Buộc thôi học',
+  BAO_LUU: 'Bảo lưu',
+  NGUNG_HOC: 'Ngừng học',
+};
+
+export function buildNcsListWorkbook(records: NcsExportRecord[]) {
+  const workbook = new ExcelJS.Workbook();
+  const columns = [
+    { header: 'MSHV', width: 17, style: { numFmt: '@' } },
+    { header: 'Họ tên', width: 30 },
+    { header: 'Email', width: 32 },
+    { header: 'Số điện thoại', width: 17, style: { numFmt: '@' } },
+    { header: 'Ngành', width: 30 },
+    { header: 'Khóa học', width: 15, style: { numFmt: '@' } },
+    { header: 'Đề tài hiện tại', width: 56, style: { alignment: { wrapText: true } } },
+    { header: 'GVHD chính', width: 30 },
+    { header: 'Đồng hướng dẫn', width: 30 },
+    { header: 'Mốc hiện tại', width: 15 },
+    { header: 'Trạng thái học tập', width: 22 },
+  ];
+  const rows = records.map((record) => {
+    const lastPassed = record.tienTrinhs.reduce(
+      (last, milestone) => milestone.trangThai === 'PASSED' ? Math.max(last, milestone.moc.thuTu) : last,
+      0,
+    );
+    return [
+      record.mshv, record.hoTen, record.email, record.soDienThoai, record.nganh?.tenNganh,
+      record.khoaHocNcs?.maKhoaHoc ?? record.khoaHoc, record.deTai, record.gvhd, record.dongGvhd,
+      Math.min(9, lastPassed + 1), STUDY_STATUS[record.trangThai] ?? record.trangThai,
+    ];
+  });
+  addListWorksheet(workbook, 'Nghiên cứu sinh', columns, rows);
+  return workbook;
+}
 
 export const MAX_IMPORT_ROWS = 200;
 

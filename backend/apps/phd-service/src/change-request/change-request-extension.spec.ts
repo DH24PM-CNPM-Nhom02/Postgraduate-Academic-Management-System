@@ -8,8 +8,10 @@ describe('ChangeRequestService - Luồng gia hạn học tập (GIA_HAN)', () =>
     let mockPrisma: any;
     let mockNotification: any;
     let mockDocument: any;
+    const authSend = vi.fn();
 
     beforeEach(() => {
+        authSend.mockReset();
         mockNotification = {
             gui: vi.fn(),
         };
@@ -33,6 +35,11 @@ describe('ChangeRequestService - Luồng gia hạn học tập (GIA_HAN)', () =>
         };
 
         mockPrisma = {
+            $executeRaw: vi.fn(),
+            $queryRaw: vi.fn().mockResolvedValue([]),
+            documentLinkGuard: {
+                findUniqueOrThrow: vi.fn().mockResolvedValue({ deleting: false }),
+            },
             nghienCuuSinh: {
                 findUnique: vi.fn(),
                 update: vi.fn(),
@@ -93,7 +100,45 @@ describe('ChangeRequestService - Luồng gia hạn học tập (GIA_HAN)', () =>
             }),
         };
 
-        service = new ChangeRequestService(mockPrisma, mockNotification, mockDocument);
+        service = new ChangeRequestService(mockPrisma, mockNotification, mockDocument, { send: authSend } as any);
+    });
+
+    describe('Chi tiết người duyệt', () => {
+        it('tra cứu người duyệt theo ID từ auth-service', async () => {
+            mockPrisma.deNghiDieuChinh.findUnique.mockResolvedValue({
+                id: 'request', loai: 'DOI_GVHD', nguoiDeNghiId: 'student', nguoiDuyetId: 'reviewer',
+            });
+            authSend.mockReturnValue(of([
+                { id: 'reviewer', fullName: 'Nguyễn Văn An', username: 'GV001', roles: ['GIAO_VU'] },
+            ]));
+
+            const detail = await service.detail('viewer', 'request');
+
+            expect(authSend).toHaveBeenCalledWith({ cmd: 'auth.find-users-by-ids' }, { ids: ['reviewer'] });
+            expect(detail.nguoiDuyet).toEqual({
+                id: 'reviewer', hoTen: 'Nguyễn Văn An', username: 'GV001', roles: ['GIAO_VU'],
+            });
+        });
+
+        it('không gọi auth-service khi chưa có người duyệt', async () => {
+            mockPrisma.deNghiDieuChinh.findUnique.mockResolvedValue({
+                id: 'request', loai: 'DOI_GVHD', nguoiDeNghiId: 'student', nguoiDuyetId: null,
+            });
+
+            expect((await service.detail('viewer', 'request')).nguoiDuyet).toBeNull();
+            expect(authSend).not.toHaveBeenCalled();
+        });
+
+        it('vẫn trả chi tiết nếu không tìm thấy tài khoản người duyệt', async () => {
+            mockPrisma.deNghiDieuChinh.findUnique.mockResolvedValue({
+                id: 'request', loai: 'DOI_GVHD', nguoiDeNghiId: 'student', nguoiDuyetId: 'reviewer',
+            });
+            authSend.mockReturnValue(of([]));
+
+            expect(await service.detail('viewer', 'request')).toMatchObject({
+                nguoiDuyetId: 'reviewer', nguoiDuyet: null,
+            });
+        });
     });
 
     const now = new Date();

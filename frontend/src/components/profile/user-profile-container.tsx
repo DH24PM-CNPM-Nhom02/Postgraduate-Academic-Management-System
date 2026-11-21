@@ -30,6 +30,7 @@ function formatDate(value: string | null | undefined): string {
 
 const NCS_STATUS: Record<string, string> = {
   DANG_HOC: "Đang học",
+  DA_TOT_NGHIEP: "Đã tốt nghiệp",
   BAO_LUU: "Bảo lưu",
   NGUNG_HOC: "Ngừng học",
   BUOC_THOI_HOC: "Buộc thôi học",
@@ -100,6 +101,7 @@ export function UserProfileContainer() {
       khoaHoc: data.khoaHocNcs?.maKhoaHoc ?? data.khoaHoc ?? "Chưa cập nhật",
       ngayNhapHoc: formatDate(data.ngayNhapHoc),
       trangThai: NCS_STATUS[data.trangThai] ?? data.trangThai,
+      readOnly: data.trangThai === "DA_TOT_NGHIEP",
       hoTen: data.hoTen || user.fullName,
       soDienThoai: data.soDienThoai ?? "",
     };

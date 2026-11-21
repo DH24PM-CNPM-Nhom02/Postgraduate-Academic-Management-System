@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiClientError } from "@/src/lib/api";
 import { DocumentService } from "@/src/services/document";
 import type {
@@ -14,6 +14,7 @@ import type {
  */
 export const documentKeys = {
   all: ["documents"] as const,
+  list: ["documents", "list"] as const,
   detail: (documentId: string) =>
     [...documentKeys.all, "detail", documentId] as const,
 };
@@ -36,12 +37,14 @@ export function useDocumentMetadata(documentId?: string | null) {
  * Mutation upload 1 file PDF lên Backend để nhận về fileId
  */
 export function useUploadDocument() {
+  const client = useQueryClient();
   return useMutation<
     DocumentMetadataResponse,
     ApiClientError,
     UploadDocumentRequest
   >({
     mutationFn: (payload) => DocumentService.uploadPdf(payload),
+    onSuccess: () => client.invalidateQueries({ queryKey: documentKeys.list }),
   });
 }
 
@@ -60,5 +63,20 @@ export function useDownloadDocument() {
 export function useDocumentPreviewUrl() {
   return useMutation<DocumentPreviewResult, ApiClientError, string>({
     mutationFn: (documentId) => DocumentService.createPreviewUrl(documentId),
+  });
+}
+
+export function useDocuments() {
+  return useQuery({ queryKey: documentKeys.list, queryFn: DocumentService.list });
+}
+
+export function useDeleteDocument() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: DocumentService.remove,
+    onSuccess: (_, id) => {
+      client.removeQueries({ queryKey: documentKeys.detail(id) });
+      return client.invalidateQueries({ queryKey: documentKeys.list });
+    },
   });
 }

@@ -2,6 +2,7 @@ import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { GraduationAssessmentService } from './graduation-assessment.service.js';
 import { ListXetTotNghiepQueryDto, XacNhanCongNoDto, XacNhanNgoaiNguDto } from '../../../../lib/contracts/src/dto/graduation-assessment.dto.js';
+import type { XacNhanTotNghiepDto } from '../../../../lib/contracts/src/dto/graduation-assessment.dto.js';
 
 @Controller()
 export class GraduationAssessmentController {
@@ -35,11 +36,18 @@ export class GraduationAssessmentController {
         return this.graduation.danhSach(d);
     }
 
+    @MessagePattern({ cmd: 'phd.graduation.graduated' })
+    danhSachDaTotNghiep() {
+        return this.graduation.danhSachDaTotNghiep();
+    }
+
+    @MessagePattern({ cmd: 'phd.graduation.me' })
+    hoSoTotNghiepCaNhan(@Payload() d: { userId: string }) {
+        return this.graduation.hoSoTotNghiepCaNhan(d.userId);
+    }
+
     @MessagePattern({ cmd: 'phd.graduation.confirm' })
-    xacNhanTotNghiep(@Payload() d: {
-        nguoiXacNhanId: string;
-        danhSach: { ncsId: string; quyetDinhId: string; ngayTotNghiep?: string }[];
-    }) {
+    xacNhanTotNghiep(@Payload() d: XacNhanTotNghiepDto & { nguoiXacNhanId: string }) {
         return this.graduation.xacNhanTotNghiep(d);
     }
 

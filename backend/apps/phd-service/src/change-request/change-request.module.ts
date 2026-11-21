@@ -17,7 +17,15 @@ import { ChangeRequestController } from './change-request.controller.js';
           host: process.env.DOCUMENT_SERVICE_HOST ?? '127.0.0.1',
           port: Number(process.env.DOCUMENT_SERVICE_PORT ?? 3003),
         },
-      }
+      },
+      {
+        name: 'AUTH_SERVICE',
+        transport: Transport.TCP,
+        options: {
+          host: process.env.AUTH_SERVICE_HOST ?? '127.0.0.1',
+          port: Number(process.env.AUTH_SERVICE_PORT ?? 3001),
+        },
+      },
     ]),
   ],
   controllers: [ChangeRequestController],

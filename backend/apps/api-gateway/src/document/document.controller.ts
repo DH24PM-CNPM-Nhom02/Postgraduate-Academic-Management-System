@@ -97,6 +97,12 @@ export class DocumentsController {
     );
   }
 
+  @Get()
+  @RequirePermissions(PERMISSIONS.DOCUMENT_READ)
+  async list(@CurrentUser() u: AuthUser) {
+    return this.goiDocument('document.list', { nguoiDung: await this.layNguoiDung(u) });
+  }
+
   // Xem thông tin của tài liệu
   @Get(':id')
   @RequirePermissions(PERMISSIONS.DOCUMENT_READ)

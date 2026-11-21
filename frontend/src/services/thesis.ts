@@ -13,6 +13,11 @@ import type { DecisionItem } from "@/src/types/academic";
  * Service giao tiếp với API Gateway cho phân hệ Đề tài Luận án
  */
 export class ThesisService {
+  static async exportExcel(ids?: string[]): Promise<Blob> {
+    const { data } = await apiClient.post<Blob>("/thesis/export", { ids }, { responseType: "blob" });
+    return data;
+  }
+
   /**
    * Lấy thông tin đề tài luận án hiện tại và lịch sử thay đổi của chính NCS (GET /thesis/ncs/me)
    */

@@ -54,6 +54,8 @@ services:
     restart: unless-stopped
     init: true
     environment:
+      PHD_SERVICE_HOST: phd-service
+      PHD_SERVICE_PORT: "3002"
       NODE_ENV: production
       DOCUMENT_DATABASE_URL: ${DOCUMENT_DATABASE_URL:?Set DOCUMENT_DATABASE_URL in .env}
       DOCUMENT_SERVICE_HOST: "0.0.0.0"

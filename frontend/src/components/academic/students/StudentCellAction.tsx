@@ -28,6 +28,20 @@ export function StudentCellAction({
   onViewDetail,
   onUpdateInfo,
 }: StudentCellActionProps) {
+  if (student.rawDetails?.trangThai === "DA_TOT_NGHIEP") {
+    return (
+      <button
+        type="button"
+        onClick={() => onViewDetail(student)}
+        className="inline-flex size-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-[#164E9B] hover:bg-blue-50"
+        title="Xem chi tiết hồ sơ"
+        aria-label="Xem chi tiết hồ sơ"
+      >
+        <Eye className="size-4" aria-hidden="true" />
+      </button>
+    );
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger

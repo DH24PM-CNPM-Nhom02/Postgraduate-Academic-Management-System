@@ -2,6 +2,56 @@ import { cellText, mapGender, MAX_IMPORT_ROWS, plain } from "../ncs/ncs-excel.js
 import { ImportGvhdRow } from "../../../../lib/contracts/src/dto/gvhd.dto.js";
 import ExcelJS from 'exceljs';
 import { BadRequestException } from "@nestjs/common";
+import { addListWorksheet } from '../common/list-excel.js';
+
+export interface GvhdExportRecord {
+  id: string;
+  maGv: string | null;
+  hoTen: string;
+  email: string | null;
+  hocHamHocVi: string;
+  chuyenNganh: string | null;
+  donVi: { ten: string; parent: { ten: string } | null } | null;
+  soNcsDangHuongDan: string | number;
+  maxNcsChoPhep: number;
+  trangThai: boolean;
+}
+
+const ACADEMIC_TITLES: Record<string, string> = {
+  GIAO_SU: 'Giáo sư',
+  PHO_GIAO_SU: 'Phó giáo sư',
+  TIEN_SI_KHOA_HOC: 'Tiến sĩ khoa học',
+  TIEN_SI: 'Tiến sĩ',
+};
+
+export function buildGvhdListWorkbook(records: GvhdExportRecord[]) {
+  const workbook = new ExcelJS.Workbook();
+  const columns = [
+    { header: 'Mã GV', width: 17, style: { numFmt: '@' } },
+    { header: 'Họ tên', width: 30 },
+    { header: 'Email', width: 32 },
+    { header: 'Học hàm/Học vị', width: 23 },
+    { header: 'Chuyên ngành', width: 32 },
+    { header: 'Đơn vị công tác', width: 30 },
+    { header: 'Đơn vị cấp trên', width: 30 },
+    { header: 'Định mức tối đa', width: 19 },
+    { header: 'Định mức đã dùng', width: 20, style: { numFmt: '0.0' } },
+    { header: 'Định mức còn lại', width: 20, style: { numFmt: '0.0' } },
+    { header: 'Trạng thái', width: 22 },
+  ];
+  const rows = records.map((record) => {
+    const usedQuota = Number(record.soNcsDangHuongDan);
+    return [
+      record.maGv, record.hoTen, record.email, ACADEMIC_TITLES[record.hocHamHocVi] ?? record.hocHamHocVi,
+      record.chuyenNganh, record.donVi?.ten, record.donVi?.parent?.ten,
+      record.maxNcsChoPhep, usedQuota, Math.max(0, record.maxNcsChoPhep - usedQuota),
+      record.trangThai ? 'Đang hoạt động' : 'Ngừng hoạt động',
+    ];
+  });
+  addListWorksheet(workbook, 'Giảng viên hướng dẫn', columns, rows);
+  return workbook;
+}
+
 const COLUMNS = [
     { key: 'maGv', header: 'Mã GV', width: 20 },
     { key: 'hoTen', header: 'Họ tên', width: 28 },

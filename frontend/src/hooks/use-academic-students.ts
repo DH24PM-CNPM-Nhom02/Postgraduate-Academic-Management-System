@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { NcsService } from "@/src/services/ncs";
 import type { UpdateNcsPayload } from "@/src/services/ncs";
 import type { StudentDossier, ListAcademicStudentsQuery } from "@/src/types/academic";
+import { useExcelExport } from "./use-excel-export";
 
 /**
  * React Query Key Factory cho Academic Students
@@ -26,6 +27,10 @@ export function useNcsTrainingMajors(enabled = true) {
     enabled,
     staleTime: 1000 * 60 * 30,
   });
+}
+
+export function useExportNcs() {
+  return useExcelExport(NcsService.exportExcel, "danh-sach-ncs.xlsx", "NCS");
 }
 
 export function useNcsCohorts(enabled = true) {
