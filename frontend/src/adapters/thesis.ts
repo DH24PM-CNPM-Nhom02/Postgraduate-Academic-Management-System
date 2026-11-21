@@ -30,7 +30,10 @@ function mapDeTaiDtoToItem(
       ngayKy,
       coQuanBanHanh: "Trường Đại học An Giang - ĐHQG-HCM",
       fileName: `QuyetDinh_${soQd.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`,
-      fileUrl: dto.quyetDinhId ? `/api/v1/documents/${dto.quyetDinhId}/download` : "#",
+      fileId: dto.quyetDinh?.fileId || null,
+      fileUrl: dto.quyetDinh?.fileId
+        ? undefined
+        : `mock://quyet-dinh/${soQd.replace(/[^a-zA-Z0-9]/g, "_")}`,
     },
   };
 }

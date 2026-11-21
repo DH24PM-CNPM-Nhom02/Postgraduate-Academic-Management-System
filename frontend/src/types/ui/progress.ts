@@ -39,6 +39,7 @@ export interface PhieuNhanXetItem {
   tenNguoiCham: string;
   chucDanh: string;
   diem: number;
+  fileId?: string | null;
   fileUrl?: string;
   fileName: string;
   ngayDanhGia?: string;

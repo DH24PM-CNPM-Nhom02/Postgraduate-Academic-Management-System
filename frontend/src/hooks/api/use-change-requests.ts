@@ -1,0 +1,109 @@
+"use client";
+
+import { useMemo } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ApiClientError } from "@/src/lib/api";
+import { ChangeRequestService } from "@/src/services/change-request";
+import {
+  buildStudentChangeRequestsOverview,
+} from "@/src/adapters/change-request";
+import type {
+  ChangeRequestApiItem,
+  CreateChangeRequestApiPayload,
+  ListChangeRequestsApiResponse,
+} from "@/src/types/api/change-request";
+import type { StudentChangeRequestsOverview } from "@/src/types/ui/change-request";
+import { useMyNcsProfile } from "./use-ncs";
+import { useMyProgress } from "./use-progress";
+
+export const changeRequestKeys = {
+  all: ["change-request"] as const,
+  lists: () => [...changeRequestKeys.all, "list"] as const,
+  list: (params?: Record<string, unknown>) =>
+    [...changeRequestKeys.lists(), params] as const,
+  details: () => [...changeRequestKeys.all, "detail"] as const,
+  detail: (id: string) => [...changeRequestKeys.details(), id] as const,
+};
+
+/**
+ * Hook tải danh sách đơn đề nghị của NCS
+ */
+export function useChangeRequests() {
+  return useQuery<ListChangeRequestsApiResponse, ApiClientError>({
+    queryKey: changeRequestKeys.list(),
+    queryFn: () => ChangeRequestService.list(),
+    staleTime: 1000 * 60 * 2, // 2 phút
+    refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * Hook tạo mới đơn đề nghị
+ */
+export function useCreateChangeRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    ChangeRequestApiItem,
+    ApiClientError,
+    CreateChangeRequestApiPayload
+  >({
+    mutationFn: (payload) => ChangeRequestService.create(payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: changeRequestKeys.all,
+      });
+    },
+  });
+}
+
+/**
+ * Hook hủy đơn đề nghị
+ */
+export function useCancelChangeRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation<ChangeRequestApiItem, ApiClientError, string>({
+    mutationFn: (id) => ChangeRequestService.cancel(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: changeRequestKeys.all,
+      });
+    },
+  });
+}
+
+/**
+ * Hook tổng hợp toàn bộ dữ liệu cho Tab Đơn đề nghị & Gia hạn (/student/extensions)
+ */
+export function useStudentChangeRequestsOverview() {
+  const requestsQuery = useChangeRequests();
+  const profileQuery = useMyNcsProfile();
+  const progressQuery = useMyProgress();
+
+  const data: StudentChangeRequestsOverview | undefined = useMemo(() => {
+    if (!requestsQuery.data) return undefined;
+    const items = requestsQuery.data.data || [];
+    return buildStudentChangeRequestsOverview(
+      items,
+      profileQuery.data,
+      progressQuery.data
+    );
+  }, [requestsQuery.data, profileQuery.data, progressQuery.data]);
+
+  const refetch = async () => {
+    await Promise.all([
+      requestsQuery.refetch(),
+      profileQuery.refetch(),
+      progressQuery.refetch(),
+    ]);
+  };
+
+  return {
+    data,
+    isLoading: requestsQuery.isLoading || profileQuery.isLoading,
+    isError: requestsQuery.isError || profileQuery.isError,
+    error: requestsQuery.error || profileQuery.error,
+    refetch,
+  };
+}
