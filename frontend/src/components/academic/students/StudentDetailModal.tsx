@@ -65,7 +65,7 @@ function addMonths(date: Date, months: number): Date {
   return d;
 }
 
-// Tính hạn quy định dự phòng cho từng mốc (nếu backend chưa gán hoặc dùng mock data)
+// Tính hạn quy định dự phòng cho từng mốc (nếu backend chưa gán)
 function calculateFallbackMilestoneRule(
   index: number,
   ngayNhapHocStr?: string | Date | null,

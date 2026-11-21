@@ -33,21 +33,6 @@ export interface ApprovalDialogProps {
 
 const LEGAL_DECISIONS = [
   {
-    id: "qd-142",
-    code: "142/QĐ-ĐHAG",
-    title: "142/QĐ-ĐHAG (Căn cứ duyệt mốc chuyên đề TS - Ngày 15/09/2026)",
-  },
-  {
-    id: "qd-158",
-    code: "158/QĐ-ĐHAG",
-    title: "158/QĐ-ĐHAG (Căn cứ phê chuẩn kết quả học phần bổ sung - Ngày 20/09/2026)",
-  },
-  {
-    id: "qd-204",
-    code: "204/QĐ-ĐHAG",
-    title: "204/QĐ-ĐHAG (Thành lập Hội đồng thẩm định mốc đề cương chi tiết)",
-  },
-  {
     id: "custom",
     code: "Tùy chọn khác",
     title: "+ Nhập số quyết định căn cứ pháp lý khác...",
@@ -58,17 +43,17 @@ export function ApprovalDialog({
   isOpen,
   onClose,
   onSubmit,
-  recordTitle = "Minh chứng Báo cáo chuyên đề tiến sĩ 01",
-  studentName = "Nguyễn Văn An",
-  studentCode = "NCS230104",
-  milestoneName = "Mốc 3: Báo cáo chuyên đề 1",
+  recordTitle = "",
+  studentName = "",
+  studentCode = "",
+  milestoneName = "",
   currentStep = "academic_review",
 }: ApprovalDialogProps) {
 
   const [decision, setDecision] = useState<ApprovalDecision>("approve");
   const [notes, setNotes] = useState("");
-  const [score, setScore] = useState<string>("8.5");
-  const [quyetDinhId, setQuyetDinhId] = useState<string>("qd-142");
+  const [score, setScore] = useState<string>("");
+  const [quyetDinhId, setQuyetDinhId] = useState<string>("custom");
   const [customQuyetDinh, setCustomQuyetDinh] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);

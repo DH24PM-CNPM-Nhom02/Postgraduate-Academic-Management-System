@@ -21,8 +21,6 @@ import { type ColumnDef, type ColumnFiltersState, type FilterFn } from "@tanstac
 import {
   ExcelImportModal,
   SupervisorAssignmentModal,
-  MOCK_SUPERVISORS,
-  MOCK_STUDENTS,
 } from "@/src/components/academic";
 import { ManagementDataTable, useManagementDataTable } from "@/src/components/ui/management-data-table";
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/src/components/ui/select";
@@ -38,11 +36,12 @@ import type { SupervisorQuotaRecord } from "@/src/types/academic";
 
 interface SupervisorsManagementViewProps {
   embedded?: boolean;
+  area?: "academic" | "admin"
 }
 
-export function SupervisorsManagementView({ embedded = false }: SupervisorsManagementViewProps) {
+export function SupervisorsManagementView({ embedded = false, area = "academic" }: SupervisorsManagementViewProps) {
   // Chỉ gọi hook khi component này được mount!
-  const { data: initialData, isLoading, refetch, isFetching } = useAcademicSupervisors();
+  const { data: initialData, isLoading, isError, refetch, isFetching } = useAcademicSupervisors();
   const { data: studentsData } = useAcademicStudents();
 
   const searchParams = useSearchParams();
@@ -51,12 +50,12 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
   const [quotaStatusFilter, setQuotaStatusFilter] = useState("all");
 
   const supervisorsList = useMemo(() => {
-    const base = initialData && Array.isArray(initialData) && initialData.length > 0 ? initialData : MOCK_SUPERVISORS;
+    const base = initialData ?? [];
     return base;
   }, [initialData]);
 
   const studentsList = useMemo(() => {
-    return studentsData && Array.isArray(studentsData) && studentsData.length > 0 ? studentsData : MOCK_STUDENTS;
+    return studentsData ?? [];
   }, [studentsData]);
 
   const [selectedSupervisorId, setSelectedSupervisorId] = useState<string | null>(null);
@@ -341,17 +340,23 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
+      {isError && (
+        <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+          Không thể tải danh sách từ máy chủ. Vui lòng bấm làm mới để thử lại.
+        </p>
+      )}
       {/* PAGE HEADER & BREADCRUMBS */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           {!embedded && (
             <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-              <Link href="/academic" className="hover:text-[#164E9B] flex items-center gap-1">
-                <ArrowLeft className="size-3" />
-                <span>Tổng quan học vụ</span>
+              <Link href={area === "admin" ? "/admin/overview" : "/academic"} className="hover:text-[#164E9B] flex items-center gap-1">
+                <ArrowLeft className="size-3.5" /> Tổng quan học vụ
               </Link>
               <span>/</span>
-              <span className="font-semibold text-slate-700">Quản lý Giảng viên Hướng dẫn</span>
+              <span className="font-semibold text-slate-700">
+                Quản lý Giáo viên hướng dẫn
+              </span>
             </div>
           )}
           <h1 className="text-xl sm:text-2xl font-black text-[#0F2744] tracking-tight">
@@ -371,11 +376,12 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
           )}
           {/* NÚT PHÂN CÔNG NCS MỚI */}
           <button
+            disabled={studentsList.length === 0 || supervisorsList.length === 0}
             onClick={() => {
               setAssignSupervisor(null);
               setAssignModalOpen(true);
             }}
-            className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/80 px-3.5 py-2 text-xs font-bold text-[#164E9B] hover:bg-blue-100 shadow-2xs transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/80 px-3.5 py-2 text-xs font-bold text-[#164E9B] hover:bg-blue-100 shadow-2xs transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           >
             <UserCheck className="size-4" />
             <span>Phân công NCS</span>
@@ -604,8 +610,8 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
           pageSizeOptions={[8, 16, 32, 64]}
           emptyState={
             <div>
-              <p className="font-semibold text-slate-600">Không tìm thấy giảng viên nào phù hợp với bộ lọc.</p>
-              <p className="mt-1 text-[11px] text-slate-400">Thử thay đổi từ khóa hoặc điều kiện lọc.</p>
+              <p className="font-semibold text-slate-600">{supervisorsList.length === 0 ? "Chưa có giảng viên hướng dẫn." : "Không tìm thấy giảng viên nào phù hợp với bộ lọc."}</p>
+              <p className="mt-1 text-[11px] text-slate-400">{supervisorsList.length === 0 ? "Bấm Thêm GVHD để nhập danh sách từ file Excel." : "Thử thay đổi từ khóa hoặc điều kiện lọc."}</p>
             </div>
           }
         />

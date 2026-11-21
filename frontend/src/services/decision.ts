@@ -44,11 +44,19 @@ export interface BackendDecision {
   createdAt: string;
 }
 
+interface DecisionListFilters {
+  ncsId?: string;
+  loai?: DecisionType;
+  trangThai?: BackendDecision["trangThai"];
+  soQuyetDinh?: string;
+}
+
 export const DecisionService = {
-  list: async (signal?: AbortSignal): Promise<import("@/src/types/academic").DecisionItem[]> => {
+  list: async (signal?: AbortSignal, params?: DecisionListFilters): Promise<import("@/src/types/academic").DecisionItem[]> => {
     try {
       const response = await apiClient.get<BackendDecision[] | { data: BackendDecision[] }>("/decisions", {
         signal,
+        params,
         timeout: 15_000,
       });
       const items = Array.isArray(response.data) ? response.data : response.data.data;

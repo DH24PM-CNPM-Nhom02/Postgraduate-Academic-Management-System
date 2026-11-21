@@ -3,7 +3,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { NcsService } from "@/src/services/ncs";
 import type { UpdateNcsPayload } from "@/src/services/ncs";
-import { MOCK_STUDENTS } from "@/src/components/academic/mockData";
 import type { StudentDossier, ListAcademicStudentsQuery } from "@/src/types/academic";
 
 /**
@@ -41,22 +40,12 @@ export function useNcsCohorts(enabled = true) {
 /**
  * Custom hook lấy danh sách Nghiên cứu sinh dành cho Giáo vụ (/academic/students)
  * Sử dụng TanStack Query, fetch data từ backend API GET /ncs.
- * Có fallback tự động sang MOCK_STUDENTS nếu server chưa có dữ liệu hoặc không khả dụng.
+ * Giữ nguyên danh sách rỗng và trạng thái lỗi do API trả về.
  */
 export function useAcademicStudents(params?: ListAcademicStudentsQuery) {
   return useQuery<StudentDossier[]>({
     queryKey: academicStudentKeys.list(params),
-    queryFn: async () => {
-      try {
-        const response = await NcsService.getAllStudents(params);
-        if (response && Array.isArray(response) && response.length > 0) {
-          return response;
-        }
-      } catch (err) {
-        console.warn("Backend NCS service unavailable, using initial mock data:", err);
-      }
-      return MOCK_STUDENTS;
-    },
+    queryFn: () => NcsService.getAllStudents(params),
     staleTime: 1000 * 60 * 5, // 5 phút cache
     refetchOnWindowFocus: false,
   });

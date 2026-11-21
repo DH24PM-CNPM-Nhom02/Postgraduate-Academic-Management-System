@@ -128,13 +128,18 @@ export function FaqContactView({
           <div className="flex items-center gap-2 self-start sm:self-auto">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-bold text-[#164E9B]">
               <Sparkles className="size-3.5 text-[#164E9B]" />
-              <span>Hỗ trợ 24/7 trực tuyến</span>
+              <span>Hỏi đáp và liên hệ</span>
             </span>
           </div>
         </div>
       </div>
 
       {/* Main Layout: FAQs + Contact Info */}
+      {roleContext === "academic" ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
+          Chưa có dữ liệu hỏi đáp và liên hệ.
+        </div>
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: FAQs */}
         <div className="lg:col-span-2 space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
@@ -273,6 +278,7 @@ export function FaqContactView({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

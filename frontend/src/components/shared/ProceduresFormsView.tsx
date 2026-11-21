@@ -59,14 +59,18 @@ function ProceduresFormsViewContent({
     setTimeout(() => setToastMessage(null), 4000);
   };
 
+  // Danh mục học vụ chờ dữ liệu thật từ backend.
+  const procedures = useMemo(() => roleContext === "academic" ? [] : MOCK_PROCEDURES, [roleContext]);
+  const forms = useMemo(() => roleContext === "academic" ? [] : MOCK_FORMS, [roleContext]);
+
   const categories = useMemo(() => {
     const set = new Set<string>();
-    MOCK_PROCEDURES.forEach((p) => set.add(p.category));
+    procedures.forEach((p) => set.add(p.category));
     return ["ALL", ...Array.from(set)];
-  }, []);
+  }, [procedures]);
 
   const filteredProcedures = useMemo(() => {
-    return MOCK_PROCEDURES.filter((proc) => {
+    return procedures.filter((proc) => {
       const matchCategory = selectedCategory === "ALL" || proc.category === selectedCategory;
       const matchQuery =
         proc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -75,16 +79,16 @@ function ProceduresFormsViewContent({
         proc.forms.some((f) => f.toLowerCase().includes(searchTerm.toLowerCase()));
       return matchCategory && matchQuery;
     });
-  }, [selectedCategory, searchTerm]);
+  }, [procedures, selectedCategory, searchTerm]);
 
   const filteredForms = useMemo(() => {
-    return MOCK_FORMS.filter((form) => {
+    return forms.filter((form) => {
       return (
         form.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         form.code.toLowerCase().includes(searchTerm.toLowerCase())
       );
     });
-  }, [searchTerm]);
+  }, [forms, searchTerm]);
 
   return (
     <div className="space-y-6">
@@ -143,7 +147,7 @@ function ProceduresFormsViewContent({
                   : "hover:text-slate-900"
               }`}
             >
-              Tất cả ({MOCK_PROCEDURES.length + MOCK_FORMS.length})
+              Tất cả ({procedures.length + forms.length})
             </button>
             <button
               onClick={() => setActiveTab("procedures")}
@@ -154,7 +158,7 @@ function ProceduresFormsViewContent({
               }`}
             >
               <ClipboardList className="size-3.5" />
-              <span>Thủ tục &amp; Quy trình ({MOCK_PROCEDURES.length})</span>
+              <span>Thủ tục &amp; Quy trình ({procedures.length})</span>
             </button>
             <button
               onClick={() => setActiveTab("forms")}
@@ -165,7 +169,7 @@ function ProceduresFormsViewContent({
               }`}
             >
               <FileSpreadsheet className="size-3.5" />
-              <span>Kho Biểu mẫu tải về ({MOCK_FORMS.length})</span>
+              <span>Kho Biểu mẫu tải về ({forms.length})</span>
             </button>
           </div>
 

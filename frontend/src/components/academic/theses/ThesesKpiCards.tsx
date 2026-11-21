@@ -123,7 +123,7 @@ export function ThesesKpiCards({
           </span>
         </div>
         <p className="text-[11px] text-slate-500 mt-1">
-          Theo danh sách điều kiện hiện tại
+          Theo bộ lọc hiện tại
         </p>
       </div>
 
@@ -154,7 +154,7 @@ export function ThesesKpiCards({
       <div className="rounded-2xl border border-amber-200 bg-amber-50/30 p-4.5 shadow-xs hover:border-amber-300 transition-all">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
-            Chưa được giao đề tài
+            Chưa có đề tài hiệu lực
           </span>
           <div className="flex size-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
             <AlertTriangle className="size-4" />
@@ -170,12 +170,12 @@ export function ThesesKpiCards({
             </span>
           ) : (
             <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
-              Đã giao toàn bộ
+              Tất cả NCS trong danh sách đã có đề tài
             </span>
           )}
         </div>
         <p className="text-[11px] text-amber-700/80 mt-1">
-          Chưa được ban hành quyết định đề tài
+          Bao gồm NCS từng có đề tài đã hủy
         </p>
       </div>
 

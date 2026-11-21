@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import type { AcademicThesisNcsItem } from "@/src/types/api/thesis";
 import { useAcademicThesisDetail } from "@/src/hooks/use-theses";
+import { useDownloadDocument } from "@/src/hooks/api/use-documents";
+import { parseApiError } from "@/src/lib/api";
 import { formatDate } from "@/src/lib/utils";
 import { ThesisStatusBadge } from "./ThesisStatusBadge";
 
@@ -39,7 +41,8 @@ export function ThesisDetailDrawer({
   onDeactivateThesis,
 }: ThesisDetailDrawerProps) {
   // Lấy chi tiết đề tài và phân công của NCS từ hook
-  const { data: detail, isLoading } = useAcademicThesisDetail(ncsId);
+  const { data: detail, isLoading, error, refetch } = useAcademicThesisDetail(ncsId);
+  const download = useDownloadDocument();
 
   // Đóng bằng phím Escape
   useEffect(() => {
@@ -56,9 +59,9 @@ export function ThesisDetailDrawer({
 
   const currentItem = ncsSummary || null;
   const currentThesis =
-    detail?.deTaiHienTai || currentItem?.deTaiHienTai || null;
+    detail ? detail.deTaiHienTai : currentItem?.deTaiHienTai ?? null;
   const allTheses = detail?.deTais || currentItem?.deTais || [];
-  const supervisors = detail?.phanCongs || currentItem?.phanCongs || [];
+  const supervisors = detail?.phanCongsHienTai ?? currentItem?.phanCongs ?? [];
 
   // Lịch sử đề tài (loại bỏ đề tài hiện tại hoặc sắp xếp theo ngày giảm dần)
   const sortedThesesHistory = [...allTheses].sort((a, b) => {
@@ -70,6 +73,20 @@ export function ThesisDetailDrawer({
   const mshv = detail?.mshv || currentItem?.mshv || "N/A";
   const hoTen = detail?.hoTen || currentItem?.hoTen || "NCS";
   const khoaHoc = detail?.khoaHoc || currentItem?.khoaHoc || "";
+
+  async function downloadDecision(fileId: string, decisionNumber: string) {
+    try {
+      const blob = await download.mutateAsync(fileId);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Quyet_dinh_${decisionNumber.replace(/[^\p{L}\p{N}._-]/gu, "_")}.pdf`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    } catch {
+      // The mutation error is shown beside the download button.
+    }
+  }
 
   return (
     <div
@@ -116,6 +133,14 @@ export function ThesisDetailDrawer({
 
         {/* SCROLLABLE CONTENT */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {error && (
+            <div role="alert" className="space-y-2 rounded-xl bg-rose-50 p-3 text-xs text-rose-700">
+              <p>{parseApiError(error).message}</p>
+              <button type="button" className="cursor-pointer font-semibold underline" onClick={() => void refetch()}>
+                Thử tải lại chi tiết
+              </button>
+            </div>
+          )}
           {isLoading ? (
             <div className="space-y-4 animate-pulse">
               <div className="h-28 bg-slate-100 rounded-2xl" />
@@ -157,10 +182,10 @@ export function ThesisDetailDrawer({
                     <span>Đề tài Luận án Hiện tại</span>
                   </h4>
 
-                  {currentThesis && onDeactivateThesis && currentItem && (
+                  {currentThesis && onDeactivateThesis && currentItem && !currentItem.hasPendingChangeRequest && (
                     <button
                       type="button"
-                      onClick={() => onDeactivateThesis(currentItem)}
+                      onClick={() => onDeactivateThesis({ ...currentItem, deTaiHienTai: currentThesis })}
                       className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 flex items-center gap-1 cursor-pointer"
                     >
                       <Ban className="size-3" />
@@ -204,17 +229,21 @@ export function ThesisDetailDrawer({
                       </div>
 
                       {currentThesis.quyetDinh?.fileId && (
-                        <a
-                          href={`/api/v1/documents/${currentThesis.quyetDinh.fileId}/download`}
-                          target="_blank"
-                          rel="noreferrer"
+                        <button
+                          type="button"
+                          disabled={download.isPending}
+                          onClick={() => {
+                            const decision = currentThesis.quyetDinh;
+                            if (decision?.fileId) void downloadDecision(decision.fileId, decision.soQuyetDinh);
+                          }}
                           className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors self-start sm:self-auto cursor-pointer"
                         >
                           <Download className="size-3.5 text-emerald-600" />
-                          <span>Tải file Scan QĐ</span>
-                        </a>
+                          <span>{download.isPending ? "Đang tải…" : "Tải quyết định"}</span>
+                        </button>
                       )}
                     </div>
+                    {download.error && <p role="alert" className="text-xs text-rose-700">{download.error.message}</p>}
                   </div>
                 ) : (
                   <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center space-y-3">
@@ -227,10 +256,10 @@ export function ThesisDetailDrawer({
                         Cần ban hành quyết định và thực hiện giao đề tài cho NCS.
                       </p>
                     </div>
-                    {onAssignThesis && currentItem && (
+                    {onAssignThesis && currentItem && !currentItem.hasPendingChangeRequest && (
                       <button
                         type="button"
-                        onClick={() => onAssignThesis(currentItem)}
+                        onClick={() => onAssignThesis({ ...currentItem, trangThaiDeTai: "CHUA_GIAO", deTaiHienTai: null })}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-[#164E9B] px-4 py-2 text-xs font-bold text-white hover:bg-[#123E7C] transition-colors shadow-xs cursor-pointer"
                       >
                         <PlusCircle className="size-4" />
@@ -371,7 +400,7 @@ export function ThesisDetailDrawer({
                 <div className="flex flex-wrap gap-2 text-xs">
                   {ncsId && (
                     <Link
-                      href={`/academic/students`}
+                      href={`/academic/students?search=${encodeURIComponent(mshv)}`}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-700 hover:text-[#164E9B] hover:bg-blue-50 transition-colors shadow-2xs"
                     >
                       <span>Xem Hồ sơ NCS</span>

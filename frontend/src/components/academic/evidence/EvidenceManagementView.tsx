@@ -20,7 +20,6 @@ import {
   DocumentPreviewModal,
   ApprovalDialog,
   EvaluationInputModal,
-  MOCK_EVIDENCES,
 } from "@/src/components/academic";
 import { TablePagination } from "@/src/components/ui/table-pagination";
 import { useAcademicEvidences } from "@/src/hooks/use-academic";
@@ -40,7 +39,7 @@ export function EvidenceManagementView({ embedded = false }: EvidenceManagementV
   const pageSize = 8;
 
   const evidencesList = useMemo(() => {
-    const base = initialData && Array.isArray(initialData) && initialData.length > 0 ? initialData : MOCK_EVIDENCES;
+    const base = initialData ?? [];
     return base.filter((item) => !removedIds.includes(item.id));
   }, [initialData, removedIds]);
 
@@ -338,8 +337,8 @@ export function EvidenceManagementView({ embedded = false }: EvidenceManagementV
       <EvaluationInputModal
         isOpen={evalModalOpen}
         onClose={() => setEvalModalOpen(false)}
-        studentName={evalData?.studentName || "Nguyễn Văn An"}
-        studentCode={evalData?.studentCode || "NCS230104"}
+        studentName={evalData?.studentName || ""}
+        studentCode={evalData?.studentCode || ""}
         initialMilestone={
           evalData?.milestone.includes("Mốc 4")
             ? 4

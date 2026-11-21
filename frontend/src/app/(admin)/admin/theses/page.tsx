@@ -17,7 +17,7 @@ export default function AdminThesesPage() {
         </div>
       }
     >
-      <ThesesManagementView />
+      <ThesesManagementView  area="admin" />
     </Suspense>
   );
 }

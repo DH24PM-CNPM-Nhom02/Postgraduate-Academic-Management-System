@@ -127,7 +127,8 @@ function RegulationsViewContent({
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  const filtered = REGULATIONS_LIST.filter((reg) => {
+  const regulations = roleContext === "academic" ? [] : REGULATIONS_LIST;
+  const filtered = regulations.filter((reg) => {
     return (
       reg.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       reg.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -137,6 +138,9 @@ function RegulationsViewContent({
 
   return (
     <div className="space-y-6">
+      {regulations.length === 0 && (
+        <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500">Chưa có quy chế, quy định.</p>
+      )}
       {/* Toast Alert */}
       {toastMessage && (
         <div className="fixed top-20 right-6 z-50 flex items-center gap-3 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 shadow-xl text-xs font-semibold text-emerald-900 animate-in slide-in-from-top duration-200">

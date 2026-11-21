@@ -1,8 +1,7 @@
 import { apiClient } from "@/src/lib/api";
 import type {
   BackendThesisNcsMeResponse,
-  AcademicThesisListQuery,
-  AcademicThesisListResponse,
+  AcademicThesisNcsItem,
   AssignThesisPayload,
   BackendThesisItem,
   DeactivateThesisPayload,
@@ -22,15 +21,9 @@ export class ThesisService {
     return response.data;
   }
 
-  /**
-   * 1. Lấy danh sách đề tài luận án của các NCS theo bộ lọc (GET /thesis)
-   */
-  static async listTheses(
-    params?: AcademicThesisListQuery
-  ): Promise<AcademicThesisListResponse> {
-    const response = await apiClient.get<AcademicThesisListResponse>("/thesis", {
-      params,
-    });
+  /** GET /thesis returns the full list when page and limit are omitted. */
+  static async listTheses(signal?: AbortSignal): Promise<AcademicThesisNcsItem[]> {
+    const response = await apiClient.get<AcademicThesisNcsItem[]>("/thesis", { signal });
     return response.data;
   }
 
@@ -70,32 +63,14 @@ export class ThesisService {
     return response.data;
   }
 
-  /**
-   * 5. Lấy danh sách quyết định giao đề tài đang có hiệu lực để chọn khi giao đề tài (GET /decisions?loai=GIAO_DE_TAI&trangThai=HIEU_LUC&ncsId=...)
-   */
   static async getAvailableDecisionsForThesis(
-    ncsId?: string
+    ncsId: string,
+    signal?: AbortSignal,
   ): Promise<DecisionItem[]> {
-    const response = await apiClient.get<DecisionItem[] | { data: DecisionItem[] }>(
-      "/decisions",
-      {
-        params: {
-          loai: "GIAO_DE_TAI",
-          trangThai: "HIEU_LUC",
-          ...(ncsId ? { ncsId } : {}),
-        },
-      }
-    );
-    if (Array.isArray(response.data)) {
-      return response.data;
-    }
-    return (response.data as { data?: DecisionItem[] })?.data ?? [];
+    const { data } = await apiClient.get<DecisionItem[]>("/decisions", {
+      params: { loai: "GIAO_DE_TAI", trangThai: "HIEU_LUC", ncsId },
+      signal,
+    });
+    return data;
   }
 }
-
-// Named function exports for direct imports
-export const listTheses = ThesisService.listTheses;
-export const assignThesis = ThesisService.assignThesis;
-export const deactivateThesis = ThesisService.deactivateThesis;
-export const getAdminThesisDetail = ThesisService.getAdminThesisDetail;
-export const getAvailableDecisionsForThesis = ThesisService.getAvailableDecisionsForThesis;

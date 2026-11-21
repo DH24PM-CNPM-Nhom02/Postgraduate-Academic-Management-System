@@ -34,7 +34,7 @@ const ACADEMIC_PAGE_TITLES: Record<string, string> = {
   "/review-queue": "Hàng chờ duyệt 9 mốc",
   "/academic/decisions": "Quản lý Quyết định",
   "/academic/evidence": "Minh chứng học vị & Báo cáo",
-  "/academic/topic-changes": "Duyệt đề nghị đổi đề tài",
+  "/academic/topic-changes": "Duyệt đề nghị điều chỉnh",
   "/academic/procedures": "Thủ tục & Biểu mẫu học vụ",
   "/academic-affairs": "Thủ tục & Biểu mẫu học vụ",
   "/academic/calendar": "Lịch học vụ & Thông báo",

@@ -796,8 +796,30 @@ export class ChangeRequestService {
         return {
             ...deNghi,
             ...thongTinThem,
+            nguoiDeNghi: await this.layHoSoNguoiDeNghi(deNghi.nguoiDeNghiId),
             isOwner,
         };
+    }
+
+    private async layHoSoNguoiDeNghi(userId: string) {
+        const ncs = await this.prisma.nghienCuuSinh.findUnique({
+            where: { userId },
+            select: { hoTen: true, mshv: true, email: true, khoaHoc: true },
+        });
+        if (ncs) return { loai: 'NCS' as const, ...ncs };
+
+        const gvhd = await this.prisma.giangVienHuongDan.findUnique({
+            where: { userId },
+            select: {
+                hoTen: true,
+                maGv: true,
+                email: true,
+                hocHamHocVi: true,
+                chuyenNganh: true,
+                donVi: { select: { ten: true } },
+            },
+        });
+        return gvhd ? { loai: 'GVHD' as const, ...gvhd } : null;
     }
 
     // Hủy đề nghị: cho phép khi đang chờ duyệt hoặc chờ GVHD xác nhận
