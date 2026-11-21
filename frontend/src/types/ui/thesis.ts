@@ -14,8 +14,10 @@ export interface ThesisDecisionDocument {
   coQuanBanHanh?: string;
   /** Tên file PDF quyết định */
   fileName: string;
-  /** Đường dẫn file PDF quyết định */
-  fileUrl: string;
+  /** Đường dẫn file PDF quyết định (blob url, mock url, hoặc undefined) */
+  fileUrl?: string | null;
+  /** Mã file lưu trữ trong document-service (nếu có) */
+  fileId?: string | null;
 }
 
 export interface ThesisItem {

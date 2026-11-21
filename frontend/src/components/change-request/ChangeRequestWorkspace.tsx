@@ -25,6 +25,11 @@ export interface ChangeRequestWorkspaceProps {
   /** Tự động mở form khi mới vào trang (khi không bị khóa đơn chờ) */
   defaultOpenForm?: boolean;
   className?: string;
+  onSubmitRequest?: (values: ChangeRequestFormValues) => Promise<void>;
+  onCancelRequest?: (request: ChangeRequestItem) => Promise<void>;
+  isLoading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
 function getRemainingMonths(targetIso: string): number {
@@ -38,15 +43,20 @@ function getRemainingMonths(targetIso: string): number {
 /**
  * ChangeRequestWorkspace
  *
- * Container tương tác thuần UI kết nối trọn bộ `ChangeRequestTable`,
- * `ChangeRequestForm`, `ChangeRequestDetail` và `CancelRequestDialog`
- * với dữ liệu truyền qua props (không gọi API trực tiếp).
+ * Container tương tác kết nối trọn bộ `ChangeRequestTable`,
+ * `ChangeRequestForm`, `ChangeRequestDetail` và `CancelRequestDialog`.
+ * Hỗ trợ cả API thực tế (qua `onSubmitRequest`/`onCancelRequest`) và dữ liệu mock.
  */
 export function ChangeRequestWorkspace({
   initialOverview,
   initialType = "DOI_DE_TAI",
   defaultOpenForm = false,
   className = "",
+  onSubmitRequest,
+  onCancelRequest,
+  isLoading,
+  error,
+  onRetry,
 }: ChangeRequestWorkspaceProps) {
   const [requests, setRequests] = useState<ChangeRequestItem[]>(
     () => initialOverview.danhSachDon
@@ -93,10 +103,33 @@ export function ChangeRequestWorkspace({
     initialOverview.thongTinThoiGian.hanHienTai
   );
 
-  const handleSubmitForm = (values: ChangeRequestFormValues) => {
+  const handleSubmitForm = async (values: ChangeRequestFormValues) => {
     clearTimers();
     setFeedbackMessage(null);
     setIsSubmitting(true);
+
+    if (onSubmitRequest) {
+      try {
+        if (values.tepDinhKemFile) {
+          setUploadState({ progress: 50, status: "uploading" });
+        }
+        await onSubmitRequest(values);
+        setUploadState({ progress: 100, status: "success" });
+        setIsSubmitting(false);
+        setUploadState(null);
+        setIsFormOpen(false);
+        setFeedbackMessage(
+          "Đã gửi đơn đề nghị thành công. Bạn có thể theo dõi tiến độ xử lý ngay trong bảng danh sách."
+        );
+      } catch (err) {
+        setIsSubmitting(false);
+        setUploadState(null);
+        setFeedbackMessage(
+          err instanceof Error ? err.message : "Gửi đơn đề nghị thất bại."
+        );
+      }
+      return;
+    }
 
     const finalizeSubmission = () => {
       const nowIso = new Date().toISOString();
@@ -230,8 +263,29 @@ export function ChangeRequestWorkspace({
     timersRef.current.push(t0);
   };
 
-  const handleConfirmCancel = (target: ChangeRequestItem) => {
+  const handleConfirmCancel = async (target: ChangeRequestItem) => {
     setIsCancelling(true);
+
+    if (onCancelRequest) {
+      try {
+        await onCancelRequest(target);
+        setIsCancelling(false);
+        setCancelTarget(null);
+        if (detailRequest && detailRequest.id === target.id) {
+          setDetailRequest(null);
+        }
+        setFeedbackMessage(
+          `Đã hủy đơn ${target.maDon}. Hệ thống đã mở khóa chức năng lập đơn đề nghị mới.`
+        );
+      } catch (err) {
+        setIsCancelling(false);
+        setFeedbackMessage(
+          err instanceof Error ? err.message : "Hủy đơn đề nghị thất bại."
+        );
+      }
+      return;
+    }
+
     const nowIso = new Date().toISOString();
 
     const timer = window.setTimeout(() => {
@@ -351,6 +405,9 @@ export function ChangeRequestWorkspace({
         }}
         onSelectDetail={(req) => setDetailRequest(req)}
         onCancelRequest={(req) => setCancelTarget(req)}
+        isLoading={isLoading}
+        error={error}
+        onRetry={onRetry}
       />
 
       {/* Ngăn kéo xem chi tiết đơn */}

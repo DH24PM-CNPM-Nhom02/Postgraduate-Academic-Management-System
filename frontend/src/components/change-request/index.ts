@@ -6,6 +6,7 @@ export {
   ChangeRequestWorkspace,
   type ChangeRequestWorkspaceProps,
 } from "./ChangeRequestWorkspace";
+export { StudentChangeRequestLiveView } from "./student-change-request-live-view";
 
 export type {
   CancelRequestDialogProps,

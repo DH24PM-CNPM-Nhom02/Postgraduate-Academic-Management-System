@@ -1,10 +1,6 @@
 import React from "react";
 import type { Metadata } from "next";
-import { GraduationWorkspace } from "@/src/components/graduation";
-import {
-  mockGraduationEligibleOverview,
-  mockGraduationNotEligibleOverview,
-} from "@/src/mocks/graduation";
+import { StudentGraduationLiveView } from "@/src/components/graduation";
 
 export const metadata: Metadata = {
   title: "Xét tốt nghiệp cá nhân | Cổng thông tin Nghiên cứu sinh AGU",
@@ -14,24 +10,8 @@ export const metadata: Metadata = {
 
 /**
  * Thin Page cho màn hình Xét tốt nghiệp cá nhân (/student/graduation).
- * Chỉ định nghĩa Server Metadata và truyền mock data từ `src/mocks/graduation.ts`.
+ * Quản lý Server Metadata và ủy thác hiển thị + đối soát điều kiện từ API cho StudentGraduationLiveView.
  */
 export default function StudentGraduationPage() {
-  return (
-    <GraduationWorkspace
-      overview={mockGraduationEligibleOverview}
-      scenarios={[
-        {
-          id: "eligible",
-          label: "Đủ điều kiện (6/6)",
-          data: mockGraduationEligibleOverview,
-        },
-        {
-          id: "ineligible",
-          label: "Chưa đủ điều kiện (4/6)",
-          data: mockGraduationNotEligibleOverview,
-        },
-      ]}
-    />
-  );
+  return <StudentGraduationLiveView />;
 }

@@ -15,7 +15,10 @@ import {
   XCircle,
 } from "lucide-react";
 import { PdfViewer } from "@/src/components/upload/PdfViewer";
+import { DocumentService } from "@/src/services/document";
 import type {
+  ChangeRequestAttachment,
+  ChangeRequestDecision,
   ChangeRequestDetailProps,
   ChangeRequestItem,
 } from "@/src/types/ui/change-request";
@@ -50,6 +53,60 @@ function ChangeRequestDetailInner({
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const [activePdf, setActivePdf] = useState<ActivePdfState | null>(null);
+  const activeBlobUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (activeBlobUrlRef.current) {
+        URL.revokeObjectURL(activeBlobUrlRef.current);
+        activeBlobUrlRef.current = null;
+      }
+    };
+  }, []);
+
+  const handleOpenPdf = async (
+    doc: ChangeRequestAttachment | ChangeRequestDecision,
+    title: string,
+    subtitle?: string
+  ) => {
+    if (doc.fileId) {
+      try {
+        const { objectUrl } = await DocumentService.createPreviewUrl(doc.fileId);
+        if (activeBlobUrlRef.current) {
+          URL.revokeObjectURL(activeBlobUrlRef.current);
+        }
+        activeBlobUrlRef.current = objectUrl;
+        setActivePdf({
+          fileUrl: objectUrl,
+          fileName: doc.fileName,
+          title,
+          subtitle,
+        });
+      } catch {
+        setActivePdf({
+          fileUrl: doc.fileUrl,
+          fileName: doc.fileName,
+          title,
+          subtitle,
+        });
+      }
+    } else {
+      setActivePdf({
+        fileUrl: doc.fileUrl,
+        fileName: doc.fileName,
+        title,
+        subtitle,
+      });
+    }
+  };
+
+  const handleClosePdf = () => {
+    if (activeBlobUrlRef.current) {
+      URL.revokeObjectURL(activeBlobUrlRef.current);
+      activeBlobUrlRef.current = null;
+    }
+    setActivePdf(null);
+  };
 
   useEffect(() => {
     previousFocusRef.current =
@@ -223,12 +280,11 @@ function ChangeRequestDetailInner({
                 <button
                   type="button"
                   onClick={() =>
-                    setActivePdf({
-                      fileUrl: request.quyetDinh!.fileUrl,
-                      fileName: request.quyetDinh!.fileName,
-                      title: `Quyết định ${request.quyetDinh!.soQuyetDinh}`,
-                      subtitle: `Ngày ký ${formatDateVi(request.quyetDinh!.ngayKy)} • ${typeMeta.label}`,
-                    })
+                    void handleOpenPdf(
+                      request.quyetDinh!,
+                      `Quyết định ${request.quyetDinh!.soQuyetDinh}`,
+                      `Ngày ký ${formatDateVi(request.quyetDinh!.ngayKy)} • ${typeMeta.label}`
+                    )
                   }
                   className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#164E9B] px-3.5 text-xs font-semibold text-white transition-colors hover:bg-[#113E7D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] cursor-pointer"
                 >
@@ -463,12 +519,11 @@ function ChangeRequestDetailInner({
                   <button
                     type="button"
                     onClick={() =>
-                      setActivePdf({
-                        fileUrl: request.tepDinhKem!.fileUrl,
-                        fileName: request.tepDinhKem!.fileName,
-                        title: `Tệp đính kèm • ${request.maDon}`,
-                        subtitle: typeMeta.label,
-                      })
+                      void handleOpenPdf(
+                        request.tepDinhKem!,
+                        `Tệp đính kèm • ${request.maDon}`,
+                        typeMeta.label
+                      )
                     }
                     className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-[#164E9B] transition-colors hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] cursor-pointer"
                   >
@@ -512,7 +567,7 @@ function ChangeRequestDetailInner({
 
       <PdfViewer
         isOpen={Boolean(activePdf)}
-        onClose={() => setActivePdf(null)}
+        onClose={handleClosePdf}
         fileUrl={activePdf?.fileUrl}
         fileName={activePdf?.fileName}
         title={activePdf?.title}

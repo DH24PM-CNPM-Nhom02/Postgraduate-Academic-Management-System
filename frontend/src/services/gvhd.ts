@@ -884,6 +884,7 @@ export interface BackendNcsDetailRaw {
         donViNguoiCham?: string | null;
         diem: number | string;
         nhanXet?: string | null;
+        fileId?: string | null;
         createdAt: string;
       }>;
     }>;
@@ -958,6 +959,7 @@ export function mapBackendNcsDetailToMilestones(
       tenNguoiCham: pnx.tenNguoiCham,
       chucDanh: pnx.donViNguoiCham || "Thành viên Hội đồng",
       diem: Number(pnx.diem),
+      fileId: pnx.fileId ?? null,
       fileName: `Phieu_nhan_xet_${pnx.tenNguoiCham.replace(/\s+/g, "_")}.pdf`,
       ngayDanhGia: pnx.createdAt,
       nhanXet: pnx.nhanXet ?? undefined,

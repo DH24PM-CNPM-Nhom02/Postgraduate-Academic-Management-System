@@ -15,7 +15,6 @@ import {
   BookOpen,
   BookOpenCheck,
   Award,
-  FileSpreadsheet,
   HelpCircle,
   ChevronLeft,
   ChevronRight,

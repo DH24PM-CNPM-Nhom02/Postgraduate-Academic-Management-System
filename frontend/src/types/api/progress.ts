@@ -68,6 +68,7 @@ export interface MilestoneReviewApi {
   diem: number | string;
   createdAt: string;
   nhanXet: string | null;
+  fileId?: string | null;
 }
 
 /** Thông tin từng mốc tiến trình trả về từ GET /progress/me */

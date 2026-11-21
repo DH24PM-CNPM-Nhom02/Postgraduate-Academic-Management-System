@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   Award,
@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   UserCheck,
 } from "lucide-react";
+import { DocumentService } from "@/src/services/document";
 import { PdfViewer } from "@/src/components/upload/PdfViewer";
 import type { PhieuNhanXetItem } from "@/src/types/ui/progress";
 
@@ -28,10 +29,69 @@ export function EvaluationReviewsSection({
   const [selectedPhieu, setSelectedPhieu] = useState<PhieuNhanXetItem | null>(
     null
   );
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isLoadingPdf, setIsLoadingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const activeBlobUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (activeBlobUrlRef.current) {
+        URL.revokeObjectURL(activeBlobUrlRef.current);
+      }
+    };
+  }, []);
 
   if (!yeuCauDiem) {
     return null;
   }
+
+  const handleOpenPdf = async (phieu: PhieuNhanXetItem) => {
+    setSelectedPhieu(phieu);
+    setPdfError(null);
+
+    const fileId = phieu.fileId;
+    const directUrl = phieu.fileUrl;
+
+    if (fileId) {
+      setIsLoadingPdf(true);
+      try {
+        const { objectUrl } = await DocumentService.createPreviewUrl(fileId);
+        if (activeBlobUrlRef.current) {
+          URL.revokeObjectURL(activeBlobUrlRef.current);
+        }
+        activeBlobUrlRef.current = objectUrl;
+        setPreviewUrl(objectUrl);
+      } catch (err) {
+        setPdfError(
+          err instanceof Error
+            ? err.message
+            : "Không thể tải tệp PDF phiếu nhận xét từ máy chủ."
+        );
+        setPreviewUrl(null);
+      } finally {
+        setIsLoadingPdf(false);
+      }
+    } else if (directUrl) {
+      setPreviewUrl(directUrl);
+    } else {
+      setPreviewUrl(
+        `mock://phieu-nhan-xet/${encodeURIComponent(
+          phieu.fileName || "phieu-nhan-xet.pdf"
+        )}`
+      );
+    }
+  };
+
+  const handleClosePdf = () => {
+    setSelectedPhieu(null);
+    if (activeBlobUrlRef.current) {
+      URL.revokeObjectURL(activeBlobUrlRef.current);
+      activeBlobUrlRef.current = null;
+    }
+    setPreviewUrl(null);
+    setPdfError(null);
+  };
 
   const numericScore = diemTrungBinh ? Number(diemTrungBinh) : null;
   const isPassedScore = numericScore !== null && numericScore >= 7.0;
@@ -154,15 +214,21 @@ export function EvaluationReviewsSection({
                     </td>
 
                     <td className="px-3 py-2.5 text-right sm:px-4">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedPhieu(phieu)}
-                        title={`Xem ${phieu.fileName || "Phiếu nhận xét"}`}
-                        className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/70 px-3 py-1.5 text-xs font-semibold text-[#164E9B] transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] cursor-pointer"
-                      >
-                        <FileText className="size-3.5" aria-hidden="true" />
-                        <span>Xem phiếu (PDF)</span>
-                      </button>
+                      {phieu.fileId || phieu.fileUrl ? (
+                        <button
+                          type="button"
+                          onClick={() => void handleOpenPdf(phieu)}
+                          title={`Xem ${phieu.fileName || "Phiếu nhận xét"}`}
+                          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/70 px-3 py-1.5 text-xs font-semibold text-[#164E9B] transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] cursor-pointer"
+                        >
+                          <FileText className="size-3.5" aria-hidden="true" />
+                          <span>Xem phiếu (PDF)</span>
+                        </button>
+                      ) : (
+                        <span className="inline-block text-xs italic text-muted-foreground">
+                          Không có tệp
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -195,15 +261,8 @@ export function EvaluationReviewsSection({
 
       <PdfViewer
         isOpen={Boolean(selectedPhieu)}
-        onClose={() => setSelectedPhieu(null)}
-        fileUrl={
-          selectedPhieu
-            ? selectedPhieu.fileUrl ||
-              `mock://phieu-nhan-xet/${encodeURIComponent(
-                selectedPhieu.fileName || "phieu-nhan-xet.pdf"
-              )}`
-            : null
-        }
+        onClose={handleClosePdf}
+        fileUrl={previewUrl}
         fileName={selectedPhieu?.fileName || "phieu-nhan-xet.pdf"}
         title={selectedPhieu?.fileName || "Phiếu nhận xét đánh giá"}
         subtitle={
@@ -212,6 +271,11 @@ export function EvaluationReviewsSection({
                 1
               )}/10.0`
             : undefined
+        }
+        isLoading={isLoadingPdf}
+        error={pdfError}
+        onRetry={
+          selectedPhieu ? () => void handleOpenPdf(selectedPhieu) : undefined
         }
         allowDownload={true}
       />

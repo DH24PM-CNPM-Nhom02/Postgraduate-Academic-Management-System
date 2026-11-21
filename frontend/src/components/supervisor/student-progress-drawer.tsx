@@ -802,12 +802,12 @@ function StudentProgressDrawerInner({
                                       <span className="font-mono font-bold text-[#164E9B]">
                                         {review.diem.toFixed(1)}/10
                                       </span>
-                                      {review.fileUrl && (
+                                      {(review.fileId || review.fileUrl) && (
                                         <button
                                           type="button"
                                           onClick={() =>
                                             handleOpenPdf(
-                                              undefined,
+                                              review.fileId || undefined,
                                               review.fileUrl,
                                               review.fileName,
                                               `Phiếu nhận xét - ${review.tenNguoiCham}`,

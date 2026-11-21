@@ -128,6 +128,7 @@ export function mapMyProgressToUi(
         tenNguoiCham: pnx.tenNguoiCham,
         chucDanh: pnx.donViNguoiCham || "Thành viên Hội đồng",
         diem: Number(pnx.diem),
+        fileId: pnx.fileId ?? null,
         fileName: `Phieu_nhan_xet_${pnx.tenNguoiCham?.replace(/\s+/g, "_") || "nguoi_cham"}.pdf`,
         ngayDanhGia: formatDateShortVi(pnx.createdAt),
         nhanXet: pnx.nhanXet ?? undefined,

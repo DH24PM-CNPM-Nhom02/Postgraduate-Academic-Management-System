@@ -73,6 +73,7 @@ export interface CandidateSupervisorOption {
 export interface ChangeRequestAttachment {
   fileName: string;
   fileUrl: string;
+  fileId?: string | null;
   fileSize?: number;
 }
 
@@ -82,6 +83,7 @@ export interface ChangeRequestDecision {
   coQuanBanHanh?: string;
   fileName: string;
   fileUrl: string;
+  fileId?: string | null;
 }
 
 export interface ChangeRequestItem {
