@@ -138,24 +138,7 @@ export function SupervisorAssignmentModal({
     isOpen && isRealBackendPair
   );
 
-  if (!currentStudent || !currentSupervisor) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" />
-            <div>
-              <h2 className="font-bold text-slate-900">Không có dữ liệu để phân công</h2>
-              <p className="mt-1 text-sm text-slate-600">Cần tải được hồ sơ NCS và danh sách GVHD từ máy chủ trước khi thực hiện thao tác này.</p>
-            </div>
-          </div>
-          <div className="mt-5 flex justify-end">
-            <button type="button" onClick={onClose} className="rounded-lg bg-[#164E9B] px-4 py-2 text-sm font-semibold text-white hover:bg-[#123E7C]">Đóng</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (!isOpen || !currentStudent || !currentSupervisor) return null;
 
   const addedWeight = role === "HUONG_DAN_CHINH" ? 1.0 : 0.5;
   const projectedUsed = Number((currentSupervisor.usedQuota + addedWeight).toFixed(1));
@@ -206,8 +189,6 @@ export function SupervisorAssignmentModal({
   )
     ? replacementDecisionId
     : availableReplacementDecisions[0]?.id || "";
-
-  if (!isOpen) return null;
 
   const isSubmitting =
     createAssignmentMutation.isPending || deactivateAssignmentMutation.isPending;

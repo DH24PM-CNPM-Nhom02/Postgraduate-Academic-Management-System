@@ -22,7 +22,8 @@ export {
 } from "./ExcelImportModal";
 export { GlobalSearchModal } from "./GlobalSearchModal";
 export { HoverLogo } from "./HoverLogo";
-export * from "./mockData";
+export { MOCK_CALENDAR_EVENTS } from "./mockData";
+export type { SupervisorQuotaRecord, EvidenceItem, CalendarEventItem, DecisionItem, PendingMilestoneItem } from "@/src/types/academic";
 
 // Clean Architecture View Components
 export { StudentsManagementView } from "./students/StudentsManagementView";

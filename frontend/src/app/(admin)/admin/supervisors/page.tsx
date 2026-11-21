@@ -19,7 +19,7 @@ export default function AdminSupervisorsManagementPage() {
         </div>
       }
     >
-      <SupervisorsManagementView />
+      <SupervisorsManagementView area = "admin"/>
     </Suspense>
   );
 }

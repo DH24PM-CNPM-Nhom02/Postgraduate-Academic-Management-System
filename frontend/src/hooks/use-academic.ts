@@ -16,17 +16,10 @@ import {
   type DonViItem,
 } from "@/src/services/gvhd";
 import type { SupervisedStudent, SupervisorProfile } from "@/src/types/ui/supervisor";
-import {
-  MOCK_STUDENTS,
-  MOCK_SUPERVISORS,
-  MOCK_EVIDENCES,
-  MOCK_TOPIC_CHANGES,
-} from "@/src/components/academic/mockData";
 import type {
   StudentDossier,
   SupervisorQuotaRecord,
   EvidenceItem,
-  TopicChangeItem,
   ListAcademicStudentsQuery,
 } from "@/src/types/academic";
 
@@ -50,17 +43,7 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 export function useAcademicStudents(params?: ListAcademicStudentsQuery) {
   return useQuery<StudentDossier[]>({
     queryKey: ["academic", "students", params],
-    queryFn: async () => {
-      try {
-        const response = await NcsService.getAllStudents(params);
-        if (response && Array.isArray(response) && response.length > 0) {
-          return response;
-        }
-      } catch (err) {
-        console.warn("Backend NCS service unavailable, using initial state:", err);
-      }
-      return MOCK_STUDENTS;
-    },
+    queryFn: () => NcsService.getAllStudents(params),
     staleTime: 1000 * 60 * 5, // 5 phút
     refetchOnWindowFocus: false,
   });
@@ -118,17 +101,7 @@ export function useUpdateStudentStatus() {
 export function useAcademicSupervisors() {
   return useQuery<SupervisorQuotaRecord[]>({
     queryKey: ["academic", "supervisors"],
-    queryFn: async () => {
-      try {
-        const response = await GvhdService.getAllSupervisors();
-        if (response && Array.isArray(response) && response.length > 0) {
-          return response;
-        }
-      } catch (err) {
-        console.warn("Backend GVHD service unavailable, using initial state:", err);
-      }
-      return MOCK_SUPERVISORS;
-    },
+    queryFn: () => GvhdService.getAllSupervisors(),
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
   });
@@ -409,22 +382,8 @@ export function useAcademicEvidences() {
   return useQuery<EvidenceItem[]>({
     queryKey: ["academic", "evidences"],
     queryFn: async () => {
-      return MOCK_EVIDENCES;
-    },
-    staleTime: 1000 * 60 * 5,
-    refetchOnWindowFocus: false,
-  });
-}
-
-/**
- * Custom hook lấy danh sách Yêu cầu đổi tên đề tài chờ duyệt
- * Chỉ fetch khi Component Bảng Đổi đề tài được mount.
- */
-export function useAcademicTopicChanges() {
-  return useQuery<TopicChangeItem[]>({
-    queryKey: ["academic", "topic-changes"],
-    queryFn: async () => {
-      return MOCK_TOPIC_CHANGES;
+      // Chưa tích hợp API danh sách minh chứng; giữ danh sách rỗng.
+      return [];
     },
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,

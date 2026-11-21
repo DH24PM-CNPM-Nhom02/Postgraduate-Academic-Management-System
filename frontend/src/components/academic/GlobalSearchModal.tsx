@@ -33,47 +33,6 @@ export interface GlobalSearchModalProps {
   onSelect?: (item: SearchResultItem) => void;
 }
 
-const SYSTEM_DOCUMENTS: SearchResultItem[] = [
-  // Nhóm Thủ tục học vụ
-  {
-    type: "procedure",
-    title: "Quy trình nộp đề cương chi tiết luận án (Mốc 5)",
-    subtitle: "Thủ tục học vụ • Thời gian: Tháng 18-24 • Đơn vị: Bộ môn & Khoa",
-    actionText: "Xem hướng dẫn",
-    payload: { targetPath: "/procedures", searchQuery: "đề cương" },
-  },
-  {
-    type: "procedure",
-    title: "Thủ tục đề nghị điều chỉnh tên đề tài luận án",
-    subtitle: "Thủ tục học vụ • Yêu cầu: Đơn đề nghị, xác nhận GVHD, họp Hội đồng",
-    actionText: "Xem hướng dẫn",
-    payload: { targetPath: "/procedures", searchQuery: "điều chỉnh tên đề tài" },
-  },
-  {
-    type: "procedure",
-    title: "Thẩm định bài báo khoa học quốc tế (WoS/Scopus)",
-    subtitle: "Mốc 8 • Chuẩn đầu ra tối thiểu 2.0 điểm theo quy định AGU",
-    actionText: "Xem hướng dẫn",
-    payload: { targetPath: "/procedures", searchQuery: "WoS" },
-  },
-
-  // Nhóm Văn bản quy chế
-  {
-    type: "regulation",
-    title: "Quy chế Đào tạo Trình độ Tiến sĩ hiện hành - AGU & ĐHQG-HCM",
-    subtitle: "Văn bản quy chế số 45/QĐ-ĐHQG • Khung đào tạo 72 tháng",
-    actionText: "Đọc quy chế",
-    payload: { targetPath: "/regulations", searchQuery: "tiến sĩ" },
-  },
-  {
-    type: "regulation",
-    title: "Quy định hạn ngạch và tiêu chuẩn Giảng viên Hướng dẫn (BR-09)",
-    subtitle: "Văn bản số 12/QĐ-ĐHAG • Hướng dẫn độc lập 1.0, Đồng HD 0.5",
-    actionText: "Đọc quy định",
-    payload: { targetPath: "/regulations", searchQuery: "BR-09" },
-  },
-];
-
 export function GlobalSearchModal({
   isOpen,
   onClose,
@@ -104,7 +63,7 @@ export function GlobalSearchModal({
   }, [isOpen, onClose]);
 
   const searchItems = useMemo<SearchResultItem[]>(() => {
-    const items: SearchResultItem[] = [...SYSTEM_DOCUMENTS];
+    const items: SearchResultItem[] = [];
 
     if (studentsData && Array.isArray(studentsData)) {
       studentsData.forEach((s) => {

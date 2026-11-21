@@ -10,5 +10,5 @@ export const metadata = {
  * Kế thừa trực tiếp DecisionsManagementView từ phân hệ Academic cho Admin.
  */
 export default function AdminDecisionsManagementPage() {
-  return <DecisionsManagementView />;
+  return <DecisionsManagementView area="admin" />;
 }

@@ -56,30 +56,13 @@ export interface AcademicThesisNcsItem {
   id: string;
   mshv: string;
   hoTen: string;
-  khoaHoc: string;
+  khoaHoc: string | null;
   trangThaiDeTai: "HIEU_LUC" | "CHUA_GIAO";
   deTaiHienTai?: BackendThesisItem | null;
   deTais?: BackendThesisItem[];
   phanCongs?: BackendPhanCongSimple[];
   hasPendingChangeRequest?: boolean;
   trangThaiHocTap?: "DANG_HOC" | "GIA_HAN" | "THOI_HOC" | "TOT_NGHIEP";
-}
-
-export interface AcademicThesisListResponse {
-  data: AcademicThesisNcsItem[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-export interface AcademicThesisListQuery {
-  page?: number;
-  limit?: number;
-  khoaHocId?: string;
-  trangThai?: ThesisViewFilterStatus;
-  gvhdId?: string;
-  search?: string;
 }
 
 export interface AssignThesisPayload {
@@ -96,7 +79,7 @@ export interface AcademicThesisAdminDetailResponse {
   id?: string;
   mshv?: string;
   hoTen?: string;
-  khoaHoc?: string;
+  khoaHoc?: string | null;
   deTais: BackendThesisItem[];
   deTaiHienTai: BackendThesisItem | null;
   phanCongs: BackendPhanCongSimple[];

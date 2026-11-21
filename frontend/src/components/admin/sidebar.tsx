@@ -24,6 +24,7 @@ import {
   User,
 } from "lucide-react";
 import { useAuth } from "@/src/hooks/use-auth";
+import { useHydrated } from "@/src/hooks/use-hydrated";
 import { HoverLogo } from "@/src/components/academic/HoverLogo";
 
 export interface AdminSidebarProps {
@@ -77,8 +78,6 @@ export const ADMIN_NAV_ITEMS: AdminNavItemDef[] = [
     title: "Quản lý NCS",
     icon: Users,
     group: "main",
-    badge: "18",
-    badgeColor: "bg-blue-100 text-[#164E9B]",
     href: "/admin/students",
     matchPaths: ["/admin/students"],
   },
@@ -87,8 +86,6 @@ export const ADMIN_NAV_ITEMS: AdminNavItemDef[] = [
     title: "Quản lý Đề tài Luận án",
     icon: BookOpenCheck,
     group: "main",
-    badge: 5,
-    badgeColor: "bg-amber-100 text-amber-800 font-bold",
     href: "/admin/theses",
     matchPaths: ["/admin/theses", "/admin/thesis"],
   },
@@ -97,8 +94,6 @@ export const ADMIN_NAV_ITEMS: AdminNavItemDef[] = [
     title: "Quản lý GVHD & Hạn ngạch",
     icon: UserCheck,
     group: "main",
-    badge: "2.5/3",
-    badgeColor: "bg-emerald-100 text-emerald-800 font-bold",
     href: "/admin/supervisors",
     matchPaths: ["/admin/supervisors"],
   },
@@ -107,8 +102,6 @@ export const ADMIN_NAV_ITEMS: AdminNavItemDef[] = [
     title: "Hàng chờ duyệt 9 mốc",
     icon: FileCheck2,
     group: "main",
-    badge: 5,
-    badgeColor: "bg-blue-100 text-[#164E9B] font-bold",
     href: "/admin/milestone-review",
     matchPaths: ["/admin/milestone-review", "/admin/review-queue"],
   },
@@ -117,26 +110,14 @@ export const ADMIN_NAV_ITEMS: AdminNavItemDef[] = [
     title: "Quản lý Quyết định",
     icon: Award,
     group: "main",
-    badge: 6,
-    badgeColor: "bg-purple-100 text-purple-800 font-bold",
     href: "/admin/decisions",
     matchPaths: ["/admin/decisions", "/admin/graduation-check"],
   },
   {
-    id: "evidence",
-    title: "Minh chứng học vị & Báo cáo",
-    icon: FileSpreadsheet,
-    group: "main",
-    href: "/admin/evidence",
-    matchPaths: ["/admin/evidence", "/admin/publications"],
-  },
-  {
     id: "topic-changes",
-    title: "Duyệt đề nghị đổi đề tài",
+    title: "Duyệt đề nghị điều chỉnh",
     icon: FileEdit,
     group: "main",
-    badge: 2,
-    badgeColor: "bg-rose-100 text-rose-800 font-bold",
     href: "/admin/topic-changes",
     matchPaths: ["/admin/topic-changes"],
   },
@@ -187,7 +168,9 @@ export function AdminSidebar({
   onToggleCollapse,
 }: AdminSidebarProps) {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user: sessionUser } = useAuth();
+  const hydrated = useHydrated();
+  const user = hydrated ? sessionUser : undefined;
 
   useEffect(() => {
     if (!isOpen || !onClose) return;

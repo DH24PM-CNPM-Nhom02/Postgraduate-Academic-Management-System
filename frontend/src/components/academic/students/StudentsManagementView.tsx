@@ -30,8 +30,6 @@ import {
   StudentUpdateModal,
   ExcelImportModal,
   DecisionIssueModal,
-  MOCK_STUDENTS,
-  MOCK_SUPERVISORS,
 } from "@/src/components/academic";
 import {
   Select,
@@ -48,6 +46,7 @@ import SupervisorAssignmentModal from "../SupervisorAssignmentModal";
 interface StudentsManagementViewProps {
   /** Khi được nhúng trong dashboard tab, có thể ẩn breadcrumb quay lại */
   embedded?: boolean;
+  area?: "academic" | "admin"
 }
 
 const headerStyles: Record<string, string> = {
@@ -68,9 +67,9 @@ const cellStyles: Record<string, string> = {
   actions: "py-3.5 px-3 text-right whitespace-nowrap min-w-[80px]",
 };
 
-export function StudentsManagementView({ embedded = false }: StudentsManagementViewProps) {
+export function StudentsManagementView({ embedded = false, area = "academic" }: StudentsManagementViewProps) {
   // Kết nối API NCS từ Backend qua React Query Hook (chỉ fetch 1 lần)
-  const { data: initialData, isLoading, refetch, isFetching } = useAcademicStudents();
+  const { data: initialData, isLoading, isError, refetch, isFetching } = useAcademicStudents();
   const { data: supervisorsData } = useAcademicSupervisors();
 
   // Search & Filter States
@@ -80,20 +79,16 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
   const [statusFilter, setStatusFilter] = useState("all");
   const [milestoneFilter, setMilestoneFilter] = useState("all");
 
-  // Danh sách NCS mới được import qua Excel
-  const [importedStudents, setImportedStudents] = useState<StudentDossier[]>([]);
-
   // Lưu vết cập nhật GVHD cục bộ để hiển thị ngay tức thì lên giao diện
   const [localSupervisorUpdates, setLocalSupervisorUpdates] = useState<
     Record<string, { supervisorMain?: string; supervisorCo?: string }>
   >({});
 
-  // Dữ liệu hợp nhất từ API (hoặc MOCK_STUDENTS) kết hợp các bản ghi import thêm và cập nhật GVHD tức thì
+  // Dữ liệu từ API kết hợp cập nhật GVHD tức thì
   // Luôn sắp xếp giảm dần: NCS mới tạo hiển thị trước NCS tạo lâu rồi
   const studentsList = useMemo(() => {
-    const base = initialData && Array.isArray(initialData) && initialData.length > 0 ? initialData : MOCK_STUDENTS;
-    const merged = [...importedStudents, ...base];
-    const withUpdates = merged.map((std) => {
+    const base = initialData ?? [];
+    const withUpdates = base.map((std) => {
       const update = localSupervisorUpdates[std.id];
       if (!update) return std;
       return {
@@ -109,12 +104,10 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
       if (timeA !== timeB) return timeB - timeA;
       return (b.code || "").localeCompare(a.code || "");
     });
-  }, [initialData, importedStudents, localSupervisorUpdates]);
+  }, [initialData, localSupervisorUpdates]);
 
   const supervisorsList = useMemo(() => {
-    return supervisorsData && Array.isArray(supervisorsData) && supervisorsData.length > 0
-      ? supervisorsData
-      : MOCK_SUPERVISORS;
+    return supervisorsData ?? [];
   }, [supervisorsData]);
 
   // Modal State
@@ -128,7 +121,7 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
 
   // Handle Excel Import Success
   const handleImportSuccess = (newStudents: StudentDossier[]) => {
-    setImportedStudents((prev) => [...newStudents, ...prev]);
+    void refetch();
     toast.success(
       `Đã thêm thành công ${newStudents.length} nghiên cứu sinh từ file Excel vào hệ thống.`
     );
@@ -354,17 +347,18 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
+      {isError && (
+        <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+          Không thể tải danh sách từ máy chủ. Vui lòng bấm làm mới để thử lại.
+        </p>
+      )}
       {/* PAGE HEADER & BREADCRUMBS */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           {!embedded && (
             <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-              <Link
-                href="/academic"
-                className="hover:text-[#164E9B] flex items-center gap-1"
-              >
-                <ArrowLeft className="size-3" />
-                <span>Tổng quan học vụ</span>
+              <Link href={area === "admin" ? "/admin/overview" : "/academic"} className="hover:text-[#164E9B] flex items-center gap-1">
+                <ArrowLeft className="size-3.5" /> Tổng quan học vụ
               </Link>
               <span>/</span>
               <span className="font-semibold text-slate-700">
@@ -391,11 +385,12 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
 
           {/* NÚT PHÂN CÔNG GVHD */}
           <button
+            disabled={studentsList.length === 0 || supervisorsList.length === 0}
             onClick={() => {
               setActionStudent(null);
               setAssignModalOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/80 px-3 py-2 text-xs font-bold text-[#164E9B] hover:bg-blue-100 shadow-2xs transition-all cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/80 px-3 py-2 text-xs font-bold text-[#164E9B] hover:bg-blue-100 shadow-2xs transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
             title="Phân công hoặc thay đổi Giảng viên Hướng dẫn"
           >
             <UserCheck className="size-4" />
@@ -568,7 +563,7 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
                 {(val) => departmentItems.find((it) => it.value === val)?.label || "Tất cả chuyên ngành"}
               </SelectValue>
             </SelectTrigger>
-            <SelectContent className="max-h-60 rounded-xl border border-slate-200 bg-white shadow-xl text-xs z-50"  alignItemWithTrigger={false}>
+            <SelectContent className="max-h-60 rounded-xl border border-slate-200 bg-white shadow-xl text-xs z-50" alignItemWithTrigger={false}>
               {departmentItems.map((dept) => (
                 <SelectItem key={dept.value} value={dept.value}>
                   {dept.label}
@@ -591,7 +586,7 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
                 {(val) => milestoneItems.find((it) => it.value === val)?.label || "Tất cả các mốc đào tạo"}
               </SelectValue>
             </SelectTrigger>
-            <SelectContent className="max-h-60 rounded-xl border border-slate-200 bg-white shadow-xl text-xs z-50"  alignItemWithTrigger={false}>
+            <SelectContent className="max-h-60 rounded-xl border border-slate-200 bg-white shadow-xl text-xs z-50" alignItemWithTrigger={false}>
               {milestoneItems.map((item) => (
                 <SelectItem key={item.value} value={item.value}>
                   {item.label}
@@ -614,7 +609,7 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
                 {(val) => statusItems.find((it) => it.value === val)?.label || "Tất cả trạng thái tiến độ"}
               </SelectValue>
             </SelectTrigger>
-            <SelectContent className="max-h-60 rounded-xl border border-slate-200 bg-white shadow-xl text-xs z-50"  alignItemWithTrigger={false}>
+            <SelectContent className="max-h-60 rounded-xl border border-slate-200 bg-white shadow-xl text-xs z-50" alignItemWithTrigger={false}>
               {statusItems.map((item) => (
                 <SelectItem key={item.value} value={item.value}>
                   {item.label}
@@ -634,10 +629,10 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
             <>
               <Users className="size-8 mx-auto text-slate-300 mb-2" />
               <p className="font-semibold text-slate-600">
-                Không tìm thấy nghiên cứu sinh nào phù hợp với điều kiện tìm kiếm.
+                {studentsList.length === 0 ? "Chưa có nghiên cứu sinh." : "Không tìm thấy nghiên cứu sinh nào phù hợp với điều kiện tìm kiếm."}
               </p>
               <p className="text-[11px] text-slate-400 mt-1">
-                Thử điều chỉnh từ khóa tìm kiếm hoặc bấm &ldquo;Đặt lại bộ lọc&rdquo;.
+                {studentsList.length === 0 ? "Bấm Thêm NCS để nhập danh sách từ file Excel." : "Thử điều chỉnh từ khóa tìm kiếm hoặc đặt lại bộ lọc."}
               </p>
             </>
           }

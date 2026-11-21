@@ -15,6 +15,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useAuth } from "@/src/hooks/use-auth";
+import { useHydrated } from "@/src/hooks/use-hydrated";
 import { HoverLogo } from "@/src/components/academic/HoverLogo";
 import { NotificationBellPopover } from "@/src/components/notification";
 
@@ -36,7 +37,7 @@ const ADMIN_PAGE_TITLES: Record<string, string> = {
   "/admin/milestone-review": "Hàng chờ duyệt 9 mốc",
   "/admin/decisions": "Quản lý Quyết định",
   "/admin/evidence": "Minh chứng học vị & Báo cáo",
-  "/admin/topic-changes": "Duyệt đề nghị đổi đề tài",
+  "/admin/topic-changes": "Duyệt đề nghị điều chỉnh",
   "/admin/procedures": "Thủ tục & Biểu mẫu học vụ",
   "/admin/calendar": "Lịch học vụ & Thông báo",
   "/admin/regulations": "Quy chế & Quy định",
@@ -60,7 +61,9 @@ export function AdminHeader({
 }: AdminHeaderProps) {
   const pathname = usePathname();
   const pageTitle = getAdminPageTitle(pathname);
-  const { user, logout } = useAuth();
+  const { user: sessionUser, logout } = useAuth();
+  const hydrated = useHydrated();
+  const user = hydrated ? sessionUser : undefined;
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(() => {

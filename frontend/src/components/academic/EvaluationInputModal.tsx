@@ -33,72 +33,18 @@ export interface EvaluationInputModalProps {
   onSavedSuccess?: (evaluations: EvaluationItem[], avgScore: number) => void;
 }
 
-const DEFAULT_EVALUATIONS: Record<number, EvaluationItem[]> = {
-  2: [
-    {
-      id: "eval-2-1",
-      reviewerName: "PGS.TS. Huỳnh Văn Minh",
-      reviewerOrg: "Trường ĐH Công nghệ Thông tin – ĐHQG-HCM",
-      score: 8.5,
-      comment: "Học phần phương pháp nghiên cứu nâng cao đạt xuất sắc, nắm vững kỹ thuật mô hình hóa.",
-      fileName: "Phieu_Cham_HocPhanTS_MinhHV.pdf",
-      submittedAt: "10/10/2026",
-    },
-    {
-      id: "eval-2-2",
-      reviewerName: "GS.TS. Lê Hoài Bắc",
-      reviewerOrg: "Trường ĐH Khoa học Tự nhiên – ĐHQG-HCM",
-      score: 8.0,
-      comment: "Nắm vững lý thuyết cơ bản và thuật toán tối ưu, bài kiểm tra chuyên sâu làm tốt.",
-      fileName: "Phieu_Cham_HocPhanTS_BacLH.pdf",
-      submittedAt: "12/10/2026",
-    },
-  ],
-  4: [
-    {
-      id: "eval-4-1",
-      reviewerName: "TS. Nguyễn Thanh Bình",
-      reviewerOrg: "Khoa CNTT – Trường ĐH An Giang",
-      score: 7.5,
-      comment: "Chuyên đề 2 giải quyết tốt bài toán phân loại đa nhãn, cần làm rõ thêm độ phức tạp thuật toán.",
-      fileName: "Phieu_NX_ChuyenDe2_BinhNT.pdf",
-      submittedAt: "18/10/2026",
-    },
-  ],
-  5: [
-    {
-      id: "eval-5-1",
-      reviewerName: "PGS.TS. Võ Văn Thắng",
-      reviewerOrg: "Hội đồng Đề cương – ĐH An Giang",
-      score: 9.0,
-      comment: "Đề cương chi tiết mạch lạc, tính ứng dụng thực tiễn cao, phương pháp rõ ràng.",
-      fileName: "Bien_Ban_HoiDongDeCuong_ThangVV.pdf",
-      submittedAt: "22/10/2026",
-    },
-    {
-      id: "eval-5-2",
-      reviewerName: "PGS.TS. Nguyễn Văn Hùng",
-      reviewerOrg: "ĐH Bách Khoa – ĐHQG-HCM",
-      score: 8.5,
-      comment: "Nội dung nghiên cứu khả thi, dự kiến hoàn thành đúng kế hoạch.",
-      fileName: "Phieu_NX_DeCuong_HungNV.pdf",
-      submittedAt: "23/10/2026",
-    },
-  ],
-};
-
 export function EvaluationInputModal({
   isOpen,
   onClose,
-  studentName = "Nguyễn Văn An",
-  studentCode = "NCS230104",
+  studentName = "",
+  studentCode = "",
   initialMilestone = 2,
   onSavedSuccess,
 }: EvaluationInputModalProps) {
 
   const [milestone, setMilestone] = useState<number>(initialMilestone);
   const [evalList, setEvalList] = useState<EvaluationItem[]>(
-    DEFAULT_EVALUATIONS[initialMilestone] || []
+    []
   );
 
   // Form states
@@ -112,7 +58,7 @@ export function EvaluationInputModal({
   // Chuyển mốc
   const handleMilestoneChange = (newM: number) => {
     setMilestone(newM);
-    setEvalList(DEFAULT_EVALUATIONS[newM] || []);
+    setEvalList([]);
     setFormError(null);
   };
 

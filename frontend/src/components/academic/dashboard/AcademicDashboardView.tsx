@@ -10,10 +10,20 @@ import {
   Gauge,
   ArrowRight,
 } from "lucide-react";
+import { useAuth } from "@/src/hooks/use-auth";
+import { useAcademicStudents, useAcademicSupervisors, useAcademicEvidences } from "@/src/hooks/use-academic";
+import { useChangeRequests } from "@/src/hooks/use-change-requests";
 import { HoverLogo } from "@/src/components/academic";
 
 export function AcademicDashboardView() {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const { data: students = [], isLoading: loadingStudents, isError: studentsError } = useAcademicStudents();
+  const { data: supervisors = [], isLoading: loadingSupervisors, isError: supervisorsError } = useAcademicSupervisors();
+  const { data: evidences = [] } = useAcademicEvidences();
+  const { data: pendingRequests } = useChangeRequests({ trangThai: "CHO_DUYET", page: 1, limit: 1 });
+  const usedQuota = supervisors.reduce((total, item) => total + item.usedQuota, 0);
+  const maxQuota = supervisors.reduce((total, item) => total + item.maxQuota, 0);
 
   // Xác định prefix route (/admin hoặc /academic) để chuyển hướng đúng phân hệ
   const prefix = pathname?.startsWith("/admin") ? "/admin" : "/academic";
@@ -32,7 +42,7 @@ export function AcademicDashboardView() {
                 Cổng Sau Đại Học AGU
               </span>
               <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600 border border-slate-200">
-                Học kỳ I / 2026 - 2027 • Tuần 08
+                Cổng quản lý học vụ
               </span>
               <span className="rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-bold">
                 [Hệ thống học vụ trực tuyến]
@@ -83,7 +93,7 @@ export function AcademicDashboardView() {
                 href={`${prefix}/topic-changes`}
                 className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-[#164E9B]/10 hover:text-[#164E9B] transition-colors cursor-pointer"
               >
-                Duyệt đổi đề tài
+                Duyệt đề nghị điều chỉnh
               </Link>
             </div>
           </div>
@@ -92,11 +102,11 @@ export function AcademicDashboardView() {
           <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 space-y-3 min-w-[280px]">
             <div className="flex items-center gap-3">
               <div className="flex size-11 items-center justify-center rounded-xl bg-[#164E9B] text-white font-black text-sm shadow-xs">
-                TA
+                {user?.fullName?.trim().charAt(0) || "—"}
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900">TS. Bùi Lê Tuấn Anh</h3>
-                <p className="text-xs text-slate-500">Khoa Công nghệ Thông tin</p>
+                <h3 className="text-sm font-bold text-slate-900">{user?.fullName || "Chưa cập nhật"}</h3>
+                <p className="text-xs text-slate-500">Tài khoản giáo vụ</p>
                 <span className="inline-block rounded-sm bg-blue-100 px-1.5 py-0.2 text-[10px] font-semibold text-[#164E9B] mt-0.5">
                   Cán bộ Quản lý &amp; Giáo vụ
                 </span>
@@ -123,13 +133,10 @@ export function AcademicDashboardView() {
               </div>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-[#0F2744]">18</span>
-              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                88.9% đúng hạn
-              </span>
+              <span className="text-3xl font-black text-[#0F2744]">{loadingStudents || studentsError ? "—" : students.length}</span>
             </div>
             <p className="text-xs text-slate-500 line-clamp-2">
-              4 NCS hướng dẫn trực tiếp và 14 NCS thuộc chuyên ngành phụ trách học vụ.
+              Danh sách nghiên cứu sinh đang được quản lý trong hệ thống.
             </p>
           </div>
           <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-bold text-[#164E9B]">
@@ -153,10 +160,7 @@ export function AcademicDashboardView() {
               </div>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-[#0F2744]">5</span>
-              <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                3 hồ sơ mới
-              </span>
+              <span className="text-3xl font-black text-[#0F2744]">{evidences.length}</span>
             </div>
             <p className="text-xs text-slate-500 line-clamp-2">
               Báo cáo chuyên đề 1, 2 và chứng chỉ ngoại ngữ quốc tế cần phê duyệt.
@@ -176,24 +180,21 @@ export function AcademicDashboardView() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 group-hover:text-rose-700">
-                ĐỀ NGHỊ ĐỔI ĐỀ TÀI
+                ĐỀ NGHỊ ĐIỀU CHỈNH CHỜ DUYỆT
               </span>
               <div className="flex size-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600 group-hover:bg-rose-600 group-hover:text-white transition-colors">
                 <FileEdit className="size-4.5" />
               </div>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-[#0F2744]">2</span>
-              <span className="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
-                Đã có ý kiến GVHD
-              </span>
+              <span className="text-3xl font-black text-[#0F2744]">{pendingRequests?.total ?? "—"}</span>
             </div>
             <p className="text-xs text-slate-500 line-clamp-2">
-              Hồ sơ đề nghị điều chỉnh tên đề tài luận án tiến sĩ từ NCS Khóa 2023.
+              Đề nghị đổi đề tài, đổi GVHD và gia hạn học tập.
             </p>
           </div>
           <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-bold text-rose-700">
-            <span>Mở Bảng Đổi đề tài</span>
+            <span>Mở danh sách đề nghị</span>
             <ArrowRight className="size-3.5 group-hover:translate-x-1 transition-transform" />
           </div>
         </Link>
@@ -213,11 +214,11 @@ export function AcademicDashboardView() {
               </div>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-[#0F2744]">2.5</span>
-              <span className="text-xs text-slate-500">/ 3.0 chỉ tiêu</span>
+              <span className="text-3xl font-black text-[#0F2744]">{loadingSupervisors || supervisorsError ? "—" : usedQuota.toFixed(1)}</span>
+              <span className="text-xs text-slate-500">/ {loadingSupervisors || supervisorsError ? "—" : maxQuota.toFixed(1)} chỉ tiêu</span>
             </div>
             <p className="text-xs text-slate-500 line-clamp-2">
-              1 NCS hướng dẫn độc lập và 3 NCS đồng hướng dẫn (còn 0.5 chỉ tiêu).
+              Tổng định mức đã sử dụng và hạn ngạch của các giảng viên trong hệ thống.
             </p>
           </div>
           <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-bold text-emerald-800">

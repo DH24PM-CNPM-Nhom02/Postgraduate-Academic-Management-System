@@ -14,45 +14,6 @@ export interface SupervisorOption {
   maxQuota: number;
 }
 
-export const MOCK_SUPERVISORS: SupervisorOption[] = [
-  {
-    id: "gv-01",
-    name: "Bùi Lê Tuấn Anh",
-    title: "TS.",
-    department: "Khoa Công nghệ Thông tin",
-    independentCount: 1,
-    coCount: 3,
-    maxQuota: 3.0,
-  },
-  {
-    id: "gv-02",
-    name: "Nguyễn Văn Hùng",
-    title: "PGS.TS.",
-    department: "Khoa Nông nghiệp - TNTN",
-    independentCount: 2,
-    coCount: 2,
-    maxQuota: 4.0,
-  },
-  {
-    id: "gv-03",
-    name: "Trần Minh Tâm",
-    title: "GS.TS.",
-    department: "Khoa Kinh tế - QTKD",
-    independentCount: 2,
-    coCount: 4,
-    maxQuota: 4.0,
-  },
-  {
-    id: "gv-04",
-    name: "Phạm Thị Thu Trang",
-    title: "TS.",
-    department: "Khoa Công nghệ Thông tin",
-    independentCount: 2,
-    coCount: 2,
-    maxQuota: 3.0,
-  },
-];
-
 export interface SupervisorSelectorProps {
   label?: string;
   selectedId?: string;
@@ -68,13 +29,13 @@ function formatSupervisorLabel(sup: SupervisorOption): string {
 
 export function SupervisorSelector({
   label = "Chọn Giảng viên Hướng dẫn",
-  selectedId = "gv-01",
+  selectedId = "",
   onSelect,
   assignmentType = "independent",
   disabled = false,
   supervisors,
 }: SupervisorSelectorProps) {
-  const list = supervisors && supervisors.length > 0 ? supervisors : MOCK_SUPERVISORS;
+  const list = supervisors ?? [];
   const [internalId, setInternalId] = useState<string>(selectedId || list[0]?.id || "");
   const [isOpen, setIsOpen] = useState(false);
 

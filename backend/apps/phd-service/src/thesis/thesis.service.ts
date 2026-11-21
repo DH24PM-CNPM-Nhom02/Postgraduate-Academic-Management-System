@@ -17,7 +17,10 @@ export class ThesisService {
       throw new RpcException({ statusCode: 400, message: 'Tên đề tài không được để trống' });
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const { deTai, ncs, quyetDinh, phanCongs } = await this.prisma.$transaction(async (tx) => {
+      // Khóa trước lần đọc đầu tiên để các lượt giao cùng quyết định kiểm tra dữ liệu sau khi lượt trước commit.
+      await tx.$queryRaw`SELECT id FROM quyet_dinh WHERE id = ${dto.quyetDinhId} FOR UPDATE`;
+
       const ncs = await tx.nghienCuuSinh.findUnique({
         where: { id: dto.ncsId },
         select: { id: true, trangThai: true, userId: true, hoTen: true, mshv: true },
@@ -32,11 +35,25 @@ export class ThesisService {
         select: { id: true, ncsId: true, loai: true, trangThai: true, soQuyetDinh: true, ngayQuyetDinh: true },
       });
       if (!quyetDinh) throw new RpcException({ statusCode: 404, message: 'Không tìm thấy quyết định' });
-      if (quyetDinh.loai !== 'GIAO_DE_TAI' || quyetDinh.trangThai !== 'HIEU_LUC') {
-        throw new RpcException({ statusCode: 400, message: 'Quyết định phải thuộc loại GIAO_DE_TAI và đang còn hiệu lực' });
+      if (quyetDinh.loai !== 'GIAO_DE_TAI') {
+        throw new RpcException({ statusCode: 400, message: 'Quyết định phải thuộc loại giao đề tài' });
+      }
+      if (quyetDinh.trangThai !== 'HIEU_LUC') {
+        throw new RpcException({ statusCode: 400, message: 'Quyết định giao đề tài không còn hiệu lực' });
       }
       if (quyetDinh.ncsId !== dto.ncsId) {
         throw new RpcException({ statusCode: 400, message: 'Quyết định không áp dụng cho NCS này' });
+      }
+
+      const deTaiCuaQuyetDinh = await tx.deTai.findFirst({
+        where: {
+          quyetDinhId: quyetDinh.id,
+          trangThai: { notIn: ['DA_HUY', 'DA_THAY_THE'] },
+        },
+        select: { id: true },
+      });
+      if (deTaiCuaQuyetDinh) {
+        throw new RpcException({ statusCode: 409, message: 'Quyết định này đã gắn với một đề tài đang hiệu lực' });
       }
 
       const deTaiHienTai = await tx.deTai.findFirst({
@@ -53,14 +70,6 @@ export class ThesisService {
       });
       if (deNghiDangCho) {
         throw new RpcException({ statusCode: 409, message: 'NCS đang có đề nghị điều chỉnh chờ duyệt, không thể giao đề tài lúc này' });
-      }
-
-      const quyetDinhDaDung = await tx.deTai.findFirst({
-        where: { quyetDinhId: dto.quyetDinhId, trangThai: 'HIEU_LUC' },
-        select: { id: true },
-      });
-      if (quyetDinhDaDung) {
-        throw new RpcException({ statusCode: 409, message: 'Quyết định này đã gắn với một đề tài đang hiệu lực' });
       }
 
       const phanCongs = await tx.phanCongHuongDan.findMany({
@@ -89,38 +98,40 @@ export class ThesisService {
         },
       });
 
-      const gvhdUserIds = [...new Set(
-        phanCongs
-          .map((phanCong) => phanCong.gvhd?.userId)
-          .filter((userId): userId is string => Boolean(userId)),
-      )];
-      if (ncs.userId) {
-        this.thongBao.gui({
-          userIds: [ncs.userId],
-          loai: 'NCS_DUOC_GIAO_DE_TAI',
-          duLieu: {
-            tenDeTai,
-            soQuyetDinh: quyetDinh.soQuyetDinh,
-            ngayQuyetDinh: quyetDinh.ngayQuyetDinh,
-          },
-          khoaTrung: `THESIS_ASSIGN:${deTai.id}`,
-        });
-      }
+      return { deTai, ncs, quyetDinh, phanCongs };
+    });
+
+    const gvhdUserIds = [...new Set(
+      phanCongs
+        .map((phanCong) => phanCong.gvhd?.userId)
+        .filter((userId): userId is string => Boolean(userId)),
+    )];
+    if (ncs.userId) {
       this.thongBao.gui({
-        userIds: gvhdUserIds,
-        loai: 'GVHD_NCS_DUOC_GIAO_DE_TAI',
+        userIds: [ncs.userId],
+        loai: 'NCS_DUOC_GIAO_DE_TAI',
         duLieu: {
-          tenNcs: ncs.hoTen,
-          mshv: ncs.mshv,
           tenDeTai,
           soQuyetDinh: quyetDinh.soQuyetDinh,
           ngayQuyetDinh: quyetDinh.ngayQuyetDinh,
         },
-        khoaTrung: `THESIS_ASSIGN_GVHD:${deTai.id}`,
+        khoaTrung: `THESIS_ASSIGN:${deTai.id}`,
       });
-
-      return deTai;
+    }
+    this.thongBao.gui({
+      userIds: gvhdUserIds,
+      loai: 'GVHD_NCS_DUOC_GIAO_DE_TAI',
+      duLieu: {
+        tenNcs: ncs.hoTen,
+        mshv: ncs.mshv,
+        tenDeTai,
+        soQuyetDinh: quyetDinh.soQuyetDinh,
+        ngayQuyetDinh: quyetDinh.ngayQuyetDinh,
+      },
+      khoaTrung: `THESIS_ASSIGN_GVHD:${deTai.id}`,
     });
+
+    return deTai;
   }
 
   async deactivate(actorId: string, id: string, data: DeactivateThesisAssignmentDto) {
