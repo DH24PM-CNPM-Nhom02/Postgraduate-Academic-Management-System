@@ -1,210 +1,265 @@
 "use client";
 
-import { toast } from "sonner";
-
-import React, { useState, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
+import { Tabs } from "@base-ui/react/tabs";
 import {
-  FileEdit,
-  Eye,
-  CheckCircle2,
-  ArrowLeft,
-  Clock,
-  Sparkles,
-  Loader2,
-} from "lucide-react";
-import {
-  TopicChangeModal,
-  MOCK_TOPIC_CHANGES,
-} from "@/src/components/academic";
-import { TablePagination } from "@/src/components/ui/table-pagination";
-import { useAcademicTopicChanges } from "@/src/hooks/use-academic";
-import type { TopicChangeItem } from "@/src/types/academic";
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+  type ColumnDef,
+  type PaginationState,
+} from "@tanstack/react-table";
+import { ArrowLeft, Eye, Loader2, RefreshCw, RotateCcw, Search } from "lucide-react";
+import { Button } from "@/src/components/ui/button";
+import { Input } from "@/src/components/ui/input";
+import { ManagementDataTable } from "@/src/components/ui/management-data-table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/src/components/ui/select";
+import { useChangeRequests, useChangeRequestsForSearch } from "@/src/hooks/use-change-requests";
+import { parseApiError } from "@/src/lib/api";
+import { formatDate } from "@/src/lib/utils";
+import type { ChangeRequestItem, ChangeRequestStatus, ChangeRequestType } from "@/src/types/api/change-request";
+import { REQUEST_STATUSES, REQUEST_STATUS_OPTIONS, REQUEST_TYPES, supervisorName } from "./change-request-labels";
+import { ChangeRequestReviewModal } from "./ChangeRequestReviewModal";
 
-interface TopicChangesManagementViewProps {
-  embedded?: boolean;
+const DEFAULT_STATUS = "CHO_DUYET";
+const EMPTY_REQUESTS: ChangeRequestItem[] = [];
+const CELL_STYLES = {
+  subject: "min-w-60 whitespace-normal break-words px-3 py-3.5",
+  actions: "px-3 py-3.5 text-right",
+};
+
+function normalizeSearch(value: string) {
+  return value.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d").trim();
 }
 
-export function TopicChangesManagementView({ embedded = false }: TopicChangesManagementViewProps) {
-  // Chỉ fetch khi component này được mount!
-  const { data: initialData, isLoading } = useAcademicTopicChanges();
-
-  const [removedIds, setRemovedIds] = useState<string[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 5;
-
-  const topicChangesList = useMemo(() => {
-    const base = initialData && Array.isArray(initialData) && initialData.length > 0 ? initialData : MOCK_TOPIC_CHANGES;
-    return base.filter((item) => !removedIds.includes(item.id));
-  }, [initialData, removedIds]);
-
-  const paginatedTopicChanges = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return topicChangesList.slice(start, start + pageSize);
-  }, [topicChangesList, currentPage, pageSize]);
-
-  const [topicModalOpen, setTopicModalOpen] = useState(false);
-  const [selectedTopicChange, setSelectedTopicChange] = useState<TopicChangeItem | null>(null);
-
-
-
-  const handleTopicDecision = (id: string, decision: "approve" | "revise" | "reject", reason?: string) => {
-    const item = topicChangesList.find((t) => t.id === id);
-    if (!item) return;
-
-    setRemovedIds((prev) => [...prev, id]);
-    if (decision === "approve") {
-      toast.success(
-        `Đã chấp thuận đề nghị đổi tên đề tài của NCS ${item.studentName}. Quyết định điều chỉnh đã được khởi tạo dự thảo.`
+function RequestSubject({ item }: { item: ChangeRequestItem }) {
+  switch (item.loai) {
+    case "DOI_DE_TAI":
+      return <span className="line-clamp-2" title={item.tenDeTaiMoi ?? undefined}>{item.tenDeTaiMoi || "—"}</span>;
+    case "DOI_GVHD":
+      return <span>{supervisorName(item.gvhdMoi)}</span>;
+    case "GIA_HAN":
+      return (
+        <div className="space-y-1">
+          <p>{item.soThangGiaHan == null ? "—" : `${item.soThangGiaHan} tháng`}</p>
+          {item.hanMoiDeNghi && <p className="text-slate-500">Đến {formatDate(item.hanMoiDeNghi)}</p>}
+        </div>
       );
-    } else {
-      toast.success(
-        `Đã phản hồi yêu cầu giải trình tới NCS ${item.studentName}: "${reason || "Cần làm rõ căn cứ khoa học"}"`
-      );
-    }
+  }
+}
+
+export function TopicChangesManagementView({
+  embedded = false,
+  area = "academic",
+}: {
+  embedded?: boolean;
+  area?: "academic" | "admin";
+}) {
+  const [type, setType] = useState<ChangeRequestType>("DOI_DE_TAI");
+  const [status, setStatus] = useState<ChangeRequestStatus | "ALL">(DEFAULT_STATUS);
+  const [search, setSearch] = useState("");
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 8 });
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const keyword = normalizeSearch(search);
+  const searching = Boolean(keyword);
+  const filters = { loai: type, trangThai: status === "ALL" ? undefined : status };
+  const pageQuery = useChangeRequests(
+    { ...filters, page: pagination.pageIndex + 1, limit: pagination.pageSize },
+    !searching,
+  );
+  const searchQuery = useChangeRequestsForSearch(filters, searching);
+  const searchItems = searchQuery.data ?? EMPTY_REQUESTS;
+  const filteredItems = useMemo(() => searchItems.filter((item) =>
+    [item.ncs.mshv, item.ncs.hoTen, item.tenDeTaiMoi, item.gvhdMoi?.hoTen]
+      .some((field) => field && normalizeSearch(field).includes(keyword)),
+  ), [searchItems, keyword]);
+
+  const query = searching ? searchQuery : pageQuery;
+  const items = searching ? filteredItems : pageQuery.data?.data ?? EMPTY_REQUESTS;
+  const total = searching ? filteredItems.length : pageQuery.data?.total ?? 0;
+  const resetPage = () => setPagination((current) => ({ ...current, pageIndex: 0 }));
+  const openDetail = useCallback((id: string) => setSelectedId(id), []);
+
+  // A review or another user's update can shrink the selected status queue.
+  const lastPageIndex = Math.max(0, Math.ceil(total / pagination.pageSize) - 1);
+  if (query.data && pagination.pageIndex > lastPageIndex) {
+    setPagination({ ...pagination, pageIndex: lastPageIndex });
+  }
+
+  const columns = useMemo<ColumnDef<ChangeRequestItem>[]>(() => [
+    {
+      accessorKey: "ncs.mshv",
+      header: "MSHV",
+      cell: ({ row }) => (
+        <button type="button" className="cursor-pointer font-mono font-semibold text-[#164E9B] hover:underline" onClick={() => openDetail(row.original.id)}>
+          {row.original.ncs.mshv}
+        </button>
+      ),
+    },
+    {
+      accessorKey: "ncs.hoTen",
+      header: "Họ tên NCS",
+      cell: ({ row }) => <span className="font-semibold text-slate-900">{row.original.ncs.hoTen}</span>,
+    },
+    {
+      id: "subject",
+      header: type === "DOI_DE_TAI" ? "Đề tài đề xuất" : type === "DOI_GVHD" ? "GVHD đề xuất" : "Thời gian đề nghị gia hạn",
+      cell: ({ row }) => <RequestSubject item={row.original} />,
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Ngày gửi",
+      cell: ({ row }) => formatDate(row.original.createdAt),
+    },
+    {
+      accessorKey: "trangThai",
+      header: "Trạng thái",
+      cell: ({ row }) => {
+        const badge = REQUEST_STATUSES[row.original.trangThai];
+        return <span className={`inline-flex rounded-full border px-2 py-1 font-medium ${badge.color}`}>{badge.label}</span>;
+      },
+    },
+    {
+      id: "actions",
+      header: "Thao tác",
+      cell: ({ row }) => (
+        <Button
+          type="button"
+          variant="outline"
+          aria-label={`Xem đề nghị của ${row.original.ncs.hoTen}, ${row.original.ncs.mshv}`}
+          onClick={() => openDetail(row.original.id)}
+        >
+          <Eye /> {row.original.trangThai === "CHO_DUYET" ? "Xem xét" : "Chi tiết"}
+        </Button>
+      ),
+    },
+  ], [type, openDetail]);
+
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const table = useReactTable({
+    data: items,
+    columns,
+    getRowId: (item) => item.id,
+    state: { pagination },
+    onPaginationChange: setPagination,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: !searching,
+    rowCount: total,
+    autoResetPageIndex: false,
+  });
+
+  const typeLabel = REQUEST_TYPES.find((option) => option.value === type)?.label;
+  const resetFilters = () => {
+    setStatus(DEFAULT_STATUS);
+    setSearch("");
+    resetPage();
   };
+  const error = query.error ? parseApiError(query.error).message : null;
 
   return (
-    <div className="space-y-6 animate-in fade-in-50 duration-200">
-      {/* Breadcrumb & Header */}
-      <div>
+    <div className="space-y-5">
+      <header>
         {!embedded && (
+
           <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-            <Link href="/academic" className="hover:text-[#164E9B] flex items-center gap-1">
-              <ArrowLeft className="size-3" />
-              <span>Tổng quan học vụ</span>
+            <Link href={area === "admin" ? "/admin/overview" : "/academic"} className="hover:text-[#164E9B] flex items-center gap-1">
+              <ArrowLeft className="size-3.5" /> Tổng quan học vụ
             </Link>
             <span>/</span>
-            <span className="font-semibold text-slate-700">Duyệt đề nghị đổi đề tài</span>
+            <span className="font-semibold text-slate-700">
+              Duyệt đề nghị điều chỉnh
+            </span>
           </div>
         )}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-[#0F2744] tracking-tight">
-              Duyệt Đề nghị Điều chỉnh Tên Đề tài Luận án Tiến sĩ
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-              So sánh trực quan đề tài cũ và đề xuất mới, đối chiếu lý do khoa học và ý kiến GVHD trước khi Giáo vụ phê duyệt dự thảo quyết định.
-            </p>
+        <h1 className="text-xl font-bold tracking-tight text-[#0F2744] sm:text-2xl">Duyệt đề nghị điều chỉnh</h1>
+      </header>
+
+      <Tabs.Root
+        value={type}
+        onValueChange={(value) => {
+          setType(value);
+          resetPage();
+        }}
+        className="space-y-4"
+      >
+        <Tabs.List aria-label="Loại đề nghị điều chỉnh" className="flex w-fit max-w-full flex-wrap gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1">
+          {REQUEST_TYPES.map((option) => (
+            <Tabs.Tab
+              key={option.value}
+              value={option.value}
+              className="cursor-pointer rounded-lg px-3 py-2 text-sm font-medium text-slate-600 outline-offset-2 hover:text-[#164E9B] data-active:bg-white data-active:text-[#164E9B] data-active:shadow-xs"
+            >
+              {option.label}
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+
+        <Tabs.Panel key={type} value={type} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+          <p className="text-xs text-slate-600">
+            {type === "GIA_HAN"
+              ? "Chỉ nghiên cứu sinh được gửi đề nghị gia hạn cho chính mình."
+              : "Nghiên cứu sinh có thể tự gửi đề nghị. GVHD đang hướng dẫn có thể gửi thay."}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-52 flex-1">
+              <Search aria-hidden className="pointer-events-none absolute left-3 top-2.5 size-4 text-slate-400" />
+              <Input
+                type="search"
+                className="h-9 pl-9"
+                aria-label="Tìm đề nghị"
+                placeholder={type === "DOI_DE_TAI" ? "Tìm theo MSHV, họ tên hoặc đề tài" : type === "DOI_GVHD" ? "Tìm theo MSHV, họ tên hoặc GVHD" : "Tìm theo MSHV hoặc họ tên"}
+                value={search}
+                onChange={(event) => { setSearch(event.target.value); resetPage(); }}
+              />
+            </div>
+            <Select
+              items={REQUEST_STATUS_OPTIONS}
+              value={status as string}
+              onValueChange={(value) => {
+                if (value !== "ALL" && (!value || !Object.hasOwn(REQUEST_STATUSES, value))) return;
+                setStatus(value as ChangeRequestStatus | "ALL");
+                resetPage();
+              }}
+            >
+              <SelectTrigger aria-label="Trạng thái đề nghị" className="h-9 min-w-44"><SelectValue /></SelectTrigger>
+              <SelectContent alignItemWithTrigger={false}>
+                {REQUEST_STATUS_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button type="button" variant="outline" size="lg" disabled={!search && status === DEFAULT_STATUS} onClick={resetFilters}>
+              <RotateCcw /> Đặt lại
+            </Button>
+            <Button type="button" variant="outline" size="icon-lg" aria-label="Làm mới danh sách" disabled={query.isFetching} onClick={() => void query.refetch()}>
+              <RefreshCw className={query.isFetching ? "animate-spin" : undefined} />
+            </Button>
           </div>
-          {isLoading && (
-            <div className="flex items-center gap-1.5 text-xs text-slate-400">
-              <Loader2 className="size-3.5 animate-spin text-[#164E9B]" />
-              <span>Đang tải...</span>
+          {error && (
+            <div role="alert" className="flex flex-wrap items-center gap-2 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">
+              <p>{error}</p>
+              <Button type="button" variant="outline" size="sm" onClick={() => void query.refetch()}>Thử lại</Button>
             </div>
           )}
-        </div>
-      </div>
+          <ManagementDataTable
+            table={table}
+            cellStyles={CELL_STYLES}
+            headerStyles={{ actions: "px-3 py-3 text-right" }}
+            minWidth="min-w-[790px]"
+            itemLabel="đề nghị"
+            emptyState={query.isPending ? (
+              <p role="status"><Loader2 className="mx-auto mb-2 size-5 animate-spin" /> Đang tải đề nghị…</p>
+            ) : (
+              <p>{error ? "Không tải được danh sách đề nghị." : `Không có đề nghị ${typeLabel?.toLowerCase()} khớp với bộ lọc.`}</p>
+            )}
+          />
+        </Tabs.Panel>
+      </Tabs.Root>
 
-      {/* Main List */}
-      <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2">
-            <FileEdit className="size-4 text-[#164E9B]" />
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">
-              Yêu cầu chờ thẩm định ({topicChangesList.length} hồ sơ)
-            </h2>
-          </div>
-          <span className="text-xs text-slate-500">
-            {topicChangesList.length === 0 ? "Đã xử lý hết" : "Ưu tiên xử lý trong 5 ngày làm việc"}
-          </span>
-        </div>
-
-        <div className="space-y-4">
-          {paginatedTopicChanges.length === 0 ? (
-            <div className="py-16 text-center text-xs text-slate-400">
-              <CheckCircle2 className="size-10 mx-auto text-emerald-500 mb-2" />
-              <p className="font-semibold text-slate-700 text-sm">Tất cả đề nghị điều chỉnh đề tài đã được xử lý xong!</p>
-              <p className="text-slate-400 mt-1">Khi có NCS nộp hồ sơ mới, thông báo sẽ hiển thị tại đây.</p>
-            </div>
-          ) : (
-            paginatedTopicChanges.map((item) => (
-              <div
-                key={item.id}
-                className="rounded-xl border border-slate-200 p-4.5 hover:border-[#164E9B]/40 transition-all space-y-3 bg-white"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-black text-[#0F2744] text-sm">{item.studentName}</span>
-                    <span className="font-mono text-xs text-slate-500">({item.studentCode})</span>
-                    <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-[#164E9B]">
-                      {item.department}
-                    </span>
-                    <span className="text-xs text-slate-400">• {item.cohort}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <Clock className="size-3.5 text-slate-400" />
-                    <span>Nộp: {item.requestDate}</span>
-                  </div>
-                </div>
-
-                {/* Old vs New Comparison Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                  <div className="rounded-lg bg-slate-50 p-3 border border-slate-200">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                      Tên đề tài hiện hành:
-                    </span>
-                    <p className="font-semibold text-slate-700 italic">“{item.currentTopic}”</p>
-                  </div>
-
-                  <div className="rounded-lg bg-blue-50/60 p-3 border border-blue-200">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#164E9B] block mb-1 flex items-center gap-1">
-                      <Sparkles className="size-3 text-[#164E9B]" />
-                      Tên đề tài đề xuất mới:
-                    </span>
-                    <p className="font-bold text-[#0F2744] italic">“{item.proposedTopic}”</p>
-                  </div>
-                </div>
-
-                {/* Supervisor Opinion & Reason */}
-                <div className="rounded-lg bg-slate-50/80 p-3 text-xs space-y-1.5 border border-slate-100">
-                  <div className="flex items-start gap-1.5">
-                    <strong className="text-slate-700 shrink-0">Lý do khoa học:</strong>
-                    <span className="text-slate-600">{item.reason}</span>
-                  </div>
-                  <div className="flex items-start gap-1.5 pt-1 border-t border-slate-200/60">
-                    <strong className="text-[#164E9B] shrink-0">Ý kiến GVHD ({item.supervisorName}):</strong>
-                    <span className="text-slate-700 italic">{item.supervisorOpinion}</span>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center justify-end gap-2 pt-1">
-                  <button
-                    onClick={() => {
-                      setSelectedTopicChange(item);
-                      setTopicModalOpen(true);
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#164E9B] px-4 py-2 text-xs font-bold text-white hover:bg-[#123E7C] shadow-xs transition-all cursor-pointer"
-                  >
-                    <Eye className="size-3.5" />
-                    <span>Xem xét &amp; Phê duyệt điều chỉnh</span>
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Phân trang danh sách đề nghị */}
-        <TablePagination
-          currentPage={currentPage}
-          totalItems={topicChangesList.length}
-          pageSize={pageSize}
-          onPageChange={setCurrentPage}
-          itemLabel="đề nghị đổi đề tài"
-          className="pt-2"
-        />
-      </div>
-
-      {/* TOPIC CHANGE COMPARISON MODAL */}
-      <TopicChangeModal
-        isOpen={topicModalOpen}
-        onClose={() => setTopicModalOpen(false)}
-        data={selectedTopicChange}
-        onDecision={handleTopicDecision}
-      />
+      {selectedId && <ChangeRequestReviewModal key={selectedId} id={selectedId} area={area} onClose={() => setSelectedId(null)} />}
     </div>
   );
 }

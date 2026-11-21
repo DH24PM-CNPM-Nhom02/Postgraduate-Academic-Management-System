@@ -291,7 +291,7 @@ const DECISION_STATUS_ITEMS = [
 
 const EMPTY_DECISIONS: DecisionItem[] = [];
 
-export function DecisionsManagementView({ embedded = false }: { embedded?: boolean }) {
+export function DecisionsManagementView({ embedded = false, area = "academic", }: { embedded?: boolean; area?: "academic" | "admin"; }) {
   const decisionsQuery = useDecisions();
   const decisions = decisionsQuery.data ?? EMPTY_DECISIONS;
   const deactivateMutation = useDeactivateDecision();
@@ -498,14 +498,15 @@ export function DecisionsManagementView({ embedded = false }: { embedded?: boole
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           {!embedded && (
-            <nav aria-label="Đường dẫn" className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-              <Link href="/academic" className="hover:text-[#164E9B] flex items-center gap-1">
-                <ArrowLeft className="size-3" />
-                <span>Tổng quan học vụ</span>
+            <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
+              <Link href={area === "admin" ? "/admin/overview" : "/academic"} className="hover:text-[#164E9B] flex items-center gap-1">
+                <ArrowLeft className="size-3.5" /> Tổng quan học vụ
               </Link>
-              <span aria-hidden="true">/</span>
-              <span aria-current="page" className="font-semibold text-slate-700">Quản lý quyết định</span>
-            </nav>
+              <span>/</span>
+              <span className="font-semibold text-slate-700">
+                Quản lý Quyết định
+              </span>
+            </div>
           )}
           <h1 className="text-xl sm:text-2xl font-black text-[#0F2744] tracking-tight">
             Quản lý quyết định pháp lý

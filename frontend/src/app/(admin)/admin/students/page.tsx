@@ -19,7 +19,7 @@ export default function AdminStudentsManagementPage() {
         </div>
       }
     >
-      <StudentsManagementView />
+      <StudentsManagementView area = "admin"/>
     </Suspense>
   );
 }

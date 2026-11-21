@@ -2,8 +2,8 @@ import React, { Suspense } from "react";
 import { TopicChangesManagementView } from "@/src/components/academic";
 
 export const metadata = {
-  title: "Duyệt đề nghị đổi đề tài luận án | Cổng Quản trị Hệ thống",
-  description: "Thẩm định và phê duyệt các yêu cầu điều chỉnh tên đề tài luận án tiến sĩ.",
+  title: "Duyệt đề nghị điều chỉnh | Cổng Quản trị Hệ thống",
+  description: "Thẩm định đề nghị đổi đề tài, đổi GVHD và gia hạn học tập.",
 };
 
 /**
@@ -15,11 +15,11 @@ export default function AdminTopicChangesPage() {
     <Suspense
       fallback={
         <div className="flex h-64 items-center justify-center text-xs text-slate-500">
-          Đang tải danh sách đề nghị đổi đề tài...
+          Đang tải danh sách đề nghị điều chỉnh…
         </div>
       }
     >
-      <TopicChangesManagementView />
+      <TopicChangesManagementView area="admin" />
     </Suspense>
   );
 }

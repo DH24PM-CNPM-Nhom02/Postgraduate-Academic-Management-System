@@ -77,7 +77,7 @@ export function ManagementDataTable<TData>({
 
       <TablePagination
         currentPage={table.getState().pagination.pageIndex + 1}
-        totalItems={table.getFilteredRowModel().rows.length}
+        totalItems={table.getRowCount()}
         pageSize={table.getState().pagination.pageSize}
         onPageChange={(page) => table.setPageIndex(page - 1)}
         pageSizeOptions={pageSizeOptions}

@@ -1,374 +1,203 @@
 "use client";
 
-import { toast } from "sonner";
-
-import React, { useState, useMemo } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import {
-  ArrowLeft,
-  Plus,
-  Download,
-  Loader2,
-} from "lucide-react";
-import type {
-  ThesisViewFilterStatus,
-  AcademicThesisNcsItem,
-} from "@/src/types/api/thesis";
+import { ArrowLeft, Download, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/src/components/ui/button";
 import { useAcademicTheses } from "@/src/hooks/use-theses";
-import { useAcademicSupervisors } from "@/src/hooks/use-academic";
+import { parseApiError } from "@/src/lib/api";
+import { formatDate } from "@/src/lib/utils";
+import type { AcademicThesisNcsItem } from "@/src/types/api/thesis";
 import { ThesesKpiCards } from "./ThesesKpiCards";
-import { ThesesFilterBar } from "./ThesesFilterBar";
+import { EMPTY_THESIS_FILTERS, ThesesFilterBar, type ThesisFilters } from "./ThesesFilterBar";
 import { ThesesTable } from "./ThesesTable";
 import { ThesisAssignmentModal } from "./ThesisAssignmentModal";
 import { ThesisDeactivateModal } from "./ThesisDeactivateModal";
 import { ThesisDetailDrawer } from "./ThesisDetailDrawer";
-import { formatDate } from "@/src/lib/utils";
 
 export interface ThesesManagementViewProps {
-  /**
-   * Khi được nhúng trong dashboard hoặc trang tab, có thể ẩn breadcrumb quay lại
-   */
   embedded?: boolean;
+  area?: "academic" | "admin";
 }
 
-function ThesesManagementViewContent({
-  embedded = false,
-}: ThesesManagementViewProps) {
-  // Filter & Pagination States
-  const [page, setPage] = useState(1);
-  const [limit] = useState(8);
-  const searchParams = useSearchParams();
-  const [search, setSearch] = useState(() => searchParams?.get("search") || "");
-  const [cohort, setCohort] = useState("ALL");
-  const [status, setStatus] = useState<ThesisViewFilterStatus>("ALL");
-  const [supervisorId, setSupervisorId] = useState("ALL");
+type ActivePanel =
+  | { kind: "assign"; item: AcademicThesisNcsItem | null }
+  | { kind: "detail" | "deactivate"; item: AcademicThesisNcsItem };
 
-  // Fetch dữ liệu danh sách đề tài luận án
-  const {
-    data: responseData,
-    isLoading,
-    isError,
-    error,
-    refetch,
-    isFetching,
-  } = useAcademicTheses({
-    page,
-    limit,
-    search: search || undefined,
-    khoaHocId: cohort !== "ALL" ? cohort : undefined,
-    trangThai: status !== "ALL" ? status : undefined,
-    gvhdId: supervisorId !== "ALL" ? supervisorId : undefined,
+const EMPTY_ITEMS: AcademicThesisNcsItem[] = [];
+
+function normalizeSearch(value: string) {
+  return value.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d").trim();
+}
+
+function matchesFilters(item: AcademicThesisNcsItem, filters: ThesisFilters, keyword: string) {
+  if (filters.cohort !== "ALL" && item.khoaHoc !== filters.cohort) return false;
+  if (filters.supervisorId !== "ALL" && !item.phanCongs?.some(({ gvhd }) => gvhd.id === filters.supervisorId)) return false;
+  if (filters.status === "DA_HUY" || filters.status === "DA_THAY_THE") {
+    if (!item.deTais?.some(({ trangThai }) => trangThai === filters.status)) return false;
+  } else if (filters.status !== "ALL" && item.trangThaiDeTai !== filters.status) {
+    return false;
+  }
+
+  return !keyword || [
+    item.mshv,
+    item.hoTen,
+    item.deTaiHienTai?.tenDeTai ?? "",
+    ...(item.deTais ?? []).map(({ tenDeTai }) => tenDeTai),
+  ].some((value) => normalizeSearch(value).includes(keyword));
+}
+
+function exportThesesCsv(items: AcademicThesisNcsItem[]) {
+  const headers = ["MSHV", "Họ tên NCS", "Khóa học", "Trạng thái đề tài", "Tên đề tài hiện tại", "Số quyết định", "Ngày ký", "GVHD chính", "Đồng hướng dẫn"];
+  const rows = items.map((item) => {
+    const decision = item.deTaiHienTai?.quyetDinh;
+    const supervisors = item.phanCongs ?? [];
+    return [
+      item.mshv,
+      item.hoTen,
+      item.khoaHoc ?? "",
+      item.trangThaiDeTai === "HIEU_LUC" ? "Có đề tài đang hiệu lực" : "Chưa có đề tài hiệu lực",
+      item.deTaiHienTai?.tenDeTai ?? "",
+      decision?.soQuyetDinh ?? "",
+      decision ? formatDate(decision.ngayQuyetDinh) : "",
+      supervisors.filter(({ vaiTro }) => vaiTro === "HUONG_DAN_CHINH").map(({ gvhd }) => gvhd.hoTen).join(", "),
+      supervisors.filter(({ vaiTro }) => vaiTro === "DONG_HUONG_DAN").map(({ gvhd }) => gvhd.hoTen).join(", "),
+    ];
   });
+  const csv = [headers, ...rows].map((row) => row.map((value) => {
+    const safeValue = /^[\s]*[=+@-]|^[\t\r\n]/.test(value) ? "'" + value : value;
+    return '"' + safeValue.replace(/"/g, '""') + '"';
+  }).join(",")).join("\r\n");
+  const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "DanhSach_DeTaiLuanAn.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+  toast.success("Đã xuất danh sách đề tài luận án.");
+}
 
-  const thesisItems = useMemo(
-    () => responseData?.data ?? [],
-    [responseData?.data]
+function ThesesManagementViewContent({ embedded = false, area = "academic"}: ThesesManagementViewProps) {
+  const searchParams = useSearchParams();
+  const [filters, setFilters] = useState<ThesisFilters>(() => ({
+    ...EMPTY_THESIS_FILTERS,
+    search: searchParams.get("search") ?? "",
+  }));
+  const [panel, setPanel] = useState<ActivePanel | null>(null);
+  const query = useAcademicTheses();
+  const items = query.data ?? EMPTY_ITEMS;
+  const keyword = normalizeSearch(filters.search);
+  const isFiltered = Boolean(filters.search) || filters.cohort !== "ALL" || filters.status !== "ALL" || filters.supervisorId !== "ALL";
+  const filteredItems = useMemo(
+    () => items.filter((item) => matchesFilters(item, filters, keyword)),
+    [items, filters, keyword],
   );
-  const totalItems = responseData?.total ?? 0;
 
-  // Lấy danh sách GVHD thực tế từ API để làm tùy chọn bộ lọc
-  const { data: supervisorsData } = useAcademicSupervisors();
-
-  const cohortOptions = useMemo(() => {
-    const cohorts = Array.from(
-      new Set(thesisItems.map((item) => item.khoaHoc).filter(Boolean))
-    ).sort();
-    return [
-      { value: "ALL", label: "Tất cả khóa học" },
-      ...cohorts.map((c) => ({ value: c, label: c })),
-    ];
-  }, [thesisItems]);
-
-  const supervisorOptions = useMemo(() => {
-    if (!supervisorsData || !Array.isArray(supervisorsData)) {
-      return [{ value: "ALL", label: "Tất cả GVHD" }];
+  const { cohortOptions, supervisorOptions } = useMemo(() => {
+    const cohorts = new Set<string>();
+    const supervisors = new Map<string, string>();
+    for (const item of items) {
+      if (item.khoaHoc) cohorts.add(item.khoaHoc);
+      for (const { gvhd } of item.phanCongs ?? []) supervisors.set(gvhd.id, gvhd.hoTen);
     }
-    return [
-      { value: "ALL", label: "Tất cả GVHD" },
-      ...supervisorsData.map((sv) => ({
-        value: sv.id,
-        label: `${sv.degree ? sv.degree + " " : ""}${sv.name}`,
-      })),
-    ];
-  }, [supervisorsData]);
+    return {
+      cohortOptions: [
+        { value: "ALL", label: "Tất cả khóa học" },
+        ...[...cohorts].sort((a, b) => a.localeCompare(b, "vi", { numeric: true }))
+          .map((cohort) => ({ value: cohort, label: cohort })),
+      ],
+      supervisorOptions: [
+        { value: "ALL", label: "Tất cả GVHD" },
+        ...[...supervisors].sort(([, a], [, b]) => a.localeCompare(b, "vi"))
+          .map(([value, label]) => ({ value, label })),
+      ],
+    };
+  }, [items]);
 
-  // Modal / Drawer States
-  const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
-  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
-  const [selectedItem, setSelectedItem] =
-    useState<AcademicThesisNcsItem | null>(null);
-
-  // HANDLERS BỘ LỌC (Tuân thủ Guardrail 2: gọi setPage(1) trực tiếp trong handler)
-  const handleSearchChange = (val: string) => {
-    setSearch(val);
-    setPage(1);
-  };
-
-  const handleCohortChange = (val: string) => {
-    setCohort(val);
-    setPage(1);
-  };
-
-  const handleStatusChange = (val: ThesisViewFilterStatus) => {
-    setStatus(val);
-    setPage(1);
-  };
-
-  const handleSupervisorChange = (val: string) => {
-    setSupervisorId(val);
-    setPage(1);
-  };
-
-  const handleResetFilters = () => {
-    setSearch("");
-    setCohort("ALL");
-    setStatus("ALL");
-    setSupervisorId("ALL");
-    setPage(1);
-  };
-
-  const isFiltered =
-    Boolean(search) || cohort !== "ALL" || status !== "ALL" || supervisorId !== "ALL";
-
-  // HANDLERS THAO TÁC ROW / MODAL
-  const handleOpenAssignModal = (item?: AcademicThesisNcsItem) => {
-    setSelectedItem(item || null);
-    setAssignModalOpen(true);
-  };
-
-  const handleOpenDeactivateModal = (item: AcademicThesisNcsItem) => {
-    setSelectedItem(item);
-    setDeactivateModalOpen(true);
-  };
-
-  const handleOpenDetailDrawer = (item: AcademicThesisNcsItem) => {
-    setSelectedItem(item);
-    setDetailDrawerOpen(true);
-  };
-
-  // XUẤT FILE CSV / EXCEL ĐỊNH DẠNG UTF-8 CÓ BOM
-  const handleExportCsv = () => {
-    if (thesisItems.length === 0) {
-      toast.error("Không có dữ liệu đề tài để trích xuất.");
-      return;
-    }
-
-    const headers = [
-      "MSHV",
-      "Họ và tên NCS",
-      "Khóa học",
-      "Trạng thái đề tài",
-      "Tên đề tài hiện tại",
-      "Số Quyết định",
-      "Ngày ký Quyết định",
-      "Giảng viên hướng dẫn chính",
-      "Đồng hướng dẫn",
-      "Trạng thái đào tạo",
-    ];
-
-    const rows = thesisItems.map((item) => {
-      const gvhdChinh = item.phanCongs?.find(
-        (p) => p.vaiTro === "HUONG_DAN_CHINH"
-      )?.gvhd.hoTen || "";
-      const dongGvhd = item.phanCongs?.find(
-        (p) => p.vaiTro === "DONG_HUONG_DAN"
-      )?.gvhd.hoTen || "";
-
-      return [
-        `"${item.mshv}"`,
-        `"${item.hoTen}"`,
-        `"${item.khoaHoc}"`,
-        `"${item.trangThaiDeTai}"`,
-        `"${(item.deTaiHienTai?.tenDeTai || "Chưa giao").replace(/"/g, '""')}"`,
-        `"${item.deTaiHienTai?.quyetDinh?.soQuyetDinh || ""}"`,
-        `"${formatDate(item.deTaiHienTai?.quyetDinh?.ngayQuyetDinh)}"`,
-        `"${gvhdChinh}"`,
-        `"${dongGvhd}"`,
-        `"${item.trangThaiHocTap || "DANG_HOC"}"`,
-      ].join(",");
-    });
-
-    // Thêm BOM UTF-8 (\uFEFF) để Excel hiển thị đúng dấu tiếng Việt
-    const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\r\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `DanhSach_DeTaiLuanAn_${new Date().toISOString().slice(0, 10)}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    toast.success("Đã trích xuất danh sách đề tài luận án thành công.");
-  };
+  const closePanel = () => setPanel(null);
+  const openDetail = useCallback((item: AcademicThesisNcsItem) => setPanel({ kind: "detail", item }), []);
+  const openAssign = useCallback((item: AcademicThesisNcsItem) => setPanel({ kind: "assign", item }), []);
+  const openDeactivate = useCallback((item: AcademicThesisNcsItem) => setPanel({ kind: "deactivate", item }), []);
+  const resetFilters = () => setFilters(EMPTY_THESIS_FILTERS);
+  const errorMessage = query.error ? parseApiError(query.error).message : undefined;
 
   return (
-    <div className="space-y-6 animate-in fade-in-50 duration-200">
-      {/* HEADER & ACTIONS */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           {!embedded && (
             <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-              <Link
-                href="/academic"
-                className="hover:text-[#164E9B] flex items-center gap-1"
-              >
-                <ArrowLeft className="size-3" />
-                <span>Tổng quan học vụ</span>
+              <Link href={area === "admin" ? "/admin/overview" : "/academic"} className="hover:text-[#164E9B] flex items-center gap-1">
+                <ArrowLeft className="size-3.5" /> Tổng quan học vụ
               </Link>
               <span>/</span>
               <span className="font-semibold text-slate-700">
-                Quản lý Đề tài Luận án
+                Quản lý đề tài luận án
               </span>
             </div>
           )}
-          <h1 className="text-xl sm:text-2xl font-black text-[#0F2744] tracking-tight">
-            Quản lý Đề tài Luận án Toàn trường
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Theo dõi hồ sơ đề tài, lịch sử điều chỉnh tên đề tài và phân công
-            giảng viên hướng dẫn của nghiên cứu sinh.
-          </p>
+          <h1 className="text-xl font-bold tracking-tight text-[#0F2744] sm:text-2xl">Quản lý đề tài luận án</h1>
         </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          {isLoading && (
-            <div className="flex items-center gap-1.5 text-xs text-slate-400 mr-2">
-              <Loader2 className="size-3.5 animate-spin text-[#164E9B]" />
-              <span>Đang tải đề tài...</span>
-            </div>
-          )}
-
-          {/* NÚT GIAO ĐỀ TÀI MỚI */}
-          <button
-            type="button"
-            onClick={() => handleOpenAssignModal()}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#164E9B] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#123E7C] shadow-xs transition-all cursor-pointer"
-          >
-            <Plus className="size-4" />
-            <span>Giao đề tài mới</span>
-          </button>
-
-          {/* NÚT XUẤT CSV / EXCEL */}
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs transition-all cursor-pointer"
-          >
-            <Download className="size-4 text-emerald-600" />
-            <span>Xuất Excel</span>
-          </button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" size="lg" disabled={!filteredItems.length} onClick={() => exportThesesCsv(filteredItems)}>
+            <Download /> Xuất CSV
+          </Button>
+          <Button type="button" size="lg" className="bg-[#164E9B] text-white hover:bg-[#123E7C]" disabled={!query.data} onClick={() => setPanel({ kind: "assign", item: null })}>
+            <Plus /> Giao đề tài mới
+          </Button>
         </div>
-      </div>
+      </header>
 
-      {/* 4 THẺ THỐNG KÊ TỔNG QUAN (KPI CARDS) */}
-      <ThesesKpiCards
-        items={thesisItems}
-        totalNcs={totalItems}
-        isLoading={isLoading}
-      />
+      {(query.isLoading || query.data) && <ThesesKpiCards items={filteredItems} isLoading={query.isLoading} />}
 
-      {/* THANH BỘ LỌC & TÌM KIẾM */}
-      <ThesesFilterBar
-        search={search}
-        onSearchChange={handleSearchChange}
-        cohort={cohort}
-        onCohortChange={handleCohortChange}
-        status={status}
-        onStatusChange={handleStatusChange}
-        supervisorId={supervisorId}
-        onSupervisorChange={handleSupervisorChange}
-        onResetFilters={handleResetFilters}
-        cohortOptions={cohortOptions}
-        supervisorOptions={supervisorOptions}
-        isFiltered={isFiltered}
-        totalResults={totalItems}
-        isLoading={isFetching}
-        onRefresh={() => refetch()}
-      />
+      <section aria-label="Danh sách đề tài luận án" className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+        <ThesesFilterBar
+          filters={filters}
+          onChange={setFilters}
+          cohortOptions={cohortOptions}
+          supervisorOptions={supervisorOptions}
+          isFiltered={isFiltered}
+          isFetching={query.isFetching}
+          onRefresh={() => void query.refetch()}
+        />
+        {errorMessage && query.data && <p role="alert" className="text-xs text-rose-700">Không thể cập nhật danh sách. {errorMessage}</p>}
+        <ThesesTable
+          data={filteredItems}
+          isLoading={query.isLoading}
+          errorMessage={query.data ? undefined : errorMessage}
+          onRetry={() => void query.refetch()}
+          onResetFilters={isFiltered ? resetFilters : undefined}
+          onViewDetail={openDetail}
+          onAssignThesis={openAssign}
+          onDeactivateThesis={openDeactivate}
+        />
+      </section>
 
-      {/* BẢNG DỮ LIỆU ĐỀ TÀI & PHÂN TRANG */}
-      <ThesesTable
-        data={thesisItems}
-        total={totalItems}
-        page={page}
-        limit={limit}
-        onPageChange={setPage}
-        isLoading={isLoading}
-        isError={isError}
-        errorMessage={error?.message}
-        onRetry={() => refetch()}
-        onViewDetail={handleOpenDetailDrawer}
-        onAssignThesis={handleOpenAssignModal}
-        onDeactivateThesis={handleOpenDeactivateModal}
-        onViewDecision={handleOpenDetailDrawer}
-        onResetFilters={handleResetFilters}
-      />
-
-      {/* MODAL GIAO ĐỀ TÀI (reset qua key prop) */}
-      <ThesisAssignmentModal
-        key={`assign-${assignModalOpen}-${selectedItem?.id ?? "none"}`}
-        isOpen={assignModalOpen}
-        onClose={() => {
-          setAssignModalOpen(false);
-          setSelectedItem(null);
-        }}
-        student={selectedItem}
-        students={thesisItems}
-        onSuccess={toast.success}
-      />
-
-      {/* MODAL HỦY ĐỀ TÀI (reset qua key prop) */}
-      <ThesisDeactivateModal
-        key={`deactivate-${deactivateModalOpen}-${selectedItem?.id ?? "none"}`}
-        isOpen={deactivateModalOpen}
-        onClose={() => {
-          setDeactivateModalOpen(false);
-          setSelectedItem(null);
-        }}
-        item={selectedItem}
-        onSuccess={toast.success}
-      />
-
-      {/* DRAWER CHI TIẾT & LỊCH SỬ ĐỀ TÀI */}
-      <ThesisDetailDrawer
-        isOpen={detailDrawerOpen}
-        onClose={() => {
-          setDetailDrawerOpen(false);
-          setSelectedItem(null);
-        }}
-        ncsId={selectedItem?.id || null}
-        ncsSummary={selectedItem}
-        onAssignThesis={(it) => {
-          setDetailDrawerOpen(false);
-          handleOpenAssignModal(it);
-        }}
-        onDeactivateThesis={(it) => {
-          setDetailDrawerOpen(false);
-          handleOpenDeactivateModal(it);
-        }}
-      />
+      {panel?.kind === "assign" && <ThesisAssignmentModal onClose={closePanel} student={panel.item} students={items} />}
+      {panel?.kind === "deactivate" && panel.item.deTaiHienTai && (
+        <ThesisDeactivateModal onClose={closePanel} item={panel.item} thesis={panel.item.deTaiHienTai} />
+      )}
+      {panel?.kind === "detail" && (
+        <ThesisDetailDrawer
+          isOpen
+          onClose={closePanel}
+          ncsId={panel.item.id}
+          ncsSummary={panel.item}
+          onAssignThesis={openAssign}
+          onDeactivateThesis={openDeactivate}
+        />
+      )}
     </div>
   );
 }
 
 export function ThesesManagementView(props: ThesesManagementViewProps) {
   return (
-    <React.Suspense
-      fallback={
-        <div className="flex h-64 items-center justify-center text-xs text-slate-500">
-          Đang tải danh sách Đề tài Luận án...
-        </div>
-      }
-    >
+    <Suspense fallback={<p className="p-6 text-sm text-slate-500">Đang tải danh sách đề tài luận án…</p>}>
       <ThesesManagementViewContent {...props} />
-    </React.Suspense>
+    </Suspense>
   );
 }
 

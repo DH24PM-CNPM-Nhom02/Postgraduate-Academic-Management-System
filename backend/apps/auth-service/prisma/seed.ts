@@ -77,7 +77,7 @@ async function main() {
       username: 'admin',
       fullName: 'Quản trị hệ thống',
       password: await bcrypt.hash(adminPassword, 10),
-      mustChangePassword: true,
+      mustChangePassword: false,
       roles: { create: { role: { connect: { name: ROLES.ADMIN } } } },
     },
   });

@@ -105,7 +105,7 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
   // },
   {
     id: "topic-changes",
-    title: "Duyệt đề nghị đổi đề tài",
+    title: "Duyệt đề nghị điều chỉnh",
     icon: FileEdit,
     group: "main",
     href: "/academic/topic-changes",
