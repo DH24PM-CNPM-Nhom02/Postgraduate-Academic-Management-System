@@ -1,11 +1,12 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
+import type { Prisma } from '../generated/prisma/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { goiService } from '../helpers/call-service.util.js';
 import { DeadlineService } from './deadline.service.js';
 import { layNgay } from '../helpers/date.util.js';
 import { NotificationClient } from '../notification/notification.client.js';
-import type { CreateEvaluationDto, ListPendingMilestonesQueryDto } from '../../../../lib/contracts/src/dto/progress.dto.js';
+import type { CreateEvaluationDto, UpdateEvaluationDto, ListPendingMilestonesQueryDto } from '../../../../lib/contracts/src/dto/progress.dto.js';
 
 const DIEM_DAT = 7;            // điểm trung bình tối thiểu để đạt (thang 10)
 const SO_PHIEU_TOI_THIEU = 3;  // quy định của trường: tối thiểu 3 phiếu nhận xét
@@ -220,6 +221,7 @@ export class ProgressService {
                         ngayNop: true,
                         ngayDuyet: true,
                         phieuNhanXets: {
+                            where: { deletedAt: null },
                             orderBy: { createdAt: 'asc' },
                         }
                     }
@@ -245,7 +247,10 @@ export class ProgressService {
 
     // Giáo vụ: các mốc đang chờ duyệt, nộp trước xếp trước
     async danhSachChoDuyet(query?: ListPendingMilestonesQueryDto) {
-        const where = { trangThai: 'PENDING_REVIEW' as const };
+        const where: Prisma.TienTrinhNcsWhereInput = {
+            trangThai: 'PENDING_REVIEW',
+            ...(query?.thuTu !== undefined ? { moc: { thuTu: query.thuTu } } : {}),
+        };
         const select = {
             id: true,
             submittedAt: true,
@@ -257,7 +262,7 @@ export class ProgressService {
                 take: 1,
                 select: {
                     id: true, lanNop: true, fileId: true, ghiChuNcs: true, ngayNop: true,
-                    _count: { select: { phieuNhanXets: true } },
+                    _count: { select: { phieuNhanXets: { where: { deletedAt: null } } } },
                 },
             },
         };
@@ -634,9 +639,9 @@ export class ProgressService {
     }
 
     // Tổng hợp phiếu của một lần nộp: số phiếu, điểm trung bình, đã đủ phiếu chưa
-    private async tongHopPhieu(minhChungId: string) {
-        const tk = await this.prisma.phieuNhanXet.aggregate({
-            where: { minhChungId },
+    private async tongHopPhieu(minhChungId: string, db: Prisma.TransactionClient = this.prisma) {
+        const tk = await db.phieuNhanXet.aggregate({
+            where: { minhChungId, deletedAt: null },
             _avg: { diem: true },
             _count: { _all: true },
         });
@@ -649,12 +654,10 @@ export class ProgressService {
         };
     }
 
-    async nhapPhieuNhanXet(d: {
-        actorId: string; minhChungId:string; dto: CreateEvaluationDto
-    }) {
+    private async layMinhChungNhapPhieu(minhChungId: string) {
         const minhChung = await this.prisma.minhChungMoc.findUnique({
             where: {
-                id: d.minhChungId
+                id: minhChungId
             },
             include: {
                 tienTrinh: {
@@ -671,88 +674,136 @@ export class ProgressService {
             throw new RpcException({ statusCode: 400, message: 'Mốc này không yêu cầu phiếu nhận xét' });
         }
         if (minhChung.trangThai !== 'PENDING_REVIEW' || minhChung.tienTrinh.trangThai !== 'PENDING_REVIEW') {
-            throw new RpcException({ statusCode: 409, message: 'Lần nộp này đã được xử lý, không thể thêm phiếu' });
+            throw new RpcException({ statusCode: 409, message: 'Lần nộp này đã được xử lý, không thể thay đổi phiếu' });
         }
 
-        const tenNguoiCham = d.dto.tenNguoiCham.trim() || "";
-        if(!tenNguoiCham){
-            throw new RpcException({ statusCode: 400, message: 'Tên người chấm không được bỏ trống' });
+        return minhChung;
+    }
+
+    private async khoaMocNhapPhieu(tx: Prisma.TransactionClient, tienTrinh: { id: string; version: number }) {
+        // Dùng chung version với duyệt/từ chối để hai thao tác không ghi đè nhau.
+        const result = await tx.tienTrinhNcs.updateMany({
+            where: { id: tienTrinh.id, version: tienTrinh.version, trangThai: 'PENDING_REVIEW' },
+            data: { version: { increment: 1 } },
+        });
+        if (result.count === 0) {
+            throw new RpcException({ statusCode: 409, message: 'Mốc vừa thay đổi hoặc đã được xử lý, vui lòng tải lại' });
         }
-        const donVi = d.dto.donViNguoiCham?.trim() || null;
+    }
 
-        // So sánh trong code, giữ nguyên dấu tiếng Việt, không phụ thuộc collation của DB
-        const chuanHoa = (s?: string | null) => (s ?? '').trim().normalize('NFC').toLowerCase();
+    private async kiemTraFilePhieu(fileId: string | null | undefined, actorId: string) {
+        if (!fileId) return;
+        const file = await this.callDocument<{ documentType: string }>('document.get', {
+            nguoiDung: { id: actorId, laNhanVien: true },
+            id: fileId,
+        });
+        if (file.documentType !== 'PHIEU_NHAN_XET') {
+            throw new RpcException({ statusCode: 400, message: 'File đính kèm phải thuộc loại PHIEU_NHAN_XET' });
+        }
+    }
 
-        if (!d.dto.xacNhanTrung) {
-            // Mỗi lần nộp chỉ có vài phiếu nên lấy hết ra so sánh cũng nhẹ
-            const cacPhieu = await this.prisma.phieuNhanXet.findMany({
-                where: { minhChungId: minhChung.id },
-                select: { tenNguoiCham: true, donViNguoiCham: true },
+    private xuLyLoiLuuFilePhieu(error: unknown, fileId?: string | null): never {
+        // Bắt tại thao tác ghi phiếu để ràng buộc unique vẫn bảo vệ khi có yêu cầu đồng thời.
+        if (fileId && typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') {
+            throw new RpcException({
+                statusCode: 409,
+                code: 'PHIEU_TRUNG_FILE',
+                message: 'Tệp này đã được gắn với một phiếu nhận xét khác. Vui lòng chọn tệp khác.',
             });
-            const trung = cacPhieu.some(
-                (p) =>
-                    chuanHoa(p.tenNguoiCham) === chuanHoa(tenNguoiCham) &&
-                    chuanHoa(p.donViNguoiCham) === chuanHoa(donVi),
-            );
-            if (trung) {
+        }
+        throw error;
+    }
+
+    private async kiemTraTrungPhieu(
+        tx: Prisma.TransactionClient,
+        minhChungId: string,
+        tenNguoiCham: string,
+        donVi: string | null,
+        phieuId?: string,
+    ) {
+        const cacPhieu = await tx.phieuNhanXet.findMany({
+            where: { minhChungId, deletedAt: null, id: phieuId ? { not: phieuId } : undefined },
+            select: { tenNguoiCham: true, donViNguoiCham: true },
+        });
+        const chuanHoa = (s: string | null) => (s ?? '').trim().normalize('NFC').toLowerCase();
+        const trung = cacPhieu.some((phieu) =>
+            chuanHoa(phieu.tenNguoiCham) === chuanHoa(tenNguoiCham) &&
+            chuanHoa(phieu.donViNguoiCham) === chuanHoa(donVi),
+        );
+        if (trung) {
+            throw new RpcException({
+                statusCode: 409,
+                code: 'PHIEU_TRUNG_NGUOI_CHAM',
+                message: `Đã có phiếu của "${tenNguoiCham}" (${donVi ?? 'không ghi đơn vị'}) cho lần nộp này. Nếu đây là người chấm khác trùng tên, hãy xác nhận để lưu.`,
+            });
+        }
+    }
+
+    private async kiemTraChenhLechDiem(tx: Prisma.TransactionClient, minhChungId: string) {
+        const tatCaPhieu = await tx.phieuNhanXet.findMany({
+            where: { minhChungId, deletedAt: null },
+            select: { diem: true, tenNguoiCham: true },
+        });
+        if (tatCaPhieu.length >= 2) {
+            const dsDiem = tatCaPhieu.map(p => Number(p.diem));
+            const maxDiem = Math.max(...dsDiem);
+            const minDiem = Math.min(...dsDiem);
+
+            // Quy tắc 2: Chênh lệch biên không vượt quá 3.0 điểm
+            const chenhLechBien = Math.round((maxDiem - minDiem) * 100) / 100;
+            if (chenhLechBien > 3.0) {
                 throw new RpcException({
-                    statusCode: 409,
-                    code: 'PHIEU_TRUNG_NGUOI_CHAM',
-                    message: `Đã có phiếu của "${tenNguoiCham}" (${donVi ?? 'không ghi đơn vị'}) cho lần nộp này. Nếu đây là người chấm khác trùng tên, hãy xác nhận để lưu.`,
+                    statusCode: 400,
+                    message: `Chênh lệch điểm giữa các thành viên Tiểu ban (${chenhLechBien} điểm) vượt quá 3.0 điểm cho phép (cao nhất: ${maxDiem}, thấp nhất: ${minDiem}). Vui lòng kiểm tra lại điểm.`,
+                });
+            }
+
+            // Quy tắc 3: Chênh lệch so với ĐTB không vượt quá 2.0 điểm
+            const diemTB = dsDiem.reduce((s, v) => s + v, 0) / dsDiem.length;
+            const viPham = tatCaPhieu.filter(p => {
+                const chenhLech = Math.abs(Number(p.diem) - diemTB);
+                return Math.round(chenhLech * 100) / 100 > 2.0;
+            });
+            if (viPham.length > 0) {
+                const dtbLamTron = Math.round(diemTB * 100) / 100;
+                const danhSach = viPham
+                    .map(p => `"${p.tenNguoiCham}" (${Number(p.diem)} điểm, chênh ${Math.round(Math.abs(Number(p.diem) - diemTB) * 100) / 100})`)
+                    .join(', ');
+                throw new RpcException({
+                    statusCode: 400,
+                    message: `Điểm của ${danhSach} vượt quá 2.0 điểm so với điểm trung bình Tiểu ban (ĐTB: ${dtbLamTron}). Vui lòng kiểm tra lại điểm.`,
                 });
             }
         }
+    }
 
-        const phieu = await this.prisma.$transaction(async (tx) => {
+    async nhapPhieuNhanXet(d: { actorId: string; minhChungId: string; dto: CreateEvaluationDto }) {
+        const minhChung = await this.layMinhChungNhapPhieu(d.minhChungId);
+        const tenNguoiCham = d.dto.tenNguoiCham.trim();
+        if (!tenNguoiCham) {
+            throw new RpcException({ statusCode: 400, message: 'Tên người chấm không được bỏ trống' });
+        }
+        const donViNguoiCham = d.dto.donViNguoiCham?.trim() || null;
+        await this.kiemTraFilePhieu(d.dto.fileId, d.actorId);
+
+        const { phieu, tongHop } = await this.prisma.$transaction(async (tx) => {
+            await this.khoaMocNhapPhieu(tx, minhChung.tienTrinh);
+            if (!d.dto.xacNhanTrung) {
+                await this.kiemTraTrungPhieu(tx, minhChung.id, tenNguoiCham, donViNguoiCham);
+            }
+
             const moi = await tx.phieuNhanXet.create({
                 data: {
                     minhChungId: minhChung.id,
                     tenNguoiCham,
-                    donViNguoiCham: d.dto.donViNguoiCham?.trim() || null,
+                    donViNguoiCham,
                     diem: d.dto.diem,
                     nhanXet: d.dto.nhanXet?.trim() || null,
+                    fileId: d.dto.fileId ?? null,
                     nhapBoiId: d.actorId,
                 },
-            });
-
-            // ── Quy tắc chênh lệch điểm giữa các thành viên Tiểu ban ──
-            const tatCaPhieu = await tx.phieuNhanXet.findMany({
-                where: { minhChungId: minhChung.id },
-                select: { diem: true, tenNguoiCham: true },
-            });
-
-            if (tatCaPhieu.length >= 2) {
-                const dsDiem = tatCaPhieu.map(p => Number(p.diem));
-                const maxDiem = Math.max(...dsDiem);
-                const minDiem = Math.min(...dsDiem);
-
-                // Quy tắc 2: Chênh lệch biên không vượt quá 3.0 điểm
-                const chenhLechBien = Math.round((maxDiem - minDiem) * 100) / 100;
-                if (chenhLechBien > 3.0) {
-                    throw new RpcException({
-                        statusCode: 400,
-                        message: `Chênh lệch điểm giữa các thành viên Tiểu ban (${chenhLechBien} điểm) vượt quá 3.0 điểm cho phép (cao nhất: ${maxDiem}, thấp nhất: ${minDiem}). Vui lòng kiểm tra lại điểm.`,
-                    });
-                }
-
-                // Quy tắc 3: Chênh lệch so với ĐTB không vượt quá 2.0 điểm
-                const diemTB = dsDiem.reduce((s, v) => s + v, 0) / dsDiem.length;
-                const viPham = tatCaPhieu.filter(p => {
-                    const chenhLech = Math.abs(Number(p.diem) - diemTB);
-                    return Math.round(chenhLech * 100) / 100 > 2.0;
-                });
-                if (viPham.length > 0) {
-                    const dtbLamTron = Math.round(diemTB * 100) / 100;
-                    const danhSach = viPham
-                        .map(p => `"${p.tenNguoiCham}" (${Number(p.diem)} điểm, chênh ${Math.round(Math.abs(Number(p.diem) - diemTB) * 100) / 100})`)
-                        .join(', ');
-                    throw new RpcException({
-                        statusCode: 400,
-                        message: `Điểm của ${danhSach} vượt quá 2.0 điểm so với điểm trung bình Tiểu ban (ĐTB: ${dtbLamTron}). Vui lòng kiểm tra lại điểm.`,
-                    });
-                }
-            }
-
+            }).catch((error: unknown) => this.xuLyLoiLuuFilePhieu(error, d.dto.fileId));
+            await this.kiemTraChenhLechDiem(tx, minhChung.id);
             await tx.auditLog.create({
                 data: {
                     actorId: d.actorId,
@@ -765,10 +816,11 @@ export class ProgressService {
                         thuTu: minhChung.tienTrinh.moc.thuTu,
                         tenNguoiCham,
                         diem: d.dto.diem,
+                        fileId: moi.fileId,
                     },
                 },
             });
-            return moi;
+            return { phieu: moi, tongHop: await this.tongHopPhieu(minhChung.id, tx) };
         });
 
         // Gửi thông báo có phiếu nhận xét mới cho NCS và GVHD
@@ -807,7 +859,91 @@ export class ProgressService {
         }
 
         // Trả luôn tổng hợp để FE hiện "2/3 phiếu" sau mỗi lần nhập
-        return { phieu, tongHop: await this.tongHopPhieu(minhChung.id) };
+        return { phieu, tongHop };
+    }
+
+    private async layPhieuChuaXoa(tx: Prisma.TransactionClient, minhChungId: string, phieuId: string) {
+        const phieu = await tx.phieuNhanXet.findFirst({
+            where: { id: phieuId, minhChungId, deletedAt: null },
+        });
+        if (!phieu) {
+            throw new RpcException({ statusCode: 404, message: 'Không tìm thấy phiếu nhận xét' });
+        }
+        return phieu;
+    }
+
+    async suaPhieuNhanXet(d: { actorId: string; minhChungId: string; phieuId: string; dto: UpdateEvaluationDto }) {
+        const minhChung = await this.layMinhChungNhapPhieu(d.minhChungId);
+        const { dto } = d;
+        await this.kiemTraFilePhieu(dto.fileId, d.actorId);
+
+        return this.prisma.$transaction(async (tx) => {
+            await this.khoaMocNhapPhieu(tx, minhChung.tienTrinh);
+            const cu = await this.layPhieuChuaXoa(tx, minhChung.id, d.phieuId);
+            const tenNguoiCham = dto.tenNguoiCham === undefined ? cu.tenNguoiCham : dto.tenNguoiCham.trim();
+            if (!tenNguoiCham) {
+                throw new RpcException({ statusCode: 400, message: 'Tên người chấm không được bỏ trống' });
+            }
+            const donViNguoiCham = dto.donViNguoiCham === undefined
+                ? cu.donViNguoiCham
+                : dto.donViNguoiCham?.trim() || null;
+            if (!dto.xacNhanTrung && (tenNguoiCham !== cu.tenNguoiCham || donViNguoiCham !== cu.donViNguoiCham)) {
+                await this.kiemTraTrungPhieu(tx, minhChung.id, tenNguoiCham, donViNguoiCham, cu.id);
+            }
+
+            const phieu = await tx.phieuNhanXet.update({
+                where: { id: cu.id },
+                data: {
+                    tenNguoiCham,
+                    donViNguoiCham,
+                    diem: dto.diem,
+                    nhanXet: dto.nhanXet === undefined ? undefined : dto.nhanXet?.trim() || null,
+                    fileId: dto.fileId,
+                    capNhatBoiId: d.actorId,
+                },
+            }).catch((error: unknown) => this.xuLyLoiLuuFilePhieu(error, dto.fileId));
+            if (dto.diem !== undefined && dto.diem !== Number(cu.diem)) {
+                await this.kiemTraChenhLechDiem(tx, minhChung.id);
+            }
+
+            await tx.auditLog.create({
+                data: {
+                    actorId: d.actorId,
+                    action: 'EVALUATION_UPDATE',
+                    entityType: 'PhieuNhanXet',
+                    entityId: phieu.id,
+                    ncsId: minhChung.tienTrinh.ncsId,
+                    oldValue: { ...cu, diem: Number(cu.diem), createdAt: cu.createdAt.toISOString(), updatedAt: cu.updatedAt.toISOString(), deletedAt: null },
+                    newValue: { ...phieu, diem: Number(phieu.diem), createdAt: phieu.createdAt.toISOString(), updatedAt: phieu.updatedAt.toISOString(), deletedAt: null },
+                },
+            });
+            return { phieu, tongHop: await this.tongHopPhieu(minhChung.id, tx) };
+        });
+    }
+
+    async xoaPhieuNhanXet(d: { actorId: string; minhChungId: string; phieuId: string }) {
+        const minhChung = await this.layMinhChungNhapPhieu(d.minhChungId);
+
+        return this.prisma.$transaction(async (tx) => {
+            await this.khoaMocNhapPhieu(tx, minhChung.tienTrinh);
+            const cu = await this.layPhieuChuaXoa(tx, minhChung.id, d.phieuId);
+            const deletedAt = new Date();
+            await tx.phieuNhanXet.update({
+                where: { id: cu.id },
+                data: { deletedAt, xoaBoiId: d.actorId },
+            });
+            await tx.auditLog.create({
+                data: {
+                    actorId: d.actorId,
+                    action: 'EVALUATION_DELETE',
+                    entityType: 'PhieuNhanXet',
+                    entityId: cu.id,
+                    ncsId: minhChung.tienTrinh.ncsId,
+                    newValue: { minhChungId: minhChung.id, deletedAt: deletedAt.toISOString(), fileId: cu.fileId },
+                },
+            });
+            return { tongHop: await this.tongHopPhieu(minhChung.id, tx) };
+        });
     }
 
     async danhSachPhieu(minhChungId: string) {
@@ -819,11 +955,12 @@ export class ProgressService {
             throw new RpcException({ statusCode: 404, message: 'Không tìm thấy lần nộp' });
         }
         const phieus = await this.prisma.phieuNhanXet.findMany({
-            where: { minhChungId },
+            where: { minhChungId, deletedAt: null },
             orderBy: { createdAt: 'asc' },
             select: {
                 id: true, tenNguoiCham: true, donViNguoiCham: true,
-                diem: true, nhanXet: true, nhapBoiId: true, createdAt: true,
+                diem: true, nhanXet: true, fileId: true, nhapBoiId: true, createdAt: true,
+                capNhatBoiId: true, updatedAt: true,
             },
         });
         return { phieus, tongHop: await this.tongHopPhieu(minhChungId) };

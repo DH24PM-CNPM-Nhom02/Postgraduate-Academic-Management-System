@@ -839,7 +839,7 @@ export class SupervisorService {
                     ngayQuyetDinh: true,
                   },
                 },
-                phieuNhanXets: true,
+                phieuNhanXets: { where: { deletedAt: null } },
               },
               orderBy: { lanNop: 'desc' },
             },

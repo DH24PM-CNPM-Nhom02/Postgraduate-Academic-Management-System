@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import {
@@ -44,12 +46,7 @@ export function TopicChangesManagementView({ embedded = false }: TopicChangesMan
   const [topicModalOpen, setTopicModalOpen] = useState(false);
   const [selectedTopicChange, setSelectedTopicChange] = useState<TopicChangeItem | null>(null);
 
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 4500);
-  };
 
   const handleTopicDecision = (id: string, decision: "approve" | "revise" | "reject", reason?: string) => {
     const item = topicChangesList.find((t) => t.id === id);
@@ -57,11 +54,11 @@ export function TopicChangesManagementView({ embedded = false }: TopicChangesMan
 
     setRemovedIds((prev) => [...prev, id]);
     if (decision === "approve") {
-      triggerToast(
+      toast.success(
         `Đã chấp thuận đề nghị đổi tên đề tài của NCS ${item.studentName}. Quyết định điều chỉnh đã được khởi tạo dự thảo.`
       );
     } else {
-      triggerToast(
+      toast.success(
         `Đã phản hồi yêu cầu giải trình tới NCS ${item.studentName}: "${reason || "Cần làm rõ căn cứ khoa học"}"`
       );
     }
@@ -69,20 +66,6 @@ export function TopicChangesManagementView({ embedded = false }: TopicChangesMan
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
-      {/* Toast Alert */}
-      {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 flex items-center gap-3 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 shadow-xl text-xs font-semibold text-emerald-900 animate-in slide-in-from-top duration-200">
-          <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
-          <span>{toastMessage}</span>
-          <button
-            onClick={() => setToastMessage(null)}
-            className="rounded p-1 hover:bg-emerald-100 text-emerald-700 cursor-pointer"
-          >
-            ×
-          </button>
-        </div>
-      )}
-
       {/* Breadcrumb & Header */}
       <div>
         {!embedded && (

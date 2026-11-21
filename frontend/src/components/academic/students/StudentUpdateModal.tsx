@@ -1,7 +1,9 @@
 "use client";
 
+import { toast } from "sonner";
+
 import React, { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Loader2, Pencil, X } from "lucide-react";
+import { AlertTriangle, Loader2, Pencil, X } from "lucide-react";
 import {
   useNcsCohorts,
   useNcsTrainingMajors,
@@ -76,7 +78,6 @@ export function StudentUpdateModal({ isOpen, onClose, student, onSuccess }: Stud
   const cohortsQuery = useNcsCohorts(isOpen);
   const [form, setForm] = useState<StudentUpdateForm>(() => student ? getFormFromStudent(student) : EMPTY_FORM);
   const [formErrors, setFormErrors] = useState<string[]>([]);
-  const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
   const initialForm = useMemo(() => student ? getFormFromStudent(student) : EMPTY_FORM, [student]);
   if (!isOpen || !student) return null;
@@ -84,13 +85,11 @@ export function StudentUpdateModal({ isOpen, onClose, student, onSuccess }: Stud
   const setField = <K extends keyof StudentUpdateForm>(field: K, value: StudentUpdateForm[K]) => {
     setForm((current) => ({ ...current, [field]: value }));
     setFormErrors([]);
-    setFormSuccess(null);
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormErrors([]);
-    setFormSuccess(null);
 
     // Chỉ kiểm tra định dạng của các trường người dùng thay đổi; dữ liệu cũ
     // không hợp lệ ở trường khác không được chặn một cập nhật độc lập.
@@ -136,9 +135,9 @@ export function StudentUpdateModal({ isOpen, onClose, student, onSuccess }: Stud
     try {
       await updateMutation.mutateAsync({ id: student.id, data: values });
       const message = `Đã cập nhật thông tin NCS ${student.name} (${student.code}).`;
-      setFormSuccess(message);
-      onSuccess?.(message);
-      window.setTimeout(onClose, 700);
+      if (onSuccess) onSuccess(message);
+      else toast.success(message);
+      onClose();
     } catch (error) {
       if (error instanceof ApiClientError) setFormErrors(error.messages);
       else setFormErrors([error instanceof Error ? error.message : "Không thể cập nhật thông tin NCS. Vui lòng thử lại."]);
@@ -180,7 +179,6 @@ export function StudentUpdateModal({ isOpen, onClose, student, onSuccess }: Stud
           <div className="overflow-y-auto p-5 sm:p-6">
             <p className="mb-4 text-xs text-slate-500">Chỉ các trường đã thay đổi sẽ được gửi. Ngành và khóa học phải có trong danh mục của hệ thống.</p>
             {formErrors.length > 0 && <div role="alert" className="mb-4 flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><ul className="list-disc space-y-1 pl-4">{formErrors.map((message, index) => <li key={`${index}-${message}`}>{message}</li>)}</ul></div>}
-            {formSuccess && <div role="status" className="mb-4 flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800"><CheckCircle2 className="mt-0.5 size-4 shrink-0" /><span>{formSuccess}</span></div>}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className={`${labelClassName} sm:col-span-2`}>Họ và tên

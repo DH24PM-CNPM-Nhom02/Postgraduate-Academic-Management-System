@@ -1,4 +1,5 @@
-import { IsBoolean, IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Length, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsBoolean, IsDateString, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Length, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 
 // Body khi NCS nộp minh chứng cho một mốc (số thứ tự mốc nằm trên URL)
 export class SubmitMilestoneDto {
@@ -27,6 +28,7 @@ export class RejectMilestoneDto {
 export class CreateEvaluationDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(150)
   tenNguoiCham!: string;
 
   @IsOptional()
@@ -48,6 +50,42 @@ export class CreateEvaluationDto {
   @IsOptional()
   @IsBoolean()
   xacNhanTrung?: boolean;
+  @IsOptional()
+  @IsUUID()
+  fileId?: string | null;
+}
+
+export class UpdateEvaluationDto {
+  @ValidateIf((o) => o.tenNguoiCham !== undefined)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(150)
+  tenNguoiCham?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  donViNguoiCham?: string | null;
+
+  @ValidateIf((o) => o.diem !== undefined)
+  @IsNumber({ maxDecimalPlaces: 1 })
+  @Min(0)
+  @Max(10)
+  diem?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  nhanXet?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  xacNhanTrung?: boolean;
+
+  // Bỏ qua để giữ file hiện tại, null để gỡ đính kèm.
+  @IsOptional()
+  @IsUUID()
+  fileId?: string | null;
 }
 
 export class SetPlanDeadlineDto {
@@ -60,4 +98,11 @@ export class SetPlanDeadlineDto {
 
 import { PaginationQueryDto } from './pagination.dto.js';
 
-export class ListPendingMilestonesQueryDto extends PaginationQueryDto {}
+export class ListPendingMilestonesQueryDto extends PaginationQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(9)
+  thuTu?: number;
+}

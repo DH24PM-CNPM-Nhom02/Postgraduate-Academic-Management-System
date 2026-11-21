@@ -214,3 +214,42 @@ export interface BackendNcsMeResponse {
     };
   }>;
 }
+
+export interface PendingReviewMilestone {
+  id: string;
+  submittedAt: string | null;
+  ncs: { id: string; mshv: string; hoTen: string; lop: string | null };
+  moc: { thuTu: number; tenMoc: string; yeuCauDiem: boolean };
+  minhChungMoiNhat: {
+    id: string;
+    lanNop: number;
+    fileId: string;
+    ghiChuNcs: string | null;
+    ngayNop: string;
+    _count: { phieuNhanXets: number };
+  } | null;
+}
+
+export interface EvaluationPayload {
+  tenNguoiCham: string;
+  donViNguoiCham: string | null;
+  diem: number;
+  nhanXet: string | null;
+  fileId?: string | null;
+  xacNhanTrung?: boolean;
+}
+
+export interface ReviewEvaluation extends Omit<EvaluationPayload, "diem" | "xacNhanTrung"> {
+  id: string;
+  diem: number | string;
+}
+
+export interface ReviewEvaluations {
+  phieus: ReviewEvaluation[];
+  tongHop: {
+    soPhieu: number;
+    soPhieuToiThieu: number;
+    diemTrungBinh: number | null;
+    duPhieu: boolean;
+  };
+}

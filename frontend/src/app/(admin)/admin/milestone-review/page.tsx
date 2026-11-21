@@ -10,5 +10,5 @@ export const metadata = {
  * Kế thừa trực tiếp MilestoneReviewView từ phân hệ Academic cho Admin.
  */
 export default function AdminMilestoneReviewPage() {
-  return <MilestoneReviewView />;
+  return <MilestoneReviewView admin />;
 }

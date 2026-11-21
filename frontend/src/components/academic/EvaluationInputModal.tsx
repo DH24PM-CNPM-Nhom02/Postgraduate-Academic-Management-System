@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+
 import React, { useState, useMemo } from "react";
 import {
   X,
@@ -106,7 +108,6 @@ export function EvaluationInputModal({
   const [comment, setComment] = useState("");
   const [fileName, setFileName] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
-  const [isSuccessToast, setIsSuccessToast] = useState(false);
 
   // Chuyển mốc
   const handleMilestoneChange = (newM: number) => {
@@ -159,10 +160,11 @@ export function EvaluationInputModal({
     setComment("");
     setFileName("");
     setFormError(null);
-    setIsSuccessToast(true);
-    setTimeout(() => setIsSuccessToast(false), 3000);
-
-    onSavedSuccess?.(updated, Math.round(((avgScore * evalList.length + numScore) / updated.length) * 10) / 10);
+    if (onSavedSuccess) {
+      onSavedSuccess(updated, Math.round(((avgScore * evalList.length + numScore) / updated.length) * 10) / 10);
+    } else {
+      toast.success("Đã ghi nhận phiếu nhận xét.");
+    }
   };
 
   const handleRemove = (id: string) => {
@@ -228,13 +230,6 @@ export function EvaluationInputModal({
                 Thêm phiếu nhận xét mới
               </h3>
             </div>
-
-            {isSuccessToast && (
-              <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-2.5 text-xs font-semibold text-emerald-800 flex items-center gap-2 animate-in fade-in duration-150">
-                <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
-                <span>Đã ghi nhận phiếu nhận xét.</span>
-              </div>
-            )}
 
             {formError && (
               <div className="rounded-lg border border-rose-300 bg-rose-50 p-2.5 text-xs font-semibold text-rose-700 flex items-center gap-2">

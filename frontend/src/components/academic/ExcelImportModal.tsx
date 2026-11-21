@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+
 import React, { useState, useRef, useId } from "react";
 import {
   X,
@@ -341,7 +343,7 @@ export function ExcelImportModal({
           errObj?.response?.data?.message ||
           errObj?.message ||
           "Có lỗi xảy ra trong quá trình nạp dữ liệu vào cơ sở dữ liệu.";
-        alert(`Không thể nhập khẩu: ${Array.isArray(serverMsg) ? serverMsg.join(", ") : String(serverMsg)}`);
+        toast.error(`Không thể nhập khẩu: ${Array.isArray(serverMsg) ? serverMsg.join(", ") : String(serverMsg)}`);
       }
       return;
     }

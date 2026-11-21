@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -13,7 +15,6 @@ import {
   ArrowLeft,
   Download,
   Plus,
-  CheckCircle2,
   Loader2,
   UserCheck,
   Scale,
@@ -124,15 +125,13 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [decisionModalOpen, setDecisionModalOpen] = useState(false);
   const [actionStudent, setActionStudent] = useState<StudentDossier | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Handle Excel Import Success
   const handleImportSuccess = (newStudents: StudentDossier[]) => {
     setImportedStudents((prev) => [...newStudents, ...prev]);
-    setToastMessage(
+    toast.success(
       `Đã thêm thành công ${newStudents.length} nghiên cứu sinh từ file Excel vào hệ thống.`
     );
-    setTimeout(() => setToastMessage(null), 5000);
   };
 
   // Danh sách các chuyên ngành xuất hiện trong dữ liệu để lọc linh hoạt
@@ -355,19 +354,6 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
-      {/* Toast Notification Alert */}
-      {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 flex items-center gap-3 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 shadow-xl text-xs font-semibold text-emerald-900 animate-in slide-in-from-top duration-200">
-          <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
-          <span>{toastMessage}</span>
-          <button
-            onClick={() => setToastMessage(null)}
-            className="rounded p-1 hover:bg-emerald-100 text-emerald-700 cursor-pointer"
-          >
-          </button>
-        </div>
-      )}
-
       {/* PAGE HEADER & BREADCRUMBS */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -440,7 +426,7 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
 
           <button
             onClick={() => {
-              alert(
+              toast.info(
                 "Đang chuẩn bị trích xuất dữ liệu danh sách NCS định dạng Excel..."
               );
             }}
@@ -673,10 +659,7 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
         isOpen={Boolean(studentToUpdate)}
         onClose={() => setStudentToUpdate(null)}
         student={studentToUpdate}
-        onSuccess={(msg) => {
-          setToastMessage(msg);
-          setTimeout(() => setToastMessage(null), 5000);
-        }}
+        onSuccess={toast.success}
       />
 
       {/* EXCEL IMPORT MODAL */}
@@ -710,8 +693,7 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
               },
             }));
           }
-          setToastMessage(msg);
-          setTimeout(() => setToastMessage(null), 5000);
+          toast.success(msg);
         }}
       />
 
@@ -725,10 +707,7 @@ export function StudentsManagementView({ embedded = false }: StudentsManagementV
         }}
         selectedStudent={actionStudent}
         students={studentsList}
-        onSuccess={(msg) => {
-          setToastMessage(msg);
-          setTimeout(() => setToastMessage(null), 5000);
-        }}
+        onSuccess={toast.success}
       />
     </div>
   );

@@ -1,5 +1,7 @@
 "use client";
 
+import { toast } from "sonner";
+
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -62,7 +64,6 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [assignSupervisor, setAssignSupervisor] = useState<SupervisorQuotaRecord | null>(null);
   const [supervisorToUpdate, setSupervisorToUpdate] = useState<SupervisorQuotaRecord | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Lắng nghe phím Escape để đóng Modal chi tiết GVHD
   useEffect(() => {
@@ -85,8 +86,7 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
 
   const handleImportSuccess = (importedCount: number) => {
     void refetch();
-    setToastMessage(`Đã nhập thành công ${importedCount} giảng viên hướng dẫn vào hệ thống.`);
-    setTimeout(() => setToastMessage(null), 5000);
+    toast.success(`Đã nhập thành công ${importedCount} giảng viên hướng dẫn vào hệ thống.`);
   };
 
   interface DepartmentFilterItem {
@@ -341,20 +341,6 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
 
   return (
     <div className="space-y-6 animate-in fade-in-50 duration-200">
-      {/* Toast Notification Alert */}
-      {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 flex items-center gap-3 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 shadow-xl text-xs font-semibold text-emerald-900 animate-in slide-in-from-top duration-200">
-          <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
-          <span>{toastMessage}</span>
-          <button
-            onClick={() => setToastMessage(null)}
-            className="rounded p-1 hover:bg-emerald-100 text-emerald-700 cursor-pointer"
-          >
-            ×
-          </button>
-        </div>
-      )}
-
       {/* PAGE HEADER & BREADCRUMBS */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -645,8 +631,7 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
         students={studentsList}
         supervisors={supervisorsList}
         onSuccess={(msg: string) => {
-          setToastMessage(msg);
-          setTimeout(() => setToastMessage(null), 5000);
+          toast.success(msg);
         }}
       />
 
@@ -655,10 +640,7 @@ export function SupervisorsManagementView({ embedded = false }: SupervisorsManag
         isOpen={Boolean(supervisorToUpdate)}
         onClose={() => setSupervisorToUpdate(null)}
         supervisor={supervisorToUpdate}
-        onSuccess={(message) => {
-          setToastMessage(message);
-          setTimeout(() => setToastMessage(null), 5000);
-        }}
+        onSuccess={toast.success}
       />
 
       {/* MODAL POP-UP: HỒ SƠ CHI TIẾT GIẢNG VIÊN HƯỚNG DẪN */}

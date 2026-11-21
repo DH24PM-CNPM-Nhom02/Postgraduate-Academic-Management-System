@@ -388,15 +388,24 @@ model PhieuNhanXet {
   minhChungId    String   @map("minh_chung_id")
   tenNguoiCham   String   @map("ten_nguoi_cham") @db.VarChar(150)
   donViNguoiCham String?  @map("don_vi_nguoi_cham") @db.VarChar(255)
-  /// Thang 10, lẻ 1 chữ số thập phân
+  /// Thang 10, lẻ 1 chữ số thập phân (0.0 - 10.0, kiểm tra trong service)
   diem           Decimal  @db.Decimal(3, 1)
   nhanXet        String?  @db.Text
+  fileId         String?  @unique @map("file_id")
   nhapBoiId      String   @map("nhap_boi_id")
   createdAt      DateTime @default(now()) @map("created_at")
 
+  /// Người sửa gần nhất (null nếu chưa sửa lần nào)
+  capNhatBoiId String?  @map("cap_nhat_boi_id")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  /// Soft delete: có giá trị = phiếu đã bị xóa, không tính vào số phiếu và điểm trung bình
+  deletedAt DateTime? @map("deleted_at")
+  xoaBoiId  String?   @map("xoa_boi_id")
+
   minhChung MinhChungMoc @relation(fields: [minhChungId], references: [id], onDelete: Restrict)
 
-  @@index([minhChungId])
+  @@index([minhChungId, deletedAt])
   @@map("phieu_nhan_xet")
 }
 
@@ -534,15 +543,15 @@ model DeNghiDieuChinh {
 /// Ý kiến xác nhận của từng GVHD trong tập thể GVHD cho đơn đề nghị gia hạn (GIA_HAN).
 /// Tất cả GVHD phải đồng ý thì đơn mới chuyển sang Giáo vụ duyệt; nếu bất kỳ GVHD nào từ chối thì đơn chuyển TU_CHOI.
 model XacNhanGvhdDeNghi {
-  id          String            @id @default(uuid())
-  deNghiId    String            @map("de_nghi_id")
-  gvhdId      String            @map("gvhd_id")
+  id          String    @id @default(uuid())
+  deNghiId    String    @map("de_nghi_id")
+  gvhdId      String    @map("gvhd_id")
   /// null = chưa xác nhận, true = đồng ý, false = từ chối
-  dongY       Boolean?          @map("dong_y")
-  nhanXet     String?           @map("nhan_xet") @db.Text
-  ngayXacNhan DateTime?         @map("ngay_xac_nhan")
-  createdAt   DateTime          @default(now()) @map("created_at")
-  updatedAt   DateTime          @updatedAt @map("updated_at")
+  dongY       Boolean?  @map("dong_y")
+  nhanXet     String?   @map("nhan_xet") @db.Text
+  ngayXacNhan DateTime? @map("ngay_xac_nhan")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   deNghi DeNghiDieuChinh   @relation(fields: [deNghiId], references: [id], onDelete: Cascade)
   gvhd   GiangVienHuongDan @relation(fields: [gvhdId], references: [id], onDelete: Restrict)
