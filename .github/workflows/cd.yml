@@ -103,7 +103,7 @@ jobs:
             $COMPOSE ps
             test "$($COMPOSE ps --status running -q | wc -l)" -ge 4
 
-            docker image prune -f
+            docker image prune -a -f
             docker logout ghcr.io
 
       # ---------- Đóng port 22 (luôn chạy, kể cả khi deploy fail) ----------
