@@ -163,7 +163,26 @@ export type AuditActionType =
   | "CHANGE_REQUEST_APPROVE"
   | "CHANGE_REQUEST_REJECT"
   | "CHANGE_REQUEST_CANCEL"
-  | "XAC_NHAN_TOT_NGHIEP";
+  | "XAC_NHAN_TOT_NGHIEP"
+  // Mã action thực tế backend (phd-service) đang ghi vào bảng audit_log
+  | "MILESTONE_APPROVE"
+  | "MILESTONE_REJECT"
+  | "MILESTONE_PLAN_DEADLINE_SET"
+  | "EVALUATION_CREATE"
+  | "EVALUATION_UPDATE"
+  | "EVALUATION_DELETE"
+  | "DE_NGHI_DOI_DE_TAI_DUYET"
+  | "DE_NGHI_DOI_GVHD_DUYET"
+  | "DE_NGHI_GIA_HAN_DUYET"
+  | "DE_NGHI_TU_CHOI"
+  | "DE_NGHI_DOI_DE_TAI_GVHD_TU_CHOI"
+  | "DE_NGHI_GIA_HAN_GVHD_TU_CHOI"
+  | "DE_NGHI_DOI_DE_TAI_GVHD_DONG_Y_TOAN_BO"
+  | "DE_NGHI_GIA_HAN_GVHD_DONG_Y_TOAN_BO"
+  | "GVHD_IMPORT"
+  | "GVHD_UPDATE"
+  | "GVHD_STATUS_UPDATE"
+  | "ASSIGNMENT_PROMOTE";
 
 /**
  * Thông tin người thực hiện thao tác trong nhật ký kiểm toán

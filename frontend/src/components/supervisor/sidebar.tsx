@@ -44,7 +44,7 @@ const primaryNavItems = [
   },
   {
     href: "/supervisor/extensions",
-    label: "Thẩm định gia hạn",
+    label: "Thẩm định đơn đề nghị",
     icon: CalendarClock,
   },
   {

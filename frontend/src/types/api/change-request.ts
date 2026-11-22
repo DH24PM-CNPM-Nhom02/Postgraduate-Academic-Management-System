@@ -140,6 +140,16 @@ export interface CreateChangeRequestApiPayload {
   gvhdMoiId?: string;
 }
 
+/**
+ * Body `PATCH /change-request/:id/supervisor-review` (SupervisorReviewDeNghiDto).
+ * Backend chỉ nhận đơn GIA_HAN / DOI_DE_TAI ở trạng thái CHO_GVHD_XAC_NHAN, GVHD phải có trong xacNhanGvhds.
+ */
+export interface SupervisorReviewPayload {
+  dongY: boolean;
+  /** Tối đa 2000 ký tự */
+  nhanXet?: string;
+}
+
 export interface XacNhanGvhdDeNghiApi {
   id: string;
   gvhdId: string;

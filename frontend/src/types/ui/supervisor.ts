@@ -217,6 +217,13 @@ export type SupervisorExtensionDecisionAction = "DONG_Y" | "TU_CHOI";
 export interface SupervisorExtensionRequestItem {
   id: string;
   maDon: string;
+  /**
+   * Loại đơn cần GVHD xác nhận. Backend (`xacNhanGvhd`) chỉ nhận GIA_HAN và DOI_DE_TAI
+   * (DOI_DE_TAI do NCS tự nộp). Không có giá trị → coi là GIA_HAN (dữ liệu cũ).
+   */
+  loaiDon?: "GIA_HAN" | "DOI_DE_TAI";
+  /** Tên đề tài mới đề xuất (đơn DOI_DE_TAI) */
+  tenDeTaiMoi?: string | null;
   studentId: string;
   mshv: string;
   hoTenNcs: string;
@@ -228,12 +235,14 @@ export interface SupervisorExtensionRequestItem {
   soThangGiaHan: number;
   hanHienTai: string;
   hanMoiDuKien: string;
-  tongThangDaGiaHanTruocDo: number;
+  /** Lấy từ GET /change-request/:id (`tongThangDaGiaHanTruoc`); null khi chưa tải chi tiết */
+  tongThangDaGiaHanTruocDo: number | null;
   mocHienTai: number;
   tenMocHienTai: string;
   tienDoPhanTram: number;
   lyDo: string;
-  tepDinhKem: ChangeRequestAttachment;
+  /** null khi đơn không đính kèm file (đơn đổi đề tài không bắt buộc file) */
+  tepDinhKem: ChangeRequestAttachment | null;
   xacNhanGvhds: SupervisorOpinionItem[];
   yKienCuaToi?: SupervisorOpinionItem | null;
   nhanXetGvhd?: string | null;
@@ -253,6 +262,14 @@ export interface SupervisorExtensionsWorkspaceProps {
     action: SupervisorExtensionDecisionAction,
     comment: string
   ) => void | Promise<void>;
+  /** Báo đơn đang mở drawer để tầng trên tải chi tiết (GET /change-request/:id) */
+  onSelectedRequestChange?: (requestId: string | null) => void;
+  /** Trạng thái tải chi tiết của đơn đang mở drawer */
+  selectedRequestDetail?: {
+    isLoading: boolean;
+    error: string | null;
+    onRetry: () => void;
+  };
 }
 
 export type SupervisorProxyRequestType = "DOI_DE_TAI" | "DOI_GVHD";

@@ -29,7 +29,7 @@ const SUPERVISOR_PAGE_TITLES: Record<string, string> = {
   "/supervisor": "Bàn làm việc GVHD",
   "/supervisor/students": "Danh sách NCS hướng dẫn",
   "/supervisor/progress-reports": "Báo cáo tiến độ 6 tháng",
-  "/supervisor/extensions": "Thẩm định gia hạn",
+  "/supervisor/extensions": "Thẩm định đơn đề nghị",
   "/supervisor/requests": "Đề xuất thay NCS",
   "/supervisor/quota": "Định mức hướng dẫn BR-09",
   "/supervisor/regulations": "Quy chế & Quy định",
@@ -153,7 +153,7 @@ export function SupervisorHeader({
           className="hidden min-h-10 items-center gap-2 rounded-lg border border-border bg-background px-3.5 py-2 text-xs font-semibold text-[#0F2744] transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] xl:inline-flex motion-reduce:transition-none"
         >
           <CalendarClock className="size-4 text-[#164E9B]" aria-hidden="true" />
-          <span>Thẩm định gia hạn</span>
+          <span>Thẩm định đơn đề nghị</span>
         </Link>
 
         {/* Chuông thông báo Real-time */}

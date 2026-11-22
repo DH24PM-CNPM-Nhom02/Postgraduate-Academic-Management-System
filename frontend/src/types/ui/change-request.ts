@@ -25,8 +25,11 @@ export interface SupervisorOpinionItem {
   tenGvhd: string;
   /** Học hàm, học vị (vd: "PGS.TS.", "TS.") */
   hocHamHocVi?: string;
-  /** Vai trò hướng dẫn */
-  vaiTro: SupervisorRoleType;
+  /**
+   * Vai trò hướng dẫn. Backend không trả vai trò trong `xacNhanGvhds`
+   * → có thể không xác định (UI phải hiển thị trung lập, không đoán).
+   */
+  vaiTro?: SupervisorRoleType;
   /** Trạng thái đồng ý của GVHD (null = chưa phản hồi) */
   dongY: boolean | null;
   /** Nhận xét của giảng viên (nếu có) */
