@@ -1,3 +1,4 @@
+import { guardDocumentAttachment } from '../helpers/document-link.js';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import type { Prisma } from '../generated/prisma/index.js';
@@ -10,6 +11,8 @@ import type { CreateEvaluationDto, UpdateEvaluationDto, ListPendingMilestonesQue
 
 const DIEM_DAT = 7;            // điểm trung bình tối thiểu để đạt (thang 10)
 const SO_PHIEU_TOI_THIEU = 3;  // quy định của trường: tối thiểu 3 phiếu nhận xét
+const SO_PHIEU_TOI_DA = 3;
+const MOC_GIOI_HAN_PHIEU = new Set([2, 4, 5]);
 
 @Injectable()
 export class ProgressService {
@@ -86,6 +89,7 @@ export class ProgressService {
         });
 
         const minhChungMoi = await this.prisma.$transaction(async (tx) => {
+            await guardDocumentAttachment(tx, fileId);
             const kq = await tx.tienTrinhNcs.updateMany({
                 where: {
                     id: tienTrinh.id,
@@ -384,6 +388,13 @@ export class ProgressService {
         let diemTrungBinh: number | null = null;
         if (tienTrinh.moc.yeuCauDiem) {
             const tk = await this.tongHopPhieu(minhChung.id);
+            if (MOC_GIOI_HAN_PHIEU.has(tienTrinh.moc.thuTu) && tk.soPhieu > SO_PHIEU_TOI_DA) {
+                throw new RpcException({
+                    statusCode: 400,
+                    code: 'PHIEU_VUOT_TOI_DA',
+                    message: `Mốc ${tienTrinh.moc.thuTu} có ${tk.soPhieu} phiếu nhận xét. Vui lòng xóa phiếu thừa để còn ${SO_PHIEU_TOI_DA} phiếu trước khi duyệt.`,
+                });
+            }
             if (!tk.duPhieu) {
                 throw new RpcException({
                     statusCode: 400,
@@ -787,7 +798,21 @@ export class ProgressService {
         await this.kiemTraFilePhieu(d.dto.fileId, d.actorId);
 
         const { phieu, tongHop } = await this.prisma.$transaction(async (tx) => {
+            await guardDocumentAttachment(tx, d.dto.fileId);
             await this.khoaMocNhapPhieu(tx, minhChung.tienTrinh);
+            const thuTu = minhChung.tienTrinh.moc.thuTu;
+            if (MOC_GIOI_HAN_PHIEU.has(thuTu)) {
+                const soPhieu = await tx.phieuNhanXet.count({
+                    where: { minhChungId: minhChung.id, deletedAt: null },
+                });
+                if (soPhieu >= SO_PHIEU_TOI_DA) {
+                    throw new RpcException({
+                        statusCode: 400,
+                        code: 'PHIEU_VUOT_TOI_DA',
+                        message: `Mốc ${thuTu} chỉ cho phép tối đa ${SO_PHIEU_TOI_DA} phiếu nhận xét cho mỗi lần nộp.`,
+                    });
+                }
+            }
             if (!d.dto.xacNhanTrung) {
                 await this.kiemTraTrungPhieu(tx, minhChung.id, tenNguoiCham, donViNguoiCham);
             }
@@ -813,7 +838,7 @@ export class ProgressService {
                     ncsId: minhChung.tienTrinh.ncsId,
                     newValue: {
                         minhChungId: minhChung.id,
-                        thuTu: minhChung.tienTrinh.moc.thuTu,
+                        thuTu,
                         tenNguoiCham,
                         diem: d.dto.diem,
                         fileId: moi.fileId,
@@ -878,6 +903,7 @@ export class ProgressService {
         await this.kiemTraFilePhieu(dto.fileId, d.actorId);
 
         return this.prisma.$transaction(async (tx) => {
+            await guardDocumentAttachment(tx, dto.fileId);
             await this.khoaMocNhapPhieu(tx, minhChung.tienTrinh);
             const cu = await this.layPhieuChuaXoa(tx, minhChung.id, d.phieuId);
             const tenNguoiCham = dto.tenNguoiCham === undefined ? cu.tenNguoiCham : dto.tenNguoiCham.trim();

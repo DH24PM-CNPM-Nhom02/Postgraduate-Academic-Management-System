@@ -4,11 +4,9 @@ import { Suspense, useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Download, Plus } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/src/components/ui/button";
-import { useAcademicTheses } from "@/src/hooks/use-theses";
+import { useAcademicTheses, useExportTheses } from "@/src/hooks/use-theses";
 import { parseApiError } from "@/src/lib/api";
-import { formatDate } from "@/src/lib/utils";
 import type { AcademicThesisNcsItem } from "@/src/types/api/thesis";
 import { ThesesKpiCards } from "./ThesesKpiCards";
 import { EMPTY_THESIS_FILTERS, ThesesFilterBar, type ThesisFilters } from "./ThesesFilterBar";
@@ -49,36 +47,6 @@ function matchesFilters(item: AcademicThesisNcsItem, filters: ThesisFilters, key
   ].some((value) => normalizeSearch(value).includes(keyword));
 }
 
-function exportThesesCsv(items: AcademicThesisNcsItem[]) {
-  const headers = ["MSHV", "Họ tên NCS", "Khóa học", "Trạng thái đề tài", "Tên đề tài hiện tại", "Số quyết định", "Ngày ký", "GVHD chính", "Đồng hướng dẫn"];
-  const rows = items.map((item) => {
-    const decision = item.deTaiHienTai?.quyetDinh;
-    const supervisors = item.phanCongs ?? [];
-    return [
-      item.mshv,
-      item.hoTen,
-      item.khoaHoc ?? "",
-      item.trangThaiDeTai === "HIEU_LUC" ? "Có đề tài đang hiệu lực" : "Chưa có đề tài hiệu lực",
-      item.deTaiHienTai?.tenDeTai ?? "",
-      decision?.soQuyetDinh ?? "",
-      decision ? formatDate(decision.ngayQuyetDinh) : "",
-      supervisors.filter(({ vaiTro }) => vaiTro === "HUONG_DAN_CHINH").map(({ gvhd }) => gvhd.hoTen).join(", "),
-      supervisors.filter(({ vaiTro }) => vaiTro === "DONG_HUONG_DAN").map(({ gvhd }) => gvhd.hoTen).join(", "),
-    ];
-  });
-  const csv = [headers, ...rows].map((row) => row.map((value) => {
-    const safeValue = /^[\s]*[=+@-]|^[\t\r\n]/.test(value) ? "'" + value : value;
-    return '"' + safeValue.replace(/"/g, '""') + '"';
-  }).join(",")).join("\r\n");
-  const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "DanhSach_DeTaiLuanAn.csv";
-  link.click();
-  URL.revokeObjectURL(url);
-  toast.success("Đã xuất danh sách đề tài luận án.");
-}
-
 function ThesesManagementViewContent({ embedded = false, area = "academic"}: ThesesManagementViewProps) {
   const searchParams = useSearchParams();
   const [filters, setFilters] = useState<ThesisFilters>(() => ({
@@ -87,6 +55,7 @@ function ThesesManagementViewContent({ embedded = false, area = "academic"}: The
   }));
   const [panel, setPanel] = useState<ActivePanel | null>(null);
   const query = useAcademicTheses();
+  const excelExport = useExportTheses();
   const items = query.data ?? EMPTY_ITEMS;
   const keyword = normalizeSearch(filters.search);
   const isFiltered = Boolean(filters.search) || filters.cohort !== "ALL" || filters.status !== "ALL" || filters.supervisorId !== "ALL";
@@ -141,8 +110,14 @@ function ThesesManagementViewContent({ embedded = false, area = "academic"}: The
           <h1 className="text-xl font-bold tracking-tight text-[#0F2744] sm:text-2xl">Quản lý đề tài luận án</h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" size="lg" disabled={!filteredItems.length} onClick={() => exportThesesCsv(filteredItems)}>
-            <Download /> Xuất CSV
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            disabled={excelExport.isPending || filteredItems.length === 0}
+            onClick={() => excelExport.mutate(isFiltered ? filteredItems.map(({ id }) => id) : undefined)}
+          >
+            <Download /> {excelExport.isPending ? "Đang xuất Excel…" : "Xuất Excel"}
           </Button>
           <Button type="button" size="lg" className="bg-[#164E9B] text-white hover:bg-[#123E7C]" disabled={!query.data} onClick={() => setPanel({ kind: "assign", item: null })}>
             <Plus /> Giao đề tài mới

@@ -1100,6 +1100,11 @@ export function mapBackendNcsDetailToSupervisedStudent(
  * Gọi qua apiClient (tự động đính kèm Bearer Token từ NextAuth session).
  */
 export const GvhdService = {
+  exportExcel: async (ids?: string[]): Promise<Blob> => {
+    const { data } = await apiClient.post<Blob>("/gvhd/export", { ids }, { responseType: "blob" });
+    return data;
+  },
+
   /**
    * 1. Lấy danh sách toàn bộ GVHD kèm định mức & danh sách NCS đang hướng dẫn
    * Kết hợp GET /gvhd và GET /gvhd/assignments?trangThai=DANG_HIEU_LUC

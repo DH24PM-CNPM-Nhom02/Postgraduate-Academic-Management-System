@@ -15,6 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { PdfViewer } from "@/src/components/upload/PdfViewer";
+import { useChangeRequestDetail } from "@/src/hooks/use-change-requests";
 import { DocumentService } from "@/src/services/document";
 import type {
   ChangeRequestAttachment,
@@ -144,6 +145,11 @@ function ChangeRequestDetailInner({
   const TypeIcon = typeMeta.Icon;
   const StatusIcon = statusMeta.Icon;
   const canCancel = isPendingRequestStatus(request.trangThai);
+  const isReviewed = request.trangThai === "DA_DUYET" || request.trangThai === "TU_CHOI";
+  const detailQuery = useChangeRequestDetail(request.id, isReviewed);
+  const reviewer = detailQuery.data?.nguoiDuyet;
+  const reviewerName = reviewer?.hoTen || reviewer?.username || request.nguoiXuLy;
+  const reviewedAt = detailQuery.data?.ngayDuyet ?? request.ngayXuLy;
 
   const opinions = request.xacNhanGvhds ?? [];
   const agreedCount = opinions.filter((op) => op.dongY === true).length;
@@ -238,13 +244,26 @@ function ChangeRequestDetailInner({
                 <p className="text-sm leading-relaxed text-rose-900">
                   {request.lyDoTuChoi}
                 </p>
-                {(request.nguoiXuLy || request.ngayXuLy) && (
-                  <p className="pt-1 text-xs text-rose-800/90">
-                    {request.nguoiXuLy ? `Người xử lý: ${request.nguoiXuLy}` : ""}
-                    {request.nguoiXuLy && request.ngayXuLy ? " • " : ""}
-                    {request.ngayXuLy ? formatDateTimeVi(request.ngayXuLy) : ""}
-                  </p>
-                )}
+              </section>
+            )}
+
+            {isReviewed && (
+              <section className="space-y-2 rounded-xl border border-border bg-muted/20 p-4">
+                <h3 className="text-sm font-bold text-[#0F2744]">Thông tin xử lý</h3>
+                <dl className="grid gap-2.5 text-sm sm:grid-cols-2">
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Người xử lý</dt>
+                    <dd className="font-semibold text-foreground">
+                      {reviewerName ?? (detailQuery.isPending ? "Đang tải…" : "Không có thông tin")}
+                    </dd>
+                  </div>
+                  {reviewedAt && (
+                    <div>
+                      <dt className="text-xs text-muted-foreground">Thời điểm xử lý</dt>
+                      <dd className="font-medium text-foreground">{formatDateTimeVi(reviewedAt)}</dd>
+                    </div>
+                  )}
+                </dl>
               </section>
             )}
 

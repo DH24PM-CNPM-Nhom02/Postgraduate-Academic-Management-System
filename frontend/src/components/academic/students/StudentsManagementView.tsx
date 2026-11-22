@@ -39,7 +39,7 @@ import {
   SelectItem,
 } from "@/src/components/ui/select";
 import { StudentCellAction } from "./StudentCellAction";
-import { useAcademicStudents, useAcademicSupervisors } from "@/src/hooks/use-academic";
+import { useAcademicStudents, useAcademicSupervisors, useExportNcs } from "@/src/hooks/use-academic";
 import type { StudentDossier } from "@/src/types/academic";
 import SupervisorAssignmentModal from "../SupervisorAssignmentModal";
 
@@ -71,6 +71,7 @@ export function StudentsManagementView({ embedded = false, area = "academic" }: 
   // Kết nối API NCS từ Backend qua React Query Hook (chỉ fetch 1 lần)
   const { data: initialData, isLoading, isError, refetch, isFetching } = useAcademicStudents();
   const { data: supervisorsData } = useAcademicSupervisors();
+  const excelExport = useExportNcs();
 
   // Search & Filter States
   const searchParams = useSearchParams();
@@ -327,6 +328,7 @@ export function StudentsManagementView({ embedded = false, area = "academic" }: 
     globalFilterFn,
     initialPageSize: 8,
   });
+  const exportRows = table.getPrePaginationRowModel().rows;
 
   const activeCount = useMemo(
     () => studentsList.filter((s) => s.status === "active").length,
@@ -375,7 +377,7 @@ export function StudentsManagementView({ embedded = false, area = "academic" }: 
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
           {isLoading && (
             <div className="flex items-center gap-1.5 text-xs text-slate-400 mr-2">
               <Loader2 className="size-3.5 animate-spin text-[#164E9B]" />
@@ -420,15 +422,15 @@ export function StudentsManagementView({ embedded = false, area = "academic" }: 
           </button>
 
           <button
-            onClick={() => {
-              toast.info(
-                "Đang chuẩn bị trích xuất dữ liệu danh sách NCS định dạng Excel..."
-              );
-            }}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs transition-all cursor-pointer"
+            type="button"
+            disabled={excelExport.isPending || exportRows.length === 0}
+            onClick={() => excelExport.mutate(
+              studentSearchText || columnFilters.length ? exportRows.map(({ original }) => original.id) : undefined
+            )}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Download className="size-4 text-emerald-600" />
-            <span>Xuất Excel</span>
+            <span>{excelExport.isPending ? "Đang xuất Excel…" : "Xuất Excel"}</span>
           </button>
         </div>
       </div>

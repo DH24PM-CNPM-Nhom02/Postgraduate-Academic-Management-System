@@ -16,13 +16,15 @@ interface MilestoneEvaluationsProps {
   error?: string;
   onRetry: () => void;
   locked: boolean;
+  maxEvaluations?: number;
 }
 
-export function MilestoneEvaluations({ evidenceId, ncsId, data, error, onRetry, locked }: MilestoneEvaluationsProps) {
+export function MilestoneEvaluations({ evidenceId, ncsId, data, error, onRetry, locked, maxEvaluations }: MilestoneEvaluationsProps) {
   const [form, setForm] = useState<{ evaluation?: ReviewEvaluation } | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const deletion = useDeleteMilestoneEvaluation(evidenceId);
   const summary = data?.tongHop;
+  const reachedLimit = maxEvaluations !== undefined && summary !== undefined && summary.soPhieu >= maxEvaluations;
   const average = summary?.diemTrungBinh ?? null;
   const meetsScoreThreshold = average !== null && average >= 7;
   const busy = locked || deletion.isPending;
@@ -32,9 +34,11 @@ export function MilestoneEvaluations({ evidenceId, ncsId, data, error, onRetry, 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="flex items-center gap-2 font-bold text-slate-900"><Award className="size-4 text-[#164E9B]" /> Phiếu nhận xét</h3>
-          <p className="mt-1 text-slate-500">Cần tối thiểu {summary?.soPhieuToiThieu ?? 3} phiếu và điểm trung bình từ 7.</p>
+          <p className="mt-1 text-slate-500">
+            {maxEvaluations === undefined ? `Cần tối thiểu ${summary?.soPhieuToiThieu ?? 3}` : `Cần đúng ${maxEvaluations}`} phiếu và điểm trung bình từ 7.
+          </p>
         </div>
-        <button type="button" disabled={busy || !data} onClick={() => setForm({})} className="inline-flex items-center gap-1 rounded-xl bg-[#164E9B] px-3 py-2 font-bold text-white disabled:opacity-50">
+        <button type="button" disabled={busy || !data || reachedLimit} onClick={() => setForm({})} className="inline-flex items-center gap-1 rounded-xl bg-[#164E9B] px-3 py-2 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
           <Plus className="size-4" /> Nhập phiếu
         </button>
       </div>
@@ -64,7 +68,7 @@ export function MilestoneEvaluations({ evidenceId, ncsId, data, error, onRetry, 
           <div className="flex flex-col justify-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
             <p className="font-semibold text-slate-600">Số phiếu đã nhập</p>
             <p className="mt-1 text-2xl font-black text-slate-900 tabular-nums">
-              {summary.soPhieu}<span className="text-sm font-semibold text-slate-600"> / {summary.soPhieuToiThieu} tối thiểu</span>
+              {summary.soPhieu}<span className="text-sm font-semibold text-slate-600"> / {maxEvaluations ?? summary.soPhieuToiThieu}{maxEvaluations === undefined && " tối thiểu"}</span>
             </p>
           </div>
         </div>

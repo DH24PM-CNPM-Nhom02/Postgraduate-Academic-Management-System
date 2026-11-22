@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { NcsService } from "@/src/services/ncs";
+import { useExcelExport } from "./use-excel-export";
 import { DecisionService, type CreateDecisionPayload } from "@/src/services/decision";
 import {
   GvhdService,
@@ -29,6 +30,7 @@ export {
   useUpdateAcademicStudentProfile,
   useNcsTrainingMajors,
   useNcsCohorts,
+  useExportNcs,
   useDownloadNcsTemplate,
   usePreviewNcsImport,
   useConfirmNcsImport,
@@ -121,6 +123,10 @@ export function useDownloadGvhdTemplate() {
       window.URL.revokeObjectURL(url);
     },
   });
+}
+
+export function useExportGvhd() {
+  return useExcelExport(GvhdService.exportExcel, "danh-sach-gvhd.xlsx", "GVHD");
 }
 
 export function usePreviewGvhdImport() {

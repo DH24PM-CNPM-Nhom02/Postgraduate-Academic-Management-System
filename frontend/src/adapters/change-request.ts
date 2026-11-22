@@ -48,7 +48,6 @@ export function mapChangeRequestApiToUi(
     lyDo: item.lyDo,
     batKhaKhang: item.batKhaKhang,
     lyDoTuChoi: item.lyDoTuChoi,
-    nguoiXuLy: item.nguoiDuyetId || undefined,
     ngayXuLy: item.ngayDuyet || undefined,
     tenDeTaiCu: item.tenDeTaiCu || undefined,
     tenDeTaiMoi: item.tenDeTaiMoi || undefined,

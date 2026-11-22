@@ -5,6 +5,7 @@ import { thesisKeys } from "@/src/hooks/api/use-thesis";
 import { academicStudentKeys } from "@/src/hooks/use-academic-students";
 import { ThesisService } from "@/src/services/thesis";
 import type { DeactivateThesisPayload } from "@/src/types/api/thesis";
+import { useExcelExport } from "./use-excel-export";
 
 export const academicThesisKeys = {
   all: ["academic", "theses"] as const,
@@ -21,6 +22,10 @@ export function useAcademicTheses() {
     queryFn: ({ signal }) => ThesisService.listTheses(signal),
     staleTime: 60_000,
   });
+}
+
+export function useExportTheses() {
+  return useExcelExport(ThesisService.exportExcel, "danh-sach-de-tai.xlsx", "đề tài luận án");
 }
 
 export function useAcademicThesisDetail(ncsId: string | null) {

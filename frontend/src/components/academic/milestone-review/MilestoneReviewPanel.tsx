@@ -113,7 +113,8 @@ export function MilestoneReviewPanel({ item, evidence, onClose, onReviewed }: Mi
             </div>
             {item.moc.yeuCauDiem && (
               <MilestoneEvaluations evidenceId={evidence.id} ncsId={item.ncs.id} data={evaluations.data}
-                error={evaluations.error?.message} onRetry={() => void evaluations.refetch()} locked={review.isPending || closed} />
+                error={evaluations.error?.message} onRetry={() => void evaluations.refetch()} locked={review.isPending || closed}
+                maxEvaluations={[2, 4, 5].includes(item.moc.thuTu) ? 3 : undefined} />
             )}
           </div>
 

@@ -6,6 +6,7 @@ import {
 } from "@/src/lib/api";
 import {
   MAX_PDF_SIZE_BYTES,
+  type DocumentListItem,
   type DocumentMetadataResponse,
   type DocumentPreviewResult,
   type UploadDocumentRequest,
@@ -56,6 +57,22 @@ function validatePdfFile(file: File) {
  * Chịu trách nhiệm upload, đọc thông tin và tải file PDF với Backend (`DocumentsController`).
  */
 export const DocumentService = {
+  async list(): Promise<DocumentListItem[]> {
+    try {
+      return (await apiClient.get<DocumentListItem[]>("/documents")).data;
+    } catch (error) {
+      throwApiError(error);
+    }
+  },
+
+  async remove(documentId: string): Promise<void> {
+    try {
+      await apiClient.delete(`/documents/${documentId}`);
+    } catch (error) {
+      throwApiError(error);
+    }
+  },
+
   /**
    * 1. Upload 1 tệp PDF lên máy chủ
    * Endpoint: POST /documents/upload (multipart/form-data)

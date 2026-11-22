@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Header, Inject, Param, Patch, Post, Query, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Header, HttpCode, Inject, Param, Patch, Post, Query, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
@@ -8,8 +8,9 @@ import { PHD_SERVICE } from '../common/constants/service.js';
 import type { AuthUser } from '../common/interface/auth-user.interface.js';
 import { CreateNcsBatchDto, ListNcsQueryDto, UpdateMyNcsProfileDto, UpdateNcsDto, UpdateNcsStatusDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
 import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
-import { buildNcsTemplate, parseNcsExcel } from './ncs-excel.js';
+import { buildNcsListWorkbook, buildNcsTemplate, parseNcsExcel, type NcsExportRecord } from './ncs-excel.js';
 import { LimitStrict, LimitBulk, LimitHeavyRead } from '../common/decorators/rate-limit.decorator.js';
+import { downloadWorkbook, ExportExcelDto, selectExportRows } from '../common/list-excel.js';
 
 //header content type 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -79,6 +80,15 @@ export class NcsController {
   @RequirePermissions(PERMISSIONS.NCS_READ)
   list(@Query() query: ListNcsQueryDto) {
     return this.send('phd.ncs.list', { query });
+  }
+
+  @Post('export')
+  @HttpCode(200)
+  @LimitHeavyRead()
+  @RequirePermissions(PERMISSIONS.NCS_READ)
+  async exportExcel(@Body() body: ExportExcelDto) {
+    const records = await this.send<NcsExportRecord[]>('phd.ncs.list', { query: {} }, 20000);
+    return downloadWorkbook(buildNcsListWorkbook(selectExportRows(records, body.ids)), 'danh-sach-ncs.xlsx');
   }
 
   @Get('catalogs/nganh-dao-tao')

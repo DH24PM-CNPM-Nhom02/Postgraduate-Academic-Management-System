@@ -33,10 +33,11 @@ export function useChangeRequestsForSearch(
   });
 }
 
-export function useChangeRequestDetail(id: string) {
+export function useChangeRequestDetail(id: string, enabled = true) {
   return useQuery({
     queryKey: keys.detail(id),
     queryFn: ({ signal }) => ChangeRequestService.detail(id, signal),
+    enabled,
   });
 }
 

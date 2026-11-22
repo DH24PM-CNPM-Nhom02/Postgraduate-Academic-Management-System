@@ -15,6 +15,7 @@ function formatDate(value: string | null | undefined): string {
 
 const STATUS_LABELS: Record<string, string> = {
   DANG_HOC: "Đang học",
+  DA_TOT_NGHIEP: "Đã tốt nghiệp",
   BAO_LUU: "Bảo lưu",
   NGUNG_HOC: "Ngừng học",
   BUOC_THOI_HOC: "Buộc thôi học",
@@ -60,6 +61,7 @@ export function StudentProfileContainer() {
     khoaHoc: data.khoaHocNcs?.maKhoaHoc ?? data.khoaHoc ?? "Chưa cập nhật",
     ngayNhapHoc: formatDate(data.ngayNhapHoc),
     trangThai: STATUS_LABELS[data.trangThai] ?? data.trangThai,
+    readOnly: data.trangThai === "DA_TOT_NGHIEP",
     hoTen: data.hoTen,
     soDienThoai: data.soDienThoai ?? "",
   };

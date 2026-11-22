@@ -1,12 +1,59 @@
+import { guardDocumentAttachment } from '../helpers/document-link.js';
 import { Inject, Injectable } from "@nestjs/common";
 import { ClientProxy, RpcException } from "@nestjs/microservices";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { ListXetTotNghiepQueryDto, XacNhanCongNoDto, XacNhanNgoaiNguDto } from "../../../../lib/contracts/src/dto/graduation-assessment.dto.js";
+import type { GraduatedNcsRecord, XacNhanTotNghiepDto } from "../../../../lib/contracts/src/dto/graduation-assessment.dto.js";
+import type { Prisma } from "../generated/prisma/index.js";
 import { goiService } from "../helpers/call-service.util.js";
 import { tinhKetQuaTotNghiep, TRANG_THAI_DUOC_XET } from "./confirm-graduation.js";
 import { ngayChuoi, parseNgay } from "../helpers/validateData.util.js";
 import { NotificationClient } from "../notification/notification.client.js";
 
+const CURRENT_SUPERVISORS = {
+    where: { trangThai: 'DANG_HIEU_LUC' },
+    orderBy: [{ vaiTro: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+    select: { gvhd: { select: { hoTen: true } } },
+} satisfies Prisma.PhanCongHuongDanFindManyArgs;
+
+const GRADUATED_NCS_SELECT = {
+    id: true,
+    mshv: true,
+    hoTen: true,
+    nganh: { select: { tenNganh: true } },
+    khoaHoc: true,
+    khoaHocNcs: { select: { maKhoaHoc: true } },
+    phanCongs: CURRENT_SUPERVISORS,
+    xetTotNghiep: {
+        select: {
+            trangThai: true,
+            ngayBaoVeCapTruong: true,
+            soHieuBang: true,
+            ngayCapBang: true,
+            nguoiHuongDan: true,
+            quyetDinh: { select: { soQuyetDinh: true, ngayQuyetDinh: true } },
+        },
+    },
+} satisfies Prisma.NghienCuuSinhSelect;
+
+function toGraduatedRecord(ncs: Prisma.NghienCuuSinhGetPayload<{ select: typeof GRADUATED_NCS_SELECT }>): GraduatedNcsRecord {
+    const xet = ncs.xetTotNghiep?.trangThai === 'DA_DUYET' ? ncs.xetTotNghiep : null;
+    return {
+        ncsId: ncs.id,
+        mshv: ncs.mshv,
+        hoTen: ncs.hoTen,
+        nganh: ncs.nganh?.tenNganh ?? null,
+        khoaHoc: ncs.khoaHocNcs?.maKhoaHoc ?? ncs.khoaHoc,
+        nguoiHuongDan: Array.isArray(xet?.nguoiHuongDan)
+            ? xet.nguoiHuongDan.filter((name): name is string => typeof name === 'string')
+            : ncs.phanCongs.map(({ gvhd }) => gvhd.hoTen),
+        ngayBaoVeCapTruong: ngayChuoi(xet?.ngayBaoVeCapTruong),
+        soQuyetDinh: xet?.quyetDinh?.soQuyetDinh ?? null,
+        ngayQuyetDinh: ngayChuoi(xet?.quyetDinh?.ngayQuyetDinh),
+        soHieuBang: xet?.soHieuBang ?? null,
+        ngayCapBang: ngayChuoi(xet?.ngayCapBang),
+    };
+}
 
 @Injectable()
 export class GraduationAssessmentService {
@@ -21,12 +68,14 @@ export class GraduationAssessmentService {
     }
 
     // Kiểm tra NCS có tồn tại và chưa tốt nghiệp (đã tốt nghiệp thì không sửa nữa)
-    private async kiemTraTruocKhiXacNhan(ncsId: string) {
-        const ncs = await this.prisma.nghienCuuSinh.findUnique({ where: { id: ncsId } });
+    private async kiemTraTruocKhiXacNhan(ncsId: string, db: Prisma.TransactionClient = this.prisma) {
+        const ncs = await db.nghienCuuSinh.findUnique({
+            where: { id: ncsId },
+            select: { trangThai: true, xetTotNghiep: { select: { trangThai: true } } },
+        });
         if (!ncs) throw new RpcException({ statusCode: 404, message: 'Không tìm thấy NCS' });
 
-        const xet = await this.prisma.xetTotNghiep.findUnique({ where: { ncsId } });
-        if (xet?.trangThai === 'DA_DUYET') {
+        if (ncs.trangThai === 'DA_TOT_NGHIEP' || ncs.xetTotNghiep?.trangThai === 'DA_DUYET') {
             throw new RpcException({ statusCode: 400, message: 'NCS đã tốt nghiệp, không thể sửa xác nhận' });
         }
     }
@@ -68,7 +117,22 @@ export class GraduationAssessmentService {
         const soDeNghiCho = await this.prisma.deNghiDieuChinh.count({
             where: { ncsId, trangThai: 'CHO_DUYET' },
         });
-        return tinhKetQuaTotNghiep(ncs, tongMoc, soDeNghiCho);
+        const xet = ncs.xetTotNghiep;
+        return {
+            ...tinhKetQuaTotNghiep(ncs, tongMoc, soDeNghiCho),
+            xacNhan: {
+                ngoaiNgu: xet?.ngoaiNguNgayXacNhan ? {
+                    dat: xet.datNgoaiNgu,
+                    chuanDauRa: xet.chuanDauRaNgoaiNgu,
+                    ngayCongNhanNgoaiNgu: ngayChuoi(xet.ngayCongNhanNgoaiNgu),
+                    ghiChu: xet.ngoaiNguGhiChu,
+                } : null,
+                congNo: xet?.congNoNgayXacNhan ? {
+                    khongConCongNo: xet.khongConCongNo,
+                    ghiChu: xet.congNoGhiChu,
+                } : null,
+            },
+        };
     }
 
     // ===== Danh sách NCS đã xong các mốc để Giáo vụ xét tốt nghiệp =====
@@ -128,6 +192,23 @@ export class GraduationAssessmentService {
         };
     }
 
+    async danhSachDaTotNghiep(): Promise<GraduatedNcsRecord[]> {
+        const rows = await this.prisma.nghienCuuSinh.findMany({
+            where: { trangThai: 'DA_TOT_NGHIEP' },
+            select: GRADUATED_NCS_SELECT,
+            orderBy: [{ ngayChuyenTrangThai: 'desc' }, { mshv: 'asc' }],
+        });
+        return rows.map(toGraduatedRecord);
+    }
+
+    async hoSoTotNghiepCaNhan(userId: string): Promise<GraduatedNcsRecord | null> {
+        const row = await this.prisma.nghienCuuSinh.findUnique({
+            where: { userId, trangThai: 'DA_TOT_NGHIEP' },
+            select: GRADUATED_NCS_SELECT,
+        });
+        return row ? toGraduatedRecord(row) : null;
+    }
+
     async xacNhanNgoaiNgu(ncsId: string, dto: XacNhanNgoaiNguDto, nguoiXacNhanId: string) {
         await this.kiemTraTruocKhiXacNhan(ncsId);
 
@@ -143,14 +224,20 @@ export class GraduationAssessmentService {
             chuanDauRaNgoaiNgu: dto.dat ? dto.chuanDauRa : null,
             ngayCongNhanNgoaiNgu: dto.dat ? new Date(dto.ngayCongNhanNgoaiNgu!) : null,
             ngoaiNguGhiChu: dto.ghiChu ?? null,
+            ngoaiNguDocumentId: dto.fileId,
             ngoaiNguNguoiXacNhanId: nguoiXacNhanId,
             ngoaiNguNgayXacNhan: new Date(),
         };
 
-        return this.prisma.xetTotNghiep.upsert({
-            where: { ncsId },
-            update: data,
-            create: { ncsId, ...data },
+        return this.prisma.$transaction(async tx => {
+            await tx.$queryRaw`SELECT id FROM nghien_cuu_sinh WHERE id = ${ncsId} FOR UPDATE`;
+            await this.kiemTraTruocKhiXacNhan(ncsId, tx);
+            await guardDocumentAttachment(tx, dto.fileId);
+            return tx.xetTotNghiep.upsert({
+                where: { ncsId },
+                update: data,
+                create: { ncsId, ...data },
+            });
         });
     }
 
@@ -163,14 +250,20 @@ export class GraduationAssessmentService {
         const data = {
             khongConCongNo: dto.khongConCongNo,
             congNoGhiChu: dto.ghiChu ?? null,
+            congNoDocumentId: dto.fileId,
             congNoNguoiXacNhanId: nguoiXacNhanId,
             congNoNgayXacNhan: new Date(),
         };
 
-        return this.prisma.xetTotNghiep.upsert({
-            where: { ncsId },
-            update: data,
-            create: { ncsId, ...data },
+        return this.prisma.$transaction(async tx => {
+            await tx.$queryRaw`SELECT id FROM nghien_cuu_sinh WHERE id = ${ncsId} FOR UPDATE`;
+            await this.kiemTraTruocKhiXacNhan(ncsId, tx);
+            await guardDocumentAttachment(tx, dto.fileId);
+            return tx.xetTotNghiep.upsert({
+                where: { ncsId },
+                update: data,
+                create: { ncsId, ...data },
+            });
         });
     }
 
@@ -178,10 +271,7 @@ export class GraduationAssessmentService {
     // Quyết định công nhận tốt nghiệp đã được tạo trước bằng API quyết định (loại CONG_NHAN_TOT_NGHIEP,
     // mỗi NCS 1 dòng). Ở đây chọn NCS nào thì chọn quyết định tương ứng của NCS đó.
     // Tất cả NCS phải hợp lệ và đủ điều kiện, thiếu 1 người thì không lưu gì cả.
-    async xacNhanTotNghiep(d: {
-        nguoiXacNhanId: string;
-        danhSach: { ncsId: string; quyetDinhId: string; ngayTotNghiep?: string }[];
-    }) {
+    async xacNhanTotNghiep(d: XacNhanTotNghiepDto & { nguoiXacNhanId: string }) {
         if (d.danhSach.length === 0) {
             throw new RpcException({ statusCode: 400, message: 'Phải chọn ít nhất 1 NCS' });
         }
@@ -240,7 +330,12 @@ export class GraduationAssessmentService {
             }
             // Ngày hiệu lực công nhận tốt nghiệp không nhập thì lấy theo ngày quyết định
             const ngayTn = x.ngayTotNghiep ? parseNgay(x.ngayTotNghiep, 'Ngày tốt nghiệp') : qd.ngayQuyetDinh;
-            return { ncs, qd, ngayTn };
+            const hoSo = {
+                ngayBaoVeCapTruong: x.ngayBaoVeCapTruong ? parseNgay(x.ngayBaoVeCapTruong, 'Ngày bảo vệ cấp trường') : undefined,
+                soHieuBang: x.soHieuBang?.trim() || undefined,
+                ngayCapBang: x.ngayCapBang ? parseNgay(x.ngayCapBang, 'Ngày cấp bằng') : undefined,
+            };
+            return { ncs, qd, ngayTn, hoSo };
         });
 
         // Kiểm tra lại điều kiện ngay lúc xác nhận (dữ liệu có thể đã đổi từ lúc xem)
@@ -277,7 +372,7 @@ export class GraduationAssessmentService {
         const bayGio = new Date();
 
         await this.prisma.$transaction(async (tx) => {
-            for (const { ncs, qd, ngayTn } of dongXacNhan) {
+            for (const { ncs, qd, ngayTn, hoSo } of dongXacNhan) {
                 // Chỉ đổi khi NCS vẫn đang học/gia hạn, chống 2 người xác nhận cùng lúc
                 const daDoi = await tx.nghienCuuSinh.updateMany({
                     where: { id: ncs.id, trangThai: { in: TRANG_THAI_DUOC_XET as any } },
@@ -291,16 +386,20 @@ export class GraduationAssessmentService {
                     throw new RpcException({ statusCode: 409, message: `Trạng thái của NCS ${ncs.mshv} vừa thay đổi, hãy thử lại` });
                 }
 
+                const phanCongs = await tx.phanCongHuongDan.findMany({
+                    ...CURRENT_SUPERVISORS,
+                    where: { ...CURRENT_SUPERVISORS.where, ncsId: ncs.id },
+                });
+                const xacNhan = {
+                    ...hoSo,
+                    nguoiHuongDan: phanCongs.map(({ gvhd }) => gvhd.hoTen),
+                    trangThai: 'DA_DUYET' as const, kiemTraLuc: bayGio, nguoiDuyetId: d.nguoiXacNhanId,
+                    ngayDuyet: bayGio, ngayTotNghiep: ngayTn, quyetDinhId: qd.id,
+                };
                 const xet = await tx.xetTotNghiep.upsert({
                     where: { ncsId: ncs.id },
-                    update: {
-                        trangThai: 'DA_DUYET', kiemTraLuc: bayGio, nguoiDuyetId: d.nguoiXacNhanId,
-                        ngayDuyet: bayGio, ngayTotNghiep: ngayTn, quyetDinhId: qd.id,
-                    },
-                    create: {
-                        ncsId: ncs.id, trangThai: 'DA_DUYET', kiemTraLuc: bayGio, nguoiDuyetId: d.nguoiXacNhanId,
-                        ngayDuyet: bayGio, ngayTotNghiep: ngayTn, quyetDinhId: qd.id,
-                    },
+                    update: xacNhan,
+                    create: { ncsId: ncs.id, ...xacNhan },
                 });
 
                 await tx.auditLog.create({
@@ -316,7 +415,14 @@ export class GraduationAssessmentService {
                             ngayChuyenTrangThai: ngayChuoi(ncs.ngayChuyenTrangThai),
                             lyDoChuyenTrangThai: ncs.lyDoChuyenTrangThai,
                         },
-                        newValue: { trangThai: 'DA_TOT_NGHIEP', ngayTotNghiep: ngayChuoi(ngayTn), quyetDinhId: qd.id },
+                        newValue: {
+                            trangThai: 'DA_TOT_NGHIEP',
+                            ngayTotNghiep: ngayChuoi(ngayTn),
+                            quyetDinhId: qd.id,
+                            ngayBaoVeCapTruong: ngayChuoi(xet.ngayBaoVeCapTruong),
+                            soHieuBang: xet.soHieuBang,
+                            ngayCapBang: ngayChuoi(xet.ngayCapBang),
+                        },
                     },
                 });
             }

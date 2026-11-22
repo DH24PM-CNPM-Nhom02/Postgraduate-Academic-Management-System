@@ -298,6 +298,11 @@ export function mapBackendNcsToStudentDossier(raw: BackendNcsRaw): StudentDossie
  * Gọi qua apiClient (tự động đính kèm access token của phiên hiện tại).
  */
 export const NcsService = {
+  exportExcel: async (ids?: string[]): Promise<Blob> => {
+    const { data } = await apiClient.post<Blob>("/ncs/export", { ids }, { responseType: "blob" });
+    return data;
+  },
+
   getTrainingMajors: async (): Promise<NcsMajorCatalogItem[]> => {
     try {
       const response = await apiClient.get<NcsMajorCatalogItem[]>("/ncs/catalogs/nganh-dao-tao");

@@ -1,4 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { guardDocumentAttachment } from '../helpers/document-link.js';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotificationClient } from '../notification/notification.client.js';
@@ -14,10 +15,13 @@ import { truThang, congThang, chuanHoa, parseNgay } from '../helpers/validateDat
 
 @Injectable()
 export class ChangeRequestService {
+    private readonly logger = new Logger(ChangeRequestService.name);
+
     constructor(
         private readonly prisma: PrismaService,
         private readonly notification: NotificationClient,
         @Inject('DOCUMENT_SERVICE') private readonly document: ClientProxy,
+        @Inject('AUTH_SERVICE') private readonly auth: ClientProxy,
     ) { }
 
     async create(userId: string, dto: CreateChangeRequestDto) {
@@ -43,6 +47,7 @@ export class ChangeRequestService {
             let thongBaoCanGui: { userIds: string[]; loai: string; duLieu: Record<string, unknown> } | null = null;
 
             const deNghi = await this.prisma.$transaction(async (tx) => {
+                await guardDocumentAttachment(tx, dto.fileId);
                 const dangCho = await tx.deNghiDieuChinh.count({
                     where: {
                         ncsId: ncs.id,
@@ -141,6 +146,7 @@ export class ChangeRequestService {
         let thongBaoCanGui: { userIds: string[]; loai: string; duLieu: Record<string, unknown> } | null = null;
 
         const deNghi = await this.prisma.$transaction(async (tx) => {
+            await guardDocumentAttachment(tx, dto.fileId);
             // Mỗi NCS chỉ có 1 đề nghị đang chờ duyệt/xử lý
             const dangCho = await tx.deNghiDieuChinh.count({
                 where: {
@@ -793,12 +799,35 @@ export class ChangeRequestService {
             thongTinThem.tongThangDaGiaHanTruoc = tongThangDaGiaHanTruoc;
         }
 
+        const [nguoiDeNghi, nguoiDuyet] = await Promise.all([
+            this.layHoSoNguoiDeNghi(deNghi.nguoiDeNghiId),
+            this.layNguoiDuyet(deNghi.nguoiDuyetId),
+        ]);
+
         return {
             ...deNghi,
             ...thongTinThem,
-            nguoiDeNghi: await this.layHoSoNguoiDeNghi(deNghi.nguoiDeNghiId),
+            nguoiDeNghi,
+            nguoiDuyet,
             isOwner,
         };
+    }
+
+    private async layNguoiDuyet(userId: string | null) {
+        if (!userId) return null;
+
+        try {
+            const users = await goiService<{ id: string; fullName: string; username: string; roles: string[] }[]>(
+                this.auth,
+                'auth.find-users-by-ids',
+                { ids: [userId] },
+            );
+            const user = users.find(({ id }) => id === userId);
+            return user ? { id: user.id, hoTen: user.fullName, username: user.username, roles: user.roles } : null;
+        } catch (error) {
+            this.logger.warn('Không thể tra cứu người duyệt từ auth-service', error);
+            return null;
+        }
     }
 
     private async layHoSoNguoiDeNghi(userId: string) {
@@ -995,6 +1024,7 @@ export class ChangeRequestService {
         let qdDuocTao: { id: string; soQuyetDinh: string; ngayQuyetDinh: Date; ghiChu?: string | null } | null = null;
 
         const ketQuaCuoi = await this.prisma.$transaction(async (tx) => {
+            await guardDocumentAttachment(tx, dto.fileId);
             let qd: { id: string; soQuyetDinh: string; ngayQuyetDinh: Date; ghiChu?: string | null };
 
             if (deNghi.loai === 'DOI_DE_TAI') {

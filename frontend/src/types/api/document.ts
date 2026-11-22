@@ -59,3 +59,7 @@ export interface DocumentPreviewResult {
   blob: Blob;
   objectUrl: string;
 }
+
+export type DocumentListItem = Pick<DocumentMetadataResponse,
+  "id" | "originalName" | "documentType" | "size" | "createdAt"
+>;

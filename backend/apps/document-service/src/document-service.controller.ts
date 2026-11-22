@@ -23,6 +23,11 @@ export class DocumentServiceController {
     return this.documentService.upload(d);
   }
 
+  @MessagePattern({ cmd: 'document.list' })
+  list(@Payload() d: { nguoiDung: NguoiDungTaiLieu }) {
+    return this.documentService.list(d.nguoiDung);
+  }
+
   @MessagePattern({ cmd: 'document.get' })
   get(@Payload() d: { nguoiDung: NguoiDungTaiLieu; id: string }) {
     return this.documentService.layThongTin(d.nguoiDung, d.id);

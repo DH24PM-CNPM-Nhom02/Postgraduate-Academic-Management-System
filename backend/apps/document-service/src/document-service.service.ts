@@ -1,9 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { RpcException } from '@nestjs/microservices';
+import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { createHash, randomUUID } from 'crypto';
-import { mkdir, readFile, rm, writeFile } from 'fs/promises';
-import path from 'path';
+import { firstValueFrom, timeout } from 'rxjs';
 import { MAX_PDF_SIZE } from '../../../lib/contracts/src/dto/document.dto.js';
 import type { DocumentTypeValue, NguoiDungTaiLieu } from '../../../lib/contracts/src/dto/document.dto.js';
 import { PrismaService } from './prisma/prisma.service.js';
@@ -18,6 +17,7 @@ export class DocumentServiceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: FileStorageService,
+    @Inject('PHD_SERVICE') private readonly phdClient: ClientProxy,
     config: ConfigService,
   ) {
     this.bucket = config.getOrThrow<string>('SEAWEED_S3_BUCKET');
@@ -150,6 +150,18 @@ export class DocumentServiceService {
     }
   }
 
+  async list(nguoiDung: NguoiDungTaiLieu) {
+    if (!nguoiDung.laNhanVien) {
+      throw new RpcException({ statusCode: 403, message: 'Bạn không có quyền quản lý tài liệu' });
+    }
+    const rows = await this.prisma.document.findMany({
+      where: { status: 'ACTIVE' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { id: true, originalName: true, documentType: true, createdAt: true, size: true },
+    });
+    return rows.map(row => ({ ...row, size: Number(row.size) }));
+  }
+
   /** Xem thông tin (metadata) của một tài liệu. */
   async layThongTin(nguoiDung: NguoiDungTaiLieu, id: string) {
     const taiLieu = await this.prisma.document.findUnique({ where: { id } });
@@ -207,8 +219,20 @@ export class DocumentServiceService {
       throw new RpcException({ statusCode: 404, message: 'Không tìm thấy tài liệu' });
     }
 
-    await this.prisma.document.update({
-      where: { id },
+    let usage: string[];
+    try {
+      usage = await firstValueFrom(this.phdClient.send<string[]>(
+        { cmd: 'phd.document.prepare-delete' }, { documentId: id, documentType: taiLieu.documentType },
+      ).pipe(timeout(5000)));
+    } catch {
+      throw new RpcException({ statusCode: 503, message: 'Chưa kiểm tra được nơi sử dụng tài liệu. Vui lòng thử lại.' });
+    }
+    if (usage.length) {
+      throw new RpcException({ statusCode: 409, message: 'Tài liệu đang được sử dụng ở: ' + usage.join(', ') });
+    }
+
+    await this.prisma.document.updateMany({
+      where: { id, status: 'ACTIVE' },
       data: { status: 'DELETED', deletedAt: new Date() },
     });
     return { id, status: 'DELETED' };

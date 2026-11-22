@@ -566,7 +566,7 @@ export function ExcelImportModal({
                     Kéo thả tệp Excel vào đây hoặc sử dụng ô chọn tệp phía trên
                   </p>
                   <p className="text-[11px] text-slate-400">
-                    Hỗ trợ tệp .xlsx, .xls hoặc .csv (dung lượng tối đa 10MB)
+                    Hỗ trợ tệp .xlsx, .xls hoặc .csv (dung lượng tối đa 2MB)
                   </p>
                 </div>
               )}

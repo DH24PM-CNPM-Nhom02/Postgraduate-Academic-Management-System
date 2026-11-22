@@ -59,6 +59,19 @@ export class XacNhanTotNghiepItemDto {
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'ngayTotNghiep phải có dạng YYYY-MM-DD' })
   ngayTotNghiep?: string;
+
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Ngày bảo vệ cấp trường phải có dạng YYYY-MM-DD' })
+  ngayBaoVeCapTruong?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  soHieuBang?: string;
+
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Ngày cấp bằng phải có dạng YYYY-MM-DD' })
+  ngayCapBang?: string;
 }
 
 // Giáo vụ xác nhận tốt nghiệp: chọn NCS nào thì chọn quyết định tương ứng
@@ -69,3 +82,17 @@ export class XacNhanTotNghiepDto {
   @Type(() => XacNhanTotNghiepItemDto)
   danhSach!: XacNhanTotNghiepItemDto[];
  }
+
+export interface GraduatedNcsRecord {
+  ncsId: string;
+  mshv: string;
+  hoTen: string;
+  nganh: string | null;
+  khoaHoc: string | null;
+  nguoiHuongDan: string[];
+  ngayBaoVeCapTruong: string | null;
+  soQuyetDinh: string | null;
+  ngayQuyetDinh: string | null;
+  soHieuBang: string | null;
+  ngayCapBang: string | null;
+}

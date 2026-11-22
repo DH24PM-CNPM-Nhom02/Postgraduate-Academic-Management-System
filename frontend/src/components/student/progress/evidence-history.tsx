@@ -121,7 +121,7 @@ export function EvidenceHistory({
                 {paginatedHistory.map((item) => (
                   <div
                     key={item.id || item.lanNop}
-                    className="space-y-2.5 pt-3.5 first:pt-0"
+                    className="space-y-2.5 pt-3.5 first:pt-0 border-transparent"
                   >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
