@@ -153,6 +153,7 @@ export function PdfViewer({
                       href={fileUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      aria-label="Mở PDF trong tab mới"
                       className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
                     >
                       <ExternalLink className="size-3.5" aria-hidden="true" />
@@ -161,6 +162,7 @@ export function PdfViewer({
                     <a
                       href={fileUrl}
                       download={fileName}
+                      aria-label="Tải PDF xuống"
                       className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#164E9B] px-3 text-xs font-semibold text-white transition-colors hover:bg-[#113E7D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] focus-visible:ring-offset-2"
                     >
                       <Download className="size-3.5" aria-hidden="true" />

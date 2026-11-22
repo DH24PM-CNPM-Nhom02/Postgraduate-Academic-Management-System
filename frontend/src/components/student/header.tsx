@@ -33,7 +33,7 @@ const STUDENT_PAGE_TITLES: Record<string, string> = {
   "/student/supervisors": "Giảng viên hướng dẫn",
   "/student/extensions": "Đơn đề nghị & Gia hạn",
   "/student/graduation": "Xét tốt nghiệp",
-  "/student/procedures": "Thủ tục & Biểu mẫu học vụ",
+  "/student/procedures": "Biểu mẫu học vụ",
   "/student/regulations": "Quy chế & Quy định",
   "/student/faq": "Hỏi đáp & Liên hệ",
   "/student/profile": "Hồ sơ nghiên cứu sinh",
@@ -59,7 +59,7 @@ const HANDBOOK_LINKS = [
     icon: BookOpen,
   },
   {
-    title: "Thủ tục & Biểu mẫu học vụ",
+    title: "Biểu mẫu học vụ",
     description: "Tải biểu mẫu PDF nộp minh chứng, bảo vệ cấp cơ sở và cấp trường.",
     href: "/student/procedures",
     icon: ClipboardList,

@@ -7,6 +7,7 @@ import {
   BookOpen,
   CalendarClock,
   ClipboardCheck,
+  ClipboardList,
   FilePenLine,
   Gauge,
   HelpCircle,
@@ -62,8 +63,13 @@ const primaryNavItems = [
 const referenceNavItems = [
   {
     href: "/supervisor/regulations",
-    label: "Quy chế GVHD",
+    label: "Quy định & Quy chế",
     icon: BookOpen,
+  },
+  {
+    href: "/supervisor/procedures",
+    label: "Biểu mẫu học vụ",
+    icon: ClipboardList,
   },
   {
     href: "/supervisor/faq",

@@ -141,7 +141,7 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
   // Nhóm nghiệp vụ học vụ
   {
     id: "procedures",
-    title: "Thủ tục & Biểu mẫu học vụ",
+    title: "Biểu mẫu học vụ",
     icon: ClipboardList,
     group: "academic",
     href: "/academic/procedures",

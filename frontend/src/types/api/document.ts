@@ -20,6 +20,7 @@ export const DOCUMENT_TYPES = [
 ] as const;
 
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
+export type PublicDocumentType = Extract<DocumentType, "QUY_DINH" | "BIEU_MAU">;
 
 /** Dung lượng tối đa Backend cho phép mỗi file PDF (15MB) */
 export const MAX_PDF_SIZE_BYTES = 15 * 1024 * 1024;

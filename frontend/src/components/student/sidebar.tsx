@@ -28,7 +28,7 @@ interface StudentSidebarProps {
 /**
  * Danh mục điều hướng cho NCS:
  * 1. Nhóm Quản lý học vụ NCS: "Tiến độ NCS" (9 Mốc đào tạo), Đề tài, GVHD, Đơn đề nghị, Xét tốt nghiệp
- * 2. Nhóm Tra cứu & Trợ giúp NCS: "Thủ tục & Biểu mẫu học vụ", "Quy chế & Quy định", "Hỏi đáp & Liên hệ"
+ * 2. Nhóm Tra cứu & Trợ giúp NCS: "Biểu mẫu học vụ", "Quy chế & Quy định", "Hỏi đáp & Liên hệ"
  */
 interface StudentNavItem {
   title: string;
@@ -68,7 +68,7 @@ const navItems: StudentNavItem[] = [
 
 const supportNavItems = [
   {
-    title: "Thủ tục & Biểu mẫu học vụ",
+    title: "Biểu mẫu học vụ",
     href: "/student/procedures",
     icon: ClipboardList,
   },

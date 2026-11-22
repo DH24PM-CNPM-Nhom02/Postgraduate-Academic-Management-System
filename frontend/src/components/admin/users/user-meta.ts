@@ -1,50 +1,28 @@
-import type {
-  AdminUserItem,
-  AdminUserStatus,
-  SystemRole,
-} from "@/src/types/ui/admin";
-
-/**
- * Mở rộng nhẹ AdminUserItem cho tầng UI bảng người dùng để hỗ trợ cờ đổi mật khẩu lần đầu
- * mà không làm thay đổi contract tại `src/types/ui/admin.ts`.
- */
-export interface AdminUserViewItem extends AdminUserItem {
-  mustChangePassword?: boolean;
-}
+import type { AdminUserStatus, SystemRole } from "@/src/types/ui/admin";
 
 export interface RoleMeta {
   label: string;
-  shortLabel: string;
-  description: string;
   badgeClass: string;
 }
 
 export const SYSTEM_ROLE_META: Record<SystemRole, RoleMeta> = {
   ADMIN: {
     label: "Quản trị viên",
-    shortLabel: "ADMIN",
-    description: "Toàn quyền quản trị tài khoản, phân quyền và nhật ký hệ thống",
     badgeClass:
       "border-slate-300 bg-slate-100 text-slate-800 font-bold dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
   },
   GIAO_VU: {
     label: "Giáo vụ SĐH",
-    shortLabel: "GIAO_VU",
-    description: "Quản lý hồ sơ NCS, đề tài, phân công hướng dẫn và quyết định",
     badgeClass:
       "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800/70 dark:bg-blue-950/60 dark:text-blue-300",
   },
   GVHD: {
     label: "Giảng viên HD",
-    shortLabel: "GVHD",
-    description: "Theo dõi tiến độ, thẩm định đơn đề nghị và định mức hướng dẫn",
     badgeClass:
       "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800/70 dark:bg-sky-950/60 dark:text-sky-300",
   },
   NCS: {
     label: "Nghiên cứu sinh",
-    shortLabel: "NCS",
-    description: "Nộp minh chứng tiến độ 9 mốc, đề nghị điều chỉnh và tốt nghiệp",
     badgeClass:
       "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/60 dark:text-emerald-300",
   },
@@ -66,41 +44,19 @@ export const USER_STATUS_META: Record<
   },
 };
 
-/**
- * Sinh mật khẩu tạm thời ngẫu nhiên đảm bảo đủ chữ hoa, chữ thường, số và ký tự đặc biệt.
- */
-export function generateStrongPassword(length = 12): string {
-  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-  const lower = "abcdefghijkmnopqrstuvwxyz";
-  const digits = "23456789";
-  const symbols = "@#$%&*!";
-  const all = upper + lower + digits + symbols;
+export const SYSTEM_ROLE_OPTIONS = (Object.keys(SYSTEM_ROLE_META) as SystemRole[]).map(
+  (role) => ({ value: role, label: SYSTEM_ROLE_META[role].label })
+);
 
-  const chars = [
-    upper[Math.floor(Math.random() * upper.length)],
-    lower[Math.floor(Math.random() * lower.length)],
-    digits[Math.floor(Math.random() * digits.length)],
-    symbols[Math.floor(Math.random() * symbols.length)],
-  ];
-
-  for (let i = chars.length; i < length; i += 1) {
-    chars.push(all[Math.floor(Math.random() * all.length)]);
-  }
-
-  for (let i = chars.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [chars[i], chars[j]] = [chars[j], chars[i]];
-  }
-
-  return chars.join("");
+export function getRoleMeta(role: string): RoleMeta | undefined {
+  return Object.hasOwn(SYSTEM_ROLE_META, role)
+    ? SYSTEM_ROLE_META[role as SystemRole]
+    : undefined;
 }
 
-/**
- * Định dạng thời điểm ISO sang chuỗi ngày/giờ tiếng Việt gọn gàng.
- */
 export function formatAdminDateTime(
   iso?: string | null,
-  emptyFallback = "Chưa đăng nhập"
+  emptyFallback = "—"
 ): string {
   if (!iso) return emptyFallback;
   const date = new Date(iso);

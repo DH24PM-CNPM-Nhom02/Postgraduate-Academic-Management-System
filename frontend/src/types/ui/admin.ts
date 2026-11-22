@@ -10,67 +10,6 @@ export type SystemRole = "ADMIN" | "GIAO_VU" | "GVHD" | "NCS";
 
 export type AdminUserStatus = "ACTIVE" | "LOCKED";
 
-/**
- * Bản ghi người dùng hiển thị trong bảng Quản lý tài khoản (`/users`)
- */
-export interface AdminUserItem {
-  id: string;
-  username: string;
-  fullName: string;
-  email: string;
-  phone?: string;
-  role: SystemRole;
-  status: AdminUserStatus;
-  /** Đơn vị công tác / Khoa / Phòng ban */
-  department?: string;
-  /** Học hàm, học vị (dành cho GVHD) */
-  academicTitle?: string;
-  /** Mã số học viên (dành cho NCS) */
-  studentCode?: string;
-  /** Thời điểm tạo tài khoản (ISO string) */
-  createdAt: string;
-  /** Thời điểm đăng nhập gần nhất (ISO string hoặc null nếu chưa đăng nhập) */
-  lastLoginAt?: string | null;
-  /** Lý do khóa tài khoản (nếu status === "LOCKED") */
-  lockedReason?: string | null;
-}
-
-/**
- * Thống kê tổng hợp người dùng theo trạng thái & vai trò (`/users`)
- */
-export interface UserStatsSummary {
-  totalUsers: number;
-  activeUsers: number;
-  lockedUsers: number;
-  byRole: Record<SystemRole, number>;
-}
-
-/**
- * Payload tạo tài khoản người dùng chuẩn API backend (4 trường bắt buộc)
- */
-export interface CreateUserAccountPayload {
-  username: string;
-  fullName: string;
-  role: SystemRole;
-  email: string;
-}
-
-/**
- * Dữ liệu form tạo mới tài khoản người dùng (`/users`)
- */
-export interface CreateUserFormValues {
-  username: string;
-  fullName: string;
-  email: string;
-  role: SystemRole;
-  phone?: string;
-  department?: string;
-  academicTitle?: string;
-  studentCode?: string;
-  temporaryPassword?: string;
-  sendWelcomeEmail?: boolean;
-}
-
 export type JournalCategory =
   | "WOS_Q1_Q2"
   | "WOS_SCOPUS_KHAC"

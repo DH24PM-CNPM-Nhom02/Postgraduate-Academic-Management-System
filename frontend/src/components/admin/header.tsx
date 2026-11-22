@@ -106,7 +106,7 @@ export function AdminHeader({
           className="hidden xl:inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/80 px-3 py-1.5 text-xs font-semibold text-[#164E9B] hover:bg-blue-100 transition-colors shadow-2xs"
         >
           <Sparkles className="size-3.5 text-[#164E9B]" />
-          <span>Thủ tục SĐH</span>
+          <span>Biểu mẫu SĐH</span>
         </Link>
 
         {/* Notifications Popover */}

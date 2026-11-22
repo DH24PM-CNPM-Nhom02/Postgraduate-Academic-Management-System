@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
 import { ClientProxy } from "@nestjs/microservices";
 import { firstValueFrom, timeout } from "rxjs";
 import { Public } from "../common/decorators/public.decorator.js";
@@ -11,7 +11,7 @@ import {
   ListUsersQueryDto,
   SetUserStatusDto,
 } from '../../../../lib/contracts/src/dto/auth.dto.js';
-import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
+import { PERMISSIONS, ROLES } from '../../../../lib/contracts/src/permissions.js';
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
 import type { AuthUser } from "../common/interface/auth-user.interface.js";
 import { AllowMustChange } from "../common/decorators/must-change-password.decorator.js";
@@ -63,8 +63,14 @@ export class AuthController {
   @Post('users')
   @LimitMedium()
   @RequirePermissions(PERMISSIONS.USER_CREATE)
-  createUsers(@CurrentUser() u: AuthUser, @Body() dto: CreateUsersDto) { 
-    return this.send('auth.create-users', { actorId: u.id, actorRoles: u.roles, ...dto }); 
+  createUsers(@CurrentUser() u: AuthUser, @Body() dto: CreateUsersDto) {
+    if (dto.users.some(({ role }) => role !== ROLES.ADMIN && role !== ROLES.GIAO_VU)) {
+      throw new BadRequestException(
+        'Chỉ có thể tạo trực tiếp tài khoản Quản trị viên hoặc Giáo vụ. Tài khoản NCS/GVHD được cấp khi nhập hồ sơ.',
+      );
+    }
+
+    return this.send('auth.create-users', { actorId: u.id, actorRoles: u.roles, users: dto.users });
   }
 
   @Get('users')

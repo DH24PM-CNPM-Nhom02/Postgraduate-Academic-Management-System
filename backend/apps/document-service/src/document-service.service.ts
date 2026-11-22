@@ -3,8 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { createHash, randomUUID } from 'crypto';
 import { firstValueFrom, timeout } from 'rxjs';
-import { MAX_PDF_SIZE } from '../../../lib/contracts/src/dto/document.dto.js';
-import type { DocumentTypeValue, NguoiDungTaiLieu } from '../../../lib/contracts/src/dto/document.dto.js';
+import { MAX_PDF_SIZE, PUBLIC_DOCUMENT_TYPES } from '../../../lib/contracts/src/dto/document.dto.js';
+import type { DocumentTypeValue, NguoiDungTaiLieu, PublicDocumentType } from '../../../lib/contracts/src/dto/document.dto.js';
 import { PrismaService } from './prisma/prisma.service.js';
 import { FileStorageService } from '../storage/file-storage.service.js';
 
@@ -154,8 +154,19 @@ export class DocumentServiceService {
     if (!nguoiDung.laNhanVien) {
       throw new RpcException({ statusCode: 403, message: 'Bạn không có quyền quản lý tài liệu' });
     }
+    return this.listActive();
+  }
+
+  async listPublic(documentType: PublicDocumentType) {
+    if (!PUBLIC_DOCUMENT_TYPES.includes(documentType)) {
+      throw new RpcException({ statusCode: 400, message: 'Loại tài liệu công khai không hợp lệ' });
+    }
+    return this.listActive(documentType);
+  }
+
+  private async listActive(documentType?: PublicDocumentType) {
     const rows = await this.prisma.document.findMany({
-      where: { status: 'ACTIVE' },
+      where: { status: 'ACTIVE', ...(documentType && { documentType }) },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       select: { id: true, originalName: true, documentType: true, createdAt: true, size: true },
     });
@@ -193,7 +204,21 @@ export class DocumentServiceService {
     }
 
     this.kiemTraQuyenDoc(nguoiDung, taiLieu);
+    return this.readPdf(taiLieu);
+  }
 
+  async downloadPublic(id: string) {
+    const taiLieu = await this.prisma.document.findUnique({
+      where: { id, status: 'ACTIVE', documentType: { in: [...PUBLIC_DOCUMENT_TYPES] } },
+      select: { objectKey: true, originalName: true, mimeType: true },
+    });
+    if (!taiLieu) {
+      throw new RpcException({ statusCode: 404, message: 'Không tìm thấy tài liệu' });
+    }
+    return this.readPdf(taiLieu);
+  }
+
+  private async readPdf(taiLieu: { objectKey: string; originalName: string; mimeType: string }) {
     let noiDung: Buffer;
     try {
       noiDung = await this.storage.download(taiLieu.objectKey); //lấy obj key trong db chứ k lấy từ client 

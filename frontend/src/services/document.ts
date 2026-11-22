@@ -1,6 +1,7 @@
 import {
   ApiClientError,
   apiClient,
+  publicApiClient,
   parseApiErrorAsync,
   throwApiError,
 } from "@/src/lib/api";
@@ -9,8 +10,14 @@ import {
   type DocumentListItem,
   type DocumentMetadataResponse,
   type DocumentPreviewResult,
+  type PublicDocumentType,
   type UploadDocumentRequest,
 } from "@/src/types/api/document";
+
+const PUBLIC_DOCUMENT_PATHS: Record<PublicDocumentType, string> = {
+  QUY_DINH: "/documents/regulations",
+  BIEU_MAU: "/documents/forms",
+};
 
 /**
  * Kiểm tra file PDF cơ bản ở phía trình duyệt trước khi gửi lên Backend.
@@ -57,6 +64,30 @@ function validatePdfFile(file: File) {
  * Chịu trách nhiệm upload, đọc thông tin và tải file PDF với Backend (`DocumentsController`).
  */
 export const DocumentService = {
+  async listPublic(documentType: PublicDocumentType, signal?: AbortSignal): Promise<DocumentListItem[]> {
+    try {
+      const response = await publicApiClient.get<DocumentListItem[]>(
+        PUBLIC_DOCUMENT_PATHS[documentType],
+        { signal, timeout: 15000 },
+      );
+      return response.data;
+    } catch (error) {
+      throwApiError(error);
+    }
+  },
+
+  async downloadPublicBlob(documentId: string, signal?: AbortSignal): Promise<Blob> {
+    try {
+      const response = await publicApiClient.get<Blob>(
+        `/documents/public/${encodeURIComponent(documentId)}/download`,
+        { signal, responseType: "blob", timeout: 60000 },
+      );
+      return response.data;
+    } catch (error) {
+      throw await parseApiErrorAsync(error);
+    }
+  },
+
   async list(): Promise<DocumentListItem[]> {
     try {
       return (await apiClient.get<DocumentListItem[]>("/documents")).data;

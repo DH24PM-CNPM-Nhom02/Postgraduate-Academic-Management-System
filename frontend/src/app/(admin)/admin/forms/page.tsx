@@ -1,20 +1,10 @@
-import { ProceduresFormsView } from "@/src/components/shared";
+import { ProceduresFormsView } from "@/src/components/shared/ProceduresFormsView";
 
 export const metadata = {
-  title: "Biểu mẫu đào tạo Sau Đại học | Cổng Quản trị Hệ thống",
-  description: "Kho biểu mẫu quy chuẩn đào tạo tiến sĩ AGU.",
+  title: "Biểu mẫu học vụ | Cổng Quản trị Hệ thống",
+  description: "Tra cứu và tải biểu mẫu đào tạo sau đại học.",
 };
 
-/**
- * Route: /admin/forms
- * Tái sử dụng ProceduresFormsView từ components/shared cho Admin.
- */
 export default function AdminFormsPage() {
-  return (
-    <ProceduresFormsView
-      roleContext="academic"
-      backHref="/admin/overview"
-      backLabel="Tổng quan đào tạo"
-    />
-  );
+  return <ProceduresFormsView backHref="/admin/overview" backLabel="Tổng quan đào tạo" />;
 }

@@ -1,16 +1,10 @@
-import { RegulationsView } from "@/src/components/shared";
+import { RegulationsView } from "@/src/components/shared/RegulationsView";
 
 export const metadata = {
-  title: "Quy chế & Quy định | Cổng Nghiên cứu sinh",
-  description: "Quy chế đào tạo tiến sĩ và chuẩn đầu ra công bố khoa học quốc tế.",
+  title: "Quy định & Quy chế | Cổng Nghiên cứu sinh",
+  description: "Tra cứu quy định và quy chế đào tạo sau đại học.",
 };
 
 export default function StudentRegulationsPage() {
-  return (
-    <RegulationsView
-      roleContext="student"
-      backHref="/student/progress"
-      backLabel="Tiến độ đào tạo NCS"
-    />
-  );
+  return <RegulationsView backHref="/student/progress" backLabel="Tiến độ đào tạo NCS" />;
 }

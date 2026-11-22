@@ -6,6 +6,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { Public } from '../common/decorators/public.decorator.js';
 import { RequirePermissions } from '../common/decorators/require-permissions.decorator.js';
 import { DOCUMENT_SERVICE, PHD_SERVICE } from '../common/constants/service.js';
 import type { AuthUser } from '../common/interface/auth-user.interface.js';
@@ -13,6 +14,8 @@ import { PERMISSIONS, ROLES } from '../../../../lib/contracts/src/permissions.js
 import { MAX_PDF_SIZE, UploadDocumentDto } from '../../../../lib/contracts/src/dto/document.dto.js';
 import type { NguoiDungTaiLieu } from '../../../../lib/contracts/src/dto/document.dto.js';
 import { LimitMedium, LimitHeavyRead } from '../common/decorators/rate-limit.decorator.js';
+
+type DocumentDownload = { originalName: string; mimeType: string; noiDungBase64: string };
 
 @Controller('documents')
 export class DocumentsController {
@@ -103,6 +106,26 @@ export class DocumentsController {
     return this.goiDocument('document.list', { nguoiDung: await this.layNguoiDung(u) });
   }
 
+  @Get('regulations')
+  @Public()
+  listRegulations() {
+    return this.goiDocument('document.public.list', { documentType: 'QUY_DINH' });
+  }
+
+  @Get('forms')
+  @Public()
+  listForms() {
+    return this.goiDocument('document.public.list', { documentType: 'BIEU_MAU' });
+  }
+
+  @Get('public/:id/download')
+  @Public()
+  @LimitHeavyRead()
+  async downloadPublic(@Param('id', new ParseUUIDPipe()) id: string) {
+    const tep = await this.goiDocument('document.public.download', { id }, 60000);
+    return this.streamPdf(tep);
+  }
+
   // Xem thông tin của tài liệu
   @Get(':id')
   @RequirePermissions(PERMISSIONS.DOCUMENT_READ)
@@ -118,7 +141,10 @@ export class DocumentsController {
   async taiVe(@CurrentUser() u: AuthUser, @Param('id', new ParseUUIDPipe()) id: string) {
     const nguoiDung = await this.layNguoiDung(u);
     const tep = await this.goiDocument('document.download', { nguoiDung, id }, 60000);
+    return this.streamPdf(tep);
+  }
 
+  private streamPdf(tep: DocumentDownload) {
     // Tên file tiếng Việt phải mã hóa mới đặt được vào header
     return new StreamableFile(Buffer.from(tep.noiDungBase64, 'base64'), {
       type: tep.mimeType,

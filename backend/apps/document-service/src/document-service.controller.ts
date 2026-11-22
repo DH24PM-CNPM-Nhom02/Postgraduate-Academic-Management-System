@@ -1,6 +1,6 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
-import type { DocumentTypeValue, NguoiDungTaiLieu } from '../../../lib/contracts/src/dto/document.dto.js';
+import type { DocumentTypeValue, NguoiDungTaiLieu, PublicDocumentType } from '../../../lib/contracts/src/dto/document.dto.js';
 import { DocumentServiceService } from './document-service.service.js';
 
 @Controller()
@@ -26,6 +26,16 @@ export class DocumentServiceController {
   @MessagePattern({ cmd: 'document.list' })
   list(@Payload() d: { nguoiDung: NguoiDungTaiLieu }) {
     return this.documentService.list(d.nguoiDung);
+  }
+
+  @MessagePattern({ cmd: 'document.public.list' })
+  listPublic(@Payload() d: { documentType: PublicDocumentType }) {
+    return this.documentService.listPublic(d.documentType);
+  }
+
+  @MessagePattern({ cmd: 'document.public.download' })
+  downloadPublic(@Payload() d: { id: string }) {
+    return this.documentService.downloadPublic(d.id);
   }
 
   @MessagePattern({ cmd: 'document.get' })
