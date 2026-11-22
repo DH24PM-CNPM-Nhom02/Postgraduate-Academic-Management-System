@@ -21,3 +21,5 @@ export {
   useMyThesis,
   useStudentThesisData,
 } from "./use-thesis";
+
+export { auditKeys, useAuditLogs, useAuditLogDetail } from "./use-audit";

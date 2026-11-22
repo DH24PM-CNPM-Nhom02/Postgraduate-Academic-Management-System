@@ -1,6 +1,13 @@
 import type {
   ChangeRequestApiItem,
+  ChangeRequestDetail as ChangeRequestDetailDto,
+  ChangeRequestItem as ChangeRequestListItemDto,
 } from "@/src/types/api/change-request";
+import type {
+  SupervisedStudent,
+  SupervisorExtensionRequestItem,
+  SupervisorRole,
+} from "@/src/types/ui/supervisor";
 import type { BackendNcsMeResponse, MyProgressResponse } from "@/src/types/api/progress";
 import type {
   CandidateSupervisorOption,
@@ -188,4 +195,111 @@ export function buildStudentChangeRequestsOverview(
     thongTinThoiGian,
     danhSachDon,
   };
+}
+
+/* =========================================================================
+   GVHD: ĐƠN CẦN TẬP THỂ GVHD XÁC NHẬN (/supervisor/extensions)
+   ========================================================================= */
+
+/** Cùng quy ước mã đơn với `mapChangeRequestApiToUi` để NCS và GVHD thấy cùng một mã */
+function buildSupervisorRequestCode(id: string, createdAt: string): string {
+  const created = new Date(createdAt);
+  const year = Number.isNaN(created.getTime()) ? "----" : created.getFullYear();
+  return `DN-${year}-${id.slice(0, 4).toUpperCase()}`;
+}
+
+/**
+ * Chuyển các đơn cần tập thể GVHD xác nhận sang item của `SupervisorExtensionsWorkspace`.
+ *
+ * Theo backend (`change-request.service.ts`):
+ * - `xacNhanGvhd` chỉ nhận GIA_HAN và DOI_DE_TAI;
+ * - DOI_DE_TAI chỉ có `xacNhanGvhds` khi NCS tự nộp (`canGvhdXacNhan`); đơn GVHD nộp thay và
+ *   DOI_GVHD không có bước này nên bị loại.
+ *
+ * Không tạo dữ liệu giả:
+ * - `vaiTro` trong `xacNhanGvhds` không có ở backend → chỉ gán cho chính GVHD đang đăng nhập
+ *   (lấy từ `GET /gvhd/me/ncs`), các GVHD khác để `undefined`.
+ * - Hạn hiện tại, số tháng đã gia hạn, đề tài hiện tại, quyết định: chỉ lấy từ `GET /change-request/:id`
+ *   (`detailById`); chưa tải thì để trống.
+ * - Backend không trả tên file → `fileName` rỗng, UI lấy tên thật qua `GET /documents/:id`.
+ */
+export function mapSupervisorExtensionRequests(params: {
+  requests: ChangeRequestListItemDto[];
+  students: SupervisedStudent[];
+  myGvhdId?: string;
+  detailById?: Map<string, ChangeRequestDetailDto>;
+}): SupervisorExtensionRequestItem[] {
+  const { requests, students, myGvhdId, detailById } = params;
+  const studentById = new Map(students.map((s) => [s.id, s]));
+
+  return requests
+    .filter(
+      (r) =>
+        r.loai === "GIA_HAN" ||
+        (r.loai === "DOI_DE_TAI" && r.xacNhanGvhds.length > 0)
+    )
+    .map((r) => {
+      const student = studentById.get(r.ncsId);
+      const detail = detailById?.get(r.id);
+      const myRole: SupervisorRoleType | undefined =
+        student && student.vaiTro !== "CHUA_XAC_DINH" ? student.vaiTro : undefined;
+
+      const xacNhanGvhds: SupervisorOpinionItem[] = r.xacNhanGvhds.map((op) => ({
+        id: op.id,
+        giangVienId: op.gvhdId,
+        tenGvhd: op.gvhd.hoTen,
+        hocHamHocVi: op.gvhd.hocHamHocVi ?? undefined,
+        vaiTro: op.gvhdId === myGvhdId ? myRole : undefined,
+        dongY: op.dongY,
+        nhanXet: op.nhanXet,
+        thoiGianPhanHoi: op.ngayXacNhan,
+      }));
+
+      const myOpinion = myGvhdId
+        ? xacNhanGvhds.find((op) => op.giangVienId === myGvhdId) ?? null
+        : null;
+
+      return {
+        id: r.id,
+        maDon: buildSupervisorRequestCode(r.id, r.createdAt),
+        loaiDon: r.loai as "GIA_HAN" | "DOI_DE_TAI",
+        tenDeTaiMoi: r.tenDeTaiMoi,
+        studentId: r.ncsId,
+        mshv: r.ncs.mshv,
+        hoTenNcs: r.ncs.hoTen,
+        // NCS không còn trong /gvhd/me/ncs (vd. phân công đã hết hiệu lực) → hiển thị "—"
+        khoaDaoTao: student?.khoaDaoTao ?? "—",
+        // Đơn đổi đề tài: ưu tiên `deTaiHienTai` của API chi tiết (backend trả riêng cho DOI_DE_TAI)
+        tenDeTai:
+          (r.loai === "DOI_DE_TAI" ? detail?.deTaiHienTai?.tenDeTai : undefined) ??
+          student?.tenDeTai ??
+          "—",
+        vaiTroCuaToi: (student?.vaiTro ?? "CHUA_XAC_DINH") as SupervisorRole,
+        trangThai: r.trangThai,
+        ngayGui: r.createdAt,
+        soThangGiaHan: r.soThangGiaHan ?? 0,
+        hanHienTai: detail?.hanHienTai ?? "",
+        hanMoiDuKien: r.hanMoiDeNghi ?? "",
+        tongThangDaGiaHanTruocDo: detail?.tongThangDaGiaHanTruoc ?? null,
+        mocHienTai: student?.mocHienTai ?? 0,
+        tenMocHienTai: student?.tenMocHienTai ?? "Chưa có dữ liệu tiến độ",
+        tienDoPhanTram: student?.tienDoPhanTram ?? 0,
+        lyDo: r.lyDo,
+        tepDinhKem: r.fileId ? { fileId: r.fileId, fileName: "", fileUrl: "" } : null,
+        xacNhanGvhds,
+        yKienCuaToi: myOpinion,
+        nhanXetGvhd: myOpinion?.nhanXet ?? null,
+        thoiGianPhanHoiCuaToi: myOpinion?.thoiGianPhanHoi ?? null,
+        quyetDinh: detail?.quyetDinh
+          ? {
+              fileId: detail.quyetDinh.fileId ?? null,
+              soQuyetDinh: detail.quyetDinh.soQuyetDinh,
+              ngayKy: detail.quyetDinh.ngayQuyetDinh,
+              fileName: "",
+              fileUrl: "",
+            }
+          : null,
+        lyDoTuChoi: r.lyDoTuChoi,
+      };
+    });
 }

@@ -37,6 +37,7 @@ export {
   SupervisorExtensionsWorkspace,
   type SupervisorExtensionsWorkspaceProps,
 } from "./SupervisorExtensionsWorkspace";
+export { SupervisorExtensionsLiveView } from "./SupervisorExtensionsLiveView";
 export {
   SupervisorRequestForm,
   type SupervisorRequestFormProps,

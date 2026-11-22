@@ -225,8 +225,7 @@ export function AuditTable({
                           </div>
                           <div>
                             <span className="inline-block rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:border-amber-800/70 dark:bg-amber-950/60 dark:text-amber-300">
-                              Tài khoản người dùng này không còn tồn tại trên hệ
-                              thống
+                              Không có thông tin người thao tác
                             </span>
                           </div>
                         </div>
@@ -241,10 +240,11 @@ export function AuditTable({
                             </span>
                             <span aria-hidden="true">•</span>
                             <span
-                              className={`inline-flex rounded border px-1.5 py-0 text-[10px] font-semibold ${SYSTEM_ROLE_META[log.actor.role].badgeClass
+                              className={`inline-flex rounded border px-1.5 py-0 text-[10px] font-semibold ${(log.actor.role ? SYSTEM_ROLE_META[log.actor.role].badgeClass : undefined) ??
+                                "border-border bg-muted text-muted-foreground"
                                 }`}
                             >
-                              {log.actor.role}
+                              {log.actor.role ?? "Không rõ vai trò"}
                             </span>
                           </div>
                         </div>

@@ -6,6 +6,7 @@ import type {
   ChangeRequestListQuery,
   ChangeRequestListResponse,
   CreateChangeRequestApiPayload,
+  SupervisorReviewPayload,
 } from "@/src/types/api/change-request";
 
 const path = "/change-request";
@@ -54,6 +55,22 @@ export const ChangeRequestService = {
         payload
       );
       return response.data;
+    } catch (err) {
+      throwApiError(err);
+    }
+  },
+
+  /**
+   * GVHD xác nhận ý kiến cho đơn GIA_HAN hoặc DOI_DE_TAI (do NCS tự nộp) đang CHO_GVHD_XAC_NHAN.
+   * Endpoint: PATCH /change-request/:id/supervisor-review — body { dongY, nhanXet? }
+   */
+  async supervisorReview(id: string, payload: SupervisorReviewPayload): Promise<void> {
+    try {
+      const nhanXet = payload.nhanXet?.trim();
+      await apiClient.patch(`${path}/${id}/supervisor-review`, {
+        dongY: payload.dongY,
+        ...(nhanXet ? { nhanXet } : {}),
+      });
     } catch (err) {
       throwApiError(err);
     }
