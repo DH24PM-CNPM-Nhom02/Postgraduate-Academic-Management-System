@@ -1,16 +1,10 @@
-import { ProceduresFormsView } from "@/src/components/shared";
+import { ProceduresFormsView } from "@/src/components/shared/ProceduresFormsView";
 
 export const metadata = {
-  title: "Biểu mẫu & Đơn từ | Cổng Giáo vụ SĐH",
-  description: "Kho biểu mẫu quy chuẩn đào tạo tiến sĩ AGU.",
+  title: "Biểu mẫu học vụ | Cổng Giáo vụ SĐH",
+  description: "Tra cứu và tải biểu mẫu đào tạo sau đại học.",
 };
 
 export default function AcademicFormsPage() {
-  return (
-    <ProceduresFormsView
-      roleContext="academic"
-      backHref="/academic"
-      backLabel="Tổng quan học vụ"
-    />
-  );
+  return <ProceduresFormsView backHref="/academic" backLabel="Tổng quan học vụ" />;
 }

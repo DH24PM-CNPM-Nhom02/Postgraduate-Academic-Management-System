@@ -85,15 +85,6 @@ export function AcademicFooter() {
               </li>
               <li>
                 <Link
-                  href="/academic/procedures"
-                  className="hover:text-[#164E9B] hover:underline flex items-center gap-1.5"
-                >
-                  <BookOpen className="size-3 text-[#164E9B]" />
-                  <span>Thủ tục bảo vệ đề cương &amp; luận án</span>
-                </Link>
-              </li>
-              <li>
-                <Link
                   href="/academic/forms"
                   className="hover:text-[#164E9B] hover:underline flex items-center gap-1.5"
                 >

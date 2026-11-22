@@ -35,7 +35,8 @@ const ACADEMIC_PAGE_TITLES: Record<string, string> = {
   "/academic/decisions": "Quản lý Quyết định",
   "/academic/evidence": "Minh chứng học vị & Báo cáo",
   "/academic/topic-changes": "Duyệt đề nghị điều chỉnh",
-  "/academic/procedures": "Thủ tục & Biểu mẫu học vụ",
+  "/academic/procedures": "Biểu mẫu học vụ",
+  "/academic/forms": "Biểu mẫu học vụ",
   "/academic-affairs": "Thủ tục & Biểu mẫu học vụ",
   "/academic/calendar": "Lịch học vụ & Thông báo",
   "/academic/regulations": "Quy chế & Quy định",
@@ -135,13 +136,13 @@ export function AcademicHeader({
           <Search className="size-5" />
         </button>
 
-        {/* Quick Procedure Link */}
+        {/* Quick Forms Link */}
         <Link
           href="/academic/procedures"
           className="hidden xl:inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/80 px-3 py-1.5 text-xs font-semibold text-[#164E9B] hover:bg-blue-100 transition-colors shadow-2xs"
         >
           <Sparkles className="size-3.5" />
-          <span>Tra cứu thủ tục nhanh</span>
+          <span>Tra cứu biểu mẫu</span>
         </Link>
 
         {/* Notifications Popover */}

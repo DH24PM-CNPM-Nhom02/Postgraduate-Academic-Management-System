@@ -34,7 +34,7 @@ const SUPERVISOR_PAGE_TITLES: Record<string, string> = {
   "/supervisor/quota": "Định mức hướng dẫn BR-09",
   "/supervisor/regulations": "Quy chế & Quy định",
   "/supervisor/faq": "Hỏi đáp & Hỗ trợ",
-  "/supervisor/procedures": "Thủ tục & Biểu mẫu",
+  "/supervisor/procedures": "Biểu mẫu học vụ",
 };
 
 function getSupervisorPageTitle(pathname: string | null): string {

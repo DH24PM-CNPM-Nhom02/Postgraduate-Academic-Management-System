@@ -1,162 +1,94 @@
 "use client";
 
-import { Users, GraduationCap, Briefcase, Lock } from "lucide-react";
-import type {
-  AdminUserStatus,
-  SystemRole,
-  UserStatsSummary,
-} from "@/src/types/ui/admin";
+import { Briefcase, GraduationCap, Lock, UserRoundCog, Users, UserShield } from "lucide-react";
+import type { UserAccount } from "@/src/types/api/user";
+import type { UserRoleFilter, UserStatusFilter } from "./user-filters";
 
-export interface UserStatsOverviewProps {
-  stats: UserStatsSummary;
-  isLoading?: boolean;
-  activeRoleFilter?: SystemRole | "ALL";
-  activeStatusFilter?: AdminUserStatus | "ALL";
-  onQuickFilter?: (filter: {
-    role?: SystemRole | "ALL";
-    status?: AdminUserStatus | "ALL";
-  }) => void;
+interface UserStatsOverviewProps {
+  users: UserAccount[] | undefined;
+  role: UserRoleFilter;
+  status: UserStatusFilter;
+  onQuickFilter: (role: UserRoleFilter, status: UserStatusFilter) => void;
 }
 
-export function UserStatsOverview({
-  stats,
-  isLoading = false,
-  activeRoleFilter = "ALL",
-  activeStatusFilter = "ALL",
-  onQuickFilter,
-}: UserStatsOverviewProps) {
-  if (isLoading) {
-    return (
-      <div
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
-        aria-busy="true"
-        aria-label="Đang tải thống kê tài khoản"
-      >
-        {Array.from({ length: 4 }).map((_, index) => (
-          <div
-            key={index}
-            className="rounded-xl border border-border bg-card p-4"
-          >
-            <div className="flex items-center justify-between">
-              <div className="h-3.5 w-28 rounded bg-muted animate-pulse motion-reduce:animate-none" />
-              <div className="size-8 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
-            </div>
-            <div className="mt-3 h-7 w-16 rounded bg-muted animate-pulse motion-reduce:animate-none" />
-            <div className="mt-2 h-3 w-36 rounded bg-muted animate-pulse motion-reduce:animate-none" />
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  const academicStaffCount = stats.byRole.GVHD + stats.byRole.GIAO_VU;
-
+export function UserStatsOverview({ users, role, status, onQuickFilter }: UserStatsOverviewProps) {
+  const activeCount = users?.filter((user) => user.isActive).length;
+  const lockedCount = users?.filter((user) => !user.isActive).length;
+  const ncsCount = users?.filter((user) => user.roles.includes("NCS")).length;
+  const gvhdCount = users?.filter((user) => user.roles.includes("GVHD")).length;
+  const giaoVuCount = users?.filter((user) => user.roles.includes("GIAO_VU")).length;
+  const adminCount = users?.filter((user) => user.roles.includes("ADMIN")).length;
   const cards = [
     {
-      key: "total",
       label: "Tổng số tài khoản",
-      value: stats.totalUsers,
-      subtext: `${stats.activeUsers} tài khoản đang hoạt động`,
+      value: users?.length,
+      detail: activeCount === undefined ? undefined : `${activeCount} đang hoạt động`,
       icon: Users,
-      iconTone:
-        "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
-      isSelected: activeRoleFilter === "ALL" && activeStatusFilter === "ALL",
-      onClick: onQuickFilter
-        ? () => onQuickFilter({ role: "ALL", status: "ALL" })
-        : undefined,
+      selected: role === "ALL" && status === "ALL",
+      onClick: () => onQuickFilter("ALL", "ALL"),
     },
     {
-      key: "ncs",
-      label: "Nghiên cứu sinh (NCS)",
-      value: stats.byRole.NCS,
-      subtext: "Tài khoản học viên tiến sĩ",
+      label: "Admin",
+      value: adminCount,
+      icon: UserShield,
+      selected: role === "ADMIN" && status === "ALL",
+      onClick: () => onQuickFilter("ADMIN", "ALL"),
+    },
+    {
+      label: "Nghiên cứu sinh",
+      value: ncsCount,
       icon: GraduationCap,
-      iconTone:
-        "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300",
-      isSelected: activeRoleFilter === "NCS" && activeStatusFilter === "ALL",
-      onClick: onQuickFilter
-        ? () => onQuickFilter({ role: "NCS", status: "ALL" })
-        : undefined,
+      selected: role === "NCS" && status === "ALL",
+      onClick: () => onQuickFilter("NCS", "ALL"),
     },
     {
-      key: "staff",
-      label: "Giảng viên & Giáo vụ",
-      value: academicStaffCount,
-      subtext: `${stats.byRole.GVHD} GVHD • ${stats.byRole.GIAO_VU} Giáo vụ SĐH`,
+      label: "Giảng viên HD",
+      value: gvhdCount,
       icon: Briefcase,
-      iconTone:
-        "bg-blue-50 text-[#164E9B] dark:bg-blue-950/70 dark:text-blue-300",
-      isSelected:
-        activeRoleFilter === "GVHD" || activeRoleFilter === "GIAO_VU",
-      onClick: onQuickFilter
-        ? () => onQuickFilter({ role: "GVHD", status: "ALL" })
-        : undefined,
+      selected: role === "GVHD" && status === "ALL",
+      onClick: () => onQuickFilter("GVHD", "ALL"),
     },
     {
-      key: "locked",
-      label: "Tài khoản bị khóa",
-      value: stats.lockedUsers,
-      subtext:
-        stats.lockedUsers > 0
-          ? "Đang tạm ngưng quyền đăng nhập"
-          : "Không có tài khoản nào bị khóa",
+      label: "Giáo vụ",
+      value: giaoVuCount,
+      icon: UserRoundCog,
+      selected: role === "GIAO_VU" && status === "ALL",
+      onClick: () => onQuickFilter("GIAO_VU", "ALL"),
+    },
+    {
+      label: "Tài khoản đã khóa",
+      value: lockedCount,
       icon: Lock,
-      iconTone:
-        stats.lockedUsers > 0
-          ? "bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300"
-          : "bg-muted text-muted-foreground",
-      isSelected: activeStatusFilter === "LOCKED",
-      onClick: onQuickFilter
-        ? () => onQuickFilter({ role: "ALL", status: "LOCKED" })
-        : undefined,
+      selected: role === "ALL" && status === "LOCKED",
+      onClick: () => onQuickFilter("ALL", "LOCKED"),
     },
   ];
 
   return (
-    <section aria-label="Tổng quan tài khoản hệ thống">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map((card) => {
-          const Icon = card.icon;
-          const InteractiveTag = card.onClick ? "button" : "div";
+    <section aria-label="Tổng quan tài khoản" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {cards.map(({ label, value, detail, icon: Icon, selected, onClick }) => {
+        const interactive = Boolean(users && onClick);
+        const Card = interactive ? "button" : "div";
 
-          return (
-            <InteractiveTag
-              key={card.key}
-              type={card.onClick ? "button" : undefined}
-              onClick={card.onClick}
-              aria-pressed={card.onClick ? card.isSelected : undefined}
-              className={`w-full rounded-xl border bg-card p-4 text-left transition-colors duration-150 ease-out motion-reduce:transition-none ${
-                card.onClick
-                  ? "cursor-pointer hover:border-border/80 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40"
-                  : ""
-              } ${
-                card.isSelected && card.onClick
-                  ? "border-rose-300 bg-rose-50/25 dark:border-rose-800/80 dark:bg-rose-950/20"
-                  : "border-border"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium text-muted-foreground">
-                  {card.label}
-                </span>
-                <span
-                  className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${card.iconTone}`}
-                >
-                  <Icon className="size-4" aria-hidden="true" />
-                </span>
-              </div>
-              <div className="mt-2.5 text-2xl font-bold tracking-tight text-foreground tabular-nums">
-                {card.value}
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground tabular-nums">
-                {card.subtext}
-              </p>
-            </InteractiveTag>
-          );
-        })}
-      </div>
+        return (
+          <Card
+            key={label}
+            type={interactive ? "button" : undefined}
+            onClick={interactive ? onClick : undefined}
+            aria-pressed={interactive ? selected : undefined}
+            className={`flex flex-col rounded-2xl border p-4 text-left shadow-xs ${interactive ? "transition-colors hover:bg-blue-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]/40" : ""} ${interactive && selected ? "border-blue-300 bg-blue-50/40" : "border-slate-200 bg-white"}`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-slate-600">{label}</span>
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#164E9B]">
+                <Icon className="size-4" aria-hidden="true" />
+              </span>
+            </div>
+            <div className="mt-2 text-2xl font-black text-[#0F2744] tabular-nums">{value ?? "—"}</div>
+            {detail && <p className="mt-1 text-xs text-slate-500">{detail}</p>}
+          </Card>
+        );
+      })}
     </section>
   );
 }
-
-export default UserStatsOverview;

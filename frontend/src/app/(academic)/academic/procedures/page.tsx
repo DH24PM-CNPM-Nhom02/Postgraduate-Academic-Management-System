@@ -1,25 +1,10 @@
-import React, { Suspense } from "react";
-import { ProceduresFormsView } from "@/src/components/shared";
+import { ProceduresFormsView } from "@/src/components/shared/ProceduresFormsView";
 
 export const metadata = {
-  title: "Thủ tục & Biểu mẫu học vụ | Cổng Giáo vụ SĐH",
-  description: "Hệ thống thủ tục học vụ và kho biểu mẫu quy chuẩn đào tạo tiến sĩ AGU.",
+  title: "Biểu mẫu học vụ | Cổng Giáo vụ SĐH",
+  description: "Tra cứu và tải biểu mẫu đào tạo sau đại học.",
 };
 
 export default function AcademicProceduresPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex h-64 items-center justify-center text-xs text-slate-500">
-          Đang tải danh mục thủ tục &amp; biểu mẫu...
-        </div>
-      }
-    >
-      <ProceduresFormsView
-        roleContext="academic"
-        backHref="/academic"
-        backLabel="Tổng quan học vụ"
-      />
-    </Suspense>
-  );
+  return <ProceduresFormsView backHref="/academic" backLabel="Tổng quan học vụ" />;
 }

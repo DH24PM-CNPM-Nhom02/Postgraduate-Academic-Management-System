@@ -1,149 +1,103 @@
 "use client";
 
-import { Search, RotateCcw, X } from "lucide-react";
+import { RotateCcw, Search } from "lucide-react";
+import { Input } from "@/src/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/src/components/ui/select";
 import type { AdminUserStatus, SystemRole } from "@/src/types/ui/admin";
+import { SYSTEM_ROLE_OPTIONS, USER_STATUS_META } from "./user-meta";
 
-export interface UserFiltersProps {
-  searchQuery: string;
-  roleFilter: SystemRole | "ALL";
-  statusFilter: AdminUserStatus | "ALL";
+export type UserRoleFilter = SystemRole | "ALL";
+export type UserStatusFilter = AdminUserStatus | "ALL";
+
+const roleOptions: { value: UserRoleFilter; label: string }[] = [
+  { value: "ALL", label: "Tất cả vai trò" },
+  ...SYSTEM_ROLE_OPTIONS,
+];
+const statusOptions: { value: UserStatusFilter; label: string }[] = [
+  { value: "ALL", label: "Tất cả trạng thái" },
+  { value: "ACTIVE", label: USER_STATUS_META.ACTIVE.label },
+  { value: "LOCKED", label: USER_STATUS_META.LOCKED.label },
+];
+
+interface UserFiltersProps {
+  search: string;
+  role: UserRoleFilter;
+  status: UserStatusFilter;
   onSearchChange: (value: string) => void;
-  onRoleChange: (value: SystemRole | "ALL") => void;
-  onStatusChange: (value: AdminUserStatus | "ALL") => void;
-  onResetFilters: () => void;
-  totalCount?: number;
-  filteredCount?: number;
-  disabled?: boolean;
+  onRoleChange: (value: UserRoleFilter) => void;
+  onStatusChange: (value: UserStatusFilter) => void;
+  onReset: () => void;
 }
 
+const triggerClass = "h-9 w-full rounded-xl bg-slate-50/50 text-xs text-slate-700 focus-visible:border-[#164E9B] focus-visible:ring-[#164E9B]/30";
+
 export function UserFilters({
-  searchQuery,
-  roleFilter,
-  statusFilter,
+  search,
+  role,
+  status,
   onSearchChange,
   onRoleChange,
   onStatusChange,
-  onResetFilters,
-  totalCount,
-  filteredCount,
-  disabled = false,
+  onReset,
 }: UserFiltersProps) {
-  const hasActiveFilter =
-    searchQuery.trim().length > 0 ||
-    roleFilter !== "ALL" ||
-    statusFilter !== "ALL";
-
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
-          {/* Tìm kiếm từ khóa */}
-          <div className="sm:col-span-2 lg:col-span-6">
-            <label
-              htmlFor="user-search-input"
-              className="mb-1.5 block text-xs font-medium text-foreground"
-            >
-              Tìm kiếm tài khoản
-            </label>
-            <div className="relative">
-              <Search
-                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                aria-hidden="true"
-              />
-              <input
-                id="user-search-input"
-                type="search"
-                value={searchQuery}
-                disabled={disabled}
-                onChange={(event) => onSearchChange(event.target.value)}
-                placeholder="Tìm theo username, họ tên, email hoặc MSHV..."
-                className="h-9.5 w-full rounded-lg border border-border bg-background pr-9 pl-9 text-sm text-foreground placeholder:text-muted-foreground transition-colors duration-150 focus-visible:border-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/30 disabled:cursor-not-allowed disabled:opacity-50"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => onSearchChange("")}
-                  aria-label="Xóa từ khóa tìm kiếm"
-                  className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40"
-                >
-                  <X className="size-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Lọc vai trò */}
-          <div className="lg:col-span-3">
-            <label
-              htmlFor="user-role-filter"
-              className="mb-1.5 block text-xs font-medium text-foreground"
-            >
-              Vai trò hệ thống
-            </label>
-            <select
-              id="user-role-filter"
-              value={roleFilter}
-              disabled={disabled}
-              onChange={(event) =>
-                onRoleChange(event.target.value as SystemRole | "ALL")
-              }
-              className="h-9.5 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground transition-colors duration-150 focus-visible:border-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/30 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="ALL">Tất cả vai trò</option>
-              <option value="ADMIN">Quản trị viên (ADMIN)</option>
-              <option value="GIAO_VU">Giáo vụ SĐH (GIAO_VU)</option>
-              <option value="GVHD">Giảng viên HD (GVHD)</option>
-              <option value="NCS">Nghiên cứu sinh (NCS)</option>
-            </select>
-          </div>
-
-          {/* Lọc trạng thái */}
-          <div className="lg:col-span-3">
-            <label
-              htmlFor="user-status-filter"
-              className="mb-1.5 block text-xs font-medium text-foreground"
-            >
-              Trạng thái
-            </label>
-            <select
-              id="user-status-filter"
-              value={statusFilter}
-              disabled={disabled}
-              onChange={(event) =>
-                onStatusChange(event.target.value as AdminUserStatus | "ALL")
-              }
-              className="h-9.5 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground transition-colors duration-150 focus-visible:border-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/30 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="ALL">Tất cả trạng thái</option>
-              <option value="ACTIVE">Đang hoạt động</option>
-              <option value="LOCKED">Đã khóa</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between gap-3 lg:justify-end">
-          {typeof totalCount === "number" && typeof filteredCount === "number" && (
-            <span className="text-xs text-muted-foreground tabular-nums">
-              Kết quả:{" "}
-              <strong className="font-semibold text-foreground">
-                {filteredCount}
-              </strong>
-              /{totalCount}
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={onResetFilters}
-            disabled={!hasActiveFilter || disabled}
-            className="inline-flex h-9.5 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <RotateCcw className="size-3.5" aria-hidden="true" />
-            <span>Đặt lại bộ lọc</span>
-          </button>
+    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,auto)_minmax(10rem,auto)_auto] md:items-end">
+      <div className="min-w-0">
+        <label htmlFor="user-search" className="mb-1.5 block text-xs font-semibold text-slate-600">
+          Tìm kiếm tài khoản
+        </label>
+        <div className="relative">
+          <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            id="user-search"
+            type="search"
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Tên đăng nhập, họ tên hoặc email"
+            className="h-9 rounded-xl bg-slate-50/50 pl-9 text-xs focus-visible:border-[#164E9B] focus-visible:ring-[#164E9B]/30 md:text-xs"
+          />
         </div>
       </div>
+
+      <div>
+        <label htmlFor="user-role-filter" className="mb-1.5 block text-xs font-semibold text-slate-600">Vai trò</label>
+        <Select items={roleOptions} value={role} onValueChange={(value) => onRoleChange(value ?? "ALL")}>
+          <SelectTrigger id="user-role-filter" className={triggerClass}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false}>
+            {roleOptions.map(({ value, label }) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <label htmlFor="user-status-filter" className="mb-1.5 block text-xs font-semibold text-slate-600">Trạng thái</label>
+        <Select items={statusOptions} value={status} onValueChange={(value) => onStatusChange(value ?? "ALL")}>
+          <SelectTrigger id="user-status-filter" className={triggerClass}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false}>
+            {statusOptions.map(({ value, label }) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <button
+        type="button"
+        onClick={onReset}
+        disabled={!search && role === "ALL" && status === "ALL"}
+        className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-[#164E9B] hover:bg-blue-50 disabled:opacity-45"
+      >
+        <RotateCcw className="size-3.5" aria-hidden="true" />
+        Đặt lại bộ lọc
+      </button>
     </div>
   );
 }
-
-export default UserFilters;

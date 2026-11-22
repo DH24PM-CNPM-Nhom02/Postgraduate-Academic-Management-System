@@ -13,6 +13,9 @@ export const DOCUMENT_TYPES = [
 ] as const;
 export type DocumentTypeValue = (typeof DOCUMENT_TYPES)[number];
 
+export const PUBLIC_DOCUMENT_TYPES = ['QUY_DINH', 'BIEU_MAU'] as const;
+export type PublicDocumentType = (typeof PUBLIC_DOCUMENT_TYPES)[number];
+
 // Tối đa 15MB mỗi file PDF
 export const MAX_PDF_SIZE = 15 * 1024 * 1024;
 

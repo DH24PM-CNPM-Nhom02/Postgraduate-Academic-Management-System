@@ -150,7 +150,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItemDef[] = [
   // ── Nhóm 3: Nghiệp vụ học vụ ───────────────────────────
   {
     id: "procedures",
-    title: "Thủ tục & Biểu mẫu học vụ",
+    title: "Biểu mẫu học vụ",
     icon: ClipboardList,
     group: "academic",
     href: "/admin/procedures",

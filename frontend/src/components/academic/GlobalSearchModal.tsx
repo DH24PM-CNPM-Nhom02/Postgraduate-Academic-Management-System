@@ -196,7 +196,7 @@ export function GlobalSearchModal({
               setSelectedIndex(0);
             }}
             onKeyDown={handleInputKeyDown}
-            placeholder="Tìm nhanh NCS, GVHD, mã đề tài, thủ tục học vụ, quy chế..."
+            placeholder="Tìm nhanh NCS, GVHD, mã đề tài, biểu mẫu, quy chế..."
             className="flex-1 bg-transparent text-sm font-medium text-slate-900 outline-hidden placeholder:text-slate-400"
           />
           {query && (
@@ -231,7 +231,7 @@ export function GlobalSearchModal({
             { id: "student", label: "Nghiên cứu sinh" },
             { id: "supervisor", label: "Giảng viên HD" },
             { id: "thesis", label: "Đề tài Luận án" },
-            { id: "procedure", label: "Thủ tục học vụ" },
+            { id: "procedure", label: "Biểu mẫu học vụ" },
             { id: "regulation", label: "Văn bản quy chế" },
           ].map((cat) => (
             <button

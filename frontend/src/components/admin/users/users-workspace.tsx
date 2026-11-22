@@ -1,352 +1,113 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { CheckCircle2, UserPlus, X } from "lucide-react";
+import { useState } from "react";
+import { RefreshCw, UserPlus, Users } from "lucide-react";
+import { Button } from "@/src/components/ui/button";
+import { useUsers } from "@/src/hooks/api/use-users";
 import { useAuth } from "@/src/hooks/use-auth";
-import { mockAdminUsers, mockUserStatsSummary } from "@/src/mocks/admin";
-import type {
-  AdminUserStatus,
-  CreateUserFormValues,
-  SystemRole,
-  UserStatsSummary,
-} from "@/src/types/ui/admin";
-import { type AdminUserViewItem, generateStrongPassword } from "./user-meta";
-import { UserStatsOverview } from "./user-stats";
-import { UserFilters } from "./user-filters";
-import { UserTable } from "./user-table";
+import type { UserAccount } from "@/src/types/api/user";
 import { CreateUserModal } from "./create-user-modal";
-import { UserStatusConfirmDialog } from "./user-status-dialog";
 import { ResetPasswordDialog } from "./reset-password-dialog";
 import { UserDetailDialog } from "./user-detail-dialog";
+import { userPrimaryButton } from "./user-dialog";
+import { UserFilters, type UserRoleFilter, type UserStatusFilter } from "./user-filters";
+import { UserStatsOverview } from "./user-stats";
+import { UserStatusConfirmDialog } from "./user-status-dialog";
+import { UserTable } from "./user-table";
+
+const EMPTY_USERS: UserAccount[] = [];
 
 export function UsersWorkspace() {
   const { user: authUser } = useAuth();
+  const usersQuery = useUsers();
+  const [search, setSearch] = useState("");
+  const [role, setRole] = useState<UserRoleFilter>("ALL");
+  const [status, setStatus] = useState<UserStatusFilter>("ALL");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [detailUser, setDetailUser] = useState<UserAccount | null>(null);
+  const [statusUser, setStatusUser] = useState<UserAccount | null>(null);
+  const [resetUser, setResetUser] = useState<UserAccount | null>(null);
 
-  // Danh sách người dùng khởi tạo từ mock data
-  const [users, setUsers] = useState<AdminUserViewItem[]>(() =>
-    mockAdminUsers.map((item) => ({
-      ...item,
-      mustChangePassword: item.lastLoginAt === null,
-    }))
-  );
-
-  // Bộ lọc & phân trang
-  const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<SystemRole | "ALL">("ALL");
-  const [statusFilter, setStatusFilter] = useState<AdminUserStatus | "ALL">(
-    "ALL"
-  );
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(8);
-
-  // Modals & Dialogs state
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [detailUser, setDetailUser] = useState<AdminUserViewItem | null>(null);
-  const [statusTargetUser, setStatusTargetUser] =
-    useState<AdminUserViewItem | null>(null);
-  const [resetTargetUser, setResetTargetUser] =
-    useState<AdminUserViewItem | null>(null);
-
-  // Phản hồi thao tác trực tiếp trên UI
-  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
-
-  // Xác định ID tài khoản đang đăng nhập để áp dụng Self-lock Prevention
-  const matchedCurrentUser = authUser?.username
-    ? users.find(
-        (item) =>
-          item.username.toLowerCase() === authUser.username.toLowerCase()
-      )
-    : undefined;
-  const currentUserId =
-    matchedCurrentUser?.id ?? mockAdminUsers[0]?.id ?? "usr-admin-01";
-
-  // Tính lại thống kê động khi state users thay đổi (khớp cấu trúc mockUserStatsSummary)
-  const statsSummary = useMemo<UserStatsSummary>(() => {
-    if (users.length === mockAdminUsers.length && feedbackMessage === null) {
-      return mockUserStatsSummary;
-    }
-    return {
-      totalUsers: users.length,
-      activeUsers: users.filter((item) => item.status === "ACTIVE").length,
-      lockedUsers: users.filter((item) => item.status === "LOCKED").length,
-      byRole: {
-        ADMIN: users.filter((item) => item.role === "ADMIN").length,
-        GIAO_VU: users.filter((item) => item.role === "GIAO_VU").length,
-        GVHD: users.filter((item) => item.role === "GVHD").length,
-        NCS: users.filter((item) => item.role === "NCS").length,
-      },
-    };
-  }, [users, feedbackMessage]);
-
-  // Danh sách đã lọc theo từ khóa, vai trò và trạng thái
-  const filteredUsers = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return users.filter((item) => {
-      if (roleFilter !== "ALL" && item.role !== roleFilter) return false;
-      if (statusFilter !== "ALL" && item.status !== statusFilter) return false;
-      if (!query) return true;
-
-      return (
-        item.username.toLowerCase().includes(query) ||
-        item.fullName.toLowerCase().includes(query) ||
-        item.email.toLowerCase().includes(query) ||
-        (item.studentCode?.toLowerCase().includes(query) ?? false) ||
-        (item.department?.toLowerCase().includes(query) ?? false)
-      );
-    });
-  }, [users, searchQuery, roleFilter, statusFilter]);
-
-  // Cắt trang dữ liệu
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
-  const safePage = Math.min(currentPage, totalPages);
-  const paginatedUsers = useMemo(() => {
-    const start = (safePage - 1) * pageSize;
-    return filteredUsers.slice(start, start + pageSize);
-  }, [filteredUsers, safePage, pageSize]);
-
-  const handleResetFilters = () => {
-    setSearchQuery("");
-    setRoleFilter("ALL");
-    setStatusFilter("ALL");
-    setCurrentPage(1);
-  };
-
-  const handleCreateUsers = (
-    newUsersList: Array<{
-      username: string;
-      fullName: string;
-      role: SystemRole;
-      email: string;
-    }>
-  ) => {
-    const createdAt = new Date().toISOString();
-    const createdItems: AdminUserViewItem[] = newUsersList.map((item, idx) => ({
-      id: `usr-${Date.now()}-${idx}`,
-      username: item.username,
-      fullName: item.fullName,
-      email: item.email,
-      role: item.role,
-      status: "ACTIVE",
-      createdAt,
-      lastLoginAt: null,
-      mustChangePassword: true,
-    }));
-
-    setUsers((prev) => [...createdItems, ...prev]);
-    setCreateModalOpen(false);
-    setCurrentPage(1);
-    if (createdItems.length === 1) {
-      setFeedbackMessage(
-        `Đã tạo thành công tài khoản @${createdItems[0].username} (${createdItems[0].fullName}).`
-      );
-    } else {
-      setFeedbackMessage(
-        `Đã tạo thành công ${createdItems.length} tài khoản người dùng mới.`
-      );
-    }
-  };
-
-  const handleCreateSingle = (
-    values: CreateUserFormValues & { mustChangePassword: boolean }
-  ) => {
-    const newUser: AdminUserViewItem = {
-      id: `usr-${Date.now()}`,
-      username: values.username,
-      fullName: values.fullName,
-      email: values.email,
-      phone: values.phone,
-      role: values.role,
-      status: "ACTIVE",
-      department: values.department,
-      academicTitle: values.academicTitle,
-      studentCode: values.studentCode,
-      createdAt: new Date().toISOString(),
-      lastLoginAt: null,
-      mustChangePassword: values.mustChangePassword,
-    };
-
-    setUsers((prev) => [newUser, ...prev]);
-    setCreateModalOpen(false);
-    setCurrentPage(1);
-    setFeedbackMessage(
-      `Đã tạo thành công tài khoản @${newUser.username} (${newUser.fullName}).`
-    );
-  };
-
-
-
-  const handleConfirmStatusChange = (
-    target: AdminUserViewItem,
-    reason?: string
-  ) => {
-    if (target.id === currentUserId && target.status === "ACTIVE") {
-      return;
-    }
-
-    const nextStatus: AdminUserStatus =
-      target.status === "ACTIVE" ? "LOCKED" : "ACTIVE";
-
-    setUsers((prev) =>
-      prev.map((item) =>
-        item.id === target.id
-          ? {
-              ...item,
-              status: nextStatus,
-              lockedReason:
-                nextStatus === "LOCKED"
-                  ? reason || "Khóa bởi Quản trị viên hệ thống"
-                  : null,
-            }
-          : item
-      )
-    );
-
-    setStatusTargetUser(null);
-    setFeedbackMessage(
-      nextStatus === "LOCKED"
-        ? `Đã khóa tài khoản @${target.username}.`
-        : `Đã mở khóa tài khoản @${target.username}.`
-    );
-  };
-
-  const handleConfirmResetPassword = (target: AdminUserViewItem): string => {
-    const tempPassword = generateStrongPassword(12);
-    setUsers((prev) =>
-      prev.map((item) =>
-        item.id === target.id ? { ...item, mustChangePassword: true } : item
-      )
-    );
-    setFeedbackMessage(
-      `Đã đặt lại mật khẩu tạm thời cho @${target.username} và bật cờ đổi mật khẩu lần đầu.`
-    );
-    return tempPassword;
-  };
+  function applyQuickFilter(nextRole: UserRoleFilter, nextStatus: UserStatusFilter) {
+    setSearch("");
+    setRole(nextRole);
+    setStatus(nextStatus);
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6 animate-in fade-in-50 duration-200">
+      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Quản lý người dùng &amp; Phân quyền
+          <h1 className="text-xl font-black tracking-tight text-[#0F2744] sm:text-2xl">
+            Quản lý người dùng
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Cấp phát tài khoản, phân vai trò RBAC, đặt lại mật khẩu và kiểm soát
-            trạng thái truy cập hệ thống.
+          <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
+            Cấp tài khoản theo vai trò, quản lý quyền truy cập và đặt lại mật khẩu.
           </p>
         </div>
-
-        <button
+        <Button
           type="button"
-          onClick={() => setCreateModalOpen(true)}
-          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-xs transition-colors duration-150 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+          size="lg"
+          className={`self-start rounded-xl px-3.5 font-bold shadow-xs sm:self-auto ${userPrimaryButton}`}
+          onClick={() => setCreateOpen(true)}
         >
-          <UserPlus className="size-4" aria-hidden="true" />
-          <span>Tạo tài khoản mới</span>
-        </button>
-      </div>
+          <UserPlus aria-hidden="true" /> Tạo tài khoản mới
+        </Button>
+      </header>
 
-      {/* Feedback Notification */}
-      {feedbackMessage && (
-        <div
-          role="status"
-          className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-xs font-medium text-emerald-800 dark:border-emerald-800/70 dark:bg-emerald-950/50 dark:text-emerald-200"
-        >
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-            <span>{feedbackMessage}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setFeedbackMessage(null)}
-            aria-label="Đóng thông báo"
-            className="rounded p-1 text-emerald-700 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 dark:text-emerald-300 dark:hover:bg-emerald-900/60"
-          >
-            <X className="size-3.5" />
-          </button>
-        </div>
-      )}
-
-      {/* 4 Stats Cards */}
       <UserStatsOverview
-        stats={statsSummary}
-        activeRoleFilter={roleFilter}
-        activeStatusFilter={statusFilter}
-        onQuickFilter={(filter) => {
-          if (filter.role !== undefined) setRoleFilter(filter.role);
-          if (filter.status !== undefined) setStatusFilter(filter.status);
-          setCurrentPage(1);
-        }}
+        users={usersQuery.isError ? undefined : usersQuery.data}
+        role={role}
+        status={status}
+        onQuickFilter={applyQuickFilter}
       />
 
-      {/* Filter Bar */}
-      <UserFilters
-        searchQuery={searchQuery}
-        roleFilter={roleFilter}
-        statusFilter={statusFilter}
-        onSearchChange={(value) => {
-          setSearchQuery(value);
-          setCurrentPage(1);
-        }}
-        onRoleChange={(value) => {
-          setRoleFilter(value);
-          setCurrentPage(1);
-        }}
-        onStatusChange={(value) => {
-          setStatusFilter(value);
-          setCurrentPage(1);
-        }}
-        onResetFilters={handleResetFilters}
-        totalCount={users.length}
-        filteredCount={filteredUsers.length}
-      />
+      <section className="min-w-0 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs sm:p-5">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-[#0F2744] sm:text-base">
+            <Users className="size-4 text-[#164E9B]" aria-hidden="true" /> Danh sách tài khoản
+          </h2>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={usersQuery.isFetching}
+            onClick={() => void usersQuery.refetch()}
+            className="text-[#164E9B]"
+          >
+            <RefreshCw aria-hidden="true" className={usersQuery.isFetching ? "animate-spin" : undefined} />
+            {usersQuery.isError ? "Thử lại" : "Làm mới"}
+          </Button>
+        </div>
 
-      {/* Users Table */}
-      <UserTable
-        users={paginatedUsers}
-        currentUserId={currentUserId}
-        onToggleStatus={(target) => setStatusTargetUser(target)}
-        onResetPassword={(target) => setResetTargetUser(target)}
-        onViewDetail={(target) => setDetailUser(target)}
-        onResetFilters={handleResetFilters}
-        currentPage={safePage}
-        pageSize={pageSize}
-        totalItems={filteredUsers.length}
-        onPageChange={(page) => setCurrentPage(page)}
-        onPageSizeChange={(size) => {
-          setPageSize(size);
-          setCurrentPage(1);
-        }}
-      />
+        <UserFilters
+          search={search}
+          role={role}
+          status={status}
+          onSearchChange={setSearch}
+          onRoleChange={setRole}
+          onStatusChange={setStatus}
+          onReset={() => applyQuickFilter("ALL", "ALL")}
+        />
 
-      {/* Modals & Dialogs */}
-      <CreateUserModal
-        isOpen={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
-        onCreateUsers={handleCreateUsers}
-        onCreateSingle={handleCreateSingle}
-        existingUsernames={users.map((item) => item.username)}
-      />
+        <UserTable
+          users={usersQuery.data ?? EMPTY_USERS}
+          currentUserId={authUser?.id}
+          search={search}
+          role={role}
+          status={status}
+          onSearchChange={setSearch}
+          onViewDetail={setDetailUser}
+          onChangeStatus={setStatusUser}
+          onResetPassword={setResetUser}
+          isLoading={usersQuery.isPending}
+          errorMessage={usersQuery.error?.message}
+        />
+      </section>
 
-      <UserStatusConfirmDialog
-        user={statusTargetUser}
-        isOpen={Boolean(statusTargetUser)}
-        onClose={() => setStatusTargetUser(null)}
-        onConfirm={handleConfirmStatusChange}
-      />
-
-      <ResetPasswordDialog
-        user={resetTargetUser}
-        isOpen={Boolean(resetTargetUser)}
-        onClose={() => setResetTargetUser(null)}
-        onConfirmReset={handleConfirmResetPassword}
-      />
-
-      <UserDetailDialog
-        user={detailUser}
-        isOpen={Boolean(detailUser)}
-        onClose={() => setDetailUser(null)}
-      />
+      {createOpen && <CreateUserModal onClose={() => setCreateOpen(false)} />}
+      {detailUser && <UserDetailDialog key={detailUser.id} user={detailUser} onClose={() => setDetailUser(null)} />}
+      {statusUser && <UserStatusConfirmDialog key={statusUser.id} user={statusUser} onClose={() => setStatusUser(null)} />}
+      {resetUser && <ResetPasswordDialog key={resetUser.id} user={resetUser} onClose={() => setResetUser(null)} />}
     </div>
   );
 }

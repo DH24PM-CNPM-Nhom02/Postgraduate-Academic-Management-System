@@ -6,6 +6,7 @@ import { DocumentService } from "@/src/services/document";
 import type {
   DocumentMetadataResponse,
   DocumentPreviewResult,
+  PublicDocumentType,
   UploadDocumentRequest,
 } from "@/src/types/api/document";
 
@@ -15,6 +16,9 @@ import type {
 export const documentKeys = {
   all: ["documents"] as const,
   list: ["documents", "list"] as const,
+  publicLists: ["documents", "public-list"] as const,
+  publicList: (documentType: PublicDocumentType) =>
+    [...documentKeys.publicLists, documentType] as const,
   detail: (documentId: string) =>
     [...documentKeys.all, "detail", documentId] as const,
 };
@@ -44,7 +48,13 @@ export function useUploadDocument() {
     UploadDocumentRequest
   >({
     mutationFn: (payload) => DocumentService.uploadPdf(payload),
-    onSuccess: () => client.invalidateQueries({ queryKey: documentKeys.list }),
+    onSuccess: async ({ documentType }) => {
+      const refreshList = client.invalidateQueries({ queryKey: documentKeys.list });
+      if (documentType === "QUY_DINH" || documentType === "BIEU_MAU") {
+        await client.invalidateQueries({ queryKey: documentKeys.publicList(documentType) });
+      }
+      await refreshList;
+    },
   });
 }
 
@@ -70,13 +80,23 @@ export function useDocuments() {
   return useQuery({ queryKey: documentKeys.list, queryFn: DocumentService.list });
 }
 
+export function usePublicDocuments(documentType: PublicDocumentType) {
+  return useQuery({
+    queryKey: documentKeys.publicList(documentType),
+    queryFn: ({ signal }) => DocumentService.listPublic(documentType, signal),
+  });
+}
+
 export function useDeleteDocument() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: DocumentService.remove,
     onSuccess: (_, id) => {
       client.removeQueries({ queryKey: documentKeys.detail(id) });
-      return client.invalidateQueries({ queryKey: documentKeys.list });
+      return Promise.all([
+        client.invalidateQueries({ queryKey: documentKeys.list }),
+        client.invalidateQueries({ queryKey: documentKeys.publicLists }),
+      ]);
     },
   });
 }
