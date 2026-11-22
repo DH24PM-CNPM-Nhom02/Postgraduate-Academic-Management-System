@@ -46,19 +46,29 @@ export interface UserStatsSummary {
 }
 
 /**
+ * Payload tạo tài khoản người dùng chuẩn API backend (4 trường bắt buộc)
+ */
+export interface CreateUserAccountPayload {
+  username: string;
+  fullName: string;
+  role: SystemRole;
+  email: string;
+}
+
+/**
  * Dữ liệu form tạo mới tài khoản người dùng (`/users`)
  */
 export interface CreateUserFormValues {
   username: string;
   fullName: string;
   email: string;
-  phone?: string;
   role: SystemRole;
+  phone?: string;
   department?: string;
   academicTitle?: string;
   studentCode?: string;
-  temporaryPassword: string;
-  sendWelcomeEmail: boolean;
+  temporaryPassword?: string;
+  sendWelcomeEmail?: boolean;
 }
 
 export type JournalCategory =
