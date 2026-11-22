@@ -14,7 +14,7 @@ import { type AdminUserViewItem, generateStrongPassword } from "./user-meta";
 import { UserStatsOverview } from "./user-stats";
 import { UserFilters } from "./user-filters";
 import { UserTable } from "./user-table";
-import { type BulkImportUserDraft, CreateUserModal } from "./create-user-modal";
+import { CreateUserModal } from "./create-user-modal";
 import { UserStatusConfirmDialog } from "./user-status-dialog";
 import { ResetPasswordDialog } from "./reset-password-dialog";
 import { UserDetailDialog } from "./user-detail-dialog";
@@ -111,6 +111,41 @@ export function UsersWorkspace() {
     setCurrentPage(1);
   };
 
+  const handleCreateUsers = (
+    newUsersList: Array<{
+      username: string;
+      fullName: string;
+      role: SystemRole;
+      email: string;
+    }>
+  ) => {
+    const createdAt = new Date().toISOString();
+    const createdItems: AdminUserViewItem[] = newUsersList.map((item, idx) => ({
+      id: `usr-${Date.now()}-${idx}`,
+      username: item.username,
+      fullName: item.fullName,
+      email: item.email,
+      role: item.role,
+      status: "ACTIVE",
+      createdAt,
+      lastLoginAt: null,
+      mustChangePassword: true,
+    }));
+
+    setUsers((prev) => [...createdItems, ...prev]);
+    setCreateModalOpen(false);
+    setCurrentPage(1);
+    if (createdItems.length === 1) {
+      setFeedbackMessage(
+        `Đã tạo thành công tài khoản @${createdItems[0].username} (${createdItems[0].fullName}).`
+      );
+    } else {
+      setFeedbackMessage(
+        `Đã tạo thành công ${createdItems.length} tài khoản người dùng mới.`
+      );
+    }
+  };
+
   const handleCreateSingle = (
     values: CreateUserFormValues & { mustChangePassword: boolean }
   ) => {
@@ -138,40 +173,7 @@ export function UsersWorkspace() {
     );
   };
 
-  const handleImportBatch = (
-    drafts: BulkImportUserDraft[],
-    fileName: string
-  ) => {
-    const existingSet = new Set(
-      users.map((item) => item.username.toLowerCase())
-    );
-    const createdAt = new Date().toISOString();
 
-    const newUsers: AdminUserViewItem[] = drafts
-      .filter((draft) => !existingSet.has(draft.username.toLowerCase()))
-      .map((draft, idx) => ({
-        id: `usr-batch-${Date.now()}-${idx}`,
-        username: draft.username,
-        fullName: draft.fullName,
-        email: draft.email,
-        role: "NCS",
-        status: "ACTIVE",
-        department: draft.department,
-        studentCode: draft.studentCode,
-        createdAt,
-        lastLoginAt: null,
-        mustChangePassword: true,
-      }));
-
-    if (newUsers.length > 0) {
-      setUsers((prev) => [...newUsers, ...prev]);
-    }
-    setCreateModalOpen(false);
-    setCurrentPage(1);
-    setFeedbackMessage(
-      `Đã nhập ${newUsers.length} tài khoản tân NCS từ tệp "${fileName}" (bắt buộc đổi mật khẩu lần đầu).`
-    );
-  };
 
   const handleConfirmStatusChange = (
     target: AdminUserViewItem,
@@ -321,8 +323,8 @@ export function UsersWorkspace() {
       <CreateUserModal
         isOpen={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
+        onCreateUsers={handleCreateUsers}
         onCreateSingle={handleCreateSingle}
-        onImportBatch={handleImportBatch}
         existingUsernames={users.map((item) => item.username)}
       />
 

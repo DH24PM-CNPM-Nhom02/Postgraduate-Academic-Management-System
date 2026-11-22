@@ -360,9 +360,6 @@ export function AdminSidebar({
                   <span className="truncate text-[10px] font-semibold text-[#164E9B]">
                     Phân hệ Quản trị Hệ thống
                   </span>
-                  <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-700 tracking-wide">
-                    ADMIN
-                  </span>
                 </div>
               </div>
             )}

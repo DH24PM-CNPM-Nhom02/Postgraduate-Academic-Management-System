@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   Menu,
   Search,
@@ -11,8 +10,6 @@ import {
   Sparkles,
   UserRound,
   KeyRound,
-  ShieldCheck,
-  ChevronRight,
 } from "lucide-react";
 import { useAuth } from "@/src/hooks/use-auth";
 import { useHydrated } from "@/src/hooks/use-hydrated";
@@ -24,43 +21,10 @@ export interface AdminHeaderProps {
   onOpenSearch?: () => void;
 }
 
-const ADMIN_PAGE_TITLES: Record<string, string> = {
-  "/admin": "Quản lý người dùng",
-  "/admin/users": "Quản lý người dùng",
-  "/users": "Quản lý người dùng",
-  "/admin/audit-log": "Nhật ký kiểm toán",
-  "/audit-log": "Nhật ký kiểm toán",
-  "/admin/overview": "Tổng quan đào tạo",
-  "/admin/students": "Quản lý NCS",
-  "/admin/theses": "Quản lý Đề tài Luận án",
-  "/admin/supervisors": "Quản lý GVHD & Hạn ngạch",
-  "/admin/milestone-review": "Hàng chờ duyệt 9 mốc",
-  "/admin/decisions": "Quản lý Quyết định",
-  "/admin/evidence": "Minh chứng học vị & Báo cáo",
-  "/admin/topic-changes": "Duyệt đề nghị điều chỉnh",
-  "/admin/procedures": "Thủ tục & Biểu mẫu học vụ",
-  "/admin/calendar": "Lịch học vụ & Thông báo",
-  "/admin/regulations": "Quy chế & Quy định",
-  "/admin/faq": "Hỏi đáp & Liên hệ",
-};
-
-function getAdminPageTitle(pathname: string | null): string {
-  if (!pathname) return "Quản lý người dùng";
-  if (ADMIN_PAGE_TITLES[pathname]) return ADMIN_PAGE_TITLES[pathname];
-  for (const [route, title] of Object.entries(ADMIN_PAGE_TITLES)) {
-    if (route !== "/admin" && pathname.startsWith(route)) {
-      return title;
-    }
-  }
-  return "Quản lý người dùng";
-}
-
 export function AdminHeader({
   onToggleSidebar,
   onOpenSearch,
 }: AdminHeaderProps) {
-  const pathname = usePathname();
-  const pageTitle = getAdminPageTitle(pathname);
   const { user: sessionUser, logout } = useAuth();
   const hydrated = useHydrated();
   const user = hydrated ? sessionUser : undefined;
@@ -90,41 +54,24 @@ export function AdminHeader({
           <Menu className="size-5" />
         </button>
 
-        {/* Mobile: Chỉ hiện Logo ở Header khi màn hình nhỏ (do Sidebar đã ẩn) */}
-        <div className="flex items-center gap-2 lg:hidden">
+        <div className="flex items-center gap-3">
           <Link
-            href="/"
-            className="flex items-center gap-2 transition-transform active:scale-98"
+            href="/admin"
+            className="flex items-center gap-2.5 transition-transform hover:scale-102"
           >
-            <HoverLogo sizeClass="size-8" />
+            <HoverLogo sizeClass="size-8.5" />
             <div className="flex flex-col">
-              <span className="text-xs font-black tracking-tight text-[#0F2744] uppercase leading-none">
-                AGU SĐH
+              <span className="text-xs sm:text-sm font-black tracking-tight text-[#0F2744] uppercase leading-none">
+                TRƯỜNG ĐẠI HỌC AN GIANG – ĐHQG-HCM
               </span>
-              <span className="text-[10px] font-semibold text-[#164E9B] mt-0.5">
-                Quản trị Hệ thống
-              </span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-[10px] sm:text-[11px] font-semibold text-[#164E9B]">
+                  Cổng Quản lý Đào tạo Sau Đại học • Phân hệ Quản trị Hệ thống
+                </span>
+              </div>
             </div>
           </Link>
         </div>
-
-        {/* Desktop: Sidebar bên trái đã có Logo AGU, Header hiển thị Breadcrumb & Vị trí làm việc để tránh trùng lặp */}
-        <nav aria-label="Điều hướng vị trí" className="hidden lg:flex items-center gap-2 text-xs">
-          <Link
-            href="/admin"
-            className="flex items-center gap-1.5 font-semibold text-slate-500 hover:text-[#164E9B] transition-colors"
-          >
-            <ShieldCheck className="size-4 text-[#164E9B]" />
-            <span>Phân hệ Quản trị</span>
-          </Link>
-          <ChevronRight className="size-3.5 text-slate-400" />
-          <span className="font-bold text-slate-800">
-            {pageTitle}
-          </span>
-          <span className="ml-1 rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold text-[#164E9B] tracking-wide">
-            ADMIN
-          </span>
-        </nav>
       </div>
 
       {/* Right: Quick Search, Actions, Notifications & Profile */}
