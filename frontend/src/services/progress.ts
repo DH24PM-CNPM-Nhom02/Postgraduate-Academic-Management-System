@@ -21,20 +21,13 @@ import type {
   StudentProgressData,
 } from "@/src/types/ui/progress";
 
-/** Định dạng chuỗi ngày YYYY-MM-DD hoặc ISO sang DD/MM/YYYY */
+import { formatDate } from "@/src/lib/utils";
+
+/** Định dạng chuỗi ngày YYYY-MM-DD hoặc ISO sang DD/MM/YYYY chuẩn giờ Việt Nam */
 function formatDateShortVi(dateStr?: string | null): string | undefined {
   if (!dateStr) return undefined;
-  const datePart = dateStr.slice(0, 10);
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart);
-  if (match) {
-    return `${match[3]}/${match[2]}/${match[1]}`;
-  }
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return undefined;
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const year = d.getUTCFullYear();
-  return `${day}/${month}/${year}`;
+  const res = formatDate(dateStr);
+  return res === "--/--/----" ? undefined : res;
 }
 
 /** Tính số tháng còn lại tính đến hạn tối đa (72 tháng) */

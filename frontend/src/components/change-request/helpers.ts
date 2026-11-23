@@ -9,6 +9,7 @@ import {
   XCircle,
   type LucideIcon,
 } from "lucide-react";
+import { formatDate, formatDateTime } from "@/src/lib/utils";
 import type {
   ChangeRequestItem,
   ChangeRequestStatus,
@@ -16,22 +17,11 @@ import type {
 } from "@/src/types/ui/change-request";
 
 export function formatDateVi(iso?: string | null): string {
-  if (!iso) return "--/--/----";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const year = d.getUTCFullYear();
-  return `${day}/${month}/${year}`;
+  return formatDate(iso);
 }
 
 export function formatDateTimeVi(iso?: string | null): string {
-  if (!iso) return "--/--/----";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const hh = String(d.getUTCHours()).padStart(2, "0");
-  const mm = String(d.getUTCMinutes()).padStart(2, "0");
-  return `${hh}:${mm} ${formatDateVi(iso)}`;
+  return formatDateTime(iso, "time-first");
 }
 
 export function formatFileSize(bytes?: number): string | null {
