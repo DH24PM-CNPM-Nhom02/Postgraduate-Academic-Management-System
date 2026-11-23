@@ -1,5 +1,7 @@
 "use client";
 
+import { useBodyScrollLock } from "@/src/hooks/use-body-scroll-lock";
+
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -22,7 +24,11 @@ import {
 import { ConfirmDialog } from "@/src/components/shared/ConfirmDialog";
 import { DocumentViewButton } from "@/src/components/student/progress/document-view-button";
 import { toast } from "sonner";
-import { TablePagination } from "@/src/components/ui/table-pagination";
+import { Button } from "@/src/components/ui/button";
+import { Input } from "@/src/components/ui/input";
+import { SupervisorSelect } from "./supervisor-select";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ManagementDataTable, useManagementDataTable } from "@/src/components/ui/management-data-table";
 import type {
   SupervisorProxyRequestFormValues,
   SupervisorProxyRequestItem,
@@ -61,19 +67,25 @@ function ProxyRequestDetailDrawerInner({
   const typeMeta = PROXY_REQUEST_TYPE_META[item.loaiDon];
   const statusMeta = getSupervisorRequestStatusMeta(item.trangThai);
 
+  useBodyScrollLock();
+
   useEffect(() => {
     previousFocusRef.current =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
     const timer = window.setTimeout(() => {
       closeBtnRef.current?.focus();
     }, 0);
 
+    return () => {
+      window.clearTimeout(timer);
+      previousFocusRef.current?.focus();
+    };
+  }, []);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !isSubDialogOpen && !isPreviewOpen) {
         event.preventDefault();
@@ -82,12 +94,7 @@ function ProxyRequestDetailDrawerInner({
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      previousFocusRef.current?.focus();
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isPreviewOpen, isSubDialogOpen, onClose]);
 
   return (
@@ -301,8 +308,9 @@ export function SupervisorRequestsWorkspace({
   const [withdrawTarget, setWithdrawTarget] =
     useState<SupervisorProxyRequestItem | null>(null);
   const [feedbackBanner, setFeedbackBanner] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const PAGE_SIZE = 8;
+  const eligibleStudents = useMemo(() => students.filter(
+    (student) => student.trangThaiHocTap !== "TOT_NGHIEP" && student.trangThaiHocTap !== "TAM_DUNG",
+  ), [students]);
 
   const selectedRequest = useMemo(
     () => requests.find((item) => item.id === selectedRequestId) ?? null,
@@ -342,10 +350,114 @@ export function SupervisorRequestsWorkspace({
     });
   }, [requests, searchQuery, typeFilter]);
 
-  const paginatedRequests = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredRequests.slice(start, start + PAGE_SIZE);
-  }, [filteredRequests, currentPage]);
+  const columns = useMemo<ColumnDef<SupervisorProxyRequestItem>[]>(() => [
+    {
+      id: "request",
+      header: "Mã đơn / Ngày gửi",
+      cell: ({ row: { original: item } }) => {
+        return (
+          <>
+            <span className="font-bold tabular-nums text-[#164E9B]">
+              {item.maDon}
+            </span>
+            <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+              {formatSupervisorDateUtc(item.ngayGui)}
+            </p>
+          </>
+        );
+      },
+    },
+    {
+      id: "student",
+      header: "Nghiên cứu sinh",
+      cell: ({ row: { original: item } }) => {
+        return (
+          <>
+            <p className="font-semibold text-[#0F2744]">{item.hoTenNcs}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {item.mshv}{item.vaiTroCuaToi && ` · ${getRoleShortLabel(item.vaiTroCuaToi)}`}
+            </p>
+          </>
+        );
+      },
+    },
+    {
+      id: "type",
+      header: "Loại đề xuất",
+      cell: ({ row: { original: item } }) => {
+        const typeMeta = PROXY_REQUEST_TYPE_META[item.loaiDon];
+        return (
+          <>
+            <span
+              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${typeMeta.badgeClass}`}
+            >
+              {typeMeta.label}
+            </span>
+          </>
+        );
+      },
+    },
+    {
+      id: "description",
+      header: "Nội dung đề xuất chính",
+      cell: ({ row: { original: item } }) => {
+        return (
+          item.loaiDon === "DOI_DE_TAI" ? (
+            <p className="line-clamp-2">
+              <strong className="text-[#0F2744]">Đề tài mới:</strong>{" "}
+              {item.tenDeTaiMoi}
+            </p>
+          ) : (
+            <p className="line-clamp-2">
+              <strong className="text-[#0F2744]">Đề xuất GVHD mới:</strong>{" "}
+              {item.tenGvhdMoi} (thay {item.tenGvhdCu || "chưa phân công"})
+            </p>
+          )
+        );
+      },
+    },
+    {
+      id: "status",
+      header: "Trạng thái",
+      cell: ({ row: { original: item } }) => {
+        const statusMeta = getSupervisorRequestStatusMeta(item.trangThai);
+        return (
+          <>
+            <span
+              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${statusMeta.badgeClass}`}
+            >
+              {statusMeta.label}
+            </span>
+          </>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "Thao tác",
+      cell: ({ row: { original: item } }) => {
+        return (
+          <>
+            <div className="inline-flex items-center justify-end gap-2">
+              <Button variant="outline" size="sm"
+                type="button"
+                onClick={() => setSelectedRequestId(item.id)}
+              >
+                <Eye className="size-3.5 text-[#164E9B]" aria-hidden="true" />
+                <span>Xem chi tiết</span>
+              </Button>
+            </div>
+          </>
+        );
+      },
+    },
+  ], []);
+
+  const table = useManagementDataTable({
+    data: filteredRequests,
+    columns,
+    getRowId: (item) => item.id,
+  });
 
   const handleCreateSubmit = async (values: SupervisorProxyRequestFormValues) => {
     setIsCreating(true);
@@ -378,7 +490,7 @@ export function SupervisorRequestsWorkspace({
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#0F2744]">
-            Đề xuất thay đổi thay Nghiên cứu sinh
+            Đề xuất thay Nghiên cứu sinh
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Khởi tạo và theo dõi các đơn đề xuất đổi tên đề tài luận án hoặc thay đổi Giảng viên hướng dẫn thay cho NCS đang phụ trách.
@@ -397,7 +509,7 @@ export function SupervisorRequestsWorkspace({
           <button
             type="button"
             onClick={() => setShowCreateForm((prev) => !prev)}
-            disabled={isCreating || (!showCreateForm && (isLoading || students.length === 0))}
+            disabled={isCreating || (!showCreateForm && (isLoading || eligibleStudents.length === 0))}
             className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#164E9B] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0F2744] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] focus-visible:ring-offset-2 motion-reduce:transition-none"
           >
             <FilePlus2 className="size-4" aria-hidden="true" />
@@ -463,7 +575,7 @@ export function SupervisorRequestsWorkspace({
 
       {showCreateForm && (
         <SupervisorRequestForm
-          students={students}
+          students={eligibleStudents}
           isSubmitting={isCreating}
           onSubmit={handleCreateSubmit}
           onCancel={() => setShowCreateForm(false)}
@@ -534,34 +646,17 @@ export function SupervisorRequestsWorkspace({
         className="overflow-hidden rounded-xl border border-border bg-card"
       >
         <div className="flex flex-col gap-3 border-b border-border p-5 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Lọc loại đề xuất">
-            {(
-              [
-                { id: "ALL", label: "Tất cả đơn" },
-                { id: "DOI_DE_TAI", label: "Đổi đề tài" },
-                { id: "DOI_GVHD", label: "Đổi GVHD" },
-              ] as const
-            ).map((opt) => {
-              const active = typeFilter === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => {
-                    setTypeFilter(opt.id);
-                    setCurrentPage(1);
-                  }}
-                  className={`inline-flex min-h-10 items-center rounded-lg border px-3.5 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none ${
-                    active
-                      ? "border-[#164E9B] bg-[#164E9B] text-white"
-                      : "border-border bg-background text-[#0F2744] hover:bg-muted"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
+          <div className="w-full md:w-56">
+            <SupervisorSelect
+              label="Lọc loại đề xuất"
+              value={typeFilter}
+              onValueChange={setTypeFilter}
+              options={[
+                { value: "ALL", label: "Tất cả đơn" },
+                { value: "DOI_DE_TAI", label: "Đổi đề tài" },
+                { value: "DOI_GVHD", label: "Đổi GVHD" },
+              ]}
+            />
           </div>
 
           <div className="relative w-full md:w-72">
@@ -569,13 +664,12 @@ export function SupervisorRequestsWorkspace({
               className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
               aria-hidden="true"
             />
-            <input
+            <Input
               type="search"
               aria-label="Tìm theo mã đơn, tên NCS hoặc đề tài"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
-                setCurrentPage(1);
               }}
               placeholder="Tìm mã đơn, tên NCS, nội dung..."
               className="h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
@@ -599,103 +693,20 @@ export function SupervisorRequestsWorkspace({
               {requests.length ? "Không có đơn đề xuất phù hợp với bộ lọc" : "Chưa có đơn đề xuất thay NCS"}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {students.length ? "Bạn có thể lập đề xuất đổi đề tài hoặc đổi GVHD cho NCS đang hướng dẫn." : "Chưa có NCS được phân công để lập đề xuất."}
+              {eligibleStudents.length ? "Bạn có thể lập đề xuất đổi đề tài hoặc đổi GVHD cho NCS đang hướng dẫn." : "Chưa có NCS đang học hoặc đang gia hạn để lập đề xuất."}
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[840px] border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground">
-                  <th className="px-5 py-3">Mã đơn / Ngày gửi</th>
-                  <th className="px-5 py-3">Nghiên cứu sinh</th>
-                  <th className="px-5 py-3">Loại đề xuất</th>
-                  <th className="px-5 py-3">Nội dung đề xuất chính</th>
-                  <th className="px-5 py-3">Trạng thái</th>
-                  <th className="px-5 py-3 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {paginatedRequests.map((item) => {
-                  const typeMeta = PROXY_REQUEST_TYPE_META[item.loaiDon];
-                  const statusMeta = getSupervisorRequestStatusMeta(item.trangThai);
-                  return (
-                    <tr key={item.id} className="hover:bg-muted/25">
-                      <td className="whitespace-nowrap px-5 py-4 align-top">
-                        <span className="font-bold tabular-nums text-[#164E9B]">
-                          {item.maDon}
-                        </span>
-                        <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-                          {formatSupervisorDateUtc(item.ngayGui)}
-                        </p>
-                      </td>
-
-                      <td className="px-5 py-4 align-top">
-                        <p className="font-semibold text-[#0F2744]">{item.hoTenNcs}</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {item.mshv}{item.vaiTroCuaToi && ` · ${getRoleShortLabel(item.vaiTroCuaToi)}`}
-                        </p>
-                      </td>
-
-                      <td className="whitespace-nowrap px-5 py-4 align-top">
-                        <span
-                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${typeMeta.badgeClass}`}
-                        >
-                          {typeMeta.label}
-                        </span>
-                      </td>
-
-                      <td className="max-w-sm px-5 py-4 align-top text-xs leading-relaxed text-foreground">
-                        {item.loaiDon === "DOI_DE_TAI" ? (
-                          <p className="line-clamp-2">
-                            <strong className="text-[#0F2744]">Đề tài mới:</strong>{" "}
-                            {item.tenDeTaiMoi}
-                          </p>
-                        ) : (
-                          <p className="line-clamp-2">
-                            <strong className="text-[#0F2744]">Đề xuất GVHD mới:</strong>{" "}
-                            {item.tenGvhdMoi} (thay {item.tenGvhdCu || "chưa phân công"})
-                          </p>
-                        )}
-                      </td>
-
-                      <td className="whitespace-nowrap px-5 py-4 align-top">
-                        <span
-                          className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${statusMeta.badgeClass}`}
-                        >
-                          {statusMeta.label}
-                        </span>
-                      </td>
-
-                      <td className="whitespace-nowrap px-5 py-4 align-top text-right">
-                        <div className="inline-flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedRequestId(item.id)}
-                            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border bg-background px-3.5 py-2 text-xs font-semibold text-[#0F2744] transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none"
-                          >
-                            <Eye className="size-3.5 text-[#164E9B]" aria-hidden="true" />
-                            <span>Xem chi tiết</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="space-y-3 p-4">
+            <ManagementDataTable
+              table={table}
+              minWidth="min-w-[840px]"
+              itemLabel="đơn đề xuất"
+              cellStyles={{ description: "max-w-64 whitespace-normal px-3 py-3.5" }}
+              emptyState="Chưa có đơn đề xuất"
+            />
           </div>
         )}
-
-        <div className="border-t border-border px-5 py-3">
-          <TablePagination
-            currentPage={currentPage}
-            totalItems={filteredRequests.length}
-            pageSize={PAGE_SIZE}
-            onPageChange={setCurrentPage}
-            itemLabel="đơn đề xuất"
-          />
-        </div>
       </section>
 
       {selectedRequest && (

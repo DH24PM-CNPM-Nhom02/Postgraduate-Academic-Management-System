@@ -6,5 +6,5 @@ export const metadata = {
 };
 
 export default function SupervisorRegulationsPage() {
-  return <RegulationsView backHref="/supervisor/dashboard" backLabel="Bàn làm việc GVHD" />;
+  return <RegulationsView backHref="/supervisor/dashboard" backLabel="Bàn làm việc GVHD" view="table" />;
 }

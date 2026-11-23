@@ -292,6 +292,20 @@ export class DocumentServiceService {
       return;
     }
 
+    // Phiếu do Giáo vụ tải lên có thể không có ncsId trong metadata.
+    if (nguoiDung.isGvhd && taiLieu.documentType === 'PHIEU_NHAN_XET') {
+      let coQuyen: boolean;
+      try {
+        coQuyen = await firstValueFrom(this.phdClient.send<boolean>(
+          { cmd: 'phd.document.is-supervised-review' },
+          { documentId: taiLieu.id, userId: nguoiDung.id },
+        ).pipe(timeout(5000)));
+      } catch {
+        throw new RpcException({ statusCode: 503, message: 'Chưa kiểm tra được quyền xem phiếu nhận xét. Vui lòng thử lại.' });
+      }
+      if (coQuyen === true) return;
+    }
+
     // Quyết định có thể được tải lên trước khi gắn với đề tài, phân công hoặc đơn của NCS.
     if (nguoiDung.ncsId && taiLieu.documentType === 'QUYET_DINH') {
       let coQuyen: boolean;

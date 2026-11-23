@@ -56,24 +56,14 @@ export function SupervisorDashboardContainer({
       : undefined
   );
 
-  const isDataLoading =
-    (!propProfile && !liveProfile && isProfileLoading) ||
-    (!propStudents && !liveStudents && isStudentsLoading);
-
-  const isLoading = propIsLoading || isDataLoading;
-
-  const dataError =
-    !propStudents && isStudentsError
-      ? studentsError instanceof Error
-        ? studentsError.message
-        : "Không thể kết nối máy chủ để tải danh sách NCS."
-      : !propProfile && isProfileError
-      ? profileError instanceof Error
-        ? profileError.message
-        : "Không thể kết nối máy chủ để tải thông tin hồ sơ GVHD."
-      : null;
-
-  const error = propError || dataError;
+  const isRosterLoading = propIsLoading || (!propStudents && !liveStudents && isStudentsLoading);
+  const isLoading = isRosterLoading || (!propProfile && !liveProfile && isProfileLoading);
+  const rosterError = propError || (!propStudents && isStudentsError
+    ? studentsError?.message ?? "Không thể tải danh sách NCS."
+    : null);
+  const profileLoadError = !propProfile && isProfileError
+    ? profileError?.message ?? "Không thể tải hồ sơ GVHD."
+    : null;
 
   const onRetry =
     propOnRetry ||
@@ -107,7 +97,7 @@ export function SupervisorDashboardContainer({
             Bàn làm việc Giảng viên hướng dẫn
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Theo dõi tổng quan tiến độ 9 mốc đào tạo của Nghiên cứu sinh và giám sát định mức hướng dẫn theo Quy chế BR-09.
+            Theo dõi tổng quan tiến độ 9 mốc đào tạo của Nghiên cứu sinh và giám sát định mức hướng dẫn theo quy chế đào tạo.
           </p>
         </div>
 
@@ -130,7 +120,7 @@ export function SupervisorDashboardContainer({
         </div>
       </header>
 
-      {error && !isLoading && (
+      {profileLoadError && !isLoading && !rosterError && (
         <div
           role="alert"
           className="flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-rose-900 sm:flex-row sm:items-center sm:justify-between"
@@ -138,8 +128,8 @@ export function SupervisorDashboardContainer({
           <div className="flex items-start gap-3">
             <AlertCircle className="mt-0.5 size-5 shrink-0 text-rose-600" aria-hidden="true" />
             <div className="text-sm">
-              <p className="font-semibold">Không thể đồng bộ dữ liệu bàn làm việc GVHD</p>
-              <p className="mt-0.5 text-rose-800">{error}</p>
+              <p className="font-semibold">Không thể tải hồ sơ GVHD</p>
+              <p className="mt-0.5 text-rose-800">{profileLoadError}</p>
             </div>
           </div>
           {onRetry && (
@@ -155,22 +145,21 @@ export function SupervisorDashboardContainer({
         </div>
       )}
 
-      {profile && quota && !error && (
-      <SupervisorStatsBanner
-        profile={profile}
-        quota={quota}
-        students={students}
-        isLoading={isLoading}
-      />
-
+      {profile && quota && !rosterError && (
+        <SupervisorStatsBanner
+          profile={profile}
+          quota={quota}
+          students={students}
+          isLoading={isLoading}
+        />
       )}
 
       <StudentListTable
         students={students}
         selectedStudentId={selectedStudent?.id ?? null}
         onSelectStudent={handleSelectStudent}
-        isLoading={isLoading}
-        error={error}
+        isLoading={isRosterLoading}
+        error={rosterError}
         onRetry={onRetry}
       />
 

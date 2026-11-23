@@ -31,6 +31,31 @@ export class PhdServiceController {
     return decision !== null;
   }
 
+  @MessagePattern({ cmd: 'phd.document.is-supervised-review' })
+  async isSupervisedReview(
+    @Payload() { documentId, userId }: { documentId: string; userId: string },
+  ) {
+    if (!documentId || !userId) return false;
+
+    const review = await this.prisma.phieuNhanXet.findFirst({
+      where: {
+        fileId: documentId,
+        deletedAt: null,
+        minhChung: {
+          tienTrinh: {
+            ncs: {
+              phanCongs: {
+                some: { gvhd: { userId }, trangThai: 'DANG_HIEU_LUC' },
+              },
+            },
+          },
+        },
+      },
+      select: { id: true },
+    });
+    return review !== null;
+  }
+
   @MessagePattern({ cmd: 'phd.document.prepare-delete' })
   async prepareDocumentDeletion(
     @Payload() d: { documentId: string; documentType: DocumentTypeValue },

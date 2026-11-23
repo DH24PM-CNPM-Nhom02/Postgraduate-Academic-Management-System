@@ -20,6 +20,8 @@ export interface ManagementDataTableProps<TData> {
   itemLabel?: string;
   minWidth?: string;
   pageSizeOptions?: number[];
+  onRowClick?: (row: TData) => void;
+  renderRowDetails?: (row: TData) => ReactNode;
 }
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [8, 16, 32, 64];
@@ -33,6 +35,8 @@ export function ManagementDataTable<TData>({
   itemLabel = "mục",
   minWidth = "min-w-[980px]",
   pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
+  onRowClick,
+  renderRowDetails,
 }: ManagementDataTableProps<TData>) {
   const rows = table.getRowModel().rows;
 
@@ -52,19 +56,31 @@ export function ManagementDataTable<TData>({
             ))}
           </TableHeader>
           <TableBody className="divide-y divide-slate-100 bg-white">
-            {rows.length ? rows.map((row) => (
-              <TableRow
-                key={row.id}
-                data-state={row.getIsSelected() && "selected"}
-                className="hover:bg-blue-50/40 transition-colors border-b border-slate-100"
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className={cellStyles[cell.column.id] ?? "py-3.5 px-3"}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            )) : (
+            {rows.length ? rows.map((row) => {
+              const details = renderRowDetails?.(row.original);
+              return (
+                <React.Fragment key={row.id}>
+                  <TableRow
+                    data-state={row.getIsSelected() && "selected"}
+                    onClick={onRowClick && (() => onRowClick(row.original))}
+                    className={`border-b border-slate-100 transition-colors hover:bg-blue-50/40 ${onRowClick ? "cursor-pointer" : ""}`}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className={cellStyles[cell.column.id] ?? "py-3.5 px-3"}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {details && (
+                    <TableRow className="bg-slate-50">
+                      <TableCell colSpan={row.getVisibleCells().length} className="whitespace-normal px-3 py-3.5">
+                        {details}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
+              );
+            }) : (
               <TableRow>
                 <TableCell colSpan={table.getAllLeafColumns().length} className="py-12 text-center text-slate-400">
                   {emptyState}

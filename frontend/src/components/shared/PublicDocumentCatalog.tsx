@@ -12,6 +12,7 @@ import { PublicDocumentList } from "./PublicDocumentList";
 export interface DocumentCatalogNavigation {
   backHref?: string;
   backLabel?: string;
+  view?: "list" | "table";
 }
 
 type PublicDocumentCatalogProps = DocumentCatalogNavigation & {
@@ -28,6 +29,7 @@ export function PublicDocumentCatalog({
   description,
   documentType,
   emptyMessage,
+  view = "list",
 }: PublicDocumentCatalogProps) {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6">
@@ -43,13 +45,13 @@ export function PublicDocumentCatalog({
       </header>
 
       <Suspense fallback={<p role="status" className="text-sm text-slate-600">Đang tải danh sách tài liệu…</p>}>
-        <CatalogSearch documentType={documentType} emptyMessage={emptyMessage} />
+        <CatalogSearch documentType={documentType} emptyMessage={emptyMessage} view={view} />
       </Suspense>
     </div>
   );
 }
 
-type CatalogSearchProps = Pick<PublicDocumentCatalogProps, "documentType" | "emptyMessage">;
+type CatalogSearchProps = Pick<PublicDocumentCatalogProps, "documentType" | "emptyMessage" | "view">;
 
 function CatalogSearch(props: CatalogSearchProps) {
   const initialSearch = useSearchParams().get("search") ?? "";
@@ -64,6 +66,7 @@ function CatalogResults({
   documentType,
   emptyMessage,
   initialSearch,
+  view,
 }: CatalogSearchProps & { initialSearch: string }) {
   const [search, setSearch] = useState(initialSearch);
   const { data = [], isPending, isError, refetch } = usePublicDocuments(documentType);
@@ -91,6 +94,7 @@ function CatalogResults({
         )}
       </div>
       <PublicDocumentList
+        view={view}
         documents={documents}
         isPending={isPending}
         isError={isError}

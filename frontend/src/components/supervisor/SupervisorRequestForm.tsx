@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useId, useMemo, useState } from "react";
+import { z } from "zod";
+import { MAX_PDF_SIZE_BYTES } from "@/src/types/api/document";
+import { SupervisorSelect } from "./supervisor-select";
 import {
   AlertCircle,
   BookOpen,
@@ -22,6 +25,36 @@ import type {
   SupervisorRole,
 } from "@/src/types/ui/supervisor";
 
+const requestFields = {
+  studentId: z.uuid("Vui lòng chọn Nghiên cứu sinh cần lập đơn."),
+  lyDo: z.string().trim().min(15, "Lý do chuyên môn phải có ít nhất 15 ký tự."),
+  batKhaKhang: z.boolean(),
+  tepDinhKemFile: z.custom<File>((file) => file instanceof File, "Tệp đính kèm không hợp lệ.")
+    .refine((file) => /\.pdf$/i.test(file.name) && (!file.type || file.type === "application/pdf"), "Chỉ nhận tệp định dạng PDF.")
+    .refine((file) => file.size > 0 && file.size <= MAX_PDF_SIZE_BYTES, "Tệp PDF phải có dung lượng lớn hơn 0 và tối đa 15 MB.")
+    .nullable(),
+};
+
+const supervisorRequestSchema = z.discriminatedUnion("loaiDon", [
+  z.object({
+    ...requestFields,
+    loaiDon: z.literal("DOI_DE_TAI"),
+    tenDeTaiMoi: z.string().trim()
+      .min(15, "Tên đề tài mới phải có ít nhất 15 ký tự.")
+      .max(500, "Tên đề tài mới không được vượt quá 500 ký tự."),
+  }),
+  z.object({
+    ...requestFields,
+    loaiDon: z.literal("DOI_GVHD"),
+    phanCongCuId: z.uuid("Chưa có phân công hướng dẫn hiệu lực cho vai trò đã chọn."),
+    gvhdMoiId: z.uuid("Vui lòng chọn Giảng viên hướng dẫn mới được đề xuất."),
+  }),
+]);
+
+type FieldErrors = Partial<Record<keyof SupervisorProxyRequestFormValues, string>>;
+
+const normalizeTitle = (title: string) => title.trim().replace(/\s+/g, " ").toLowerCase();
+
 export interface SupervisorRequestFormProps {
   students: SupervisedStudent[];
   initialStudentId?: string;
@@ -40,6 +73,7 @@ export function SupervisorRequestForm({
   onCancel,
 }: SupervisorRequestFormProps) {
   const formId = useId();
+  const [openedAt] = useState(Date.now);
   const [studentId, setStudentId] = useState<string>(
     () => initialStudentId || students[0]?.id || ""
   );
@@ -53,7 +87,13 @@ export function SupervisorRequestForm({
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [confirmedValues, setConfirmedValues] = useState<SupervisorProxyRequestFormValues | null>(null);
+
+  const renderFieldError = (field: keyof FieldErrors) =>
+    fieldErrors[field] && <p role="alert" className="mt-1 text-xs text-destructive">{fieldErrors[field]}</p>;
+  const clearFieldError = (field: keyof FieldErrors) =>
+    setFieldErrors((errors) => ({ ...errors, [field]: undefined }));
 
   const selectedStudent = useMemo(
     () => students.find((st) => st.id === studentId) ?? null,
@@ -76,81 +116,71 @@ export function SupervisorRequestForm({
   const requiresForceMajeure = useMemo(() => {
     if (!selectedStudent) return false;
     if (loaiDon === "DOI_DE_TAI") {
-      return selectedStudent.mocHienTai >= 8;
+      const moc8 = selectedStudent.milestones.find((milestone) => milestone.thuTu === 8);
+      return Boolean(moc8 && moc8.trangThai !== "LOCKED" && moc8.trangThai !== "UNLOCKED");
     }
-    return (
-      !selectedStudent.daHetHan &&
-      selectedStudent.soThangConLai !== null &&
-      selectedStudent.soThangConLai < 12
-    );
-  }, [loaiDon, selectedStudent]);
+    const trainingEnd = detail.data?.hanGiaHan ?? detail.data?.hanChinhQuy;
+    if (!trainingEnd) return false;
+    const deadline = new Date(trainingEnd);
+    const day = deadline.getUTCDate();
+    deadline.setUTCFullYear(deadline.getUTCFullYear() - 1);
+    if (deadline.getUTCDate() !== day) deadline.setUTCDate(0);
+    return openedAt > deadline.getTime();
+  }, [loaiDon, selectedStudent, detail.data, openedAt]);
 
   const handleValidateAndAskConfirm = (event: React.FormEvent) => {
     event.preventDefault();
     setFormError(null);
-
-    if (!selectedStudent) {
-      setFormError("Vui lòng chọn Nghiên cứu sinh cần lập đơn đề xuất.");
-      return;
-    }
-
-    if (loaiDon === "DOI_DE_TAI") {
-      const trimmedTitle = tenDeTaiMoi.trim();
-      if (trimmedTitle.length < 15) {
-        setFormError("Vui lòng nhập tên đề tài mới tối thiểu 15 ký tự.");
-        return;
+    const result = supervisorRequestSchema.superRefine((values, ctx) => {
+      if (
+        values.loaiDon === "DOI_DE_TAI" &&
+        selectedStudent &&
+        normalizeTitle(values.tenDeTaiMoi) === normalizeTitle(selectedStudent.tenDeTai)
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["tenDeTaiMoi"],
+          message: "Tên đề tài mới đang trùng với tên đề tài hiện tại của NCS.",
+        });
       }
-      if (trimmedTitle.length > 500) {
-        setFormError("Tên đề tài mới không được vượt quá 500 ký tự.");
-        return;
+      if (requiresForceMajeure && !values.batKhaKhang) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["batKhaKhang"],
+          message: "Vui lòng xác nhận điều kiện bất khả kháng và nêu rõ lý do.",
+        });
       }
-      if (trimmedTitle.toLowerCase() === selectedStudent.tenDeTai.trim().toLowerCase()) {
-        setFormError("Tên đề tài mới đang trùng với tên đề tài hiện tại của NCS.");
-        return;
+    }).safeParse({
+      studentId: selectedStudent?.id ?? "",
+      loaiDon,
+      lyDo,
+      batKhaKhang: requiresForceMajeure && batKhaKhang,
+      tenDeTaiMoi,
+      phanCongCuId: assignmentToReplace?.id ?? "",
+      gvhdMoiId: selectedCandidate?.giangVienId ?? "",
+      tepDinhKemFile: selectedFile,
+    });
+
+    if (!result.success) {
+      const errors: FieldErrors = {};
+      for (const issue of result.error.issues) {
+        const field = issue.path[0] as keyof FieldErrors;
+        errors[field] ??= issue.message;
       }
-    }
-
-    if (isSupervisorChange && !assignmentToReplace) {
-      setFormError("Chưa có phân công hướng dẫn hiệu lực cho vai trò đã chọn.");
+      setFieldErrors(errors);
       return;
     }
-
-    if (isSupervisorChange && !selectedCandidate) {
-      setFormError("Vui lòng chọn Giảng viên hướng dẫn mới được đề xuất.");
-      return;
-    }
-
-    if (lyDo.trim().length < 15) {
-      setFormError("Vui lòng nhập lý do & cơ sở chuyên môn tối thiểu 15 ký tự.");
-      return;
-    }
-
-    if (requiresForceMajeure && !batKhaKhang) {
-      setFormError(
-        "Trường hợp này yêu cầu tick xác nhận điều kiện bất khả kháng theo Quy chế đào tạo tiến sĩ."
-      );
-      return;
-    }
-
-    setConfirmOpen(true);
+    setFieldErrors({});
+    setConfirmedValues(result.data);
   };
 
   const handleConfirmSubmit = async () => {
-    if (!selectedStudent) return;
+    if (!confirmedValues || isSubmitting) return;
     try {
-      await onSubmit({
-        studentId: selectedStudent.id,
-        loaiDon,
-        lyDo: lyDo.trim(),
-        batKhaKhang,
-        tenDeTaiMoi: loaiDon === "DOI_DE_TAI" ? tenDeTaiMoi.trim() : undefined,
-        phanCongCuId: isSupervisorChange ? assignmentToReplace?.id : undefined,
-        gvhdMoiId: isSupervisorChange ? selectedCandidate?.giangVienId : undefined,
-        tepDinhKemFile: selectedFile,
-      });
-      setConfirmOpen(false);
+      await onSubmit(confirmedValues);
+      setConfirmedValues(null);
     } catch (error) {
-      setConfirmOpen(false);
+      setConfirmedValues(null);
       setFormError(error instanceof Error ? error.message : "Không thể gửi đơn đề xuất.");
     }
   };
@@ -199,26 +229,25 @@ export function SupervisorRequestForm({
                 Nghiên cứu sinh áp dụng <span className="text-rose-600">*</span>
               </span>
             </label>
-            <select
+            <SupervisorSelect
               id={`${formId}-student`}
-              value={studentId}
-              onChange={(e) => {
-                setStudentId(e.target.value);
+              value={selectedStudent?.id ?? null}
+              placeholder={students.length ? "Chọn Nghiên cứu sinh" : "Không có NCS trong danh sách"}
+              disabled={!students.length}
+              invalid={Boolean(fieldErrors.studentId)}
+              options={students.map((student) => ({
+                value: student.id,
+                label: `${student.hoTen} (${student.mshv})`,
+              }))}
+              onValueChange={(id) => {
+                setStudentId(id);
                 setGvhdMoiId("");
+                setBatKhaKhang(false);
                 setFormError(null);
+                setFieldErrors({});
               }}
-              className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
-            >
-              {students.length === 0 ? (
-                <option value="">Không có NCS nào trong danh sách</option>
-              ) : (
-                students.map((st) => (
-                  <option key={st.id} value={st.id}>
-                    {st.hoTen} ({st.mshv}){st.tongSoMoc > 0 && ` · Mốc ${st.mocHienTai}/${st.tongSoMoc}`}
-                  </option>
-                ))
-              )}
-            </select>
+            />
+            {renderFieldError("studentId")}
             <p className="mt-1 text-xs text-muted-foreground">
               Chỉ hiển thị các Nghiên cứu sinh thuộc danh sách bạn đang hướng dẫn.
             </p>
@@ -238,6 +267,7 @@ export function SupervisorRequestForm({
                 aria-pressed={loaiDon === "DOI_DE_TAI"}
                 onClick={() => {
                   setLoaiDon("DOI_DE_TAI");
+                  setFieldErrors({});
                   setBatKhaKhang(false);
                   setFormError(null);
                 }}
@@ -256,6 +286,7 @@ export function SupervisorRequestForm({
                 aria-pressed={loaiDon === "DOI_GVHD"}
                 onClick={() => {
                   setLoaiDon("DOI_GVHD");
+                  setFieldErrors({});
                   setBatKhaKhang(false);
                   setFormError(null);
                 }}
@@ -312,7 +343,7 @@ export function SupervisorRequestForm({
 
         {loaiDon === "DOI_DE_TAI" && selectedStudent && (
           <div className="space-y-4">
-            {selectedStudent.mocHienTai >= 8 && (
+            {requiresForceMajeure && (
               <DeadlineWarningBanner
                 severity="warning"
                 alwaysShow
@@ -337,35 +368,30 @@ export function SupervisorRequestForm({
                 id={`${formId}-new-title`}
                 rows={3}
                 maxLength={500}
+                aria-invalid={Boolean(fieldErrors.tenDeTaiMoi)}
                 value={tenDeTaiMoi}
                 onChange={(e) => {
                   setTenDeTaiMoi(e.target.value);
+                  clearFieldError("tenDeTaiMoi");
                   if (formError) setFormError(null);
                 }}
                 placeholder="Nhập đầy đủ tên đề tài luận án đề xuất điều chỉnh..."
                 className="w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
               />
+              {renderFieldError("tenDeTaiMoi")}
             </div>
           </div>
         )}
 
         {loaiDon === "DOI_GVHD" && selectedStudent && (
           <div className="space-y-4">
-            {!selectedStudent.daHetHan &&
-              selectedStudent.soThangConLai !== null &&
-              selectedStudent.soThangConLai < 12 && (
+            {requiresForceMajeure && (
                 <DeadlineWarningBanner
                   severity="warning"
-                  remainingMonths={selectedStudent.soThangConLai}
+                  remainingMonths={selectedStudent.soThangConLai ?? undefined}
                   alwaysShow
-                  title="Thời gian đào tạo còn dưới 12 tháng"
-                  message={
-                    selectedStudent.soNgayConLai !== null &&
-                    selectedStudent.soNgayConLai !== undefined &&
-                    selectedStudent.soNgayConLai <= 30
-                      ? `NCS chỉ còn ${selectedStudent.soNgayConLai} ngày đào tạo. Cần xác nhận lý do bất khả kháng khi đề xuất thay đổi GVHD.`
-                      : "NCS có thời hạn khóa học còn lại dưới 12 tháng. Cần xác nhận lý do bất khả kháng khi đề xuất thay đổi GVHD."
-                  }
+                  title="Đã qua hạn gửi đề nghị đổi GVHD"
+                  message="Đơn đổi GVHD phải gửi ít nhất 12 tháng trước hạn đào tạo. Vui lòng xác nhận bất khả kháng và nêu rõ lý do."
                 />
               )}
 
@@ -377,17 +403,20 @@ export function SupervisorRequestForm({
                 >
                   Vị trí GVHD cần điều chỉnh <span className="text-rose-600">*</span>
                 </label>
-                <select
+                <SupervisorSelect
                   id={`${formId}-role`}
                   value={vaiTroGvhdCanThay}
-                  onChange={(e) =>
-                    setVaiTroGvhdCanThay(e.target.value as SupervisorRole)
-                  }
-                  className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
-                >
-                  <option value="DONG_HUONG_DAN">Đồng hướng dẫn (0.5)</option>
-                  <option value="HUONG_DAN_CHINH">Hướng dẫn chính (1.0)</option>
-                </select>
+                  invalid={Boolean(fieldErrors.phanCongCuId)}
+                  onValueChange={(role) => {
+                    setVaiTroGvhdCanThay(role);
+                    clearFieldError("phanCongCuId");
+                  }}
+                  options={[
+                    { value: "DONG_HUONG_DAN", label: "Đồng hướng dẫn (0.5)" },
+                    { value: "HUONG_DAN_CHINH", label: "Hướng dẫn chính (1.0)" },
+                  ]}
+                />
+                {renderFieldError("phanCongCuId")}
                 <p className="mt-1 text-xs text-muted-foreground">
                   Hiện phụ trách vị trí này:{" "}
                   <strong className="text-[#0F2744]">
@@ -403,22 +432,22 @@ export function SupervisorRequestForm({
                 >
                   GVHD mới đề xuất <span className="text-rose-600">*</span>
                 </label>
-                <select
+                <SupervisorSelect
                   id={`${formId}-candidate`}
-                  value={gvhdMoiId}
-                  onChange={(e) => {
-                    setGvhdMoiId(e.target.value);
-                    if (formError) setFormError(null);
+                  value={selectedCandidate?.giangVienId ?? null}
+                  placeholder="Chọn Giảng viên hướng dẫn thay thế"
+                  invalid={Boolean(fieldErrors.gvhdMoiId)}
+                  disabled={isLoadingAssignments || Boolean(assignmentError)}
+                  options={availableCandidates.map((candidate) => ({
+                    value: candidate.giangVienId,
+                    label: `${candidate.hocHamHocVi ?? ""} ${candidate.hoTen} (Còn ${candidate.slotConLai ?? 0} điểm)`.trim(),
+                  }))}
+                  onValueChange={(id) => {
+                    setGvhdMoiId(id);
+                    clearFieldError("gvhdMoiId");
                   }}
-                  className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
-                >
-                  <option value="">-- Chọn Giảng viên hướng dẫn thay thế --</option>
-                  {availableCandidates.map((cand) => (
-                    <option key={cand.giangVienId} value={cand.giangVienId}>
-                      {cand.hocHamHocVi} {cand.hoTen} (Còn {cand.slotConLai ?? 0} điểm)
-                    </option>
-                  ))}
-                </select>
+                />
+                {renderFieldError("gvhdMoiId")}
                 {selectedCandidate && (
                   <p className="mt-1 text-xs text-muted-foreground">
                     {selectedCandidate.donViCongTac}
@@ -442,14 +471,17 @@ export function SupervisorRequestForm({
           <textarea
             id={`${formId}-reason`}
             rows={3}
+            aria-invalid={Boolean(fieldErrors.lyDo)}
             value={lyDo}
             onChange={(e) => {
               setLyDo(e.target.value);
+              clearFieldError("lyDo");
               if (formError) setFormError(null);
             }}
             placeholder="Trình bày rõ lý do khoa học, biên bản cuộc họp bộ môn/tiểu ban hoặc căn cứ đề xuất thay đổi..."
             className="w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
           />
+          {renderFieldError("lyDo")}
         </div>
 
         {requiresForceMajeure && (
@@ -462,13 +494,17 @@ export function SupervisorRequestForm({
                 id={`${formId}-force-majeure`}
                 type="checkbox"
                 checked={batKhaKhang}
-                onChange={(e) => setBatKhaKhang(e.target.checked)}
+                onChange={(e) => {
+                  setBatKhaKhang(e.target.checked);
+                  clearFieldError("batKhaKhang");
+                }}
                 className="mt-0.5 size-4 rounded border-amber-400 text-[#164E9B] focus:ring-[#164E9B]"
               />
               <span>
                 Tôi xác nhận đây là trường hợp bất khả kháng / có biên bản hội đồng chuyên môn đề nghị ngoại lệ theo Quy chế đào tạo tiến sĩ.
               </span>
             </label>
+            {renderFieldError("batKhaKhang")}
           </div>
         )}
 
@@ -477,10 +513,13 @@ export function SupervisorRequestForm({
             id={`${formId}-pdf`}
             label="Tờ trình / Biên bản chuyên môn đính kèm (PDF)"
             selectedFile={selectedFile}
-            onFileSelect={setSelectedFile}
+            onFileSelect={(file) => {
+              setSelectedFile(file);
+              clearFieldError("tepDinhKemFile");
+            }}
             helperText="Khuyến nghị đính kèm biên bản họp bộ môn hoặc tờ trình có xác nhận Khoa/Viện (tối đa 15MB)."
           />
-
+          {renderFieldError("tepDinhKemFile")}
         </div>
 
         {isSupervisorChange && isLoadingAssignments && (
@@ -516,7 +555,7 @@ export function SupervisorRequestForm({
 
           <button
             type="submit"
-            disabled={isSubmitting || students.length === 0}
+            disabled={isSubmitting || students.length === 0 || (isSupervisorChange && (isLoadingAssignments || Boolean(assignmentError)))}
             className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#164E9B] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0F2744] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] focus-visible:ring-offset-2 motion-reduce:transition-none"
           >
             <Send className="size-4" aria-hidden="true" />
@@ -526,8 +565,8 @@ export function SupervisorRequestForm({
       </form>
 
       <ConfirmDialog
-        isOpen={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
+        isOpen={confirmedValues !== null}
+        onClose={() => setConfirmedValues(null)}
         onConfirm={() => void handleConfirmSubmit()}
         variant="info"
         title="Xác nhận nộp đơn đề xuất thay Nghiên cứu sinh"

@@ -747,6 +747,7 @@ export class SupervisorService {
         vaiTro: true,
         trongSo: true,
         ngayBatDau: true,
+        quyetDinh: { select: { soQuyetDinh: true } },
         ncs: {
           select: {
             id: true,
@@ -804,6 +805,7 @@ export class SupervisorService {
         vaiTro: pc.vaiTro,
         trongSo: pc.trongSo,
         ngayBatDau: pc.ngayBatDau,
+        soQuyetDinhPhanCong: pc.quyetDinh?.soQuyetDinh ?? null,
         ncs: {
           id: pc.ncs.id,
           mshv: pc.ncs.mshv,

@@ -6,7 +6,6 @@ import {
   AlertCircle,
   ClipboardCheck,
   Gauge,
-  RefreshCw,
   Scale,
   UserCheck,
   Users,
@@ -58,11 +57,8 @@ export function SupervisorStudentsWorkspace({
       : undefined
   );
 
-  const isDataLoading =
-    (!propStudents && !liveStudents && isStudentsLoading) ||
-    (!propQuota && isProfileLoading);
-
-  const isLoading = propIsLoading || isDataLoading;
+  const isRosterLoading = propIsLoading || (!propStudents && !liveStudents && isStudentsLoading);
+  const isLoading = isRosterLoading || (!propQuota && isProfileLoading);
 
   const dataError =
     !propStudents && isStudentsError
@@ -131,31 +127,6 @@ export function SupervisorStudentsWorkspace({
           </Link>
         </div>
       </header>
-
-      {error && !isLoading && (
-        <div
-          role="alert"
-          className="flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 text-rose-900 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div className="flex items-start gap-3">
-            <AlertCircle className="mt-0.5 size-5 shrink-0 text-rose-600" aria-hidden="true" />
-            <div className="text-sm">
-              <p className="font-semibold">Lỗi tải danh sách Nghiên cứu sinh</p>
-              <p className="mt-0.5 text-rose-800">{error}</p>
-            </div>
-          </div>
-          {onRetry && (
-            <button
-              type="button"
-              onClick={onRetry}
-              className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-800 transition-colors hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-600 motion-reduce:transition-none"
-            >
-              <RefreshCw className="size-4" aria-hidden="true" />
-              <span>Tải lại</span>
-            </button>
-          )}
-        </div>
-      )}
 
       {isLoading ? (
         <div
@@ -241,7 +212,7 @@ export function SupervisorStudentsWorkspace({
         students={students}
         selectedStudentId={selectedStudent?.id ?? null}
         onSelectStudent={handleSelectStudent}
-        isLoading={isLoading}
+        isLoading={isRosterLoading}
         error={error}
         onRetry={onRetry}
         title="Bảng danh sách Nghiên cứu sinh đang hướng dẫn"

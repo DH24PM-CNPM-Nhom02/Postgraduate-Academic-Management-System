@@ -6,5 +6,5 @@ export const metadata = {
 };
 
 export default function SupervisorProceduresPage() {
-  return <ProceduresFormsView backHref="/supervisor/dashboard" backLabel="Bàn làm việc GVHD" />;
+  return <ProceduresFormsView backHref="/supervisor/dashboard" backLabel="Bàn làm việc GVHD" view="table" />;
 }

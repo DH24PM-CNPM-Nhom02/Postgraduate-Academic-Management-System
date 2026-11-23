@@ -118,11 +118,11 @@ export function SupervisorSidebar({
 
       <aside
         aria-label="Điều hướng phân hệ Giảng viên hướng dẫn"
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 flex-col border-r border-border bg-[#0F2744] text-white transition-transform duration-200 motion-reduce:transition-none lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-72 shrink-0 flex-col border-r border-border bg-[#0F2744] text-white transition-transform duration-200 motion-reduce:transition-none lg:sticky lg:top-0 lg:h-dvh lg:self-start lg:translate-x-0 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-white/10 px-4">
           <Link
             href="/"
             onClick={onClose}
@@ -136,7 +136,7 @@ export function SupervisorSidebar({
                 Cổng GVHD
               </p>
               <p className="truncate text-xs text-sky-200/90">
-                ĐH An Giang • Sau đại học
+                ĐH An Giang - Sau đại học
               </p>
             </div>
           </Link>
@@ -166,7 +166,7 @@ export function SupervisorSidebar({
 
         <nav
           aria-label="Chức năng chính Giảng viên"
-          className="flex-1 space-y-5 overflow-y-auto px-3 py-4"
+          className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-3 py-4"
         >
           <div>
             <p className="px-3 pb-2 text-xs font-semibold text-sky-200/75">
@@ -233,7 +233,7 @@ export function SupervisorSidebar({
               <div className="flex items-center justify-between gap-2 text-xs font-semibold text-white">
                 <span className="inline-flex items-center gap-1.5">
                   <Scale className="size-3.5 text-sky-200" aria-hidden="true" />
-                  <span>Định mức BR-09</span>
+                  <span>Định mức GVHD</span>
                 </span>
                 <span className="tabular-nums text-sky-100">
                   {quota.tongTrongSo.toFixed(1)}/{quota.hanMucToiDa.toFixed(1)}

@@ -96,6 +96,7 @@ export function TablePagination({
             <Select
               items={validPageSizeOptions.map((size) => ({ value: String(size), label: String(size) }))}
               value={String(pageSize)}
+              modal={false}
               onValueChange={(value) => {
                 const nextSize = Number(value);
                 if (Number.isInteger(nextSize) && nextSize > 0) onPageSizeChange(nextSize);
@@ -104,7 +105,7 @@ export function TablePagination({
               <SelectTrigger id={pageSizeSelectId} className="h-8 w-[4.5rem] rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700">
                 <SelectValue>{(value) => value}</SelectValue>
               </SelectTrigger>
-              <SelectContent className="min-w-20 rounded-lg border border-slate-200 bg-white text-xs shadow-xl">
+              <SelectContent alignItemWithTrigger={false} className="min-w-20 rounded-lg border border-slate-200 bg-white text-xs shadow-xl">
                 {validPageSizeOptions.map((size) => (
                   <SelectItem key={size} value={String(size)}>{size}</SelectItem>
                 ))}
