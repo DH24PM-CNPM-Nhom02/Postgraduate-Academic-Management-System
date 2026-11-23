@@ -423,6 +423,7 @@ model GiangVienHuongDan {
   gioiTinh         GioiTinh?   @map("gioi_tinh")
   ngaySinh         DateTime?   @map("ngay_sinh") @db.Date
   email            String?     @db.VarChar(100)
+  soDienThoai      String?     @map("so_dien_thoai") @db.VarChar(20)
   hocHamHocVi      HocHamHocVi @map("hoc_ham_hoc_vi")
   /// Ngành/chuyên ngành đào tạo tiến sĩ của GVHD (t_cmdtao)
   chuyenNganh      String?     @map("chuyen_nganh") @db.VarChar(255)

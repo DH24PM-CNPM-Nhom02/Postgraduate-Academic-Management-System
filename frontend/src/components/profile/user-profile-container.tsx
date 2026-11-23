@@ -1,15 +1,17 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { AlertCircle, ArrowLeft, BriefcaseBusiness, GraduationCap, KeyRound, Loader2, UserRound } from "lucide-react";
 import Link from "next/link";
-import { authService, type UserProfileResponse } from "@/src/services/auth";
+import { useAccountProfile, useUpdateAccountProfile } from "@/src/hooks/api/use-account-profile";
 import { useMyNcsProfile } from "@/src/hooks/api/use-ncs";
-import { useMySupervisorProfile } from "@/src/hooks/use-academic";
-import { GeneralInfoForm, type StudentProfileData } from "@/src/components/student/profile/general-info-form";
+import { useMySupervisorProfileDetails, useUpdateMySupervisorProfile } from "@/src/hooks/use-academic";
+import { formatDegreeLabel, type BackendGvhdRaw } from "@/src/services/gvhd";
+import { GeneralInfoForm } from "@/src/components/student/profile/general-info-form";
 import { SecurityForm } from "@/src/components/student/profile/security-form";
+import { EditableProfileFields } from "./editable-profile-fields";
+import { formatProfileDate, formatProfileGender, ProfileDetails } from "./profile-details";
 
 const ROLE_LABELS: Record<string, string> = {
   NCS: "Nghiên cứu sinh",
@@ -18,38 +20,47 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Quản trị hệ thống",
 };
 
-function unwrapProfile(response: Awaited<ReturnType<typeof authService.getMe>>): UserProfileResponse {
-  return "data" in response ? response.data : response;
-}
+function SupervisorProfile({ profile }: { profile: BackendGvhdRaw }) {
+  const updateProfile = useUpdateMySupervisorProfile();
+  const status = typeof profile.trangThai === "boolean"
+    ? profile.trangThai ? "Đang hoạt động" : "Ngừng hoạt động"
+    : null;
 
-function formatDate(value: string | null | undefined): string {
-  if (!value) return "Chưa cập nhật";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "Chưa cập nhật" : new Intl.DateTimeFormat("vi-VN").format(date);
+  return (
+    <>
+      <ProfileDetails items={[
+        { label: "Họ và tên", value: profile.hoTen },
+        { label: "Mã giảng viên", value: profile.maGv },
+        { label: "Ngày sinh", value: formatProfileDate(profile.ngaySinh) },
+        { label: "Giới tính", value: formatProfileGender(profile.gioiTinh) },
+        { label: "Học hàm, học vị", value: profile.hocHamHocVi && formatDegreeLabel(profile.hocHamHocVi) },
+        { label: "Chuyên ngành đào tạo tiến sĩ", value: profile.chuyenNganh },
+        { label: "Quốc gia tốt nghiệp", value: profile.quocGiaTotNghiep },
+        { label: "Đơn vị công tác", value: profile.donVi?.ten },
+        { label: "Đơn vị cấp trên", value: profile.donVi?.parent?.ten },
+        { label: "Trạng thái hồ sơ", value: status },
+        { label: "Định mức hướng dẫn đã sử dụng", value: profile.soNcsDangHuongDan },
+        { label: "Định mức hướng dẫn tối đa", value: profile.maxNcsChoPhep },
+      ]} />
+      <div className="mt-5 border-t border-border pt-5">
+        <EditableProfileFields
+          key={profile.id}
+          variant="contact"
+          values={profile}
+          onSave={updateProfile.mutateAsync}
+        />
+      </div>
+    </>
+  );
 }
-
-const NCS_STATUS: Record<string, string> = {
-  DANG_HOC: "Đang học",
-  DA_TOT_NGHIEP: "Đã tốt nghiệp",
-  BAO_LUU: "Bảo lưu",
-  NGUNG_HOC: "Ngừng học",
-  BUOC_THOI_HOC: "Buộc thôi học",
-};
 
 export function UserProfileContainer() {
   const { data: session, status } = useSession();
-  const profileQuery = useQuery({
-    queryKey: ["auth", "me", session?.user?.id],
-    queryFn: async () => {
-      if (!session?.access_token) throw new Error("Phiên đăng nhập đã hết hạn.");
-      return unwrapProfile(await authService.getMe(session.access_token));
-    },
-    enabled: Boolean(session?.access_token),
-    staleTime: 60_000,
-  });
+  const profileQuery = useAccountProfile(session?.user?.id, session?.access_token);
+  const updateAccount = useUpdateAccountProfile();
   const role = session?.user?.role ?? "";
-  const ncsQuery = useMyNcsProfile({ enabled: role === "NCS" });
-  const supervisorQuery = useMySupervisorProfile({ enabled: role === "GVHD" });
+  const ncsQuery = useMyNcsProfile({ enabled: role === "NCS" && Boolean(session?.access_token) });
+  const supervisorQuery = useMySupervisorProfileDetails(role === "GVHD" && Boolean(session?.access_token));
 
   useEffect(() => {
     if (!profileQuery.isSuccess) return;
@@ -59,7 +70,7 @@ export function UserProfileContainer() {
     }
   }, [profileQuery.isSuccess]);
 
-  if (status === "loading" || profileQuery.isLoading) {
+  if ((status === "loading" && !session) || profileQuery.isLoading) {
     return (
       <div className="mx-auto w-full max-w-7xl py-6">
         <Link href="/" className="mb-8 inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3.5 text-sm font-medium text-foreground hover:bg-muted">
@@ -70,7 +81,7 @@ export function UserProfileContainer() {
     );
   }
 
-  if (profileQuery.error || !profileQuery.data) {
+  if (!session?.access_token || !profileQuery.data) {
     return (
       <div className="mx-auto w-full max-w-7xl py-6">
         <Link href="/" className="mb-8 inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-card px-3.5 text-sm font-medium text-foreground hover:bg-muted">
@@ -90,24 +101,13 @@ export function UserProfileContainer() {
 
   const user = profileQuery.data;
   const initials = user.fullName.trim().split(/\s+/).map((part) => part[0]).slice(-2).join("").toUpperCase();
-  let ncsData: StudentProfileData | undefined;
-  if (role === "NCS" && ncsQuery.data) {
-    const data = ncsQuery.data;
-    ncsData = {
-      mshv: data.mshv,
-      email: data.email ?? user.email ?? "",
-      lop: data.lop ?? "Chưa cập nhật",
-      chuyenNganh: data.nganh?.tenNganh ?? "Chưa cập nhật",
-      khoaHoc: data.khoaHocNcs?.maKhoaHoc ?? data.khoaHoc ?? "Chưa cập nhật",
-      ngayNhapHoc: formatDate(data.ngayNhapHoc),
-      trangThai: NCS_STATUS[data.trangThai] ?? data.trangThai,
-      readOnly: data.trangThai === "DA_TOT_NGHIEP",
-      hoTen: data.hoTen || user.fullName,
-      soDienThoai: data.soDienThoai ?? "",
-    };
-  }
-
   const isRoleProfileAvailable = role === "NCS" || role === "GVHD";
+  const canEditAccount = role === "ADMIN" || role === "GIAO_VU";
+  const accountItems = [
+    { label: "Tên đăng nhập", value: user.username },
+    { label: "Vai trò", value: (user.roles ?? [role]).map((item) => ROLE_LABELS[item] ?? item).join(", ") },
+  ];
+  if (!canEditAccount) accountItems.push({ label: "Email tài khoản", value: user.email ?? "" });
 
   return (
     <div className="mx-auto w-full max-w-7xl py-6">
@@ -150,24 +150,44 @@ export function UserProfileContainer() {
                 <p className="text-sm text-muted-foreground">{ROLE_LABELS[role] ?? role}</p>
               </div>
             </div>
-            <dl className="mt-6 grid gap-4 border-t border-border pt-5 sm:grid-cols-2">
-              <div><dt className="text-xs font-medium text-muted-foreground">Tên đăng nhập</dt><dd className="mt-1 text-sm text-foreground">{user.username}</dd></div>
-              {user.email && <div><dt className="text-xs font-medium text-muted-foreground">Email</dt><dd className="mt-1 text-sm text-foreground">{user.email}</dd></div>}
-              <div><dt className="text-xs font-medium text-muted-foreground">Vai trò</dt><dd className="mt-1 text-sm text-foreground">{(user.roles ?? [role]).map((item) => ROLE_LABELS[item] ?? item).join(", ")}</dd></div>
-            </dl>
+            <div className="mt-6 border-t border-border pt-5">
+              <ProfileDetails items={accountItems} />
+            </div>
+            {canEditAccount && (
+              <div className="mt-5 border-t border-border pt-5">
+                <EditableProfileFields
+                  key={user.id}
+                  variant="account"
+                  values={user}
+                  onSave={updateAccount.mutateAsync}
+                />
+              </div>
+            )}
           </section>
 
           {role === "NCS" && (
             <section id="role-profile" className="scroll-mt-20 space-y-4">
               <h2 className="text-lg font-semibold text-foreground">Thông tin nghiên cứu sinh</h2>
-              {ncsQuery.isLoading ? <p className="text-sm text-muted-foreground">Đang tải thông tin nghiên cứu sinh...</p> : ncsData ? <GeneralInfoForm initialData={ncsData} /> : <p role="alert" className="text-sm text-destructive">{ncsQuery.error instanceof Error ? ncsQuery.error.message : "Không tải được thông tin nghiên cứu sinh."}</p>}
+              {ncsQuery.isLoading ? (
+                <p className="text-sm text-muted-foreground">Đang tải thông tin nghiên cứu sinh...</p>
+              ) : ncsQuery.data ? (
+                <GeneralInfoForm initialData={ncsQuery.data} />
+              ) : (
+                <p role="alert" className="text-sm text-destructive">{ncsQuery.error?.message ?? "Không tải được thông tin nghiên cứu sinh."}</p>
+              )}
             </section>
           )}
 
           {role === "GVHD" && (
-            <section id="role-profile" className="scroll-mt-20 rounded-2xl border border-border bg-card p-6">
+            <section id="role-profile" className="scroll-mt-20 space-y-4 rounded-2xl border border-border bg-card p-6">
               <h2 className="text-lg font-semibold text-foreground">Thông tin giảng viên hướng dẫn</h2>
-              {supervisorQuery.isLoading ? <p className="mt-4 text-sm text-muted-foreground">Đang tải thông tin giảng viên...</p> : supervisorQuery.data ? <dl className="mt-4 grid gap-4 sm:grid-cols-2"><div><dt className="text-xs text-muted-foreground">Mã giảng viên</dt><dd className="mt-1 text-sm">{supervisorQuery.data.maCanBo}</dd></div><div><dt className="text-xs text-muted-foreground">Đơn vị</dt><dd className="mt-1 text-sm">{supervisorQuery.data.donVi}</dd></div><div><dt className="text-xs text-muted-foreground">Chuyên môn</dt><dd className="mt-1 text-sm">{supervisorQuery.data.chuyenMon}</dd></div><div><dt className="text-xs text-muted-foreground">Học hàm, học vị</dt><dd className="mt-1 text-sm">{supervisorQuery.data.hocHamHocVi}</dd></div></dl> : <p role="alert" className="mt-4 text-sm text-destructive">{supervisorQuery.error instanceof Error ? supervisorQuery.error.message : "Không tải được thông tin giảng viên."}</p>}
+              {supervisorQuery.isLoading ? (
+                <p className="text-sm text-muted-foreground">Đang tải thông tin giảng viên...</p>
+              ) : supervisorQuery.data ? (
+                <SupervisorProfile profile={supervisorQuery.data} />
+              ) : (
+                <p role="alert" className="text-sm text-destructive">{supervisorQuery.error?.message ?? "Không tải được thông tin giảng viên."}</p>
+              )}
             </section>
           )}
 

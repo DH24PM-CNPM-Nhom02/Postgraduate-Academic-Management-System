@@ -98,7 +98,7 @@ function SupervisorProfileShell({ children }: { children: React.ReactNode }) {
   const { data: profile } = useMySupervisorProfile();
   const { data: students } = useMySupervisedStudents();
   const quota = useMemo(
-    () => profile ? computeSupervisorQuota(students ?? [], profile.hanMucToiDa) : undefined,
+    () => students && profile?.hanMucToiDa !== undefined ? computeSupervisorQuota(students, profile.hanMucToiDa) : undefined,
     [profile, students],
   );
 

@@ -1,6 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import type { ImportGvhdRow, ListGvhdQueryDto, UpdateGvhdDto, UpdateGvhdStatusDto } from '../../../../lib/contracts/src/dto/gvhd.dto.js';
+import type { UpdateContactProfileDto } from '../../../../lib/contracts/src/dto/profile.dto.js';
 import type { CreateAssignmentDto, DeactivateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
 import { SupervisorService } from './supervisor.service.js';
 // import { GvhdImportService } from './gvhd-import.service.js';
@@ -30,9 +31,19 @@ export class SupervisorController {
     return this.gvhd.getAllSupervisor(d?.query);
   }
 
+  @MessagePattern({ cmd: 'phd.gvhd.candidates' })
+  candidates() {
+    return this.gvhd.listCandidates();
+  }
+
   @MessagePattern({ cmd: 'phd.gvhd.get' })
   getDetailGvhd(@Payload() d: { id?: string; userId?: string }) {
     return this.gvhd.getDetailSupervisor(d);
+  }
+
+  @MessagePattern({ cmd: 'phd.gvhd.update-me' })
+  updateMyProfile(@Payload() d: { userId: string; data: UpdateContactProfileDto }) {
+    return this.gvhd.updateMyProfile(d.userId, d.data);
   }
 
   @MessagePattern({ cmd: 'phd.gvhd.my-ncs' })

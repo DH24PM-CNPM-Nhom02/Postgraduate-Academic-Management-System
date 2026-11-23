@@ -7,7 +7,7 @@ import {
   useCreateChangeRequest,
   useStudentChangeRequestsOverview,
 } from "@/src/hooks/api/use-change-requests";
-import { mockStudentChangeRequestsOverview } from "@/src/mocks/change-request";
+import { Button } from "@/src/components/ui/button";
 import type {
   ChangeRequestFormValues,
   ChangeRequestItem,
@@ -20,26 +20,16 @@ interface StudentChangeRequestLiveViewProps {
   defaultOpenForm?: boolean;
 }
 
-/**
- * StudentChangeRequestLiveView
- *
- * Cầu nối giữa các API /change-request và UI ChangeRequestWorkspace.
- * - Tự động tải dữ liệu thật từ Backend (NCS hiện tại, các đề tài, hạn đào tạo, danh sách đơn).
- * - Tự động dự phòng về mock data nếu Backend chưa có dữ liệu hoặc lỗi mạng.
- * - Xử lý tải lên file minh chứng qua DocumentService trước khi gửi đơn đề nghị.
- */
 export function StudentChangeRequestLiveView({
   initialType = "DOI_DE_TAI",
   defaultOpenForm = false,
 }: StudentChangeRequestLiveViewProps) {
-  const { data, isLoading, error, refetch } = useStudentChangeRequestsOverview();
+  const { data, isLoading, error, refetch, candidatesError, candidatesLoading, retryCandidates } = useStudentChangeRequestsOverview();
   const createMutation = useCreateChangeRequest();
   const cancelMutation = useCancelChangeRequest();
 
-  const displayData = data ?? mockStudentChangeRequestsOverview;
-
   const handleSubmitRequest = useCallback(
-    async (values: ChangeRequestFormValues) => {
+    async (values: ChangeRequestFormValues, onUploadProgress: (percent: number) => void) => {
       let fileId: string | undefined;
 
       // Nếu có tệp đính kèm, tải lên document-service trước
@@ -47,6 +37,7 @@ export function StudentChangeRequestLiveView({
         const uploadRes = await DocumentService.uploadPdf({
           file: values.tepDinhKemFile,
           documentType: "DON_TU",
+          onUploadProgress,
         });
         fileId = uploadRes.id;
       }
@@ -75,20 +66,36 @@ export function StudentChangeRequestLiveView({
     [cancelMutation, refetch]
   );
 
+  if (isLoading || !data || error) {
+    const loadError = error?.status !== 404 ? error?.message : undefined;
+    return (
+      <section className="mx-auto max-w-7xl space-y-4 pb-12">
+        <h1 className="text-2xl font-bold text-[#0F2744]">Đơn đề nghị điều chỉnh &amp; Gia hạn học tập</h1>
+        <div className="rounded-xl border border-dashed bg-card p-8 text-center text-sm">
+          <p role={loadError ? "alert" : "status"}>{isLoading ? "Đang tải đơn đề nghị..." : loadError ?? "Chưa có dữ liệu đơn đề nghị."}</p>
+          {loadError && <Button type="button" variant="outline" className="mt-3" onClick={() => void refetch()}>Thử lại</Button>}
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <ChangeRequestWorkspace
-      key={displayData.danhSachDon.map((d) => `${d.id}-${d.trangThai}`).join(",")}
-      initialOverview={displayData}
-      initialType={initialType}
-      defaultOpenForm={defaultOpenForm}
-      onSubmitRequest={handleSubmitRequest}
-      onCancelRequest={handleCancelRequest}
-      isLoading={isLoading && !data}
-      error={data ? null : (error?.message ?? null)}
-      onRetry={() => {
-        void refetch();
-      }}
-    />
+    <>
+      {candidatesError && (
+        <div role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-card p-4 text-sm">
+          Không thể tải danh sách GVHD để đề xuất thay đổi.
+          <Button type="button" variant="outline" className="ml-3" onClick={() => void retryCandidates()}>Thử lại</Button>
+        </div>
+      )}
+      {candidatesLoading && <p role="status" className="mb-4 text-sm text-muted-foreground">Đang tải danh sách GVHD có thể đề xuất...</p>}
+      <ChangeRequestWorkspace
+        initialOverview={data}
+        initialType={initialType}
+        defaultOpenForm={defaultOpenForm}
+        onSubmitRequest={handleSubmitRequest}
+        onCancelRequest={handleCancelRequest}
+      />
+    </>
   );
 }
 

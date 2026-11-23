@@ -58,6 +58,7 @@ const COLUMNS = [
     { key: 'gioiTinh', header: 'Giới tính', width: 12 },
     { key: 'ngaySinh', header: 'Ngày sinh', width: 14 },
     { key: 'email', header: 'Email', width: 28 },
+    { key: 'soDienThoai', header: 'Số điện thoại', width: 18 },
     { key: 'hocHamHocVi', header: 'Học hàm/Học vị', width: 18 },
     { key: 'chuyenNganh', header: 'Chuyên ngành', width: 30 },
     { key: 'quocGia', header: 'Nước tốt nghiệp', width: 18 },
@@ -123,16 +124,17 @@ export async function parseGvhdExcel(buffer: Buffer): Promise<ImportGvhdRow[]> {
             hoTen: get('hoTen'),
             gioiTinh: mapGender(get('gioiTinh')),
             ngaySinh: get('ngaySinh', true),
-            hocHamHocVi: mapHocHam(get('hocHamHocVi')),
+            hocHamHocVi: get('hocHamHocVi'),
             chuyenNganh: get('chuyenNganh'),
             quocGiaTotNghiep: get('quocGia'),
             email: get('email'),
+            soDienThoai: get('soDienThoai'),
             donVi: get('donVi'),
             donViCapTren: get('donViCapTren'),
         };
 
         const hasData = Object.entries(r).some(([k, v]) => k !== 'row' && v);
-        if (hasData) rows.push(r);
+        if (hasData) rows.push({ ...r, hocHamHocVi: mapHocHam(r.hocHamHocVi) });
     });
 
     if (rows.length === 0) throw new BadRequestException('File không có dòng dữ liệu nào');
@@ -152,7 +154,7 @@ export async function buildGvhdTemplate(): Promise<Buffer> {
     ws.views = [{ state: 'frozen', ySplit: 1 }];
 
     // Ép các cột này về dạng văn bản để Excel không đổi định dạng ngày hay bỏ số 0 đầu
-    for (const key of ['maGv', 'ngaySinh']) {
+    for (const key of ['maGv', 'ngaySinh', 'soDienThoai']) {
         ws.getColumn(key).numFmt = '@';
     }
 
@@ -176,6 +178,7 @@ export async function buildGvhdTemplate(): Promise<Buffer> {
         'Mã GV đã có trong hệ thống thì dòng đó CẬP NHẬT thông tin; chưa có thì TẠO MỚI.',
         'Ô để trống khi cập nhật = giữ nguyên giá trị cũ, không xóa dữ liệu.',
         'Ngày sinh nhập dạng dd/mm/yyyy, ví dụ 01/09/1980.',
+        'Số điện thoại (tùy chọn): nhập 10 chữ số, bắt đầu bằng 0, ví dụ 0901234567.',
         'Học hàm/Học vị: Giáo sư, Phó Giáo sư, Tiến sĩ khoa học hoặc Tiến sĩ (để trống = Tiến sĩ).',
         'Số NCS tối đa được tính tự động theo học hàm: GS 7, PGS 5, Tiến sĩ khoa học 5, Tiến sĩ 3.',
         'Đơn vị: ghi đúng tên đơn vị như trong danh mục (cột t_dvi của file trường).',

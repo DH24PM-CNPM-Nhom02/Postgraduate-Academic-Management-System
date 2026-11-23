@@ -39,28 +39,23 @@ export function MilestoneCard({
   };
 
   const handleSubmitSuccess = (submission: {
-    id?: string;
+    id: string;
     fileName: string;
     fileSize: number;
     ghiChuNcs: string;
     lanNop: number;
-    fileId?: string;
-    ngayNop?: string;
+    fileId: string;
+    ngayNop: string;
   }) => {
-    const fallbackTimestamp = Date.now();
-    const resolvedId = submission.id ?? `ev-${fallbackTimestamp}`;
-    const resolvedFileId = submission.fileId ?? `file-${fallbackTimestamp}`;
-    const resolvedNgayNop = submission.ngayNop ?? new Date().toISOString();
-
     const newEvidence: EvidenceItem = {
-      id: resolvedId,
+      id: submission.id,
       lanNop: submission.lanNop,
-      fileId: resolvedFileId,
+      fileId: submission.fileId,
       fileName: submission.fileName,
       fileSize: submission.fileSize,
       ghiChuNcs: submission.ghiChuNcs,
       trangThai: "PENDING_REVIEW",
-      ngayNop: resolvedNgayNop,
+      ngayNop: submission.ngayNop,
     };
 
     const existingHistory = milestone.lichSuMinhChung || [];

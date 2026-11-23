@@ -1,6 +1,5 @@
 import type { EvidenceStatus, MilestoneProgressItem } from "./progress";
 import type {
-  CandidateSupervisorOption,
   ChangeRequestAttachment,
   ChangeRequestDecision,
   ChangeRequestStatus,
@@ -107,13 +106,6 @@ export interface SupervisedStudent {
 /**
  * Kịch bản mẫu định mức hướng dẫn để kiểm thử giao diện theo ngưỡng
  */
-export interface QuotaScenarioOption {
-  id: string;
-  label: string;
-  description: string;
-  quota: SupervisorQuota;
-}
-
 export interface QuotaBarProps {
   quota: SupervisorQuota;
   compact?: boolean;
@@ -167,7 +159,6 @@ export interface SupervisorQuotaWorkspaceProps {
   profile?: SupervisorProfile;
   quota?: SupervisorQuota;
   students?: SupervisedStudent[];
-  scenarios?: QuotaScenarioOption[];
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -197,6 +188,7 @@ export interface SupervisorProgressReportItem {
   nhanXetGvhd?: string;
   lyDoTuChoi?: string;
   fileName: string;
+  fileId?: string;
   fileSize?: number;
   fileUrl?: string;
 }
@@ -287,7 +279,7 @@ export interface SupervisorProxyRequestItem {
   hoTenNcs: string;
   khoaDaoTao: string;
   nguoiDeXuat: string;
-  vaiTroCuaToi: SupervisorRole;
+  vaiTroCuaToi?: SupervisorRole;
   ngayGui: string;
   ngayCapNhat?: string;
   lyDo: string;
@@ -310,8 +302,7 @@ export interface SupervisorProxyRequestFormValues {
   lyDo: string;
   batKhaKhang: boolean;
   tenDeTaiMoi?: string;
-  vaiTroGvhdCanThay?: SupervisorRole;
-  tenGvhdCu?: string;
+  phanCongCuId?: string;
   gvhdMoiId?: string;
   tepDinhKemFile: File | null;
 }
@@ -319,11 +310,9 @@ export interface SupervisorProxyRequestFormValues {
 export interface SupervisorRequestsWorkspaceProps {
   requests: SupervisorProxyRequestItem[];
   students: SupervisedStudent[];
-  candidateSupervisors: CandidateSupervisorOption[];
-  supervisorProfile?: SupervisorProfile;
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
-  onCreateRequest?: (values: SupervisorProxyRequestFormValues) => void | Promise<void>;
-  onWithdrawRequest?: (requestId: string) => void | Promise<void>;
+  onCreateRequest: (values: SupervisorProxyRequestFormValues) => Promise<void>;
+  onWithdrawRequest: (requestId: string) => Promise<void>;
 }

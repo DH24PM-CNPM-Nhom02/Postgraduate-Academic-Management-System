@@ -1,6 +1,7 @@
 import { apiClient, parseApiErrorAsync, throwApiError } from "@/src/lib/api";
 import type {
   GraduatedNcsRecord,
+  PersonalGraduatedNcsRecord,
   GraduationCheckApiResponse,
   GraduationConfirmation,
   GraduationConfirmationResponse,
@@ -45,7 +46,7 @@ export const GraduationService = {
 
   async getMyGraduation() {
     try {
-      const response = await apiClient.get<{ data: GraduatedNcsRecord | null }>("/graduation/me");
+      const response = await apiClient.get<{ data: PersonalGraduatedNcsRecord | null }>("/graduation/me");
       return response.data.data;
     } catch (error) {
       throwApiError(error);

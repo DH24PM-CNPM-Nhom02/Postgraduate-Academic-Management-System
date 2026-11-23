@@ -1,6 +1,7 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ArrayMinSize, ArrayMaxSize, IsDateString, IsEmail, IsIn, IsOptional, IsString, Length, Matches, ValidateNested } from 'class-validator';
 import { GIOI_TINH } from './ncs.dto.js';
+import { PHONE_NUMBER_MESSAGE, PHONE_NUMBER_PATTERN, trimProfileField } from './profile.dto.js';
 
 // Học hàm/học vị theo enum trong schema (bảng giang_vien_huong_dan)
 export const HOC_HAM_HOC_VI = ['GIAO_SU', 'PHO_GIAO_SU', 'TIEN_SI_KHOA_HOC', 'TIEN_SI'] as const;
@@ -93,6 +94,11 @@ export class UpdateGvhdDto {
   email?: string;
 
   @IsOptional()
+  @Transform(trimProfileField)
+  @Matches(PHONE_NUMBER_PATTERN, { message: PHONE_NUMBER_MESSAGE })
+  soDienThoai?: string;
+
+  @IsOptional()
   @IsIn(HOC_HAM_HOC_VI)
   hocHamHocVi?: (typeof HOC_HAM_HOC_VI)[number];
 
@@ -124,6 +130,7 @@ export type ImportGvhdRow = {
   ngaySinh: string;        // YYYY-MM-DD
   gioiTinh: string;        // NAM | NU
   email: string;
+  soDienThoai?: string;
   hocHamHocVi: string;     // GIAO_SU | PHO_GIAO_SU | TIEN_SI_KHOA_HOC | TIEN_SI
   chuyenNganh: string;     // t_cmdtao
   quocGiaTotNghiep: string; // ten_qg

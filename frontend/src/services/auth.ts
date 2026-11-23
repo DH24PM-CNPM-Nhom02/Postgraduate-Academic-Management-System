@@ -20,7 +20,7 @@ export interface ChangePasswordPayload {
 export interface AuthUserResponse {
   id: string;
   username: string;
-  email?: string;
+  email?: string | null;
   fullName: string;
   roles: string[];
   mustChangePassword: boolean;
@@ -42,13 +42,22 @@ export interface UserProfileResponse {
   id: string;
   username: string;
   fullName: string;
-  email?: string;
+  email?: string | null;
   roles?: string[];
   permissions?: string[];
   mustChangePassword?: boolean;
 }
 
 export type GetMeApiResponse = UserProfileResponse | { data: UserProfileResponse };
+
+export interface UpdateMyAccountProfilePayload {
+  fullName?: string;
+  email?: string;
+}
+
+export function unwrapUserProfile(response: GetMeApiResponse): UserProfileResponse {
+  return "data" in response ? response.data : response;
+}
 
 export const authService = {
   /**
@@ -102,6 +111,15 @@ export const authService = {
       throw new Error(
         err?.response?.data?.message || "Lấy thông tin người dùng thất bại"
       );
+    }
+  },
+
+  updateMyProfile: async (payload: UpdateMyAccountProfilePayload): Promise<UserProfileResponse> => {
+    try {
+      const response = await apiClient.patch<GetMeApiResponse>("/auth/me", payload);
+      return unwrapUserProfile(response.data);
+    } catch (error) {
+      throwApiError(error);
     }
   },
 

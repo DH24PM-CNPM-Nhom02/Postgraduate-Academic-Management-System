@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Clock,
-  Eye,
   FileText,
   Filter,
   MessageSquareText,
@@ -16,7 +15,8 @@ import {
   Search,
   Users,
 } from "lucide-react";
-import { PdfViewer } from "@/src/components/upload/PdfViewer";
+import { DocumentViewButton } from "@/src/components/student/progress/document-view-button";
+import { useDocumentMetadata } from "@/src/hooks/api/use-documents";
 import { TablePagination } from "@/src/components/ui/table-pagination";
 import type { EvidenceStatus } from "@/src/types/ui/progress";
 import type {
@@ -32,11 +32,23 @@ import {
 
 export type { SupervisorProgressReportsWorkspaceProps };
 
-interface ActivePdfState {
-  fileUrl?: string;
-  fileName: string;
-  title: string;
-  subtitle?: string;
+function ReportAttachment({ report, view = false }: { report: SupervisorProgressReportItem; view?: boolean }) {
+  const metadata = useDocumentMetadata(report.fileId);
+  const name = metadata.data?.originalName ?? report.fileName;
+  if (view) {
+    return report.fileId ? <DocumentViewButton fileId={report.fileId} fileName={name} variant="default" /> :
+      <span className="text-xs text-muted-foreground">Chưa có tệp</span>;
+  }
+
+  const size = formatFileSizeBytes(metadata.data?.size);
+  return (
+    <>
+      <p className="truncate text-xs font-semibold text-foreground">{report.fileId ? name : "Chưa có tệp đính kèm"}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Lần nộp #{report.lanNop}{size ? ` · ${size}` : ""}
+      </p>
+    </>
+  );
 }
 
 const MILESTONE_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
@@ -53,7 +65,6 @@ export function SupervisorProgressReportsWorkspace({
   const [selectedMilestone, setSelectedMilestone] = useState<string>("ALL");
   const [selectedStatus, setSelectedStatus] = useState<EvidenceStatus | "ALL">("ALL");
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
-  const [activePdf, setActivePdf] = useState<ActivePdfState | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 8;
 
@@ -127,17 +138,6 @@ export function SupervisorProgressReportsWorkspace({
     setSelectedMilestone("ALL");
     setSelectedStatus("ALL");
     setCurrentPage(1);
-  };
-
-  const handleOpenPdf = (report: SupervisorProgressReportItem) => {
-    setActivePdf({
-      fileUrl: report.fileUrl,
-      fileName: report.fileName,
-      title: `${report.hoTenNcs} (${report.mshv}) — ${report.tenMoc}`,
-      subtitle: `Lần nộp #${report.lanNop} • Nộp ngày ${formatSupervisorDateUtc(
-        report.ngayNop
-      )}`,
-    });
   };
 
   return (
@@ -446,7 +446,6 @@ export function SupervisorProgressReportsWorkspace({
               <tbody className="divide-y divide-border">
                 {paginatedReports.map((report) => {
                   const statusMeta = getMilestoneEvidenceStatusMeta(report.trangThai);
-                  const sizeLabel = formatFileSizeBytes(report.fileSize);
                   const isExpanded = expandedReportId === report.id;
                   const hasNotes = Boolean(
                     report.ghiChuNcs || report.nhanXetGvhd || report.lyDoTuChoi
@@ -471,7 +470,7 @@ export function SupervisorProgressReportsWorkspace({
                           <p className="mt-1 text-xs font-medium text-foreground">
                             {report.tenMoc.replace(/^Mốc \d+:\s*/, "")}
                           </p>
-                          {report.diemTrungBinh && (
+                          {report.diemTrungBinh !== undefined && (
                             <p className="mt-0.5 text-xs font-semibold text-emerald-700">
                               Điểm đánh giá: {report.diemTrungBinh}/10
                             </p>
@@ -485,13 +484,7 @@ export function SupervisorProgressReportsWorkspace({
                               aria-hidden="true"
                             />
                             <div className="min-w-0">
-                              <p className="truncate text-xs font-semibold text-foreground">
-                                {report.fileName}
-                              </p>
-                              <p className="mt-0.5 text-xs text-muted-foreground">
-                                Lần nộp #{report.lanNop}
-                                {sizeLabel ? ` • ${sizeLabel}` : ""}
-                              </p>
+                              <ReportAttachment report={report} />
                             </div>
                           </div>
                         </td>
@@ -536,14 +529,7 @@ export function SupervisorProgressReportsWorkspace({
                               </button>
                             )}
 
-                            <button
-                              type="button"
-                              onClick={() => handleOpenPdf(report)}
-                              className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-[#164E9B] px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#0F2744] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none"
-                            >
-                              <Eye className="size-3.5" aria-hidden="true" />
-                              <span>Xem minh chứng</span>
-                            </button>
+                            <ReportAttachment report={report} view />
                           </div>
                         </td>
                       </tr>
@@ -603,15 +589,6 @@ export function SupervisorProgressReportsWorkspace({
         </div>
       </section>
 
-      <PdfViewer
-        isOpen={activePdf !== null}
-        onClose={() => setActivePdf(null)}
-        fileUrl={activePdf?.fileUrl}
-        fileName={activePdf?.fileName}
-        title={activePdf?.title}
-        subtitle={activePdf?.subtitle}
-        allowDownload
-      />
     </div>
   );
 }

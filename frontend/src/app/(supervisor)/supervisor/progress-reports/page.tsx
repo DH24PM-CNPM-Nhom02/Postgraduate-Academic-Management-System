@@ -1,9 +1,5 @@
 import type { Metadata } from "next";
-import { SupervisorProgressReportsWorkspace } from "@/src/components/supervisor";
-import {
-  mockSupervisedStudents,
-  mockSupervisorProgressReports,
-} from "@/src/mocks/supervisor";
+import { SupervisorProgressReportsLiveView } from "@/src/components/supervisor/supervisor-progress-reports-live-view";
 
 export const metadata: Metadata = {
   title: "Báo cáo tiến độ NCS | Cổng GVHD",
@@ -12,10 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function SupervisorProgressReportsPage() {
-  return (
-    <SupervisorProgressReportsWorkspace
-      reports={mockSupervisorProgressReports}
-      students={mockSupervisedStudents}
-    />
-  );
+  return <SupervisorProgressReportsLiveView />;
 }

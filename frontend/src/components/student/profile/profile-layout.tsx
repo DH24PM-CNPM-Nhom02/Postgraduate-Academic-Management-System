@@ -55,11 +55,6 @@ function ProfileLayoutContent({ initialData }: ProfileLayoutProps) {
           </p>
         </div>
 
-        {/* Quick status pill */}
-        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <span className={`size-2 rounded-full ring-4 ${initialData.trangThai === "Đang học" ? "bg-emerald-500 ring-emerald-500/20" : "bg-slate-400 ring-slate-400/20"}`} />
-          <span>Trạng thái hồ sơ: {initialData.trangThai}</span>
-        </div>
       </div>
 
       {/* Main Grid: 2 columns (Left Navigation / Right Form Content) */}

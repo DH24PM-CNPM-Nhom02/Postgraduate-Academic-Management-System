@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Header, HttpCode, Inject, Param, Patch, Post, Query, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Header, HttpCode, Inject, Param, Patch, Post, Query, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
@@ -8,7 +8,8 @@ import { PHD_SERVICE } from '../common/constants/service.js';
 import type { AuthUser } from '../common/interface/auth-user.interface.js';
 import { CreateGvhdBatchDto, ListGvhdQueryDto, UpdateGvhdDto, UpdateGvhdStatusDto } from '../../../../lib/contracts/src/dto/gvhd.dto.js';
 import { CreateAssignmentDto, DeactivateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
-import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
+import { PERMISSIONS, ROLES } from '../../../../lib/contracts/src/permissions.js';
+import { UpdateContactProfileDto } from '../../../../lib/contracts/src/dto/profile.dto.js';
 import { buildGvhdListWorkbook, buildGvhdTemplate, parseGvhdExcel, type GvhdExportRecord } from './gvhd-excel.js';
 import { LimitStrict, LimitBulk, LimitHeavyRead } from '../common/decorators/rate-limit.decorator.js';
 import { downloadWorkbook, ExportExcelDto, selectExportRows } from '../common/list-excel.js';
@@ -92,9 +93,24 @@ export class GvhdController {
     return downloadWorkbook(buildGvhdListWorkbook(selectExportRows(records, body.ids)), 'danh-sach-gvhd.xlsx');
   }
 
+  @Get('candidates')
+  @RequirePermissions(PERMISSIONS.CHANGE_REQUEST_CREATE)
+  candidates() {
+    return this.send('phd.gvhd.candidates', {});
+  }
+
   @Get('me')
   me(@CurrentUser() u: AuthUser) {
     return this.send('phd.gvhd.get', { userId: u.id });
+  }
+
+  @Patch('me')
+  @LimitStrict()
+  updateMe(@CurrentUser() u: AuthUser, @Body() data: UpdateContactProfileDto) {
+    if (!u.roles.includes(ROLES.GVHD)) {
+      throw new ForbiddenException('Chỉ giảng viên hướng dẫn được cập nhật hồ sơ GVHD của mình');
+    }
+    return this.send('phd.gvhd.update-me', { userId: u.id, data });
   }
 
   @Get('me/ncs')

@@ -1,11 +1,5 @@
 import type { Metadata } from "next";
-import { SupervisorRequestsWorkspace } from "@/src/components/supervisor";
-import { mockCandidateSupervisors } from "@/src/mocks/change-request";
-import {
-  mockSupervisedStudents,
-  mockSupervisorProfile,
-  mockSupervisorProxyRequests,
-} from "@/src/mocks/supervisor";
+import { SupervisorRequestsLiveView } from "@/src/components/supervisor/supervisor-requests-live-view";
 
 export const metadata: Metadata = {
   title: "Đề xuất thay NCS | Cổng GVHD",
@@ -14,12 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function SupervisorRequestsPage() {
-  return (
-    <SupervisorRequestsWorkspace
-      requests={mockSupervisorProxyRequests}
-      students={mockSupervisedStudents}
-      candidateSupervisors={mockCandidateSupervisors}
-      supervisorProfile={mockSupervisorProfile}
-    />
-  );
+  return <SupervisorRequestsLiveView />;
 }

@@ -20,7 +20,8 @@ import {
   X,
 } from "lucide-react";
 import { ConfirmDialog } from "@/src/components/shared/ConfirmDialog";
-import { PdfViewer } from "@/src/components/upload/PdfViewer";
+import { DocumentViewButton } from "@/src/components/student/progress/document-view-button";
+import { toast } from "sonner";
 import { TablePagination } from "@/src/components/ui/table-pagination";
 import type {
   SupervisorProxyRequestFormValues,
@@ -39,17 +40,9 @@ import {
 
 export type { SupervisorRequestsWorkspaceProps };
 
-interface ActivePdfState {
-  fileUrl?: string;
-  fileName: string;
-  title: string;
-  subtitle?: string;
-}
-
 interface DetailDrawerInnerProps {
   item: SupervisorProxyRequestItem;
   onClose: () => void;
-  onOpenPdf: (pdf: ActivePdfState) => void;
   onWithdraw?: () => void;
   isSubDialogOpen: boolean;
 }
@@ -57,11 +50,11 @@ interface DetailDrawerInnerProps {
 function ProxyRequestDetailDrawerInner({
   item,
   onClose,
-  onOpenPdf,
   onWithdraw,
   isSubDialogOpen,
 }: DetailDrawerInnerProps) {
   const titleId = useId();
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -82,7 +75,7 @@ function ProxyRequestDetailDrawerInner({
     }, 0);
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !isSubDialogOpen) {
+      if (event.key === "Escape" && !isSubDialogOpen && !isPreviewOpen) {
         event.preventDefault();
         onClose();
       }
@@ -95,14 +88,14 @@ function ProxyRequestDetailDrawerInner({
       document.body.style.overflow = previousOverflow;
       previousFocusRef.current?.focus();
     };
-  }, [isSubDialogOpen, onClose]);
+  }, [isPreviewOpen, isSubDialogOpen, onClose]);
 
   return (
     <>
       <div
         aria-hidden="true"
         onClick={() => {
-          if (!isSubDialogOpen) onClose();
+          if (!isSubDialogOpen && !isPreviewOpen) onClose();
         }}
         className="fixed inset-0 z-40 bg-[#0F2744]/45 backdrop-blur-[1px]"
       />
@@ -134,7 +127,7 @@ function ProxyRequestDetailDrawerInner({
               Đề xuất thay NCS {item.hoTenNcs}
             </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {item.mshv} • {item.khoaDaoTao} • Gửi ngày{" "}
+              {item.mshv}{item.khoaDaoTao && ` · ${item.khoaDaoTao}`} · Gửi ngày{" "}
               {formatSupervisorDateUtc(item.ngayGui)}
             </p>
           </div>
@@ -232,21 +225,9 @@ function ProxyRequestDetailDrawerInner({
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() =>
-                  onOpenPdf({
-                    fileUrl: item.tepDinhKem?.fileUrl,
-                    fileName: item.tepDinhKem?.fileName || "ToTrinh.pdf",
-                    title: `${item.maDon} — Tờ trình đề xuất thay NCS ${item.hoTenNcs}`,
-                    subtitle: `Người đề xuất: ${item.nguoiDeXuat}`,
-                  })
-                }
-                className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg bg-[#164E9B] px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#0F2744] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none"
-              >
-                <Eye className="size-3.5" aria-hidden="true" />
-                <span>Xem PDF</span>
-              </button>
+              {item.tepDinhKem.fileId && (
+                <DocumentViewButton fileId={item.tepDinhKem.fileId} fileName={item.tepDinhKem.fileName} variant="default" onPreviewChange={setIsPreviewOpen} />
+              )}
             </div>
           )}
 
@@ -261,21 +242,9 @@ function ProxyRequestDetailDrawerInner({
                   {item.quyetDinh.coQuanBanHanh}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() =>
-                  onOpenPdf({
-                    fileUrl: item.quyetDinh?.fileUrl,
-                    fileName: item.quyetDinh?.fileName || "QuyetDinh.pdf",
-                    title: `Quyết định ${item.quyetDinh?.soQuyetDinh}`,
-                    subtitle: `${item.hoTenNcs} (${item.mshv})`,
-                  })
-                }
-                className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-3.5 py-2 text-xs font-semibold text-emerald-800 transition-colors hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 motion-reduce:transition-none"
-              >
-                <Eye className="size-3.5" aria-hidden="true" />
-                <span>Xem Quyết định</span>
-              </button>
+              {item.quyetDinh.fileId ? (
+                <DocumentViewButton fileId={item.quyetDinh.fileId} fileName={item.quyetDinh.fileName} variant="default" onPreviewChange={setIsPreviewOpen} />
+              ) : <span className="text-xs text-muted-foreground">Chưa có tệp PDF</span>}
             </div>
           )}
 
@@ -313,18 +282,16 @@ function ProxyRequestDetailDrawerInner({
 }
 
 export function SupervisorRequestsWorkspace({
-  requests: initialRequests,
+  requests,
   students,
-  candidateSupervisors,
-  supervisorProfile,
   isLoading = false,
   error = null,
   onRetry,
   onCreateRequest,
   onWithdrawRequest,
 }: SupervisorRequestsWorkspaceProps) {
-  const [requestsState, setRequestsState] =
-    useState<SupervisorProxyRequestItem[]>(initialRequests);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<SupervisorProxyRequestType | "ALL">(
@@ -333,35 +300,34 @@ export function SupervisorRequestsWorkspace({
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [withdrawTarget, setWithdrawTarget] =
     useState<SupervisorProxyRequestItem | null>(null);
-  const [activePdf, setActivePdf] = useState<ActivePdfState | null>(null);
   const [feedbackBanner, setFeedbackBanner] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 8;
 
   const selectedRequest = useMemo(
-    () => requestsState.find((item) => item.id === selectedRequestId) ?? null,
-    [requestsState, selectedRequestId]
+    () => requests.find((item) => item.id === selectedRequestId) ?? null,
+    [requests, selectedRequestId]
   );
 
   const counts = useMemo(() => {
-    const topicCount = requestsState.filter((r) => r.loaiDon === "DOI_DE_TAI").length;
-    const supervisorCount = requestsState.filter(
+    const topicCount = requests.filter((r) => r.loaiDon === "DOI_DE_TAI").length;
+    const supervisorCount = requests.filter(
       (r) => r.loaiDon === "DOI_GVHD"
     ).length;
-    const pendingCount = requestsState.filter(
+    const pendingCount = requests.filter(
       (r) => r.trangThai === "CHO_DUYET"
     ).length;
     return {
-      total: requestsState.length,
+      total: requests.length,
       topicCount,
       supervisorCount,
       pendingCount,
     };
-  }, [requestsState]);
+  }, [requests]);
 
   const filteredRequests = useMemo(() => {
     const keyword = searchQuery.trim().toLowerCase();
-    return requestsState.filter((item) => {
+    return requests.filter((item) => {
       if (typeFilter !== "ALL" && item.loaiDon !== typeFilter) {
         return false;
       }
@@ -374,7 +340,7 @@ export function SupervisorRequestsWorkspace({
         (item.tenGvhdMoi ?? "").toLowerCase().includes(keyword)
       );
     });
-  }, [requestsState, searchQuery, typeFilter]);
+  }, [requests, searchQuery, typeFilter]);
 
   const paginatedRequests = useMemo(() => {
     const start = (currentPage - 1) * PAGE_SIZE;
@@ -382,83 +348,29 @@ export function SupervisorRequestsWorkspace({
   }, [filteredRequests, currentPage]);
 
   const handleCreateSubmit = async (values: SupervisorProxyRequestFormValues) => {
-    if (onCreateRequest) {
+    setIsCreating(true);
+    try {
       await onCreateRequest(values);
+      setShowCreateForm(false);
+      setFeedbackBanner("Đã gửi đơn đề xuất thay NCS.");
+    } finally {
+      setIsCreating(false);
     }
-
-    const student = students.find((st) => st.id === values.studentId);
-    const candidate = candidateSupervisors.find(
-      (cand) => cand.giangVienId === values.gvhdMoiId
-    );
-    const nowIso = new Date().toISOString();
-    const newCode = `DX-GV-2026-${String(requestsState.length + 10).padStart(
-      3,
-      "0"
-    )}`;
-
-    const newItem: SupervisorProxyRequestItem = {
-      id: `prx-gv-${Date.now()}`,
-      maDon: newCode,
-      loaiDon: values.loaiDon,
-      trangThai: "CHO_DUYET",
-      studentId: values.studentId,
-      mshv: student?.mshv || "NCS",
-      hoTenNcs: student?.hoTen || "Nghiên cứu sinh",
-      khoaDaoTao: student?.khoaDaoTao || "",
-      nguoiDeXuat: supervisorProfile?.hoTen || "PGS.TS. Trần Quốc Tuấn",
-      vaiTroCuaToi: student?.vaiTro || "HUONG_DAN_CHINH",
-      ngayGui: nowIso,
-      ngayCapNhat: nowIso,
-      lyDo: values.lyDo,
-      batKhaKhang: values.batKhaKhang,
-      tenDeTaiCu: values.loaiDon === "DOI_DE_TAI" ? student?.tenDeTai : undefined,
-      tenDeTaiMoi: values.tenDeTaiMoi,
-      vaiTroGvhdCanThay: values.vaiTroGvhdCanThay,
-      tenGvhdCu: values.tenGvhdCu,
-      gvhdMoiId: values.gvhdMoiId,
-      tenGvhdMoi: candidate
-        ? `${candidate.hocHamHocVi} ${candidate.hoTen}`
-        : undefined,
-      donViGvhdMoi: candidate?.donViCongTac,
-      tepDinhKem: values.tepDinhKemFile
-        ? {
-            fileName: values.tepDinhKemFile.name,
-            fileUrl: `mock://${values.tepDinhKemFile.name}`,
-            fileSize: values.tepDinhKemFile.size,
-          }
-        : null,
-      quyetDinh: null,
-      lyDoTuChoi: null,
-    };
-
-    setRequestsState((prev) => [newItem, ...prev]);
-    setShowCreateForm(false);
-    setFeedbackBanner(
-      `Đã gửi đơn đề xuất ${newCode} thay cho NCS ${newItem.hoTenNcs} (${newItem.mshv}) tới Phòng Đào tạo Sau đại học.`
-    );
   };
 
   const handleConfirmWithdraw = async () => {
-    if (!withdrawTarget) return;
-    if (onWithdrawRequest) {
+    if (!withdrawTarget || isWithdrawing) return;
+    setIsWithdrawing(true);
+    try {
       await onWithdrawRequest(withdrawTarget.id);
+      setFeedbackBanner(`Đã thu hồi đơn đề xuất ${withdrawTarget.maDon}.`);
+      setWithdrawTarget(null);
+      setSelectedRequestId(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không thể thu hồi đơn đề xuất.");
+    } finally {
+      setIsWithdrawing(false);
     }
-
-    const withdrawnCode = withdrawTarget.maDon;
-    setRequestsState((prev) =>
-      prev.map((item) =>
-        item.id === withdrawTarget.id
-          ? {
-              ...item,
-              trangThai: "DA_HUY",
-              ngayCapNhat: new Date().toISOString(),
-            }
-          : item
-      )
-    );
-    setWithdrawTarget(null);
-    setSelectedRequestId(null);
-    setFeedbackBanner(`Đã thu hồi đơn đề xuất ${withdrawnCode}.`);
   };
 
   return (
@@ -485,6 +397,7 @@ export function SupervisorRequestsWorkspace({
           <button
             type="button"
             onClick={() => setShowCreateForm((prev) => !prev)}
+            disabled={isCreating || (!showCreateForm && (isLoading || students.length === 0))}
             className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#164E9B] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0F2744] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] focus-visible:ring-offset-2 motion-reduce:transition-none"
           >
             <FilePlus2 className="size-4" aria-hidden="true" />
@@ -551,14 +464,13 @@ export function SupervisorRequestsWorkspace({
       {showCreateForm && (
         <SupervisorRequestForm
           students={students}
-          candidateSupervisors={candidateSupervisors}
-          supervisorProfile={supervisorProfile}
+          isSubmitting={isCreating}
           onSubmit={handleCreateSubmit}
           onCancel={() => setShowCreateForm(false)}
         />
       )}
 
-      {!isLoading && (
+      {!isLoading && !error && (
         <section
           aria-label="Số liệu đơn đề xuất thay NCS"
           className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
@@ -677,17 +589,17 @@ export function SupervisorRequestsWorkspace({
               <div key={idx} className="h-14 rounded-lg bg-muted" />
             ))}
           </div>
-        ) : filteredRequests.length === 0 ? (
+        ) : error ? null : filteredRequests.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <FileText
               className="mx-auto size-10 text-muted-foreground/60"
               aria-hidden="true"
             />
             <p className="mt-3 text-sm font-semibold text-[#0F2744]">
-              Không có đơn đề xuất nào phù hợp
+              {requests.length ? "Không có đơn đề xuất phù hợp với bộ lọc" : "Chưa có đơn đề xuất thay NCS"}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Bạn có thể bấm “Tạo đơn đề xuất mới” để lập đề xuất đổi đề tài hoặc đổi GVHD cho Nghiên cứu sinh.
+              {students.length ? "Bạn có thể lập đề xuất đổi đề tài hoặc đổi GVHD cho NCS đang hướng dẫn." : "Chưa có NCS được phân công để lập đề xuất."}
             </p>
           </div>
         ) : (
@@ -721,7 +633,7 @@ export function SupervisorRequestsWorkspace({
                       <td className="px-5 py-4 align-top">
                         <p className="font-semibold text-[#0F2744]">{item.hoTenNcs}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
-                          {item.mshv} • {getRoleShortLabel(item.vaiTroCuaToi)}
+                          {item.mshv}{item.vaiTroCuaToi && ` · ${getRoleShortLabel(item.vaiTroCuaToi)}`}
                         </p>
                       </td>
 
@@ -791,19 +703,18 @@ export function SupervisorRequestsWorkspace({
           key={selectedRequest.id}
           item={selectedRequest}
           onClose={() => setSelectedRequestId(null)}
-          onOpenPdf={(pdf) => setActivePdf(pdf)}
           onWithdraw={
             selectedRequest.trangThai === "CHO_DUYET"
               ? () => setWithdrawTarget(selectedRequest)
               : undefined
           }
-          isSubDialogOpen={withdrawTarget !== null || activePdf !== null}
+          isSubDialogOpen={withdrawTarget !== null}
         />
       )}
 
       <ConfirmDialog
         isOpen={withdrawTarget !== null}
-        onClose={() => setWithdrawTarget(null)}
+        onClose={() => { if (!isWithdrawing) setWithdrawTarget(null); }}
         onConfirm={() => void handleConfirmWithdraw()}
         variant="warning"
         title={`Thu hồi đơn đề xuất ${withdrawTarget?.maDon ?? ""}`}
@@ -815,17 +726,9 @@ export function SupervisorRequestsWorkspace({
             : ""
         }
         confirmLabel="Xác nhận thu hồi"
+        isLoading={isWithdrawing}
       />
 
-      <PdfViewer
-        isOpen={activePdf !== null}
-        onClose={() => setActivePdf(null)}
-        fileUrl={activePdf?.fileUrl}
-        fileName={activePdf?.fileName}
-        title={activePdf?.title}
-        subtitle={activePdf?.subtitle}
-        allowDownload
-      />
     </div>
   );
 }

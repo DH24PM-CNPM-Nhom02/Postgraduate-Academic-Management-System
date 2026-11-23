@@ -145,7 +145,7 @@ export interface NcsCohortCatalogItem {
 }
 
 export interface UpdateMyNcsProfilePayload {
-  hoTen?: string;
+  email?: string;
   soDienThoai?: string;
 }
 
@@ -356,9 +356,12 @@ export const NcsService = {
   },
 
   /** Cập nhật các trường cá nhân được phép của hồ sơ NCS hiện tại. */
-  updateMyProfile: async (payload: UpdateMyNcsProfilePayload): Promise<void> => {
+  updateMyProfile: async (
+    payload: UpdateMyNcsProfilePayload,
+  ): Promise<Pick<BackendNcsMeResponse, "email" | "soDienThoai">> => {
     try {
-      await apiClient.patch("/ncs/me", payload);
+      const { data } = await apiClient.patch<Pick<BackendNcsMeResponse, "email" | "soDienThoai">>("/ncs/me", payload);
+      return data;
     } catch (error) {
       throwApiError(error);
     }

@@ -93,6 +93,7 @@ export interface SupervisorAssignmentItem {
   ngayBatDau: string;
   /** Tên file PDF quyết định phân công */
   fileNameQuyetDinh?: string;
+  fileIdQuyetDinh?: string;
   /** Đường dẫn PDF quyết định phân công */
   fileUrlQuyetDinh?: string;
 }

@@ -96,6 +96,7 @@ export interface MyProgressResponse {
     mshv: string;
     hoTen: string;
     lop: string | null;
+    trangThai?: string;
   };
   hanCuaNcs: {
     hanChinhQuy: string | null;
@@ -170,6 +171,9 @@ export interface BackendNcsMeResponse {
   lyDoChuyenTrangThai: string | null;
   createdAt: string;
   updatedAt: string;
+  thesisTopic?: string | null;
+  supervisorMain?: string | null;
+  supervisorCo?: string | null;
   nganh: {
     id: number;
     maNganh: string;

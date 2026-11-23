@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Header, HttpCode, Inject, Param, Patch, Post, Query, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Header, HttpCode, Inject, Param, Patch, Post, Query, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout } from 'rxjs';
@@ -7,7 +7,7 @@ import { RequirePermissions } from '../common/decorators/require-permissions.dec
 import { PHD_SERVICE } from '../common/constants/service.js';
 import type { AuthUser } from '../common/interface/auth-user.interface.js';
 import { CreateNcsBatchDto, ListNcsQueryDto, UpdateMyNcsProfileDto, UpdateNcsDto, UpdateNcsStatusDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
-import { PERMISSIONS } from '../../../../lib/contracts/src/permissions.js';
+import { PERMISSIONS, ROLES } from '../../../../lib/contracts/src/permissions.js';
 import { buildNcsListWorkbook, buildNcsTemplate, parseNcsExcel, type NcsExportRecord } from './ncs-excel.js';
 import { LimitStrict, LimitBulk, LimitHeavyRead } from '../common/decorators/rate-limit.decorator.js';
 import { downloadWorkbook, ExportExcelDto, selectExportRows } from '../common/list-excel.js';
@@ -110,8 +110,10 @@ export class NcsController {
 
   @Patch('me')
   @LimitStrict()
-  @RequirePermissions(PERMISSIONS.NCS_READ)
   updateMe(@CurrentUser() u: AuthUser, @Body() body: UpdateMyNcsProfileDto) {
+    if (!u.roles.includes(ROLES.NCS)) {
+      throw new ForbiddenException('Chỉ nghiên cứu sinh được cập nhật hồ sơ NCS của mình');
+    }
     return this.send('phd.ncs.update-me', { userId: u.id, duLieu: body });
   }
 

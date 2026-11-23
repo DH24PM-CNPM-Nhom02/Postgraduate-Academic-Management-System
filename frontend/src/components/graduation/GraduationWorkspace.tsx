@@ -21,26 +21,17 @@ interface PreviewPdfState {
  * GraduationWorkspace
  *
  * Container kết nối màn hình Xét tốt nghiệp cá nhân: hỗ trợ đầy đủ
- * trạng thái `isLoading`, `error`, `empty`, chuyển đổi kịch bản kiểm thử UI
+ * trạng thái `isLoading`, `error`, `empty`
  * và xem trước tệp chứng chỉ/xác nhận qua `PdfViewer`.
  */
 export function GraduationWorkspace({
   overview,
-  scenarios,
   isLoading = false,
   error = null,
   onRetry,
   className = "",
 }: GraduationWorkspaceProps) {
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(
-    () => (scenarios && scenarios.length > 0 ? scenarios[0].id : null)
-  );
   const [activePdf, setActivePdf] = useState<PreviewPdfState | null>(null);
-
-  const activeOverview =
-    scenarios && scenarios.length > 0
-      ? scenarios.find((s) => s.id === selectedScenarioId)?.data ?? overview
-      : overview;
 
   const handlePreviewDocument = (
     attachment: GraduationConditionAttachment,
@@ -64,14 +55,14 @@ export function GraduationWorkspace({
           </h1>
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
             Kiểm tra đối soát 06 điều kiện công nhận trình độ và cấp bằng Tiến sĩ
-            {activeOverview ? (
+            {overview ? (
               <>
                 {" "}
                 cho NCS{" "}
                 <strong className="font-semibold text-foreground">
-                  {activeOverview.hoTenNcs}
+                  {overview.hoTenNcs}
                 </strong>{" "}
-                (<span className="font-mono">{activeOverview.mshv}</span>).
+                (<span className="font-mono">{overview.mshv}</span>).
               </>
             ) : (
               "."
@@ -79,34 +70,6 @@ export function GraduationWorkspace({
           </p>
         </div>
 
-        {/* Bộ chuyển kịch bản mẫu khi có nhiều hơn 1 scenario */}
-        {scenarios && scenarios.length > 1 && !isLoading && !error && (
-          <div
-            role="group"
-            aria-label="Chọn kịch bản dữ liệu mẫu"
-            className="inline-flex flex-wrap items-center gap-1 rounded-xl border border-border bg-muted/40 p-1"
-          >
-            {scenarios.map((sc) => {
-              const isSelected =
-                (selectedScenarioId ?? scenarios[0].id) === sc.id;
-              return (
-                <button
-                  key={sc.id}
-                  type="button"
-                  aria-pressed={isSelected}
-                  onClick={() => setSelectedScenarioId(sc.id)}
-                  className={`inline-flex h-9 items-center rounded-lg px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] cursor-pointer ${
-                    isSelected
-                      ? "bg-[#164E9B] text-white shadow-2xs"
-                      : "text-muted-foreground hover:bg-card hover:text-foreground"
-                  }`}
-                >
-                  {sc.label}
-                </button>
-              );
-            })}
-          </div>
-        )}
       </header>
 
       {/* Loading State */}
@@ -167,7 +130,7 @@ export function GraduationWorkspace({
             </button>
           )}
         </section>
-      ) : !activeOverview || activeOverview.dieuKienList.length === 0 ? (
+      ) : !overview || overview.dieuKienList.length === 0 ? (
         /* Empty State */
         <section className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card px-6 py-12 text-center">
           <div className="flex size-12 items-center justify-center rounded-2xl border border-border bg-muted/40 text-muted-foreground">
@@ -183,9 +146,9 @@ export function GraduationWorkspace({
         </section>
       ) : (
         <>
-          <GraduationOverviewCard overview={activeOverview} />
+          <GraduationOverviewCard overview={overview} />
           <GraduationConditions
-            conditions={activeOverview.dieuKienList}
+            conditions={overview.dieuKienList}
             onPreviewDocument={handlePreviewDocument}
           />
         </>

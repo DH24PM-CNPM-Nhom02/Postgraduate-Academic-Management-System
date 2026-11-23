@@ -75,11 +75,8 @@ export function EvaluationReviewsSection({
     } else if (directUrl) {
       setPreviewUrl(directUrl);
     } else {
-      setPreviewUrl(
-        `mock://phieu-nhan-xet/${encodeURIComponent(
-          phieu.fileName || "phieu-nhan-xet.pdf"
-        )}`
-      );
+      setPreviewUrl(null);
+      setPdfError("Chưa có tệp PDF đính kèm.");
     }
   };
 

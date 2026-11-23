@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PROFILE_PHONE_MESSAGE, PROFILE_PHONE_PATTERN } from "./profile";
 
 const HOC_HAM_HOC_VI = ["", "GIAO_SU", "PHO_GIAO_SU", "TIEN_SI_KHOA_HOC", "TIEN_SI"] as const;
 
@@ -14,6 +15,10 @@ export const supervisorUpdateSchema = z.object({
   email: z.string().trim().max(100, "Email tối đa 100 ký tự").refine(
     (value) => !value || z.email().safeParse(value).success,
     "Email không hợp lệ"
+  ),
+  soDienThoai: z.string().trim().refine(
+    (value) => !value || PROFILE_PHONE_PATTERN.test(value),
+    PROFILE_PHONE_MESSAGE,
   ),
   hocHamHocVi: z.enum(HOC_HAM_HOC_VI, { message: "Học hàm/học vị không hợp lệ" }),
   chuyenNganh: z.string().trim().max(255, "Chuyên ngành tối đa 255 ký tự"),

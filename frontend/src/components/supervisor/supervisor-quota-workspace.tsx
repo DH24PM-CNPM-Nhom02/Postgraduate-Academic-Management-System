@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   FileText,
   Gauge,
-  Info,
   RefreshCw,
   Scale,
   Users,
@@ -85,7 +84,6 @@ export function SupervisorQuotaWorkspace({
   profile: propProfile,
   quota: propQuota,
   students: propStudents,
-  scenarios = [],
   isLoading: propIsLoading = false,
   error: propError = null,
   onRetry: propOnRetry,
@@ -106,28 +104,18 @@ export function SupervisorQuotaWorkspace({
     refetch: refetchStudents,
   } = useMySupervisedStudents();
 
-  const profile = propProfile || liveProfile || {
-    id: "",
-    hoTen: "Giảng viên Hướng dẫn",
-    hocHamHocVi: "TS.",
-    maCanBo: "N/A",
-    donVi: "Trường Đại học An Giang",
-    chuyenMon: "Sau Đại học",
-    email: "",
-    soDienThoai: "",
-    hanMucToiDa: 3.0,
-  };
+  const profile = propProfile ?? liveProfile;
 
   const students = useMemo(
     () => propStudents || liveStudents || [],
     [propStudents, liveStudents]
   );
 
-  const quota = useMemo(
-    () =>
-      propQuota ||
-      computeSupervisorQuota(students, profile.hanMucToiDa ?? 3.0),
-    [propQuota, students, profile.hanMucToiDa]
+  const maxQuota = profile?.hanMucToiDa;
+  const quota = propQuota ?? (
+    (propStudents || liveStudents) && maxQuota !== undefined
+      ? computeSupervisorQuota(students, maxQuota)
+      : undefined
   );
 
   const isDataLoading =
@@ -156,20 +144,6 @@ export function SupervisorQuotaWorkspace({
       void refetchStudents();
     });
 
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(
-    () => scenarios[0]?.id ?? null
-  );
-
-  const selectedScenario = useMemo(
-    () =>
-      scenarios.find((scenario) => scenario.id === selectedScenarioId) ?? null,
-    [scenarios, selectedScenarioId]
-  );
-
-  const activeQuota = selectedScenario ? selectedScenario.quota : quota;
-  const isPreviewScenario =
-    selectedScenario !== null && selectedScenario.id !== "current";
-
   const totalRosterWeight = useMemo(
     () =>
       students.reduce(
@@ -187,7 +161,7 @@ export function SupervisorQuotaWorkspace({
             Định mức hướng dẫn Nghiên cứu sinh (BR-09)
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {profile.hoTen} • {profile.hocHamHocVi} • {profile.maCanBo} • {profile.donVi}
+            {profile && [profile.hoTen, profile.hocHamHocVi, profile.maCanBo, profile.donVi].join(" · ")}
           </p>
         </div>
 
@@ -234,61 +208,13 @@ export function SupervisorQuotaWorkspace({
         </div>
       )}
 
-      {scenarios.length > 0 && !isLoading && (
-        <section
-          aria-label="Mô phỏng các ngưỡng định mức hướng dẫn"
-          className="rounded-xl border border-border bg-card p-5"
-        >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-[#0F2744]">
-                Kiểm tra trạng thái theo ngưỡng cảnh báo BR-09
-              </h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Chọn kịch bản tải để xem giao diện thanh định mức phản ứng theo ngưỡng an toàn, cảnh báo 80% và đạt trần 100%.
-              </p>
-            </div>
-            {isPreviewScenario && (
-              <span className="inline-flex items-center gap-1.5 self-start rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800">
-                <Info className="size-3.5" aria-hidden="true" />
-                <span>Đang xem kịch bản mô phỏng</span>
-              </span>
-            )}
-          </div>
+      {isLoading ? (
+        <p role="status" className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">Đang tải định mức hướng dẫn...</p>
+      ) : !error && !quota ? (
+        <p className="rounded-xl border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">Chưa có dữ liệu định mức hướng dẫn.</p>
+      ) : null}
 
-          <div
-            role="group"
-            aria-label="Danh sách kịch bản định mức"
-            className="mt-3 flex flex-wrap gap-2"
-          >
-            {scenarios.map((scenario) => {
-              const isSelected = selectedScenario?.id === scenario.id;
-              return (
-                <button
-                  key={scenario.id}
-                  type="button"
-                  aria-pressed={isSelected}
-                  onClick={() => setSelectedScenarioId(scenario.id)}
-                  className={`inline-flex min-h-10 items-center rounded-lg border px-3.5 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none ${
-                    isSelected
-                      ? "border-[#164E9B] bg-[#164E9B] text-white"
-                      : "border-border bg-background text-foreground hover:bg-muted"
-                  }`}
-                >
-                  {scenario.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {selectedScenario && (
-            <p className="mt-2.5 text-xs text-muted-foreground">
-              {selectedScenario.description}
-            </p>
-          )}
-        </section>
-      )}
-
+      {quota && !isLoading && !error && (
       <section
         aria-label="Chi tiết thanh định mức quy đổi"
         className="rounded-xl border border-border bg-card p-5 sm:p-6"
@@ -300,7 +226,7 @@ export function SupervisorQuotaWorkspace({
           </h2>
         </div>
 
-        <QuotaBar quota={activeQuota} showDetails isLoading={isLoading} />
+        <QuotaBar quota={quota} showDetails isLoading={isLoading} />
 
         {!isLoading && (
           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -309,10 +235,10 @@ export function SupervisorQuotaWorkspace({
                 Hướng dẫn chính (×1.0)
               </p>
               <p className="mt-1.5 text-xl font-bold tabular-nums text-[#0F2744]">
-                {activeQuota.soLuongHuongDanChinh} NCS
+                {quota.soLuongHuongDanChinh} NCS
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Quy đổi {activeQuota.trongSoChinh.toFixed(1)} điểm
+                Quy đổi {quota.trongSoChinh.toFixed(1)} điểm
               </p>
             </div>
 
@@ -321,10 +247,10 @@ export function SupervisorQuotaWorkspace({
                 Đồng hướng dẫn (×0.5)
               </p>
               <p className="mt-1.5 text-xl font-bold tabular-nums text-[#0F2744]">
-                {activeQuota.soLuongDongHuongDan} NCS
+                {quota.soLuongDongHuongDan} NCS
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Quy đổi {activeQuota.trongSoPhu.toFixed(1)} điểm
+                Quy đổi {quota.trongSoPhu.toFixed(1)} điểm
               </p>
             </div>
 
@@ -333,10 +259,10 @@ export function SupervisorQuotaWorkspace({
                 Tổng trọng số đang tính
               </p>
               <p className="mt-1.5 text-xl font-bold tabular-nums text-[#164E9B]">
-                {activeQuota.tongTrongSo.toFixed(1)} / {activeQuota.hanMucToiDa.toFixed(1)}
+                {quota.tongTrongSo.toFixed(1)} / {quota.hanMucToiDa.toFixed(1)}
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Chiếm {activeQuota.tyLeSuDungPhanTram}% hạn mức tối đa
+                Chiếm {quota.tyLeSuDungPhanTram}% hạn mức tối đa
               </p>
             </div>
 
@@ -346,17 +272,17 @@ export function SupervisorQuotaWorkspace({
               </p>
               <p
                 className={`mt-1.5 text-xl font-bold tabular-nums ${
-                  activeQuota.trongSoConLai > 0 ? "text-emerald-700" : "text-rose-700"
+                  quota.trongSoConLai > 0 ? "text-emerald-700" : "text-rose-700"
                 }`}
               >
-                {activeQuota.trongSoConLai.toFixed(1)} điểm
+                {quota.trongSoConLai.toFixed(1)} điểm
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {activeQuota.trongSoConLai >= 1
-                  ? `Tối đa +${Math.floor(activeQuota.trongSoConLai)} Chính hoặc +${Math.floor(
-                      activeQuota.trongSoConLai / 0.5
+                {quota.trongSoConLai >= 1
+                  ? `Tối đa +${Math.floor(quota.trongSoConLai)} Chính hoặc +${Math.floor(
+                      quota.trongSoConLai / 0.5
                     )} Đồng HD`
-                  : activeQuota.trongSoConLai >= 0.5
+                  : quota.trongSoConLai >= 0.5
                   ? "Chỉ đủ nhận thêm 1 Đồng HD (0.5)"
                   : "Đã hết hạn mức tiếp nhận mới"}
               </p>
@@ -364,7 +290,9 @@ export function SupervisorQuotaWorkspace({
           </div>
         )}
       </section>
+      )}
 
+      {(!error || propStudents || liveStudents) && (
       <section
         aria-label="Bảng phân bổ trọng số theo từng Nghiên cứu sinh"
         className="overflow-hidden rounded-xl border border-border bg-card"
@@ -375,13 +303,7 @@ export function SupervisorQuotaWorkspace({
               Bảng kê trọng số từng Nghiên cứu sinh
             </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {isPreviewScenario
-                ? `Lưu ý: Bảng dưới đây phản ánh danh sách phân công thực tế (${totalRosterWeight.toFixed(
-                    1
-                  )} điểm), trong khi thẻ tổng quan phía trên đang mô phỏng ${activeQuota.tongTrongSo.toFixed(
-                    1
-                  )} điểm.`
-                : "Danh sách học viên thực tế đang cấu thành tổng trọng số định mức của Giảng viên."}
+              Tổng trọng số tính từ các phân công hướng dẫn hiện hành.
             </p>
           </div>
           <span className="inline-flex items-center gap-1.5 self-start rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-[#0F2744]">
@@ -484,7 +406,7 @@ export function SupervisorQuotaWorkspace({
                     {totalRosterWeight.toFixed(1)}
                   </td>
                   <td colSpan={2} className="px-5 py-3.5 text-xs text-muted-foreground">
-                    Trần quy chế: {quota.hanMucToiDa.toFixed(1)} điểm định mức
+                    {quota ? `Trần quy chế: ${quota.hanMucToiDa.toFixed(1)} điểm định mức` : "Chưa có dữ liệu hạn mức"}
                   </td>
                 </tr>
               </tfoot>
@@ -492,6 +414,7 @@ export function SupervisorQuotaWorkspace({
           </div>
         )}
       </section>
+      )}
 
       <section
         aria-label="Quy tắc áp dụng định mức BR-09"
@@ -541,19 +464,19 @@ export function SupervisorQuotaWorkspace({
               <li className="flex items-center gap-2">
                 <span className="inline-block size-2.5 shrink-0 rounded-full bg-[#164E9B]" aria-hidden="true" />
                 <span>
-                  <strong>Dưới 80% (&lt; 4.0):</strong> An toàn, đủ điều kiện tiếp nhận thêm NCS.
+                  <strong>Dưới 75%:</strong> An toàn, đủ điều kiện tiếp nhận thêm NCS.
                 </span>
               </li>
               <li className="flex items-center gap-2">
                 <span className="inline-block size-2.5 shrink-0 rounded-full bg-amber-500" aria-hidden="true" />
                 <span>
-                  <strong>Từ 80% đến dưới 100% (4.0 – 4.9):</strong> Cảnh báo gần chạm trần khi phân công mới.
+                  <strong>Từ 75% đến dưới 100%:</strong> Cảnh báo gần chạm trần khi phân công mới.
                 </span>
               </li>
               <li className="flex items-center gap-2">
                 <span className="inline-block size-2.5 shrink-0 rounded-full bg-rose-600" aria-hidden="true" />
                 <span>
-                  <strong>Từ 100% trở lên (≥ 5.0):</strong> Khóa tiếp nhận phân công mới trên hệ thống học vụ.
+                  <strong>Từ 100% trở lên:</strong> Khóa tiếp nhận phân công mới trên hệ thống học vụ.
                 </span>
               </li>
             </ul>

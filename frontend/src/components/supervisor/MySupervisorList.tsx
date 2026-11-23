@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import {
   AlertCircle,
   Award,
   Building2,
   Calendar,
-  FileText,
   Mail,
   Phone,
   RefreshCw,
@@ -19,8 +18,7 @@ import type {
   SupervisorRoleType,
 } from "@/src/types/ui/thesis";
 import { useMyNcsProfile, useMySupervisors } from "@/src/hooks/api";
-import { mockStudentSupervisorsOverview } from "@/src/mocks/thesis";
-import { PdfViewer } from "@/src/components/upload/PdfViewer";
+import { DocumentViewButton } from "@/src/components/student/progress/document-view-button";
 
 export interface MySupervisorListProps {
   /** Danh sách Giảng viên hướng dẫn được phân công cho NCS (tùy chọn, nếu không truyền sẽ tự động kết nối API) */
@@ -77,9 +75,6 @@ export function MySupervisorList({
   className = "",
   showPageHeader = true,
 }: MySupervisorListProps) {
-  const [selectedDecision, setSelectedDecision] =
-    useState<SupervisorAssignmentItem | null>(null);
-
   const isSelfManaged = propSupervisors === undefined;
   const {
     data: querySupervisors,
@@ -91,20 +86,10 @@ export function MySupervisorList({
 
   const { data: ncsProfile } = useMyNcsProfile();
 
-  const fallbackSupervisors = mockStudentSupervisorsOverview.danhSachGvhd;
-  const hasRealData = Boolean(querySupervisors && querySupervisors.length > 0);
-
-  const supervisors = isSelfManaged
-    ? (querySupervisors ?? (queryIsError ? fallbackSupervisors : []))
-    : propSupervisors;
-  const isLoading = isSelfManaged
-    ? (queryLoading && !hasRealData)
-    : (propIsLoading ?? false);
+  const supervisors = propSupervisors ?? querySupervisors ?? [];
+  const isLoading = isSelfManaged ? queryLoading : (propIsLoading ?? false);
   const error = isSelfManaged
-    ? (hasRealData && queryIsError
-        ? queryError?.message ||
-          "Không thể tải danh sách giảng viên hướng dẫn. Vui lòng thử lại sau."
-        : null)
+    ? (queryIsError && queryError?.status !== 404 ? queryError?.message : null)
     : (propError ?? null);
   const onRetry = isSelfManaged
     ? () => {
@@ -114,8 +99,8 @@ export function MySupervisorList({
 
   const renderHeader = () => {
     if (!showPageHeader) return null;
-    const ncsName = ncsProfile?.hoTen || mockStudentSupervisorsOverview.hoTenNcs;
-    const ncsMshv = ncsProfile?.mshv || mockStudentSupervisorsOverview.mshv;
+    const ncsName = ncsProfile?.hoTen;
+    const ncsMshv = ncsProfile?.mshv;
 
     return (
       <header className="border-b border-border pb-4">
@@ -428,15 +413,16 @@ export function MySupervisorList({
                       </div>
                     </div>
 
-                    {supervisor.fileUrlQuyetDinh && (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDecision(supervisor)}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-[#164E9B] transition-colors hover:border-blue-200 hover:bg-blue-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] cursor-pointer"
-                      >
-                        <FileText className="size-3.5" aria-hidden="true" />
-                        <span>Xem QĐ phân công</span>
-                      </button>
+                    {supervisor.fileIdQuyetDinh || supervisor.fileUrlQuyetDinh ? (
+                      <DocumentViewButton
+                        fileId={supervisor.fileIdQuyetDinh ?? ""}
+                        fileUrl={supervisor.fileIdQuyetDinh ? undefined : supervisor.fileUrlQuyetDinh}
+                        fileName={supervisor.fileNameQuyetDinh ?? "Quyết định phân công"}
+                        title={`Quyết định phân công ${supervisor.soQuyetDinh}`}
+                        label="Xem QĐ phân công"
+                      />
+                    ) : (
+                      <span className="text-muted-foreground">Chưa có tệp PDF quyết định</span>
                     )}
                   </div>
                 </div>
@@ -446,27 +432,6 @@ export function MySupervisorList({
         </div>
       </div>
 
-      <PdfViewer
-        isOpen={Boolean(selectedDecision)}
-        onClose={() => setSelectedDecision(null)}
-        fileUrl={selectedDecision?.fileUrlQuyetDinh}
-        fileName={selectedDecision?.fileNameQuyetDinh}
-        title={
-          selectedDecision
-            ? `Quyết định phân công ${selectedDecision.soQuyetDinh}`
-            : undefined
-        }
-        subtitle={
-          selectedDecision
-            ? `${selectedDecision.hocHamHocVi} ${selectedDecision.hoTen} • ${
-                selectedDecision.vaiTro === "HUONG_DAN_CHINH"
-                  ? "Hướng dẫn chính (1.0)"
-                  : "Đồng hướng dẫn (0.5)"
-              }`
-            : undefined
-        }
-        allowDownload={true}
-      />
     </>
   );
 }

@@ -76,6 +76,7 @@ export interface StudentProgressProfile {
   mshv: string;
   hoTen: string;
   lop: string;
+  trangThaiHocTap?: string;
   khoaHoc?: string;
   maKhoaHoc?: string;
   namTuyenSinh?: number;

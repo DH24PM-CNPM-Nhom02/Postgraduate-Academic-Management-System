@@ -3,7 +3,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { ClientProxy, RpcException } from "@nestjs/microservices";
 import { PrismaService } from "../prisma/prisma.service.js";
 import { ListXetTotNghiepQueryDto, XacNhanCongNoDto, XacNhanNgoaiNguDto } from "../../../../lib/contracts/src/dto/graduation-assessment.dto.js";
-import type { GraduatedNcsRecord, XacNhanTotNghiepDto } from "../../../../lib/contracts/src/dto/graduation-assessment.dto.js";
+import type { GraduatedNcsRecord, PersonalGraduatedNcsRecord, XacNhanTotNghiepDto } from "../../../../lib/contracts/src/dto/graduation-assessment.dto.js";
 import type { Prisma } from "../generated/prisma/index.js";
 import { goiService } from "../helpers/call-service.util.js";
 import { tinhKetQuaTotNghiep, TRANG_THAI_DUOC_XET } from "./confirm-graduation.js";
@@ -31,7 +31,7 @@ const GRADUATED_NCS_SELECT = {
             soHieuBang: true,
             ngayCapBang: true,
             nguoiHuongDan: true,
-            quyetDinh: { select: { soQuyetDinh: true, ngayQuyetDinh: true } },
+            quyetDinh: { select: { soQuyetDinh: true, ngayQuyetDinh: true, loai: true, fileId: true } },
         },
     },
 } satisfies Prisma.NghienCuuSinhSelect;
@@ -201,12 +201,18 @@ export class GraduationAssessmentService {
         return rows.map(toGraduatedRecord);
     }
 
-    async hoSoTotNghiepCaNhan(userId: string): Promise<GraduatedNcsRecord | null> {
+    async hoSoTotNghiepCaNhan(userId: string): Promise<PersonalGraduatedNcsRecord | null> {
         const row = await this.prisma.nghienCuuSinh.findUnique({
             where: { userId, trangThai: 'DA_TOT_NGHIEP' },
             select: GRADUATED_NCS_SELECT,
         });
-        return row ? toGraduatedRecord(row) : null;
+        if (!row) return null;
+        const xet = row.xetTotNghiep;
+        const decision = xet?.trangThai === 'DA_DUYET' ? xet.quyetDinh : null;
+        return {
+            ...toGraduatedRecord(row),
+            quyetDinhFileId: decision?.loai === 'CONG_NHAN_TOT_NGHIEP' ? decision.fileId : null,
+        };
     }
 
     async xacNhanNgoaiNgu(ncsId: string, dto: XacNhanNgoaiNguDto, nguoiXacNhanId: string) {

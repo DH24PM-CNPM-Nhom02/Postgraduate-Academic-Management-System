@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AlertCircle, Eye } from "lucide-react";
 import { PdfViewer } from "@/src/components/upload/PdfViewer";
 import { useDocumentPreviewUrl } from "@/src/hooks/api/use-documents";
@@ -12,8 +13,12 @@ export interface DocumentViewButtonProps {
   variant?: "default" | "outline" | "ghost" | "link";
   size?: "sm" | "default";
   showLabel?: boolean;
+  label?: string;
+  title?: string;
+  subtitle?: string;
   error?: string | null;
   className?: string;
+  onPreviewChange?: (open: boolean) => void;
   Trigger?: React.ComponentType<{ openPreview: () => void }>;
 }
 
@@ -32,8 +37,12 @@ export function DocumentViewButton({
   variant = "outline",
   size = "sm",
   showLabel = true,
+  label = "Xem minh chứng",
+  title,
+  subtitle,
   error = null,
   className = "",
+  onPreviewChange,
   Trigger,
 }: DocumentViewButtonProps) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -96,6 +105,7 @@ export function DocumentViewButton({
   const handleOpen = () => {
     isOpenRef.current = true;
     setIsPreviewOpen(true);
+    onPreviewChange?.(true);
 
     if (fileUrl) {
       if (!fileName && !fileUrl) {
@@ -113,6 +123,7 @@ export function DocumentViewButton({
     isOpenRef.current = false;
     requestIdRef.current += 1;
     setIsPreviewOpen(false);
+    onPreviewChange?.(false);
     setLocalError(null);
     previewMutation.reset();
     revokeCurrentObjectUrl();
@@ -151,7 +162,7 @@ export function DocumentViewButton({
             event.stopPropagation();
             handleOpen();
           }}
-          aria-label={`Xem minh chứng ${fileName}`}
+          aria-label={`${label} ${fileName}`}
           title={`Xem tài liệu: ${fileName}`}
           className={`${baseStyles} ${sizeStyles} ${variantStyles} ${className}`}
         >
@@ -161,7 +172,7 @@ export function DocumentViewButton({
             }`}
             aria-hidden="true"
           />
-          {showLabel && <span>Xem minh chứng</span>}
+          {showLabel && <span>{label}</span>}
         </button>
       )}
 
@@ -175,18 +186,21 @@ export function DocumentViewButton({
         </span>
       )}
 
-      <PdfViewer
-        isOpen={isPreviewOpen}
-        onClose={handleClose}
-        fileUrl={resolvedUrl}
-        fileName={fileName}
-        title={fileName || "Xem minh chứng PDF"}
-        subtitle={`Mã tài liệu: ${fileId} • Định dạng PDF`}
-        isLoading={!fileUrl && previewMutation.isPending}
-        error={resolvedError}
-        onRetry={handleRetry}
-        allowDownload={true}
-      />
+      {isPreviewOpen && createPortal(
+        <PdfViewer
+          isOpen
+          onClose={handleClose}
+          fileUrl={resolvedUrl}
+          fileName={fileName}
+          title={title || fileName || "Xem tài liệu PDF"}
+          subtitle={subtitle}
+          isLoading={!fileUrl && previewMutation.isPending}
+          error={resolvedError}
+          onRetry={handleRetry}
+          allowDownload
+        />,
+        document.body,
+      )}
     </div>
   );
 }

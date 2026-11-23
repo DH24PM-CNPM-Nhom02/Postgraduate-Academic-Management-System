@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { throwApiError, type ApiClientError } from "@/src/lib/api";
 import { ChangeRequestService } from "@/src/services/change-request";
+import { GvhdService } from "@/src/services/gvhd";
 import {
   buildStudentChangeRequestsOverview,
 } from "@/src/adapters/change-request";
@@ -25,6 +26,15 @@ export const changeRequestKeys = {
   details: () => [...changeRequestKeys.all, "detail"] as const,
   detail: (id: string) => [...changeRequestKeys.details(), id] as const,
 };
+
+export function useSupervisorCandidates(enabled = true) {
+  return useQuery({
+    queryKey: ["gvhd", "candidates"],
+    queryFn: ({ signal }) => GvhdService.listCandidates(signal),
+    enabled,
+    staleTime: 60_000,
+  });
+}
 
 /**
  * Hook tải danh sách đơn đề nghị của NCS
@@ -81,22 +91,25 @@ export function useStudentChangeRequestsOverview() {
   const requestsQuery = useChangeRequests();
   const profileQuery = useMyNcsProfile();
   const progressQuery = useMyProgress();
+  const candidatesQuery = useSupervisorCandidates();
 
   const data: StudentChangeRequestsOverview | undefined = useMemo(() => {
-    if (!requestsQuery.data) return undefined;
+    if (!requestsQuery.data || !profileQuery.data) return undefined;
     const items = requestsQuery.data.data || [];
     return buildStudentChangeRequestsOverview(
       items,
       profileQuery.data,
-      progressQuery.data
+      progressQuery.data,
+      candidatesQuery.data
     );
-  }, [requestsQuery.data, profileQuery.data, progressQuery.data]);
+  }, [requestsQuery.data, profileQuery.data, progressQuery.data, candidatesQuery.data]);
 
   const refetch = async () => {
     await Promise.all([
       requestsQuery.refetch(),
       profileQuery.refetch(),
       progressQuery.refetch(),
+      candidatesQuery.refetch(),
     ]);
   };
 
@@ -105,6 +118,9 @@ export function useStudentChangeRequestsOverview() {
     isLoading: requestsQuery.isLoading || profileQuery.isLoading,
     isError: requestsQuery.isError || profileQuery.isError,
     error: requestsQuery.error || profileQuery.error,
+    candidatesError: candidatesQuery.error,
+    candidatesLoading: candidatesQuery.isLoading,
+    retryCandidates: candidatesQuery.refetch,
     refetch,
   };
 }

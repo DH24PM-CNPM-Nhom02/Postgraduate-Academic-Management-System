@@ -14,26 +14,23 @@ function mapDeTaiDtoToItem(
   ncsProfile?: BackendNcsMeResponse
 ): ThesisItem {
   const soQd = dto.quyetDinh?.soQuyetDinh || "Chưa có số QĐ";
-  const ngayKy = dto.quyetDinh?.ngayQuyetDinh || dto.createdAt;
+  const ngayKy = dto.quyetDinh?.ngayQuyetDinh || "";
 
   return {
     id: dto.id,
     maDeTai: `DT-${dto.id.slice(0, 8).toUpperCase()}`,
     tenDeTaiTiengViet: dto.tenDeTai,
-    chuyenNganh: ncsProfile?.nganh?.tenNganh || "Khoa học máy tính",
+    chuyenNganh: ncsProfile?.nganh?.tenNganh || "Chưa cập nhật",
     maNganh: ncsProfile?.nganh?.maNganh || undefined,
     trangThai: (dto.trangThai as ThesisStatus) || "HIEU_LUC",
-    ngayBatDau: ngayKy,
+    ngayBatDau: ngayKy || dto.createdAt,
     ngayKetThuc: dto.ngayKetThuc || undefined,
     quyetDinh: {
       soQuyetDinh: soQd,
       ngayKy,
-      coQuanBanHanh: "Trường Đại học An Giang - ĐHQG-HCM",
       fileName: `QuyetDinh_${soQd.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`,
       fileId: dto.quyetDinh?.fileId || null,
-      fileUrl: dto.quyetDinh?.fileId
-        ? undefined
-        : `mock://quyet-dinh/${soQd.replace(/[^a-zA-Z0-9]/g, "_")}`,
+
     },
   };
 }
@@ -84,8 +81,8 @@ export function mapMyThesisToUi(
     khoaHoc:
       ncsProfile?.khoaHocNcs?.maKhoaHoc && ncsProfile?.khoaHocNcs?.namTuyenSinh
         ? `Niên khóa: ${ncsProfile.khoaHocNcs.maKhoaHoc} - ${ncsProfile.khoaHocNcs.namTuyenSinh}`
-        : ncsProfile?.khoaHoc || apiData.khoaHoc || "Niên khóa: NCS01 - 2025",
-    ngayNhapHoc: ncsProfile?.ngayNhapHoc || "2024-01-15T08:00:00Z",
+        : ncsProfile?.khoaHoc || apiData.khoaHoc || "Chưa cập nhật",
+    ngayNhapHoc: ncsProfile?.ngayNhapHoc || "",
     hanDaoTao72Thang: resolveTrainingDeadline(ncsProfile),
     deTaiHienTai,
     lichSuDeTai,

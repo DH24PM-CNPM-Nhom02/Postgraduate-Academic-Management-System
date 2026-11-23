@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import React, { useId, useMemo, useState } from "react";
 import {
   AlertCircle,
   BookOpen,
@@ -13,21 +13,17 @@ import {
 import { ConfirmDialog } from "@/src/components/shared/ConfirmDialog";
 import { DeadlineWarningBanner } from "@/src/components/shared/DeadlineWarningBanner";
 import { PdfUploader } from "@/src/components/upload/PdfUploader";
-import { UploadProgress } from "@/src/components/upload/UploadProgress";
-import type { CandidateSupervisorOption } from "@/src/types/ui/change-request";
+import { useSupervisorCandidates } from "@/src/hooks/api/use-change-requests";
+import { useMyNcsDetail } from "@/src/hooks/use-academic";
 import type {
   SupervisedStudent,
-  SupervisorProfile,
   SupervisorProxyRequestFormValues,
   SupervisorProxyRequestType,
   SupervisorRole,
 } from "@/src/types/ui/supervisor";
-import type { UploadStatus } from "@/src/types/ui/upload";
 
 export interface SupervisorRequestFormProps {
   students: SupervisedStudent[];
-  candidateSupervisors: CandidateSupervisorOption[];
-  supervisorProfile?: SupervisorProfile;
   initialStudentId?: string;
   initialType?: SupervisorProxyRequestType;
   isSubmitting?: boolean;
@@ -35,17 +31,8 @@ export interface SupervisorRequestFormProps {
   onCancel?: () => void;
 }
 
-function normalizeName(value?: string): string {
-  return (value ?? "")
-    .replace(/^(PGS\.TS\.|GS\.TS\.|TS\.|ThS\.)\s*/i, "")
-    .trim()
-    .toLowerCase();
-}
-
 export function SupervisorRequestForm({
   students,
-  candidateSupervisors,
-  supervisorProfile,
   initialStudentId,
   initialType = "DOI_DE_TAI",
   isSubmitting = false,
@@ -65,57 +52,26 @@ export function SupervisorRequestForm({
   const [batKhaKhang, setBatKhaKhang] = useState(false);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadStatus, setUploadStatus] = useState<UploadStatus>("success");
-  const [uploadProgress, setUploadProgress] = useState(100);
-  const uploadTimerRef = useRef<number | null>(null);
-
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
-
-  useEffect(() => {
-    return () => {
-      if (uploadTimerRef.current !== null) {
-        window.clearInterval(uploadTimerRef.current);
-      }
-    };
-  }, []);
 
   const selectedStudent = useMemo(
     () => students.find((st) => st.id === studentId) ?? null,
     [students, studentId]
   );
 
-  const currentSupervisorForRole = useMemo(() => {
-    if (!selectedStudent) return "";
-    const myFullName = supervisorProfile?.hoTen || "PGS.TS. Trần Quốc Tuấn";
-    if (vaiTroGvhdCanThay === "HUONG_DAN_CHINH") {
-      return selectedStudent.vaiTro === "HUONG_DAN_CHINH"
-        ? myFullName
-        : "Chờ cập nhật GVHD chính";
-    }
-    if (selectedStudent.vaiTro === "DONG_HUONG_DAN") {
-      return myFullName;
-    }
-    return selectedStudent.gvhdDongHuongDan || "Chưa có GVHD đồng hướng dẫn";
-  }, [selectedStudent, supervisorProfile, vaiTroGvhdCanThay]);
+  const isSupervisorChange = loaiDon === "DOI_GVHD";
+  const detail = useMyNcsDetail(studentId, isSupervisorChange);
+  const candidates = useSupervisorCandidates(isSupervisorChange);
+  const activeAssignments = detail.data?.phanCongs?.filter((item) => item.trangThai === "DANG_HIEU_LUC") ?? [];
+  const assignmentToReplace = activeAssignments.find((item) => item.vaiTro === vaiTroGvhdCanThay);
+  const currentSupervisorForRole = assignmentToReplace?.gvhd?.hoTen ?? "Chưa có dữ liệu phân công";
+  const assignedIds = new Set(activeAssignments.map((item) => item.gvhdId));
+  const availableCandidates = (candidates.data ?? []).filter((candidate) => !assignedIds.has(candidate.giangVienId));
+  const assignmentError = detail.error ?? candidates.error;
+  const isLoadingAssignments = detail.isLoading || candidates.isLoading;
 
-  const availableCandidates = useMemo(() => {
-    if (!selectedStudent) return candidateSupervisors;
-    const excludedNames = new Set(
-      [
-        normalizeName(supervisorProfile?.hoTen),
-        normalizeName(selectedStudent.gvhdDongHuongDan),
-      ].filter(Boolean)
-    );
-    return candidateSupervisors.filter(
-      (cand) => !excludedNames.has(normalizeName(cand.hoTen))
-    );
-  }, [candidateSupervisors, selectedStudent, supervisorProfile]);
-
-  const selectedCandidate = useMemo(
-    () => availableCandidates.find((c) => c.giangVienId === gvhdMoiId) ?? null,
-    [availableCandidates, gvhdMoiId]
-  );
+  const selectedCandidate = availableCandidates.find((candidate) => candidate.giangVienId === gvhdMoiId);
 
   const requiresForceMajeure = useMemo(() => {
     if (!selectedStudent) return false;
@@ -128,44 +84,6 @@ export function SupervisorRequestForm({
       selectedStudent.soThangConLai < 12
     );
   }, [loaiDon, selectedStudent]);
-
-  const handleSelectFile = (file: File | null) => {
-    if (uploadTimerRef.current !== null) {
-      window.clearInterval(uploadTimerRef.current);
-      uploadTimerRef.current = null;
-    }
-
-    setSelectedFile(file);
-    if (!file) {
-      setUploadProgress(0);
-      setUploadStatus("success");
-      return;
-    }
-
-    setUploadStatus("uploading");
-    setUploadProgress(25);
-    uploadTimerRef.current = window.setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          if (uploadTimerRef.current !== null) {
-            window.clearInterval(uploadTimerRef.current);
-            uploadTimerRef.current = null;
-          }
-          setUploadStatus("success");
-          return 100;
-        }
-        const next = Math.min(100, prev + 35);
-        if (next === 100) {
-          setUploadStatus("success");
-          if (uploadTimerRef.current !== null) {
-            window.clearInterval(uploadTimerRef.current);
-            uploadTimerRef.current = null;
-          }
-        }
-        return next;
-      });
-    }, 180);
-  };
 
   const handleValidateAndAskConfirm = (event: React.FormEvent) => {
     event.preventDefault();
@@ -192,7 +110,12 @@ export function SupervisorRequestForm({
       }
     }
 
-    if (loaiDon === "DOI_GVHD" && !gvhdMoiId) {
+    if (isSupervisorChange && !assignmentToReplace) {
+      setFormError("Chưa có phân công hướng dẫn hiệu lực cho vai trò đã chọn.");
+      return;
+    }
+
+    if (isSupervisorChange && !selectedCandidate) {
       setFormError("Vui lòng chọn Giảng viên hướng dẫn mới được đề xuất.");
       return;
     }
@@ -209,28 +132,27 @@ export function SupervisorRequestForm({
       return;
     }
 
-    if (selectedFile && uploadStatus === "uploading") {
-      setFormError("Tệp PDF đang tải lên, vui lòng chờ hoàn tất trong giây lát.");
-      return;
-    }
-
     setConfirmOpen(true);
   };
 
   const handleConfirmSubmit = async () => {
     if (!selectedStudent) return;
-    await onSubmit({
-      studentId: selectedStudent.id,
-      loaiDon,
-      lyDo: lyDo.trim(),
-      batKhaKhang,
-      tenDeTaiMoi: loaiDon === "DOI_DE_TAI" ? tenDeTaiMoi.trim() : undefined,
-      vaiTroGvhdCanThay: loaiDon === "DOI_GVHD" ? vaiTroGvhdCanThay : undefined,
-      tenGvhdCu: loaiDon === "DOI_GVHD" ? currentSupervisorForRole : undefined,
-      gvhdMoiId: loaiDon === "DOI_GVHD" ? gvhdMoiId : undefined,
-      tepDinhKemFile: selectedFile,
-    });
-    setConfirmOpen(false);
+    try {
+      await onSubmit({
+        studentId: selectedStudent.id,
+        loaiDon,
+        lyDo: lyDo.trim(),
+        batKhaKhang,
+        tenDeTaiMoi: loaiDon === "DOI_DE_TAI" ? tenDeTaiMoi.trim() : undefined,
+        phanCongCuId: isSupervisorChange ? assignmentToReplace?.id : undefined,
+        gvhdMoiId: isSupervisorChange ? selectedCandidate?.giangVienId : undefined,
+        tepDinhKemFile: selectedFile,
+      });
+      setConfirmOpen(false);
+    } catch (error) {
+      setConfirmOpen(false);
+      setFormError(error instanceof Error ? error.message : "Không thể gửi đơn đề xuất.");
+    }
   };
 
   return (
@@ -292,7 +214,7 @@ export function SupervisorRequestForm({
               ) : (
                 students.map((st) => (
                   <option key={st.id} value={st.id}>
-                    {st.hoTen} ({st.mshv}) — Mốc {st.mocHienTai}/9
+                    {st.hoTen} ({st.mshv}){st.tongSoMoc > 0 && ` · Mốc ${st.mocHienTai}/${st.tongSoMoc}`}
                   </option>
                 ))
               )}
@@ -555,20 +477,21 @@ export function SupervisorRequestForm({
             id={`${formId}-pdf`}
             label="Tờ trình / Biên bản chuyên môn đính kèm (PDF)"
             selectedFile={selectedFile}
-            onFileSelect={handleSelectFile}
+            onFileSelect={setSelectedFile}
             helperText="Khuyến nghị đính kèm biên bản họp bộ môn hoặc tờ trình có xác nhận Khoa/Viện (tối đa 15MB)."
           />
 
-          {selectedFile && (
-            <UploadProgress
-              fileName={selectedFile.name}
-              fileSize={selectedFile.size}
-              progress={uploadProgress}
-              status={uploadStatus}
-              onRemove={() => handleSelectFile(null)}
-            />
-          )}
         </div>
+
+        {isSupervisorChange && isLoadingAssignments && (
+          <p role="status" className="text-sm text-muted-foreground">Đang tải phân công và danh sách GVHD...</p>
+        )}
+        {isSupervisorChange && assignmentError && (
+          <p role="alert" className="text-sm text-destructive">{assignmentError.message}</p>
+        )}
+        {isSupervisorChange && !isLoadingAssignments && !assignmentError && availableCandidates.length === 0 && (
+          <p className="text-sm text-muted-foreground">Chưa có GVHD có thể đề xuất.</p>
+        )}
 
         {formError && (
           <div

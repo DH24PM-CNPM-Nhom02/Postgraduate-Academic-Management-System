@@ -14,12 +14,10 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { PdfViewer } from "@/src/components/upload/PdfViewer";
+import { DocumentViewButton } from "@/src/components/student/progress/document-view-button";
+import { mapChangeRequestApiToUi } from "@/src/adapters/change-request";
 import { useChangeRequestDetail } from "@/src/hooks/use-change-requests";
-import { DocumentService } from "@/src/services/document";
 import type {
-  ChangeRequestAttachment,
-  ChangeRequestDecision,
   ChangeRequestDetailProps,
   ChangeRequestItem,
 } from "@/src/types/ui/change-request";
@@ -31,13 +29,6 @@ import {
   formatFileSize,
   isPendingRequestStatus,
 } from "./helpers";
-
-interface ActivePdfState {
-  fileUrl: string;
-  fileName: string;
-  title: string;
-  subtitle?: string;
-}
 
 function ChangeRequestDetailInner({
   request,
@@ -53,61 +44,7 @@ function ChangeRequestDetailInner({
   const titleId = useId();
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
-  const [activePdf, setActivePdf] = useState<ActivePdfState | null>(null);
-  const activeBlobUrlRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (activeBlobUrlRef.current) {
-        URL.revokeObjectURL(activeBlobUrlRef.current);
-        activeBlobUrlRef.current = null;
-      }
-    };
-  }, []);
-
-  const handleOpenPdf = async (
-    doc: ChangeRequestAttachment | ChangeRequestDecision,
-    title: string,
-    subtitle?: string
-  ) => {
-    if (doc.fileId) {
-      try {
-        const { objectUrl } = await DocumentService.createPreviewUrl(doc.fileId);
-        if (activeBlobUrlRef.current) {
-          URL.revokeObjectURL(activeBlobUrlRef.current);
-        }
-        activeBlobUrlRef.current = objectUrl;
-        setActivePdf({
-          fileUrl: objectUrl,
-          fileName: doc.fileName,
-          title,
-          subtitle,
-        });
-      } catch {
-        setActivePdf({
-          fileUrl: doc.fileUrl,
-          fileName: doc.fileName,
-          title,
-          subtitle,
-        });
-      }
-    } else {
-      setActivePdf({
-        fileUrl: doc.fileUrl,
-        fileName: doc.fileName,
-        title,
-        subtitle,
-      });
-    }
-  };
-
-  const handleClosePdf = () => {
-    if (activeBlobUrlRef.current) {
-      URL.revokeObjectURL(activeBlobUrlRef.current);
-      activeBlobUrlRef.current = null;
-    }
-    setActivePdf(null);
-  };
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     previousFocusRef.current =
@@ -131,14 +68,14 @@ function ChangeRequestDetailInner({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !activePdf) {
+      if (e.key === "Escape" && !previewOpen) {
         e.preventDefault();
         onClose();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activePdf, onClose]);
+  }, [previewOpen, onClose]);
 
   const typeMeta = CHANGE_REQUEST_TYPE_META[request.loaiDon];
   const statusMeta = CHANGE_REQUEST_STATUS_META[request.trangThai];
@@ -147,6 +84,9 @@ function ChangeRequestDetailInner({
   const canCancel = isPendingRequestStatus(request.trangThai);
   const isReviewed = request.trangThai === "DA_DUYET" || request.trangThai === "TU_CHOI";
   const detailQuery = useChangeRequestDetail(request.id, isReviewed);
+  const decision = detailQuery.data
+    ? mapChangeRequestApiToUi(detailQuery.data).quyetDinh
+    : request.quyetDinh;
   const reviewer = detailQuery.data?.nguoiDuyet;
   const reviewerName = reviewer?.hoTen || reviewer?.username || request.nguoiXuLy;
   const reviewedAt = detailQuery.data?.ngayDuyet ?? request.ngayXuLy;
@@ -268,7 +208,7 @@ function ChangeRequestDetailInner({
             )}
 
             {/* Quyết định phê duyệt (khi DA_DUYET) */}
-            {request.trangThai === "DA_DUYET" && request.quyetDinh && (
+            {request.trangThai === "DA_DUYET" && decision && (
               <section className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
                 <div className="flex items-center gap-2 text-sm font-bold text-emerald-900">
                   <Award className="size-4 shrink-0 text-emerald-700" aria-hidden="true" />
@@ -279,38 +219,45 @@ function ChangeRequestDetailInner({
                   <div>
                     <dt className="text-xs text-emerald-800/80">Số Quyết định</dt>
                     <dd className="font-mono font-bold text-emerald-950">
-                      {request.quyetDinh.soQuyetDinh}
+                      {decision.soQuyetDinh}
                     </dd>
                   </div>
                   <div>
                     <dt className="text-xs text-emerald-800/80">Ngày ký ban hành</dt>
                     <dd className="font-mono font-semibold tabular-nums text-emerald-950">
-                      {formatDateVi(request.quyetDinh.ngayKy)}
+                      {formatDateVi(decision.ngayKy)}
                     </dd>
                   </div>
-                  {request.quyetDinh.coQuanBanHanh && (
+                  {decision.coQuanBanHanh && (
                     <div className="sm:col-span-2 flex items-start gap-2 text-xs text-emerald-900">
                       <Building2 className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-                      <span>{request.quyetDinh.coQuanBanHanh}</span>
+                      <span>{decision.coQuanBanHanh}</span>
                     </div>
                   )}
                 </dl>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    void handleOpenPdf(
-                      request.quyetDinh!,
-                      `Quyết định ${request.quyetDinh!.soQuyetDinh}`,
-                      `Ngày ký ${formatDateVi(request.quyetDinh!.ngayKy)} • ${typeMeta.label}`
-                    )
-                  }
-                  className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#164E9B] px-3.5 text-xs font-semibold text-white transition-colors hover:bg-[#113E7D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] cursor-pointer"
-                >
-                  <FileText className="size-4" aria-hidden="true" />
-                  <span>Xem PDF Quyết định</span>
-                </button>
+                {decision.fileId || decision.fileUrl ? (
+                  <DocumentViewButton
+                    fileId={decision.fileId ?? ""}
+                    fileUrl={decision.fileId ? undefined : decision.fileUrl}
+                    fileName={decision.fileName}
+                    title={`Quyết định ${decision.soQuyetDinh}`}
+                    subtitle={typeMeta.label}
+                    label="Xem PDF Quyết định"
+                    variant="default"
+                    onPreviewChange={setPreviewOpen}
+                  />
+                ) : (
+                  <p className="text-xs text-muted-foreground">Quyết định chưa có tệp PDF đính kèm.</p>
+                )}
               </section>
+            )}
+
+            {request.trangThai === "DA_DUYET" && !decision && (
+              <p className="text-sm text-muted-foreground">
+                {detailQuery.isPending ? "Đang tải quyết định..." :
+                  detailQuery.isError ? "Không thể tải thông tin quyết định." : "Chưa có thông tin quyết định."}
+              </p>
             )}
 
             {/* Nội dung chi tiết xin điều chỉnh */}
@@ -477,9 +424,9 @@ function ChangeRequestDetailInner({
                                 {op.tenGvhd}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {op.vaiTro === "HUONG_DAN_CHINH"
+                                {op.vaiTro && (op.vaiTro === "HUONG_DAN_CHINH"
                                   ? "Hướng dẫn chính"
-                                  : "Đồng hướng dẫn"}
+                                  : "Đồng hướng dẫn")}
                                 {op.thoiGianPhanHoi && (
                                   <>
                                     {" "}
@@ -535,20 +482,16 @@ function ChangeRequestDetailInner({
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void handleOpenPdf(
-                        request.tepDinhKem!,
-                        `Tệp đính kèm • ${request.maDon}`,
-                        typeMeta.label
-                      )
-                    }
-                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-[#164E9B] transition-colors hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] cursor-pointer"
-                  >
-                    <FileText className="size-3.5" aria-hidden="true" />
-                    <span>Xem PDF đính kèm</span>
-                  </button>
+                  {(request.tepDinhKem.fileId || request.tepDinhKem.fileUrl) && (
+                    <DocumentViewButton
+                      fileId={request.tepDinhKem.fileId ?? ""}
+                      fileUrl={request.tepDinhKem.fileId ? undefined : request.tepDinhKem.fileUrl}
+                      fileName={request.tepDinhKem.fileName}
+                      title={`Tệp đính kèm của đơn ${request.maDon}`}
+                      label="Xem PDF đính kèm"
+                      onPreviewChange={setPreviewOpen}
+                    />
+                  )}
                 </div>
               ) : (
                 <p className="rounded-xl border border-dashed border-border bg-muted/20 p-3.5 text-xs text-muted-foreground">
@@ -584,15 +527,6 @@ function ChangeRequestDetailInner({
         </div>
       </div>
 
-      <PdfViewer
-        isOpen={Boolean(activePdf)}
-        onClose={handleClosePdf}
-        fileUrl={activePdf?.fileUrl}
-        fileName={activePdf?.fileName}
-        title={activePdf?.title}
-        subtitle={activePdf?.subtitle}
-        allowDownload={true}
-      />
     </>
   );
 }
