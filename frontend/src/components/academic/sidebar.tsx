@@ -11,20 +11,20 @@ import {
   FileEdit,
   Files,
   ClipboardList,
-  CalendarDays,
   BookOpen,
   BookOpenCheck,
   Award,
   GraduationCap,
   BadgeCheck,
-  // FileSpreadsheet,
   HelpCircle,
   ChevronLeft,
   ChevronRight,
   X,
-  ShieldCheck,
+  User,
 } from "lucide-react";
 import { HoverLogo } from "./HoverLogo";
+import { useHydrated } from "@/src/hooks/use-hydrated";
+import { useAuth } from "@/src/hooks/use-auth";
 
 export interface AcademicSidebarProps {
   isOpen?: boolean;
@@ -41,7 +41,7 @@ export interface NavItemDef {
   icon: React.ComponentType<{ className?: string }>;
   badge?: number | string;
   badgeColor?: string;
-  group: "main" | "academic" | "support";
+  group: "main" | "support";
   href?: string;
   matchPaths?: string[];
 }
@@ -138,27 +138,15 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     matchPaths: ["/academic/topic-changes"],
   },
 
-  // Nhóm nghiệp vụ học vụ
+  // Nhóm trợ giúp & văn bản
   {
     id: "procedures",
     title: "Biểu mẫu học vụ",
     icon: ClipboardList,
-    group: "academic",
+    group: "support",
     href: "/academic/procedures",
     matchPaths: ["/academic/procedures", "/academic/forms", "/academic-affairs"],
   },
-  {
-    id: "calendar",
-    title: "Lịch học vụ & Thông báo",
-    icon: CalendarDays,
-    group: "academic",
-    badge: "Mới",
-    badgeColor: "bg-indigo-100 text-indigo-700",
-    href: "/academic/calendar",
-    matchPaths: ["/academic/calendar"],
-  },
-
-  // Nhóm trợ giúp & văn bản
   {
     id: "regulations",
     title: "Quy chế & Quy định",
@@ -186,7 +174,9 @@ export function AcademicSidebar({
   onTabChange,
 }: AcademicSidebarProps) {
   const pathname = usePathname();
-
+  const { user: sessionUser } = useAuth();
+  const hydrated = useHydrated();
+  const user = hydrated ? sessionUser : undefined;
   const isItemActive = (item: NavItemDef): boolean => {
     // 0. Nếu prop activeTab được truyền trực tiếp từ component cha
     if (activeTab) {
@@ -229,7 +219,7 @@ export function AcademicSidebar({
   };
 
   const renderGroup = (
-    groupKey: "main" | "academic" | "support",
+    groupKey: "main" | "support",
     groupLabel: string
   ) => {
     const items = ACADEMIC_NAV_ITEMS.filter((i) => i.group === groupKey);
@@ -251,18 +241,16 @@ export function AcademicSidebar({
               href={item.href || `/academic/${item.id}`}
               onClick={() => handleNavClick(item)}
               title={isCollapsed ? item.title : undefined}
-              className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${
-                isActive
-                  ? "bg-[#164E9B] text-white shadow-xs font-bold"
-                  : "text-slate-700 hover:bg-slate-100/90 hover:text-[#164E9B]"
-              } ${isCollapsed ? "justify-center px-2" : ""}`}
+              className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${isActive
+                ? "bg-[#164E9B] text-white shadow-xs font-bold"
+                : "text-slate-700 hover:bg-slate-100/90 hover:text-[#164E9B]"
+                } ${isCollapsed ? "justify-center px-2" : ""}`}
             >
               <Icon
-                className={`size-4.5 shrink-0 transition-colors ${
-                  isActive
-                    ? "text-white"
-                    : "text-slate-500 group-hover:text-[#164E9B]"
-                }`}
+                className={`size-4.5 shrink-0 transition-colors ${isActive
+                  ? "text-white"
+                  : "text-slate-500 group-hover:text-[#164E9B]"
+                  }`}
               />
 
               {!isCollapsed && (
@@ -272,13 +260,11 @@ export function AcademicSidebar({
               {/* Badges */}
               {item.badge !== undefined && (
                 <span
-                  className={`flex items-center justify-center rounded-full px-1.5 py-0.2 text-[10px] ${
-                    item.badgeColor || "bg-slate-100 text-slate-700"
-                  } ${
-                    isCollapsed
+                  className={`flex items-center justify-center rounded-full px-1.5 py-0.2 text-[10px] ${item.badgeColor || "bg-slate-100 text-slate-700"
+                    } ${isCollapsed
                       ? "absolute -top-1 -right-1 size-4 p-0 text-[9px]"
                       : "ml-auto"
-                  }`}
+                    }`}
                 >
                   {item.badge}
                 </span>
@@ -310,19 +296,16 @@ export function AcademicSidebar({
 
       {/* Sidebar container */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:self-start lg:shrink-0 lg:z-30 ${
-          isCollapsed ? "w-20" : "w-64"
-        } ${
-          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:self-start lg:shrink-0 lg:z-30 ${isCollapsed ? "w-20" : "w-64"
+          } ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          }`}
       >
         {/* Brand Header */}
         <div className="flex h-16 items-center justify-between border-b border-slate-200 px-4 bg-white">
           <Link
             href="/"
-            className={`flex items-center gap-2.5 ${
-              isCollapsed ? "justify-center w-full" : ""
-            }`}
+            className={`flex items-center gap-2.5 ${isCollapsed ? "justify-center w-full" : ""
+              }`}
           >
             <HoverLogo sizeClass="size-9" />
 
@@ -369,48 +352,27 @@ export function AcademicSidebar({
         <div className="flex-1 overflow-y-auto px-2.5 py-3 space-y-3 custom-scrollbar">
           {renderGroup("main", "Chức năng chính")}
           <div className="my-2 border-t border-slate-100" />
-          {renderGroup("academic", "Nghiệp vụ học vụ")}
-          <div className="my-2 border-t border-slate-100" />
           {renderGroup("support", "Văn bản & Trợ giúp")}
-
-          {/* Academic Affairs status widget (visible when expanded) */}
-          {!isCollapsed && (
-            <div className="mt-4 rounded-xl border border-blue-100 bg-[#F0F5FA] p-3 text-xs">
-              <div className="flex items-center justify-between text-[11px] font-bold text-[#164E9B]">
-                <span className="flex items-center gap-1">
-                  <ShieldCheck className="size-3.5" />
-                  <span>Hồ sơ cần thẩm định:</span>
-                </span>
-                <span className="font-extrabold text-amber-600">7 hồ sơ</span>
-              </div>
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-                <div
-                  className="h-full rounded-full bg-amber-500"
-                  style={{ width: "70%" }}
-                />
-              </div>
-              <p className="mt-1.5 text-[10px] text-slate-500 leading-tight">
-                Gồm 5 minh chứng mốc &amp; 2 đề nghị đổi đề tài đang chờ Giáo vụ duyệt.
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Bottom Profile / Quick Role status */}
         <div className="border-t border-slate-200 p-2.5 bg-slate-50/60">
           <div
-            className={`flex items-center gap-2.5 rounded-xl bg-white p-2 border border-slate-200 ${
-              isCollapsed ? "justify-center p-1.5" : ""
-            }`}
+            className={`flex items-center gap-2.5 rounded-xl bg-white p-2 border border-slate-200 ${isCollapsed ? "justify-center p-1.5" : ""
+              }`}
           >
             <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#164E9B] text-white font-bold text-xs shadow-2xs">
-              TA
+              {user?.fullName ? (
+                user.fullName.charAt(0).toUpperCase()
+              ) : (
+                <User className="size-4" />
+              )}
             </div>
 
             {!isCollapsed && (
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-bold text-slate-900">
-                  TS. Bùi Lê Tuấn Anh
+                  {user?.username ? `${user.fullName}` : "Giáo vụ"}
                 </p>
                 <p className="truncate text-[10px] text-slate-500">
                   Cán bộ Quản lý Giáo vụ

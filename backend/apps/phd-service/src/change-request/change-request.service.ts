@@ -659,6 +659,16 @@ export class ChangeRequestService {
                     gvhdMoi: {
                         select: { id: true, hoTen: true, hocHamHocVi: true },
                     },
+                    phanCongCu: {
+                        select: {
+                            id: true,
+                            vaiTro: true,
+                            gvhd: { select: { id: true, hoTen: true, hocHamHocVi: true } },
+                        },
+                    },
+                    quyetDinh: {
+                        select: { id: true, soQuyetDinh: true, ngayQuyetDinh: true, fileId: true },
+                    },
                     xacNhanGvhds: {
                         include: {
                             gvhd: {

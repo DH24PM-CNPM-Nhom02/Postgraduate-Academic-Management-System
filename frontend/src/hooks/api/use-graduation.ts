@@ -100,7 +100,7 @@ export function useStudentGraduationOverview() {
   const graduationCheckQuery = useGraduationCheck(profileQuery.data?.id);
 
   const data: StudentGraduationOverview | undefined = useMemo(() => {
-    if (!profileQuery.data && !progressQuery.data) return undefined;
+    if (!profileQuery.data || !progressQuery.data || !requestsQuery.data) return undefined;
     return buildStudentGraduationOverview(
       profileQuery.data,
       progressQuery.data,
@@ -110,7 +110,7 @@ export function useStudentGraduationOverview() {
   }, [
     profileQuery.data,
     progressQuery.data,
-    requestsQuery.data?.data,
+    requestsQuery.data,
     graduationCheckQuery.data,
   ]);
 
@@ -125,9 +125,9 @@ export function useStudentGraduationOverview() {
 
   return {
     data,
-    isLoading: profileQuery.isLoading || progressQuery.isLoading,
-    isError: profileQuery.isError || progressQuery.isError,
-    error: profileQuery.error || progressQuery.error,
+    isLoading: profileQuery.isLoading || progressQuery.isLoading || requestsQuery.isLoading,
+    isError: profileQuery.isError || progressQuery.isError || requestsQuery.isError,
+    error: profileQuery.error || progressQuery.error || requestsQuery.error,
     refetch,
   };
 }

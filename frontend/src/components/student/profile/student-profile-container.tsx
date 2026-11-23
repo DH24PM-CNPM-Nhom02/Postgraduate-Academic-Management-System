@@ -3,23 +3,6 @@
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useMyNcsProfile } from "@/src/hooks/api/use-ncs";
 import { ProfileLayout } from "./profile-layout";
-import type { StudentProfileData } from "./general-info-form";
-
-function formatDate(value: string | null | undefined): string {
-  if (!value) return "Chưa cập nhật";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? "Chưa cập nhật"
-    : new Intl.DateTimeFormat("vi-VN").format(date);
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  DANG_HOC: "Đang học",
-  DA_TOT_NGHIEP: "Đã tốt nghiệp",
-  BAO_LUU: "Bảo lưu",
-  NGUNG_HOC: "Ngừng học",
-  BUOC_THOI_HOC: "Buộc thôi học",
-};
 
 export function StudentProfileContainer() {
   const profileQuery = useMyNcsProfile();
@@ -52,23 +35,9 @@ export function StudentProfileContainer() {
     );
   }
 
-  const data = profileQuery.data;
-  const initialData: StudentProfileData = {
-    mshv: data.mshv,
-    email: data.email ?? "",
-    lop: data.lop ?? "Chưa cập nhật",
-    chuyenNganh: data.nganh?.tenNganh ?? "Chưa cập nhật",
-    khoaHoc: data.khoaHocNcs?.maKhoaHoc ?? data.khoaHoc ?? "Chưa cập nhật",
-    ngayNhapHoc: formatDate(data.ngayNhapHoc),
-    trangThai: STATUS_LABELS[data.trangThai] ?? data.trangThai,
-    readOnly: data.trangThai === "DA_TOT_NGHIEP",
-    hoTen: data.hoTen,
-    soDienThoai: data.soDienThoai ?? "",
-  };
-
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <ProfileLayout initialData={initialData} />
+      <ProfileLayout initialData={profileQuery.data} />
     </main>
   );
 }

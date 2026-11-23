@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -9,16 +9,14 @@ import {
   Calendar,
   CheckCircle2,
   FileEdit,
-  FileText,
   FileX2,
   RefreshCw,
   ScrollText,
   XCircle,
 } from "lucide-react";
 import type { ThesisItem, ThesisStatus } from "@/src/types/ui/thesis";
-import { PdfViewer } from "@/src/components/upload/PdfViewer";
+import { DocumentViewButton } from "@/src/components/student/progress/document-view-button";
 import { DeadlineCountdown } from "@/src/components/shared/DeadlineCountdown";
-import { DocumentService } from "@/src/services/document";
 
 export interface MyThesisCardProps {
   /** Dữ liệu đề tài luận án hiện tại của NCS */
@@ -90,58 +88,6 @@ export function MyThesisCard({
   onRequestChange,
   className = "",
 }: MyThesisCardProps) {
-  const [viewerOpen, setViewerOpen] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isLoadingPdf, setIsLoadingPdf] = useState(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
-  const activeBlobUrlRef = React.useRef<string | null>(null);
-
-  const handleOpenViewer = async () => {
-    if (!thesis) return;
-    setViewerOpen(true);
-    setPdfError(null);
-
-    const fileId = thesis.quyetDinh.fileId;
-    const directUrl = thesis.quyetDinh.fileUrl;
-
-    if (fileId) {
-      setIsLoadingPdf(true);
-      try {
-        const { objectUrl } = await DocumentService.createPreviewUrl(fileId);
-        if (activeBlobUrlRef.current) {
-          URL.revokeObjectURL(activeBlobUrlRef.current);
-        }
-        activeBlobUrlRef.current = objectUrl;
-        setPreviewUrl(objectUrl);
-      } catch (err) {
-        setPdfError(
-          err instanceof Error
-            ? err.message
-            : "Không thể tải tệp PDF quyết định từ máy chủ."
-        );
-        setPreviewUrl(null);
-      } finally {
-        setIsLoadingPdf(false);
-      }
-    } else if (directUrl) {
-      setPreviewUrl(directUrl);
-    } else {
-      setPreviewUrl(
-        `mock://quyet-dinh/${thesis.quyetDinh.soQuyetDinh || "QD"}`
-      );
-    }
-  };
-
-  const handleCloseViewer = () => {
-    setViewerOpen(false);
-    if (activeBlobUrlRef.current) {
-      URL.revokeObjectURL(activeBlobUrlRef.current);
-      activeBlobUrlRef.current = null;
-    }
-    setPreviewUrl(null);
-    setPdfError(null);
-  };
-
   if (isLoading) {
     return (
       <section
@@ -324,8 +270,7 @@ export function MyThesisCard({
               <div>
                 <dt className="text-xs text-muted-foreground">Đơn vị ban hành</dt>
                 <dd className="mt-0.5 font-medium text-foreground">
-                  {thesis.quyetDinh.coQuanBanHanh ||
-                    "Trường Đại học An Giang - ĐHQG-HCM"}
+                  {thesis.quyetDinh.coQuanBanHanh || "Chưa cập nhật"}
                 </dd>
               </div>
             </div>
@@ -334,14 +279,19 @@ export function MyThesisCard({
           {/* Thanh hành động & thời hạn 72 tháng */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
             <div className="flex flex-wrap items-center gap-2.5">
-              <button
-                type="button"
-                onClick={handleOpenViewer}
-                className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#164E9B] px-4 text-xs font-semibold text-white transition-colors hover:bg-[#113E7D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] focus-visible:ring-offset-2 cursor-pointer"
-              >
-                <FileText className="size-4" aria-hidden="true" />
-                <span>Xem PDF Quyết định</span>
-              </button>
+              {thesis.quyetDinh.fileId || thesis.quyetDinh.fileUrl ? (
+                <DocumentViewButton
+                  fileId={thesis.quyetDinh.fileId ?? ""}
+                  fileUrl={thesis.quyetDinh.fileId ? undefined : thesis.quyetDinh.fileUrl ?? undefined}
+                  fileName={thesis.quyetDinh.fileName}
+                  title={`Quyết định ${thesis.quyetDinh.soQuyetDinh}`}
+                  subtitle={thesis.quyetDinh.ngayKy ? `Ngày ký ${formatDateVi(thesis.quyetDinh.ngayKy)}` : undefined}
+                  label="Xem PDF Quyết định"
+                  variant="default"
+                />
+              ) : (
+                <span className="text-xs text-muted-foreground">Chưa có tệp PDF quyết định</span>
+              )}
 
               {onRequestChange ? (
                 <button
@@ -373,19 +323,6 @@ export function MyThesisCard({
           </div>
         </div>
       </section>
-
-      <PdfViewer
-        isOpen={viewerOpen}
-        onClose={handleCloseViewer}
-        fileUrl={previewUrl}
-        fileName={thesis.quyetDinh.fileName}
-        title={`Quyết định ${thesis.quyetDinh.soQuyetDinh}`}
-        subtitle={`Ngày ký ${formatDateVi(thesis.quyetDinh.ngayKy)} • Đề tài luận án Tiến sĩ`}
-        isLoading={isLoadingPdf}
-        error={pdfError}
-        onRetry={handleOpenViewer}
-        allowDownload={true}
-      />
     </>
   );
 }

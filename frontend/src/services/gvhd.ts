@@ -1,5 +1,6 @@
 import { apiClient, throwApiError } from "@/src/lib/api";
 import type { SupervisorQuotaRecord } from "@/src/types/academic";
+import type { CandidateSupervisorOption } from "@/src/types/ui/change-request";
 import type {
   SupervisorAssignmentItem,
   SupervisorRoleType,
@@ -180,11 +181,14 @@ export interface UpdateGvhdPayload {
   ngaySinh?: string;
   gioiTinh?: "NAM" | "NU";
   email?: string;
+  soDienThoai?: string;
   hocHamHocVi?: "GIAO_SU" | "PHO_GIAO_SU" | "TIEN_SI_KHOA_HOC" | "TIEN_SI";
   chuyenNganh?: string;
   donVi?: string;
   quocGiaTotNghiep?: string;
 }
+
+export type UpdateMySupervisorProfilePayload = Pick<UpdateGvhdPayload, "email" | "soDienThoai">;
 
 /**
  * Cấu trúc bản ghi Giảng viên hướng dẫn của chính NCS nhận từ GET /gvhd/my-supervisors
@@ -206,6 +210,7 @@ export interface BackendMySupervisorRaw {
     linhVucNghienCuu?: string | null;
   };
   quyetDinh?: {
+    fileId?: string | null;
     id?: string;
     soQuyetDinh?: string;
     ngayQuyetDinh?: string;
@@ -382,14 +387,13 @@ export function mapBackendMySupervisorToItem(
       ? gvhd.donVi
       : gvhd.donVi?.ten ||
       gvhd.donVi?.parent?.ten ||
-      gvhd.chuyenNganh ||
-      "Trường Đại học An Giang";
+      "Chưa cập nhật";
 
   return {
     id: raw.phanCongId || gvhd.id || "",
     giangVienId: gvhd.id || "",
     hoTen: gvhd.hoTen || "Chưa cập nhật tên GVHD",
-    hocHamHocVi: formatDegreeLabel(gvhd.hocHamHocVi) || gvhd.hocHamHocVi || "TS.",
+    hocHamHocVi: gvhd.hocHamHocVi ? formatDegreeLabel(gvhd.hocHamHocVi) : "",
     vaiTro,
     trongSo,
     email: gvhd.email || "",
@@ -398,13 +402,14 @@ export function mapBackendMySupervisorToItem(
     linhVucNghienCuu: gvhd.linhVucNghienCuu || gvhd.chuyenNganh || undefined,
     trangThai: "DANG_HUONG_DAN",
     soQuyetDinh: raw.quyetDinh?.soQuyetDinh || "Chưa cập nhật số QĐ",
-    ngayKyQuyetDinh: raw.quyetDinh?.ngayQuyetDinh || raw.ngayBatDau || "",
+    ngayKyQuyetDinh: raw.quyetDinh?.ngayQuyetDinh || "",
     ngayBatDau: raw.ngayBatDau || "",
     fileNameQuyetDinh:
       raw.quyetDinh?.fileName ||
       (raw.quyetDinh?.soQuyetDinh
         ? `Quyet-dinh-${raw.quyetDinh.soQuyetDinh}.pdf`
         : undefined),
+    fileIdQuyetDinh: raw.quyetDinh?.fileId ?? undefined,
     fileUrlQuyetDinh: raw.quyetDinh?.fileUrl || undefined,
   };
 }
@@ -418,20 +423,20 @@ export function mapBackendGvhdToSupervisorProfile(
   const donViTen =
     raw.donVi?.ten ||
     raw.donVi?.parent?.ten ||
-    "Trường Đại học An Giang";
+    "Chưa cập nhật";
 
-  const degreeText = formatDegreeLabel(raw.hocHamHocVi);
+  const degreeText = raw.hocHamHocVi ? formatDegreeLabel(raw.hocHamHocVi) : "Chưa cập nhật";
 
   return {
     id: raw.id,
     hoTen: raw.hoTen || "Giảng viên Hướng dẫn",
-    hocHamHocVi: degreeText || raw.hocHamHocVi || "TS.",
+    hocHamHocVi: degreeText,
     maCanBo: raw.maGv || "N/A",
     donVi: donViTen,
-    chuyenMon: raw.chuyenNganh || "Chuyên ngành Sau Đại học",
+    chuyenMon: raw.chuyenNganh || "Chưa cập nhật",
     email: raw.email || "Chưa cập nhật email",
-    soDienThoai: "Chưa cập nhật",
-    hanMucToiDa: raw.maxNcsChoPhep ? Number(raw.maxNcsChoPhep) : 3.0,
+    soDienThoai: raw.soDienThoai || "Chưa cập nhật",
+    hanMucToiDa: raw.maxNcsChoPhep ?? undefined,
   };
 }
 
@@ -676,7 +681,7 @@ export function mapBackendNcsToSupervisedStudent(
     hoTen: ncs.hoTen || "Chưa cập nhật tên NCS",
     lop: ncs.lop || "Chưa xếp lớp",
     nganh: ncs.nganh?.tenNganh || "Chưa cập nhật ngành",
-    chuyenNganh: ncs.nganh?.tenNganh || "Sau Đại học",
+    chuyenNganh: ncs.nganh?.tenNganh || "Chưa cập nhật ngành",
     khoaDaoTao: ncs.khoaHoc || "Chưa cập nhật khóa",
     tenDeTai: ncs.deTaiHieuLuc?.tenDeTai || "Chưa giao đề tài chính thức",
     trangThaiHocTap,
@@ -1281,6 +1286,33 @@ export const GvhdService = {
     }
   },
 
+  listCandidates: async (signal?: AbortSignal): Promise<CandidateSupervisorOption[]> => {
+    try {
+      const { data } = await apiClient.get<Pick<BackendGvhdRaw,
+        "id" | "hoTen" | "hocHamHocVi" | "donVi" | "chuyenNganh" | "maxNcsChoPhep" | "soNcsDangHuongDan"
+      >[]>("/gvhd/candidates", { signal });
+      return data.map((gvhd) => ({
+        giangVienId: gvhd.id,
+        hoTen: gvhd.hoTen,
+        hocHamHocVi: gvhd.hocHamHocVi ? formatDegreeLabel(gvhd.hocHamHocVi) : "",
+        donViCongTac: gvhd.donVi?.ten ?? "Chưa cập nhật",
+        linhVucNghienCuu: gvhd.chuyenNganh ?? undefined,
+        slotConLai: Math.max(0, Number(gvhd.maxNcsChoPhep) - Number(gvhd.soNcsDangHuongDan)),
+      }));
+    } catch (error) {
+      throwApiError(error);
+    }
+  },
+
+  updateMyProfile: async (payload: UpdateMySupervisorProfilePayload): Promise<BackendGvhdRaw> => {
+    try {
+      const response = await apiClient.patch<BackendGvhdRaw>("/gvhd/me", payload);
+      return response.data;
+    } catch (error) {
+      throwApiError(error);
+    }
+  },
+
   /**
    * 12. GVHD xem danh sách NCS đang hướng dẫn của chính mình
    * Endpoint: GET /gvhd/me/ncs
@@ -1298,10 +1330,10 @@ export const GvhdService = {
    * 13. GVHD xem chi tiết tiến trình 9 mốc & lịch sử đào tạo của NCS
    * Endpoint: GET /gvhd/me/ncs/:ncsId
    */
-  getMyNcsDetail: async (ncsId: string): Promise<BackendNcsDetailRaw> => {
+  getMyNcsDetail: async (ncsId: string, signal?: AbortSignal): Promise<BackendNcsDetailRaw> => {
     try {
       const response = await apiClient.get<BackendNcsDetailRaw>(
-        `/gvhd/me/ncs/${encodeURIComponent(ncsId)}`
+        `/gvhd/me/ncs/${encodeURIComponent(ncsId)}`, { signal }
       );
       return response.data;
     } catch (error) {

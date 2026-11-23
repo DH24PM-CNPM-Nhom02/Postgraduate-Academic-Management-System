@@ -1,4 +1,5 @@
 import { RpcException } from "@nestjs/microservices";
+import { PHONE_NUMBER_PATTERN } from '../../../../lib/contracts/src/dto/profile.dto.js';
 
 // "2026-02-31" khớp định dạng nhưng không phải ngày thật, nên phải kiểm tra thêm
 export function isRealDate(s: string): boolean {
@@ -21,12 +22,11 @@ export function ngayChuoi(ngay: Date | null | undefined): string | null {
 
 export function validateEmail(email: string): boolean {
   const emailRegex = /^[^\s@<>(),;:\\[\]".]+(?:\.[^\s@<>(),;:\\[\]".]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
-  return emailRegex.test(email);
+  return typeof email === 'string' && emailRegex.test(email);
 }
 
 export function validatePhoneNumber(phone: string): boolean {
-  const phoneRegex = /^(0[1-9]{2})[0-9]{7}$/;
-  return phoneRegex.test(phone);
+  return typeof phone === 'string' && PHONE_NUMBER_PATTERN.test(phone);
 }
 
 /**

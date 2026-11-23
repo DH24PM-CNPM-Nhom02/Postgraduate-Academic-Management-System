@@ -42,28 +42,18 @@ export function SupervisorDashboardContainer({
     refetch: refetchStudents,
   } = useMySupervisedStudents();
 
-  const profile = propProfile || liveProfile || {
-    id: "",
-    hoTen: "Giảng viên Hướng dẫn",
-    hocHamHocVi: "TS.",
-    maCanBo: "N/A",
-    donVi: "Trường Đại học An Giang",
-    chuyenMon: "Sau Đại học",
-    email: "",
-    soDienThoai: "",
-    hanMucToiDa: 3.0,
-  };
+  const profile = propProfile ?? liveProfile;
 
   const students = useMemo(
     () => propStudents || liveStudents || [],
     [propStudents, liveStudents]
   );
 
-  const quota = useMemo(
-    () =>
-      propQuota ||
-      computeSupervisorQuota(students, profile.hanMucToiDa ?? 3.0),
-    [propQuota, students, profile.hanMucToiDa]
+  const maxQuota = profile?.hanMucToiDa;
+  const quota = propQuota ?? (
+    (propStudents || liveStudents) && maxQuota !== undefined
+      ? computeSupervisorQuota(students, maxQuota)
+      : undefined
   );
 
   const isDataLoading =
@@ -165,12 +155,15 @@ export function SupervisorDashboardContainer({
         </div>
       )}
 
+      {profile && quota && !error && (
       <SupervisorStatsBanner
         profile={profile}
         quota={quota}
         students={students}
         isLoading={isLoading}
       />
+
+      )}
 
       <StudentListTable
         students={students}

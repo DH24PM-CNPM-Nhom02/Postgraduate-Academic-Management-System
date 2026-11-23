@@ -3,11 +3,12 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { catchError, firstValueFrom, throwError, timeout } from 'rxjs';
 import { ROLES } from '../../../../lib/contracts/src/permissions.js';
 import type { ImportGvhdRow, ListGvhdQueryDto, UpdateGvhdDto, UpdateGvhdStatusDto } from '../../../../lib/contracts/src/dto/gvhd.dto.js';
+import { PHONE_NUMBER_MESSAGE, type UpdateContactProfileDto } from '../../../../lib/contracts/src/dto/profile.dto.js';
 import type { CreateAssignmentDto, DeactivateAssignmentDto, ListAssignmentQueryDto } from '../../../../lib/contracts/src/dto/assignment.dto.js';
 import type { GioiTinh, HocHamHocVi, LoaiDonVi, Prisma } from '../generated/prisma/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { paginatePrisma } from '../helpers/pagination.util.js';
-import { isRealDate, validateEmail } from '../helpers/validateData.util.js';
+import { isRealDate, validateEmail, validatePhoneNumber } from '../helpers/validateData.util.js';
 import { goiService } from '../helpers/call-service.util.js';
 import { NotificationClient } from '../notification/notification.client.js';
 
@@ -105,6 +106,7 @@ export class SupervisorService {
       const hoTen = (r.hoTen ?? '').trim();
       const email = (r.email ?? '').trim();
       const emailThuong = email.toLowerCase(); // dùng để so sánh, không phân biệt hoa thường
+      const soDienThoai = (r.soDienThoai ?? '').trim();
       const chuyenNganh = (r.chuyenNganh ?? '').trim();
       const quocGia = (r.quocGiaTotNghiep ?? '').trim();
       const tenDonVi = (r.donVi ?? '').trim();
@@ -182,6 +184,10 @@ export class SupervisorService {
         }
       }
 
+      if (soDienThoai && !validatePhoneNumber(soDienThoai)) {
+        loi.push(PHONE_NUMBER_MESSAGE);
+      }
+
       // --- Chuyên ngành, nước tốt nghiệp ---
       if (chuyenNganh === '') loi.push('Chuyên ngành không được để trống');
       if (quocGia === '') loi.push('Nước tốt nghiệp không được để trống');
@@ -237,6 +243,7 @@ export class SupervisorService {
             gioiTinh: gioiTinh,
             ngaySinh: r.ngaySinh ? new Date(r.ngaySinh) : undefined,
             email: email || undefined,
+            soDienThoai: soDienThoai || undefined,
             hocHamHocVi: hocHam,
             maxNcsChoPhep: maxNcs,
             chuyenNganh: chuyenNganh || undefined,
@@ -360,6 +367,22 @@ export class SupervisorService {
     return canLuu;
   }
 
+  listCandidates() {
+    return this.prisma.giangVienHuongDan.findMany({
+      where: { trangThai: true },
+      orderBy: [{ hoTen: 'asc' }, { id: 'asc' }],
+      select: {
+        id: true,
+        hoTen: true,
+        hocHamHocVi: true,
+        chuyenNganh: true,
+        donVi: { select: { ten: true } },
+        maxNcsChoPhep: true,
+        soNcsDangHuongDan: true,
+      },
+    });
+  }
+
   //Get info Supervisor
   async getAllSupervisor(query?: ListGvhdQueryDto) {
     return paginatePrisma(this.prisma.giangVienHuongDan, {
@@ -373,6 +396,7 @@ export class SupervisorService {
         gioiTinh: true,
         ngaySinh: true,
         email: true,
+        soDienThoai: true,
         hocHamHocVi: true,
         soNcsDangHuongDan: true,
         maxNcsChoPhep: true,
@@ -524,9 +548,26 @@ export class SupervisorService {
   }
 
   //update gvhd
-  async updateSupervisor(actorId: string, id: string, data: UpdateGvhdDto) {
+  async updateMyProfile(userId: string, data: UpdateContactProfileDto) {
+    if (!data || Object.keys(data).length === 0) {
+      throw new RpcException({ statusCode: 400, message: 'Không có thông tin nào để sửa' });
+    }
+    const unknownFields = Object.keys(data).filter((field) => field !== 'email' && field !== 'soDienThoai');
+    if (unknownFields.length) {
+      throw new RpcException({ statusCode: 400, message: `Trường không được hỗ trợ: ${unknownFields.join(', ')}` });
+    }
+    const profile = await this.prisma.giangVienHuongDan.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!profile) throw new RpcException({ statusCode: 404, message: 'Bạn chưa có hồ sơ GVHD' });
+
+    return this.updateSupervisor(userId, profile.id, data, userId);
+  }
+
+  async updateSupervisor(actorId: string, id: string, data: UpdateGvhdDto, ownerId?: string) {
     const allowedFields = new Set([
-      'hoTen', 'ngaySinh', 'gioiTinh', 'email', 'hocHamHocVi', 'donVi', 'chuyenNganh', 'quocGiaTotNghiep'
+      'hoTen', 'ngaySinh', 'gioiTinh', 'email', 'soDienThoai', 'hocHamHocVi', 'donVi', 'chuyenNganh', 'quocGiaTotNghiep'
     ]);
     if (!data || typeof data !== 'object' || Object.keys(data).length === 0) {
       throw new RpcException({ statusCode: 400, message: 'Không có thông tin nào để sửa' });
@@ -550,7 +591,8 @@ export class SupervisorService {
 
     try {
       const ketQua = await this.prisma.$transaction(async (tx) => {
-        const hoSoCu = await tx.giangVienHuongDan.findUnique({ where: { id } });
+        const where = { id, ...(ownerId ? { userId: ownerId } : {}) };
+        const hoSoCu = await tx.giangVienHuongDan.findUnique({ where });
         if (!hoSoCu) {
           throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ GVHD' });
         }
@@ -616,6 +658,13 @@ export class SupervisorService {
           setChange('email', 'email', hoSoCu.email, input.email);
         }
 
+        if (input.soDienThoai !== undefined) {
+          if (!validatePhoneNumber(input.soDienThoai)) {
+            throw new RpcException({ statusCode: 400, message: PHONE_NUMBER_MESSAGE });
+          }
+          setChange('soDienThoai', 'soDienThoai', hoSoCu.soDienThoai, input.soDienThoai);
+        }
+
         if (input.donVi !== undefined) {
           const donVi = await tx.donVi.findUnique({
             where: { id: input.donVi },
@@ -642,7 +691,7 @@ export class SupervisorService {
         }
 
         const updated = await tx.giangVienHuongDan.update({
-          where: { id },
+          where,
           data: duLieuCapNhat,
         });
         await tx.auditLog.create({
@@ -659,6 +708,9 @@ export class SupervisorService {
       });
       return ketQua;
     } catch (error: unknown) {
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2025') {
+        throw new RpcException({ statusCode: 409, message: 'Hồ sơ GVHD đã thay đổi. Vui lòng tải lại.' });
+      }
       if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') {
         const target = 'meta' in error && typeof error.meta === 'object' && error.meta !== null && 'target' in error.meta
           ? String(error.meta.target)
@@ -885,6 +937,7 @@ export class SupervisorService {
             maGv: true,
             hoTen: true,
             email: true,
+            soDienThoai: true,
             hocHamHocVi: true,
             chuyenNganh: true,
             donVi: { select: { id: true, ten: true } },
@@ -895,6 +948,7 @@ export class SupervisorService {
             id: true,
             soQuyetDinh: true,
             ngayQuyetDinh: true,
+            fileId: true,
           },
         },
       },

@@ -7,7 +7,7 @@ import { PHD_SERVICE } from '../common/constants/service.js';
 import type { AuthUser } from '../common/interface/auth-user.interface.js';
 import { PERMISSIONS, ROLES } from '../../../../lib/contracts/src/permissions.js';
 import { ListXetTotNghiepQueryDto, XacNhanCongNoDto, XacNhanNgoaiNguDto, XacNhanTotNghiepDto } from '../../../../lib/contracts/src/dto/graduation-assessment.dto.js';
-import type { GraduatedNcsRecord } from '../../../../lib/contracts/src/dto/graduation-assessment.dto.js';
+import type { GraduatedNcsRecord, PersonalGraduatedNcsRecord } from '../../../../lib/contracts/src/dto/graduation-assessment.dto.js';
 import { LimitHeavyRead } from '../common/decorators/rate-limit.decorator.js';
 import { buildGraduationWorkbook } from './graduation-excel.js';
 
@@ -74,7 +74,7 @@ export class GraduationController {
         if (!u.roles?.includes(ROLES.NCS)) {
             throw new ForbiddenException('Chỉ NCS được xem hồ sơ tốt nghiệp cá nhân');
         }
-        const data = await this.send<GraduatedNcsRecord | null>('phd.graduation.me', { userId: u.id });
+        const data = await this.send<PersonalGraduatedNcsRecord | null>('phd.graduation.me', { userId: u.id });
         return { data };
     }
 

@@ -21,9 +21,10 @@ export default function SupervisorLayout({
   const { data: profile } = useMySupervisorProfile();
   const { data: students } = useMySupervisedStudents();
 
-  const quota = useMemo(() => {
-    return computeSupervisorQuota(students || [], profile?.hanMucToiDa ?? 3.0);
-  }, [students, profile?.hanMucToiDa]);
+  const maxQuota = profile?.hanMucToiDa;
+  const quota = useMemo(() => (
+    students && maxQuota !== undefined ? computeSupervisorQuota(students, maxQuota) : undefined
+  ), [students, maxQuota]);
 
   return (
     <div className="flex min-h-screen bg-[#F0F5FA] text-foreground">

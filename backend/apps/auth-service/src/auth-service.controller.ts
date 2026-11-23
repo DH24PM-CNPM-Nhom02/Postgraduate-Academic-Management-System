@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { AuthService } from './auth-service.service.js';
-import { ChangePasswordDto, CreateUsersDto, ListUsersQueryDto, LoginDto, RefreshDto } from './dto/auth.dto.js';
+import { ChangePasswordDto, CreateUsersDto, ListUsersQueryDto, LoginDto, RefreshDto, type UpdateMyAccountProfileDto } from './dto/auth.dto.js';
 
 @Controller()
 export class AuthController {
@@ -25,6 +25,11 @@ export class AuthController {
   @MessagePattern({ cmd: 'auth.me' })
   me(@Payload() d: { userId: string }) {
     return this.auth.getMe(d.userId);
+  }
+
+  @MessagePattern({ cmd: 'auth.update-me' })
+  updateMe(@Payload() d: { userId: string; dto: UpdateMyAccountProfileDto }) {
+    return this.auth.updateMyProfile(d.userId, d.dto);
   }
 
   @MessagePattern({ cmd: 'auth.permissions' })

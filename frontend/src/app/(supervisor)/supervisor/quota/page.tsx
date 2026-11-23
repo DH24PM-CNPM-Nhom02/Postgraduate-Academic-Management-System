@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { SupervisorQuotaWorkspace } from "@/src/components/supervisor";
-import { mockSupervisorQuotaScenarios } from "@/src/mocks/supervisor";
 
 export const metadata: Metadata = {
   title: "Định mức hướng dẫn BR-09 | Cổng GVHD",
@@ -9,9 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function SupervisorQuotaPage() {
-  return (
-    <SupervisorQuotaWorkspace
-      scenarios={mockSupervisorQuotaScenarios}
-    />
-  );
+  return <SupervisorQuotaWorkspace />;
 }

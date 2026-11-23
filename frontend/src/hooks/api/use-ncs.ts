@@ -33,9 +33,14 @@ export function useMyNcsProfile(options?: { enabled?: boolean }) {
 export function useUpdateMyNcsProfile() {
   const queryClient = useQueryClient();
 
-  return useMutation<void, ApiClientError, UpdateMyNcsProfilePayload>({
+  return useMutation<Pick<BackendNcsMeResponse, "email" | "soDienThoai">, ApiClientError, UpdateMyNcsProfilePayload>({
     mutationFn: NcsService.updateMyProfile,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ncsSelfKeys.me() }),
+    onSuccess: ({ email, soDienThoai }) => {
+      queryClient.setQueryData<BackendNcsMeResponse>(ncsSelfKeys.me(), (profile) =>
+        profile && { ...profile, email, soDienThoai },
+      );
+      void queryClient.invalidateQueries({ queryKey: ncsSelfKeys.me() });
+    },
   });
 }
 

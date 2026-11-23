@@ -179,7 +179,7 @@ export class DocumentServiceService {
     if (!taiLieu || taiLieu.status !== 'ACTIVE') {
       throw new RpcException({ statusCode: 404, message: 'Không tìm thấy tài liệu' });
     }
-    this.kiemTraQuyenDoc(nguoiDung, taiLieu);
+    await this.kiemTraQuyenDoc(nguoiDung, taiLieu);
 
     return {
       id: taiLieu.id,
@@ -203,7 +203,7 @@ export class DocumentServiceService {
       throw new RpcException({ statusCode: 404, message: 'Không tìm thấy tài liệu' });
     }
 
-    this.kiemTraQuyenDoc(nguoiDung, taiLieu);
+    await this.kiemTraQuyenDoc(nguoiDung, taiLieu);
     return this.readPdf(taiLieu);
   }
 
@@ -263,7 +263,10 @@ export class DocumentServiceService {
     return { id, status: 'DELETED' };
   }
 
-  private kiemTraQuyenDoc(nguoiDung: NguoiDungTaiLieu, taiLieu: { ncsId: string | null; documentType: string; ownerId?: string }) {
+  private async kiemTraQuyenDoc(
+    nguoiDung: NguoiDungTaiLieu,
+    taiLieu: { id: string; ncsId: string | null; documentType: DocumentTypeValue; ownerId: string },
+  ) {
     if (nguoiDung.laNhanVien) return;
 
     // Người upload luôn xem được file của chính mình
@@ -287,6 +290,20 @@ export class DocumentServiceService {
       ['MINH_CHUNG_MOC', 'DON_TU', 'QUYET_DINH'].includes(taiLieu.documentType)
     ) {
       return;
+    }
+
+    // Quyết định có thể được tải lên trước khi gắn với đề tài, phân công hoặc đơn của NCS.
+    if (nguoiDung.ncsId && taiLieu.documentType === 'QUYET_DINH') {
+      let coQuyen: boolean;
+      try {
+        coQuyen = await firstValueFrom(this.phdClient.send<boolean>(
+          { cmd: 'phd.document.is-ncs-decision' },
+          { documentId: taiLieu.id, ncsId: nguoiDung.ncsId },
+        ).pipe(timeout(5000)));
+      } catch {
+        throw new RpcException({ statusCode: 503, message: 'Chưa kiểm tra được quyền xem quyết định. Vui lòng thử lại.' });
+      }
+      if (coQuyen === true) return;
     }
 
     throw new RpcException({ statusCode: 403, message: 'Bạn không có quyền truy cập tài liệu này' });

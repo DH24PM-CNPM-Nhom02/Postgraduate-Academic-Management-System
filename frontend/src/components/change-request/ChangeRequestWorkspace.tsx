@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { CheckCircle2, X } from "lucide-react";
 import { DeadlineCountdown } from "@/src/components/shared/DeadlineCountdown";
 import { DeadlineWarningBanner } from "@/src/components/shared/DeadlineWarningBanner";
@@ -25,16 +26,16 @@ export interface ChangeRequestWorkspaceProps {
   /** Tự động mở form khi mới vào trang (khi không bị khóa đơn chờ) */
   defaultOpenForm?: boolean;
   className?: string;
-  onSubmitRequest?: (values: ChangeRequestFormValues) => Promise<void>;
-  onCancelRequest?: (request: ChangeRequestItem) => Promise<void>;
+  onSubmitRequest: (values: ChangeRequestFormValues, onUploadProgress: (percent: number) => void) => Promise<void>;
+  onCancelRequest: (request: ChangeRequestItem) => Promise<void>;
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;
 }
 
-function getRemainingMonths(targetIso: string): number {
+function getRemainingMonths(targetIso: string): number | undefined {
   const target = new Date(targetIso);
-  if (Number.isNaN(target.getTime())) return 24;
+  if (Number.isNaN(target.getTime())) return undefined;
   const now = new Date();
   const diffDays = (target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
   return Math.max(0, Math.round((diffDays / 30) * 10) / 10);
@@ -45,7 +46,6 @@ function getRemainingMonths(targetIso: string): number {
  *
  * Container tương tác kết nối trọn bộ `ChangeRequestTable`,
  * `ChangeRequestForm`, `ChangeRequestDetail` và `CancelRequestDialog`.
- * Hỗ trợ cả API thực tế (qua `onSubmitRequest`/`onCancelRequest`) và dữ liệu mock.
  */
 export function ChangeRequestWorkspace({
   initialOverview,
@@ -58,9 +58,7 @@ export function ChangeRequestWorkspace({
   error,
   onRetry,
 }: ChangeRequestWorkspaceProps) {
-  const [requests, setRequests] = useState<ChangeRequestItem[]>(
-    () => initialOverview.danhSachDon
-  );
+  const requests = initialOverview.danhSachDon;
 
   const hasPendingRequest = useMemo(
     () => requests.some((item) => isPendingRequestStatus(item.trangThai)),
@@ -83,238 +81,39 @@ export function ChangeRequestWorkspace({
   const [isCancelling, setIsCancelling] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
-  const timersRef = useRef<number[]>([]);
-  const blobUrlsRef = useRef<string[]>([]);
-
-  const clearTimers = () => {
-    timersRef.current.forEach((id) => window.clearTimeout(id));
-    timersRef.current = [];
-  };
-
-  useEffect(() => {
-    return () => {
-      clearTimers();
-      blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      blobUrlsRef.current = [];
-    };
-  }, []);
-
   const remainingMonthsToCurrentDeadline = getRemainingMonths(
     initialOverview.thongTinThoiGian.hanHienTai
   );
 
   const handleSubmitForm = async (values: ChangeRequestFormValues) => {
-    clearTimers();
     setFeedbackMessage(null);
     setIsSubmitting(true);
+    if (values.tepDinhKemFile) setUploadState({ progress: 0, status: "uploading" });
 
-    if (onSubmitRequest) {
-      try {
-        if (values.tepDinhKemFile) {
-          setUploadState({ progress: 50, status: "uploading" });
-        }
-        await onSubmitRequest(values);
-        setUploadState({ progress: 100, status: "success" });
-        setIsSubmitting(false);
-        setUploadState(null);
-        setIsFormOpen(false);
-        setFeedbackMessage(
-          "Đã gửi đơn đề nghị thành công. Bạn có thể theo dõi tiến độ xử lý ngay trong bảng danh sách."
-        );
-      } catch (err) {
-        setIsSubmitting(false);
-        setUploadState(null);
-        setFeedbackMessage(
-          err instanceof Error ? err.message : "Gửi đơn đề nghị thất bại."
-        );
-      }
-      return;
-    }
-
-    const finalizeSubmission = () => {
-      const nowIso = new Date().toISOString();
-      const seq = String(requests.length + 1).padStart(3, "0");
-      const year = new Date().getUTCFullYear();
-      const maDon = `DN-${year}-${seq}`;
-
-      const oldSup = initialOverview.danhSachGvhdHienTai.find(
-        (s) => s.id === values.phanCongCuId
-      );
-      const newSup = initialOverview.danhSachGvhdDeXuat.find(
-        (c) => c.giangVienId === values.gvhdMoiId
-      );
-
-      let attachment: ChangeRequestItem["tepDinhKem"] = null;
-      if (values.tepDinhKemFile) {
-        const objectUrl = URL.createObjectURL(values.tepDinhKemFile);
-        blobUrlsRef.current.push(objectUrl);
-        attachment = {
-          fileName: values.tepDinhKemFile.name,
-          fileUrl: objectUrl,
-          fileSize: values.tepDinhKemFile.size,
-        };
-      }
-
-      const activeSupervisors = initialOverview.danhSachGvhdHienTai.filter(
-        (s) => s.trangThai === "DANG_HUONG_DAN"
-      );
-
-      const createdItem: ChangeRequestItem = {
-        id: `cr-${Date.now()}`,
-        maDon,
-        loaiDon: values.loaiDon,
-        trangThai:
-          values.loaiDon === "GIA_HAN" ? "CHO_GVHD_XAC_NHAN" : "CHO_DUYET",
-        ngayGui: nowIso,
-        ngayCapNhat: nowIso,
-        lyDo: values.lyDo,
-        batKhaKhang: values.batKhaKhang,
-        tepDinhKem: attachment,
-        quyetDinh: null,
-        ...(values.loaiDon === "DOI_DE_TAI"
-          ? {
-              tenDeTaiCu: initialOverview.tenDeTaiHienTai,
-              tenDeTaiMoi: values.tenDeTaiMoi,
-            }
-          : {}),
-        ...(values.loaiDon === "DOI_GVHD"
-          ? {
-              phanCongCuId: values.phanCongCuId,
-              tenGvhdCu: oldSup
-                ? `${oldSup.hocHamHocVi} ${oldSup.hoTen}`
-                : undefined,
-              vaiTroGvhdCu: oldSup?.vaiTro,
-              gvhdMoiId: values.gvhdMoiId,
-              tenGvhdMoi: newSup
-                ? `${newSup.hocHamHocVi} ${newSup.hoTen}`
-                : undefined,
-              donViGvhdMoi: newSup?.donViCongTac,
-            }
-          : {}),
-        ...(values.loaiDon === "GIA_HAN"
-          ? {
-              soThangGiaHan: values.soThangGiaHan,
-              hanHienTaiTaiThoiDiemNop:
-                initialOverview.thongTinThoiGian.hanHienTai,
-              hanMoiDuKien: values.hanMoiDuKien,
-              xacNhanGvhds: activeSupervisors.map((sup, index) => ({
-                id: `op-new-${Date.now()}-${index}`,
-                giangVienId: sup.giangVienId,
-                tenGvhd: sup.hoTen,
-                hocHamHocVi: sup.hocHamHocVi,
-                vaiTro: sup.vaiTro,
-                dongY: null,
-                nhanXet: null,
-                thoiGianPhanHoi: null,
-              })),
-            }
-          : {}),
-      };
-
-      setRequests((prev) => [createdItem, ...prev]);
-      setIsSubmitting(false);
-      setUploadState(null);
+    try {
+      await onSubmitRequest(values, (progress) => setUploadState({ progress, status: "uploading" }));
       setIsFormOpen(false);
-      setDetailRequest(createdItem);
-      setFeedbackMessage(
-        `Đã gửi đơn đề nghị ${maDon}. Bạn có thể theo dõi trạng thái xử lý ngay trong danh sách.`
-      );
-    };
-
-    if (values.tepDinhKemFile) {
-      const handleCancelUpload = () => {
-        clearTimers();
-        setIsSubmitting(false);
-        setUploadState(null);
-      };
-
-      setUploadState({
-        progress: 35,
-        status: "uploading",
-        onCancel: handleCancelUpload,
-      });
-
-      const t1 = window.setTimeout(() => {
-        setUploadState({
-          progress: 85,
-          status: "uploading",
-          onCancel: handleCancelUpload,
-        });
-      }, 150);
-
-      const t2 = window.setTimeout(() => {
-        setUploadState({
-          progress: 100,
-          status: "success",
-        });
-      }, 300);
-
-      const t3 = window.setTimeout(() => {
-        finalizeSubmission();
-      }, 450);
-
-      timersRef.current.push(t1, t2, t3);
-      return;
+      setFeedbackMessage("Đã gửi đơn đề nghị thành công.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gửi đơn đề nghị thất bại.");
+    } finally {
+      setUploadState(null);
+      setIsSubmitting(false);
     }
-
-    const t0 = window.setTimeout(() => {
-      finalizeSubmission();
-    }, 180);
-    timersRef.current.push(t0);
   };
 
   const handleConfirmCancel = async (target: ChangeRequestItem) => {
     setIsCancelling(true);
-
-    if (onCancelRequest) {
-      try {
-        await onCancelRequest(target);
-        setIsCancelling(false);
-        setCancelTarget(null);
-        if (detailRequest && detailRequest.id === target.id) {
-          setDetailRequest(null);
-        }
-        setFeedbackMessage(
-          `Đã hủy đơn ${target.maDon}. Hệ thống đã mở khóa chức năng lập đơn đề nghị mới.`
-        );
-      } catch (err) {
-        setIsCancelling(false);
-        setFeedbackMessage(
-          err instanceof Error ? err.message : "Hủy đơn đề nghị thất bại."
-        );
-      }
-      return;
-    }
-
-    const nowIso = new Date().toISOString();
-
-    const timer = window.setTimeout(() => {
-      setRequests((prev) =>
-        prev.map((item) =>
-          item.id === target.id
-            ? {
-                ...item,
-                trangThai: "DA_HUY",
-                ngayCapNhat: nowIso,
-              }
-            : item
-        )
-      );
-
-      setDetailRequest((prev) =>
-        prev && prev.id === target.id
-          ? { ...prev, trangThai: "DA_HUY", ngayCapNhat: nowIso }
-          : prev
-      );
-
-      setIsCancelling(false);
+    try {
+      await onCancelRequest(target);
       setCancelTarget(null);
-      setFeedbackMessage(
-        `Đã hủy đơn ${target.maDon}. Hệ thống đã mở khóa chức năng lập đơn đề nghị mới.`
-      );
-    }, 150);
-
-    timersRef.current.push(timer);
+      if (detailRequest?.id === target.id) setDetailRequest(null);
+      setFeedbackMessage(`Đã hủy đơn ${target.maDon}.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Hủy đơn đề nghị thất bại.");
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   return (
@@ -342,6 +141,7 @@ export function ChangeRequestWorkspace({
       </header>
 
       {/* Banner cảnh báo tự động khi thời hạn hiện tại còn < 12 tháng */}
+      {remainingMonthsToCurrentDeadline !== undefined && (
       <DeadlineWarningBanner
         remainingMonths={remainingMonthsToCurrentDeadline}
         title="Thời hạn đào tạo hiện tại sắp hết hạn"
@@ -349,6 +149,8 @@ export function ChangeRequestWorkspace({
         actionLabel={hasPendingRequest ? undefined : "Lập đơn gia hạn"}
         onAction={hasPendingRequest ? undefined : () => setIsFormOpen(true)}
       />
+
+      )}
 
       {/* Thông báo kết quả thao tác UI */}
       {feedbackMessage && (

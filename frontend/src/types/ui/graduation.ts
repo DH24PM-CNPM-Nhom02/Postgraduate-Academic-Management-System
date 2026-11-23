@@ -79,16 +79,8 @@ export interface GraduationConditionsProps {
   className?: string;
 }
 
-export interface GraduationScenarioOption {
-  id: string;
-  label: string;
-  data: StudentGraduationOverview;
-}
-
 export interface GraduationWorkspaceProps {
   overview: StudentGraduationOverview | null;
-  /** Kịch bản phụ tùy chọn để kiểm thử nhanh UI trên trang mock */
-  scenarios?: GraduationScenarioOption[];
   isLoading?: boolean;
   error?: string | null;
   onRetry?: () => void;

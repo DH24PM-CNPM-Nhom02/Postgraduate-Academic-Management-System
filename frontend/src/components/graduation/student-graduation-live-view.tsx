@@ -2,12 +2,13 @@
 
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
+import { DocumentViewButton } from "@/src/components/student/progress/document-view-button";
 import { useMyGraduation, useStudentGraduationOverview } from "@/src/hooks/api/use-graduation";
-import type { GraduatedNcsRecord } from "@/src/types/api/graduation";
+import type { PersonalGraduatedNcsRecord } from "@/src/types/api/graduation";
 import { formatGraduatedRecordField, graduatedRecordFields } from "./graduated-record-fields";
 import { GraduationWorkspace } from "./GraduationWorkspace";
 
-function PersonalGraduatedRecord({ record }: { record: GraduatedNcsRecord }) {
+function PersonalGraduatedRecord({ record }: { record: PersonalGraduatedNcsRecord }) {
   return (
     <section className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -29,6 +30,21 @@ function PersonalGraduatedRecord({ record }: { record: GraduatedNcsRecord }) {
           </div>
         ))}
       </dl>
+      <section aria-labelledby="graduation-decision-title" className="rounded-2xl border bg-card p-5 shadow-sm sm:p-6">
+        <h2 id="graduation-decision-title" className="mb-3 text-base font-semibold text-foreground">
+          Quyết định công nhận tốt nghiệp
+        </h2>
+        {record.quyetDinhFileId ? (
+          <DocumentViewButton
+            fileId={record.quyetDinhFileId}
+            fileName="Quyet-dinh-cong-nhan-tot-nghiep.pdf"
+            title={record.soQuyetDinh ? `Quyết định ${record.soQuyetDinh}` : "Quyết định công nhận tốt nghiệp"}
+            label="Xem PDF Quyết định"
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">Chưa có tệp PDF quyết định công nhận tốt nghiệp.</p>
+        )}
+      </section>
     </section>
   );
 }

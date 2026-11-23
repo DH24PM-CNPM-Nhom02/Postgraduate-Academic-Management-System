@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Query } from "@nestjs/common";
 import { ClientProxy } from "@nestjs/microservices";
 import { firstValueFrom, timeout } from "rxjs";
 import { Public } from "../common/decorators/public.decorator.js";
@@ -10,6 +10,7 @@ import {
   CreateUsersDto,
   ListUsersQueryDto,
   SetUserStatusDto,
+  UpdateMyAccountProfileDto,
 } from '../../../../lib/contracts/src/dto/auth.dto.js';
 import { PERMISSIONS, ROLES } from '../../../../lib/contracts/src/permissions.js';
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
@@ -52,6 +53,15 @@ export class AuthController {
   @AllowMustChange()
   @Get('me')
   me(@CurrentUser() u: AuthUser) { return this.send('auth.me', { userId: u.id }); }
+
+  @Patch('me')
+  @LimitStrict()
+  updateMe(@CurrentUser() u: AuthUser, @Body() dto: UpdateMyAccountProfileDto) {
+    if (!u.roles.includes(ROLES.ADMIN) && !u.roles.includes(ROLES.GIAO_VU)) {
+      throw new ForbiddenException('Chỉ Admin và Giáo vụ được cập nhật thông tin tài khoản tại đây');
+    }
+    return this.send('auth.update-me', { userId: u.id, dto });
+  }
 
   @AllowMustChange()
   @LimitStrict()

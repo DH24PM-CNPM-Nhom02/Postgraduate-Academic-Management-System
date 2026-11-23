@@ -6,6 +6,7 @@ import {
     type LoginResponseData,
     type RefreshApiResponse,
     type TokenPairResponse,
+    unwrapUserProfile,
 } from "@/src/services/auth";
 import { withRefreshLock } from "@/src/lib/auth/refresh-lock";
 import { getTokenExpire } from "@/src/lib/utils/jwt";
@@ -46,6 +47,15 @@ function unwrapTokenPairResponse(res: RefreshApiResponse | null | undefined): To
     return null;
 }
 
+async function refreshProfileInSession(accessToken: string, user: IUser): Promise<IUser> {
+    try {
+        const profile = unwrapUserProfile(await authService.getMe(accessToken));
+        return { ...user, fullName: profile.fullName, email: profile.email ?? undefined };
+    } catch {
+        return user;
+    }
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
     trustHost: true,
     // Sử dụng AUTH_SECRET hoặc NEXTAUTH_SECRET từ biến môi trường kèm secret dự phòng
@@ -78,7 +88,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         user: {
                             id: data.user.id,
                             username: data.user.username,
-                            email: data.user.email,
+                            email: data.user.email ?? undefined,
                             fullName: data.user.fullName,
                             role,
                             mustChangePassword: data.user.mustChangePassword,
@@ -107,7 +117,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         },
     },
     callbacks: {
-        async jwt({ token, user, account }) {
+        async jwt({ token, user, account, trigger }) {
             // Lần đầu đăng nhập: lưu thông tin token và user
             if (account && user) {
                 token.access_token = user.access_token;
@@ -135,6 +145,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
             // Nếu token chưa hết hạn
             if (now + bufferTime < (token.access_expire as number)) {
+                if (trigger === "update" && token.user) {
+                    token.user = await refreshProfileInSession(token.access_token, token.user);
+                }
                 return token;
             }
 
@@ -175,6 +188,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     throw new Error("Access token nhận được sau khi refresh không có exp hợp lệ");
                 }
                 token.error = "";
+                if (trigger === "update" && token.user) {
+                    token.user = await refreshProfileInSession(token.access_token, token.user);
+                }
             } catch (error) {
                 console.error("Refresh token thất bại:", error);
                 token.error = "RefreshTokenError";

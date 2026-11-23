@@ -85,3 +85,7 @@ export interface GraduatedNcsRecord {
   soHieuBang: string | null;
   ngayCapBang: string | null;
 }
+
+export interface PersonalGraduatedNcsRecord extends GraduatedNcsRecord {
+  quyetDinhFileId: string | null;
+}

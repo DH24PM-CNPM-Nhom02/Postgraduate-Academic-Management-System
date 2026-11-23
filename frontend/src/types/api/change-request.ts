@@ -53,8 +53,10 @@ export interface ChangeRequestItem {
   ngayDuyet: string | null;
   nguoiDuyetId: string | null;
   phanCongCuId: string | null;
+  phanCongCu?: ChangeRequestApiItem["phanCongCu"];
   gvhdMoiId: string | null;
   quyetDinhId: string | null;
+  quyetDinh?: ChangeRequestApiItem["quyetDinh"];
   createdAt: string;
   updatedAt: string;
   isOwner: boolean;

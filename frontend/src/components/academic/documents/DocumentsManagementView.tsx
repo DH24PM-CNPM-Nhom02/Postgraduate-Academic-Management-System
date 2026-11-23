@@ -62,7 +62,18 @@ export function DocumentsManagementView( { embedded = false, area = "academic" }
 
   const columns = useMemo<ColumnDef<DocumentListItem>[]>(
     () => [
-      { accessorKey: "originalName", header: "Tên tệp" },
+      {
+        accessorKey: "originalName",
+        header: "Tên tệp",
+        cell: ({ row }) => (
+          <span
+            className="block max-w-[240px] truncate sm:max-w-[320px]"
+            title={row.original.originalName}
+          >
+            {row.original.originalName}
+          </span>
+        ),
+      },
       {
         accessorKey: "documentType",
         header: "Loại tài liệu",

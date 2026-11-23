@@ -5,6 +5,7 @@ import { firstValueFrom, timeout, catchError, throwError } from 'rxjs';
 
 import { ROLES } from '../../../../lib/contracts/src/permissions.js';
 import { CCCD_PATTERN, type CreateNcsItemDto, type ListNcsQueryDto, type UpdateMyNcsProfileDto, type UpdateNcsDto, type UpdateNcsStatusDto } from '../../../../lib/contracts/src/dto/ncs.dto.js';
+import { PHONE_NUMBER_MESSAGE } from '../../../../lib/contracts/src/dto/profile.dto.js';
 import { paginatePrisma } from '../helpers/pagination.util.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TrangThaiHocTap, TrangThaiMoc } from '../generated/prisma/index.js';
@@ -1098,7 +1099,7 @@ export class NcsService {
 
   // ==========Update NCS==============
   async updateMyProfile(userId: string, data: UpdateMyNcsProfileDto) {
-    const allowedFields = new Set(['hoTen', 'soDienThoai']);
+    const allowedFields = new Set(['email', 'soDienThoai']);
     if (!data || typeof data !== 'object' || Object.keys(data).length === 0) {
       throw new RpcException({ statusCode: 400, message: 'Không có thông tin nào để sửa' });
     }
@@ -1113,10 +1114,10 @@ export class NcsService {
     });
     if (!profile) throw new RpcException({ statusCode: 404, message: 'Bạn chưa có hồ sơ NCS' });
 
-    return this.updateNcs(userId, profile.id, data);
+    return this.updateNcs(userId, profile.id, data, userId);
   }
 
-  async updateNcs(actorId: string, ncsId: string, data: UpdateNcsDto) {
+  async updateNcs(actorId: string, ncsId: string, data: UpdateNcsDto, ownerId?: string) {
     const allowedFields = new Set([
       'hoTen', 'ngaySinh', 'gioiTinh', 'email',
       'soDienThoai', 'nganh', 'khoaHoc', 'lop',
@@ -1143,7 +1144,8 @@ export class NcsService {
 
     try {
       const ketQua = await this.prisma.$transaction(async (tx) => {
-        const hoSoCu = await tx.nghienCuuSinh.findUnique({ where: { id: ncsId } });
+        const where = { id: ncsId, ...(ownerId ? { userId: ownerId } : {}) };
+        const hoSoCu = await tx.nghienCuuSinh.findUnique({ where });
         if (!hoSoCu) {
           throw new RpcException({ statusCode: 404, message: 'Không tìm thấy hồ sơ NCS' });
         }
@@ -1179,7 +1181,7 @@ export class NcsService {
           setChange('gioiTinh', 'gioiTinh', hoSoCu.gioiTinh, input.gioiTinh);
         }
         if (input.soDienThoai !== undefined) {
-          if (!validatePhoneNumber(input.soDienThoai)) throw new RpcException({ statusCode: 400, message: 'Số điện thoại không hợp lệ' });
+          if (!validatePhoneNumber(input.soDienThoai)) throw new RpcException({ statusCode: 400, message: PHONE_NUMBER_MESSAGE });
           setChange('soDienThoai', 'soDienThoai', hoSoCu.soDienThoai, input.soDienThoai);
         }
         if (input.email !== undefined) {
@@ -1221,7 +1223,7 @@ export class NcsService {
         }
 
         const updated = await tx.nghienCuuSinh.update({
-          where: { id: ncsId, trangThai: { not: 'DA_TOT_NGHIEP' } },
+          where: { ...where, trangThai: { not: 'DA_TOT_NGHIEP' } },
           data: duLieuCapNhat,
         });
         await tx.auditLog.create({

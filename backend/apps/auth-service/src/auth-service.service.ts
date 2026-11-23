@@ -4,10 +4,12 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import * as bcrypt from 'bcryptjs';
+import { isEmail } from 'class-validator';
 import { createHash, randomBytes } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from './prisma/prisma.service.js';
-import { ChangePasswordDto, CreateUsersDto, ListUsersQueryDto, LoginDto } from '../../../lib/contracts/src/dto/auth.dto.js';
+import { ChangePasswordDto, CreateUsersDto, ListUsersQueryDto, LoginDto, type UpdateMyAccountProfileDto } from '../../../lib/contracts/src/dto/auth.dto.js';
+import { Prisma } from './generated/prisma/index.js';
 import { paginatePrisma } from './helpers/pagination.util.js';
 import type { StringValue } from 'ms';
 import { ROLES } from '../../../lib/contracts/src/permissions.js';
@@ -61,6 +63,7 @@ export class AuthService {
         id: user.id,
         username: user.username,
         fullName: user.fullName,
+        email: user.email,
         roles: user.roles.map((r) => r.role.name),
         mustChangePassword: user.mustChangePassword,
       },
@@ -159,6 +162,55 @@ export class AuthService {
     });
     if (!user) throw new RpcException({ statusCode: 404, message: 'Không tìm thấy tài khoản' });
     if(!user.isActive) throw new RpcException({ statusCode: 400, message: 'Tài khoản của bạn đã bị khóa' });
+    return this.toProfile(user);
+  }
+
+  async updateMyProfile(userId: string, dto: UpdateMyAccountProfileDto) {
+    const data: UpdateMyAccountProfileDto = {};
+    if (dto?.fullName !== undefined) {
+      const fullName = typeof dto.fullName === 'string' ? dto.fullName.trim() : '';
+      if (!fullName || fullName.length > 191) {
+        throw new RpcException({ statusCode: 400, message: 'Họ và tên phải có từ 1 đến 191 ký tự' });
+      }
+      data.fullName = fullName;
+    }
+    if (dto?.email !== undefined) {
+      const email = typeof dto.email === 'string' ? dto.email.trim() : '';
+      if (email.length > 191 || !isEmail(email)) {
+        throw new RpcException({ statusCode: 400, message: 'Email tài khoản không hợp lệ hoặc dài quá 191 ký tự' });
+      }
+      data.email = email.toLowerCase();
+    }
+    if (Object.keys(data).length === 0) {
+      throw new RpcException({ statusCode: 400, message: 'Không có thông tin nào để sửa' });
+    }
+
+    try {
+      const user = await this.prisma.user.update({
+        where: {
+          id: userId,
+          deletedAt: null,
+          isActive: true,
+          roles: { some: { role: { name: { in: [ROLES.ADMIN, ROLES.GIAO_VU] } } } },
+        },
+        data,
+        include: WITH_RBAC,
+      });
+      return this.toProfile(user);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new RpcException({ statusCode: 409, message: 'Email đã được sử dụng bởi tài khoản khác' });
+        }
+        if (error.code === 'P2025') {
+          throw new RpcException({ statusCode: 403, message: 'Tài khoản không được phép cập nhật hồ sơ này' });
+        }
+      }
+      throw error;
+    }
+  }
+
+  private toProfile(user: Prisma.UserGetPayload<{ include: typeof WITH_RBAC }>) {
     return {
       id: user.id,
       username: user.username,

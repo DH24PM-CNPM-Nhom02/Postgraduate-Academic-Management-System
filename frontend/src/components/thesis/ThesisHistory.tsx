@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import {
   AlertCircle,
   Calendar,
   CheckCircle2,
-  FileText,
   History,
   Inbox,
   RefreshCw,
@@ -13,8 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 import type { ThesisItem, ThesisStatus } from "@/src/types/ui/thesis";
-import { PdfViewer } from "@/src/components/upload/PdfViewer";
-import { DocumentService } from "@/src/services/document";
+import { DocumentViewButton } from "@/src/components/student/progress/document-view-button";
 
 export interface ThesisHistoryProps {
   /** Danh sách các phiên bản đề tài trước đây (DA_THAY_THE, DA_HUY) */
@@ -76,59 +74,6 @@ export function ThesisHistory({
   onRetry,
   className = "",
 }: ThesisHistoryProps) {
-  const [selectedDecision, setSelectedDecision] = useState<ThesisItem | null>(
-    null
-  );
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isLoadingPdf, setIsLoadingPdf] = useState(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
-  const activeBlobUrlRef = React.useRef<string | null>(null);
-
-  const handleOpenDecisionPdf = async (item: ThesisItem) => {
-    setSelectedDecision(item);
-    setPdfError(null);
-
-    const fileId = item.quyetDinh.fileId;
-    const directUrl = item.quyetDinh.fileUrl;
-
-    if (fileId) {
-      setIsLoadingPdf(true);
-      try {
-        const { objectUrl } = await DocumentService.createPreviewUrl(fileId);
-        if (activeBlobUrlRef.current) {
-          URL.revokeObjectURL(activeBlobUrlRef.current);
-        }
-        activeBlobUrlRef.current = objectUrl;
-        setPreviewUrl(objectUrl);
-      } catch (err) {
-        setPdfError(
-          err instanceof Error
-            ? err.message
-            : "Không thể tải tệp PDF quyết định từ máy chủ."
-        );
-        setPreviewUrl(null);
-      } finally {
-        setIsLoadingPdf(false);
-      }
-    } else if (directUrl) {
-      setPreviewUrl(directUrl);
-    } else {
-      setPreviewUrl(
-        `mock://quyet-dinh/${item.quyetDinh.soQuyetDinh || "QD"}`
-      );
-    }
-  };
-
-  const handleCloseDecisionPdf = () => {
-    setSelectedDecision(null);
-    if (activeBlobUrlRef.current) {
-      URL.revokeObjectURL(activeBlobUrlRef.current);
-      activeBlobUrlRef.current = null;
-    }
-    setPreviewUrl(null);
-    setPdfError(null);
-  };
-
   return (
     <>
       <section
@@ -285,14 +230,19 @@ export function ThesisHistory({
                         </span>
                       </span>
 
-                      <button
-                        type="button"
-                        onClick={() => void handleOpenDecisionPdf(item)}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-[#164E9B] transition-colors hover:border-blue-200 hover:bg-blue-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] cursor-pointer"
-                      >
-                        <FileText className="size-3.5" aria-hidden="true" />
-                        <span>Xem PDF QĐ</span>
-                      </button>
+                      {item.quyetDinh.fileId || item.quyetDinh.fileUrl ? (
+                        <DocumentViewButton
+                          fileId={item.quyetDinh.fileId ?? ""}
+                          fileUrl={item.quyetDinh.fileId ? undefined : item.quyetDinh.fileUrl ?? undefined}
+                          fileName={item.quyetDinh.fileName}
+                          title={`Quyết định ${item.quyetDinh.soQuyetDinh}`}
+                          subtitle={item.quyetDinh.ngayKy ? `Ngày ký ${formatDateVi(item.quyetDinh.ngayKy)}` : undefined}
+                          label="Xem PDF QĐ"
+                          variant="outline"
+                        />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Chưa có tệp PDF quyết định</span>
+                      )}
                     </div>
                   </li>
                 );
@@ -301,31 +251,6 @@ export function ThesisHistory({
           )}
         </div>
       </section>
-
-      <PdfViewer
-        isOpen={Boolean(selectedDecision)}
-        onClose={handleCloseDecisionPdf}
-        fileUrl={previewUrl}
-        fileName={selectedDecision?.quyetDinh.fileName}
-        title={
-          selectedDecision
-            ? `Quyết định ${selectedDecision.quyetDinh.soQuyetDinh}`
-            : undefined
-        }
-        subtitle={
-          selectedDecision
-            ? `Ngày ký ${formatDateVi(selectedDecision.quyetDinh.ngayKy)} • ${
-                selectedDecision.maDeTai || "Đề tài trước đây"
-              }`
-            : undefined
-        }
-        isLoading={isLoadingPdf}
-        error={pdfError}
-        onRetry={() => {
-          if (selectedDecision) void handleOpenDecisionPdf(selectedDecision);
-        }}
-        allowDownload={true}
-      />
     </>
   );
 }

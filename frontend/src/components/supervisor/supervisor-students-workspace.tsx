@@ -51,11 +51,11 @@ export function SupervisorStudentsWorkspace({
     [propStudents, liveStudents]
   );
 
-  const quota = useMemo(
-    () =>
-      propQuota ||
-      computeSupervisorQuota(students, liveProfile?.hanMucToiDa ?? 3.0),
-    [propQuota, students, liveProfile?.hanMucToiDa]
+  const maxQuota = liveProfile?.hanMucToiDa;
+  const quota = propQuota ?? (
+    (propStudents || liveStudents) && maxQuota !== undefined
+      ? computeSupervisorQuota(students, maxQuota)
+      : undefined
   );
 
   const isDataLoading =
@@ -127,7 +127,7 @@ export function SupervisorStudentsWorkspace({
             className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[#164E9B] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#0F2744] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] focus-visible:ring-offset-2 motion-reduce:transition-none"
           >
             <Gauge className="size-4" aria-hidden="true" />
-            <span>Xem định mức ({quota.tongTrongSo.toFixed(1)}/{quota.hanMucToiDa.toFixed(1)})</span>
+            <span>Xem định mức{quota && ` (${quota.tongTrongSo.toFixed(1)}/${quota.hanMucToiDa.toFixed(1)})`}</span>
           </Link>
         </div>
       </header>
@@ -170,7 +170,7 @@ export function SupervisorStudentsWorkspace({
             </div>
           ))}
         </div>
-      ) : (
+      ) : !error && (propStudents || liveStudents) ? (
         <section
           aria-label="Số liệu tóm tắt Nghiên cứu sinh"
           className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
@@ -194,10 +194,10 @@ export function SupervisorStudentsWorkspace({
               <UserCheck className="size-4 text-[#164E9B]" aria-hidden="true" />
             </div>
             <p className="mt-2 text-2xl font-bold tabular-nums text-[#0F2744]">
-              {quota.soLuongHuongDanChinh}
+              {quota?.soLuongHuongDanChinh ?? "—"}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Đóng góp {quota.trongSoChinh.toFixed(1)} điểm định mức
+              {quota ? `Đóng góp ${quota.trongSoChinh.toFixed(1)} điểm định mức` : "Chưa có dữ liệu định mức"}
             </p>
           </div>
 
@@ -207,10 +207,10 @@ export function SupervisorStudentsWorkspace({
               <Scale className="size-4 text-sky-700" aria-hidden="true" />
             </div>
             <p className="mt-2 text-2xl font-bold tabular-nums text-[#0F2744]">
-              {quota.soLuongDongHuongDan}
+              {quota?.soLuongDongHuongDan ?? "—"}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Đóng góp {quota.trongSoPhu.toFixed(1)} điểm định mức
+              {quota ? `Đóng góp ${quota.trongSoPhu.toFixed(1)} điểm định mức` : "Chưa có dữ liệu định mức"}
             </p>
           </div>
 
@@ -235,7 +235,7 @@ export function SupervisorStudentsWorkspace({
             </p>
           </div>
         </section>
-      )}
+      ) : null}
 
       <StudentListTable
         students={students}

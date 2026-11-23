@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { NcsService } from "@/src/services/ncs";
 import { useExcelExport } from "./use-excel-export";
 import { DecisionService, type CreateDecisionPayload } from "@/src/services/decision";
@@ -16,7 +16,7 @@ import {
   type BackendGvhdRaw,
   type DonViItem,
 } from "@/src/services/gvhd";
-import type { SupervisedStudent, SupervisorProfile } from "@/src/types/ui/supervisor";
+import type { SupervisedStudent } from "@/src/types/ui/supervisor";
 import type {
   StudentDossier,
   SupervisorQuotaRecord,
@@ -184,16 +184,38 @@ export const supervisorKeys = {
  * Custom hook lấy thông tin hồ sơ của chính GVHD đang đăng nhập (GET /gvhd/me).
  * Dùng cho Bàn làm việc GVHD (/supervisor/dashboard), /supervisor/quota và Header/Sidebar.
  */
-export function useMySupervisorProfile(options?: { enabled?: boolean }) {
-  return useQuery<SupervisorProfile>({
+function mySupervisorProfileOptions(enabled?: boolean) {
+  return queryOptions({
     queryKey: supervisorKeys.profile(),
-    queryFn: async () => {
-      const raw = await GvhdService.getMyProfile();
-      return mapBackendGvhdToSupervisorProfile(raw);
-    },
+    queryFn: GvhdService.getMyProfile,
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
-    enabled: options?.enabled,
+    enabled,
+  });
+}
+
+export function useMySupervisorProfile(options?: { enabled?: boolean }) {
+  return useQuery({
+    ...mySupervisorProfileOptions(options?.enabled),
+    select: mapBackendGvhdToSupervisorProfile,
+  });
+}
+
+export function useMySupervisorProfileDetails(enabled: boolean) {
+  return useQuery(mySupervisorProfileOptions(enabled));
+}
+
+export function useUpdateMySupervisorProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: GvhdService.updateMyProfile,
+    onSuccess: ({ email, soDienThoai }) => {
+      queryClient.setQueryData<BackendGvhdRaw>(supervisorKeys.profile(), (profile) =>
+        profile && { ...profile, email, soDienThoai },
+      );
+      void queryClient.invalidateQueries({ queryKey: supervisorKeys.profile() });
+    },
   });
 }
 
@@ -249,19 +271,23 @@ export function useMySupervisedStudents() {
  * từ góc nhìn GVHD (GET /gvhd/me/ncs/:ncsId).
  * Chỉ kích hoạt khi mở Drawer (enabled = isOpen && Boolean(ncsId)).
  */
-export function useMyNcsDetail(ncsId?: string | null, enabled = true) {
-  return useQuery<BackendNcsDetailRaw>({
+export function myNcsDetailOptions(ncsId?: string | null, enabled = true) {
+  return queryOptions<BackendNcsDetailRaw>({
     queryKey: supervisorKeys.ncsDetail(ncsId || ""),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!ncsId) {
         throw new Error("Mã Nghiên cứu sinh không hợp lệ");
       }
-      return GvhdService.getMyNcsDetail(ncsId);
+      return GvhdService.getMyNcsDetail(ncsId, signal);
     },
     enabled: Boolean(ncsId) && enabled,
     staleTime: 1000 * 60 * 2,
     refetchOnWindowFocus: false,
   });
+}
+
+export function useMyNcsDetail(ncsId?: string | null, enabled = true) {
+  return useQuery(myNcsDetailOptions(ncsId, enabled));
 }
 
 /**
@@ -343,6 +369,7 @@ export function useUpdateAcademicSupervisor() {
     onSuccess: (_result, variables) => {
       queryClient.invalidateQueries({ queryKey: ["academic", "supervisors"] });
       queryClient.invalidateQueries({ queryKey: ["academic", "supervisor-detail", variables.id] });
+      queryClient.invalidateQueries({ queryKey: supervisorKeys.profile() });
     },
   });
 }

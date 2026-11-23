@@ -240,7 +240,7 @@ export function StudentSidebar({ isOpen, onClose }: StudentSidebarProps) {
               <span>Tiến trình 9 mốc</span>
             </div>
             <p className="mt-1 text-xs leading-relaxed text-slate-600">
-              Theo dõi và hoàn tất các báo cáo định kỳ theo đúng Quy chế Đào tạo Tiến sĩ BR-08.
+              Theo dõi và hoàn tất các báo cáo định kỳ theo đúng Quy chế Đào tạo Tiến sĩ.
             </p>
           </div>
         </div>
@@ -260,7 +260,7 @@ export function StudentSidebar({ isOpen, onClose }: StudentSidebarProps) {
                 {user?.fullName || "Nghiên cứu sinh"}
               </p>
               <p className="truncate text-[11px] font-medium text-slate-500">
-                {user?.username ? `Mã NCS: ${user.username}` : "Khóa 32 (2024-2028)"}
+                {user?.username ? `Mã NCS: ${user.username}` : "Chưa có mã NCS"}
               </p>
             </div>
           </Link>

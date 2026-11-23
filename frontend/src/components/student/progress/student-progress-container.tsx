@@ -14,6 +14,7 @@ import type {
   MilestoneProgressItem,
   StudentProgressData,
 } from "@/src/types/ui/progress";
+import { studyStatusLabel } from "@/src/lib/study-status";
 import { MilestoneTimeline } from "./milestone-timeline";
 import { MilestoneCard } from "./milestone-card";
 
@@ -177,6 +178,7 @@ export function StudentProgressContainer({
     (m) => activeLocalUpdates[m.id] ?? m
   );
   const { ncs } = initialData;
+  const studyStatus = ncs.trangThaiHocTap ? studyStatusLabel(ncs.trangThaiHocTap) : "Chưa có dữ liệu";
   const tongSoMoc = milestones.length;
   const soMocHoanThanh = milestones.filter(
     (m) => m.trangThai === "PASSED"
@@ -226,6 +228,13 @@ export function StudentProgressContainer({
                 </h1>
                 <span className="rounded-md bg-muted px-2.5 py-0.5 font-mono text-xs font-semibold tracking-wider text-foreground">
                   {ncs.mshv}
+                </span>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  ncs.trangThaiHocTap === "DA_TOT_NGHIEP"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-muted text-foreground"
+                }`}>
+                  Trạng thái: {studyStatus}
                 </span>
                 {ncs.nienKhoa ? (
                   <span className="rounded-full bg-[#164E9B]/10 px-2.5 py-0.5 text-xs font-semibold text-[#164E9B]">
@@ -302,51 +311,55 @@ export function StudentProgressContainer({
           </div>
 
           {/* 2. Tóm tắt tiến độ tổng quan (bề mặt tonal không lồng viền kép) */}
-          <div className="shrink-0 space-y-2.5 rounded-xl bg-muted/55 p-4 lg:w-72">
-            <div className="flex items-center justify-between text-xs">
-              <span className="flex items-center gap-1.5 font-semibold text-foreground">
-                <Layers className="h-3.5 w-3.5 text-[#164E9B]" />
-                Tiến độ đào tạo
-              </span>
-              <span className="font-mono font-bold text-[#164E9B]">
-                {progressPercent}%
-              </span>
-            </div>
+          {tongSoMoc > 0 && (
+            <div className="shrink-0 space-y-2.5 rounded-xl bg-muted/55 p-4 lg:w-72">
+              <div className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                  <Layers className="h-3.5 w-3.5 text-[#164E9B]" />
+                  Tiến độ đào tạo
+                </span>
+                <span className="font-mono font-bold text-[#164E9B]">
+                  {progressPercent}%
+                </span>
+              </div>
 
-            <div
-              role="progressbar"
-              aria-valuenow={progressPercent}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={`Tiến độ hoàn thành ${progressPercent}%`}
-              className="flex h-2.5 w-full overflow-hidden rounded-full bg-border"
-            >
               <div
-                className="rounded-full bg-[#164E9B] transition-all duration-500 motion-reduce:transition-none"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
+                role="progressbar"
+                aria-valuenow={progressPercent}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`Tiến độ hoàn thành ${progressPercent}%`}
+                className="flex h-2.5 w-full overflow-hidden rounded-full bg-border"
+              >
+                <div
+                  className="rounded-full bg-[#164E9B] transition-all duration-500 motion-reduce:transition-none"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
 
-            <div className="flex items-center justify-between gap-2 pt-0.5 text-[11px] text-muted-foreground">
-              <span>
-                Hoàn thành{" "}
-                <strong className="font-bold text-foreground">
-                  {soMocHoanThanh}/{tongSoMoc} mốc
-                </strong>
-              </span>
-              <span className={statusSummary.className}>
-                {statusSummary.text}
-              </span>
+              <div className="flex items-center justify-between gap-2 pt-0.5 text-[11px] text-muted-foreground">
+                <span>
+                  Hoàn thành{" "}
+                  <strong className="font-bold text-foreground">
+                    {soMocHoanThanh}/{tongSoMoc} mốc
+                  </strong>
+                </span>
+                <span className={statusSummary.className}>
+                  {statusSummary.text}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </section>
 
       {/* 3. Timeline tổng quan các mốc (Stepper ngang) */}
-      <MilestoneTimeline
-        milestones={milestones}
-        activeMilestoneOrder={activeMilestoneOrder}
-      />
+      {tongSoMoc > 0 && (
+        <MilestoneTimeline
+          milestones={milestones}
+          activeMilestoneOrder={activeMilestoneOrder}
+        />
+      )}
 
       {/* 4. Danh sách chi tiết thẻ mốc */}
       <section aria-label="Chi tiết từng mốc đào tạo" className="space-y-4">
@@ -357,9 +370,11 @@ export function StudentProgressContainer({
               (Theo Quy chế Đào tạo Tiến sĩ hiện hành - BR-08)
             </span>
           </h2>
-          <span className="font-mono text-xs text-muted-foreground">
-            {soMocHoanThanh}/{tongSoMoc} mốc hoàn thành
-          </span>
+          {tongSoMoc > 0 && (
+            <span className="font-mono text-xs text-muted-foreground">
+              {soMocHoanThanh}/{tongSoMoc} mốc hoàn thành
+            </span>
+          )}
         </div>
 
         {milestones.length === 0 ? (

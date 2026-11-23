@@ -9,6 +9,28 @@ import { PrismaService } from './prisma/prisma.service.js';
 export class PhdServiceController {
   constructor(private readonly prisma: PrismaService) {}
 
+  @MessagePattern({ cmd: 'phd.document.is-ncs-decision' })
+  async isNcsDecision(@Payload() { documentId, ncsId }: { documentId: string; ncsId: string }) {
+    if (!documentId || !ncsId) return false;
+
+    const decision = await this.prisma.quyetDinh.findFirst({
+      where: {
+        fileId: documentId,
+        OR: [
+          { deTais: { some: { ncsId } } },
+          { phanCongs: { some: { ncsId } } },
+          { deNghis: { some: { ncsId, trangThai: 'DA_DUYET' } } },
+          {
+            loai: 'CONG_NHAN_TOT_NGHIEP',
+            totNghieps: { some: { ncsId, trangThai: 'DA_DUYET', ncs: { trangThai: 'DA_TOT_NGHIEP' } } },
+          },
+        ],
+      },
+      select: { id: true },
+    });
+    return decision !== null;
+  }
+
   @MessagePattern({ cmd: 'phd.document.prepare-delete' })
   async prepareDocumentDeletion(
     @Payload() d: { documentId: string; documentType: DocumentTypeValue },

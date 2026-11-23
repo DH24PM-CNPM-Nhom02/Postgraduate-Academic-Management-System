@@ -1,7 +1,8 @@
 // auth/dto/auth.dto.ts
-import { Type } from 'class-transformer';
-import { ArrayMinSize, IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, MinLength, ValidateNested } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { ArrayMinSize, IsBoolean, IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, Length, MaxLength, MinLength, ValidateNested } from 'class-validator';
 import { PaginationQueryDto } from './pagination.dto.js';
+import { trimProfileField } from './profile.dto.js';
 
 export class LoginDto {
   @IsString()
@@ -26,6 +27,20 @@ export class ChangePasswordDto {
   @MinLength(8)
   newPassword: string;
 }
+export class UpdateMyAccountProfileDto {
+  @IsOptional()
+  @Transform(trimProfileField)
+  @IsString({ message: 'Họ và tên phải là chuỗi' })
+  @Length(1, 191, { message: 'Họ và tên phải có từ 1 đến 191 ký tự' })
+  fullName?: string;
+
+  @IsOptional()
+  @Transform(trimProfileField)
+  @IsEmail({}, { message: 'Email tài khoản không hợp lệ' })
+  @MaxLength(191, { message: 'Email tài khoản tối đa 191 ký tự' })
+  email?: string;
+}
+
 export class CreateUserItemDto {
   @IsString()
   @IsNotEmpty()

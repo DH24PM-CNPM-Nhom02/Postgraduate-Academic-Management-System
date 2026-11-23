@@ -21,6 +21,7 @@ interface SupervisorUpdateFormValues {
   ngaySinh: string;
   gioiTinh: "" | "NAM" | "NU";
   email: string;
+  soDienThoai: string;
   hocHamHocVi: "" | "GIAO_SU" | "PHO_GIAO_SU" | "TIEN_SI_KHOA_HOC" | "TIEN_SI";
   chuyenNganh: string;
   donVi: string;
@@ -39,6 +40,7 @@ function getInitialForm(supervisor: BackendGvhdRaw): SupervisorUpdateFormValues 
     ngaySinh: getDateInput(supervisor.ngaySinh),
     gioiTinh: supervisor.gioiTinh === "NAM" || supervisor.gioiTinh === "NU" ? supervisor.gioiTinh : "",
     email: supervisor.email ?? "",
+    soDienThoai: supervisor.soDienThoai ?? "",
     hocHamHocVi: supervisor.hocHamHocVi === "GIAO_SU" || supervisor.hocHamHocVi === "PHO_GIAO_SU" || supervisor.hocHamHocVi === "TIEN_SI_KHOA_HOC" || supervisor.hocHamHocVi === "TIEN_SI"
       ? supervisor.hocHamHocVi
       : "",
@@ -72,6 +74,11 @@ function SupervisorUpdateForm({
     event.preventDefault();
     setFormErrors([]);
 
+    if (initialForm.soDienThoai && !form.soDienThoai.trim()) {
+      setFormErrors(["Số điện thoại không được để trống khi cập nhật."]);
+      return;
+    }
+
     const valuesToValidate = { ...form };
     (Object.keys(valuesToValidate) as (keyof SupervisorUpdateFormValues)[]).forEach((key) => {
       if (key !== "hoTen" && form[key] === initialForm[key]) valuesToValidate[key] = "";
@@ -88,6 +95,7 @@ function SupervisorUpdateForm({
     if (value.ngaySinh && value.ngaySinh !== initialForm.ngaySinh) data.ngaySinh = value.ngaySinh;
     if (value.gioiTinh && value.gioiTinh !== initialForm.gioiTinh) data.gioiTinh = value.gioiTinh;
     if (value.email && value.email !== initialForm.email) data.email = value.email;
+    if (value.soDienThoai && value.soDienThoai !== initialForm.soDienThoai) data.soDienThoai = value.soDienThoai;
     if (value.hocHamHocVi && value.hocHamHocVi !== initialForm.hocHamHocVi) data.hocHamHocVi = value.hocHamHocVi;
     if (value.chuyenNganh && value.chuyenNganh !== initialForm.chuyenNganh) data.chuyenNganh = value.chuyenNganh;
     if (value.donVi && value.donVi !== initialForm.donVi) data.donVi = value.donVi;
@@ -152,6 +160,9 @@ function SupervisorUpdateForm({
           </div>
           <label className={labelClass}>Email
             <input type="email" value={form.email} maxLength={100} disabled={isPending} onChange={(event) => setField("email", event.target.value)} className={inputClass} />
+          </label>
+          <label className={labelClass}>Số điện thoại
+            <input type="tel" inputMode="numeric" value={form.soDienThoai} maxLength={10} disabled={isPending} onChange={(event) => setField("soDienThoai", event.target.value.replace(/\D/g, "").slice(0, 10))} className={inputClass} />
           </label>
           <div>
             <label htmlFor="supervisor-update-degree" className={labelClass}>Học hàm / Học vị</label>

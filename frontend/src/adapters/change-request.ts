@@ -20,7 +20,6 @@ import type {
   SupervisorAssignmentItem,
   SupervisorRoleType,
 } from "@/src/types/ui/thesis";
-import { mockCandidateSupervisors } from "@/src/mocks/change-request";
 
 /**
  * Chuyển đổi 1 đơn đề nghị từ Backend API sang UI ChangeRequestItem
@@ -28,9 +27,7 @@ import { mockCandidateSupervisors } from "@/src/mocks/change-request";
 export function mapChangeRequestApiToUi(
   item: ChangeRequestApiItem
 ): ChangeRequestItem {
-  const year = item.createdAt ? new Date(item.createdAt).getFullYear() : 2026;
-  const seq = item.id ? item.id.slice(0, 4).toUpperCase() : "001";
-  const maDon = `DN-${year}-${seq}`;
+  const maDon = buildSupervisorRequestCode(item.id, item.createdAt);
 
   const xacNhanGvhds: SupervisorOpinionItem[] = (item.xacNhanGvhds || []).map(
     (op) => ({
@@ -38,7 +35,6 @@ export function mapChangeRequestApiToUi(
       giangVienId: op.gvhdId,
       tenGvhd: op.gvhd?.hoTen || "Giảng viên hướng dẫn",
       hocHamHocVi: op.gvhd?.hocHamHocVi || undefined,
-      vaiTro: "HUONG_DAN_CHINH",
       dongY: op.dongY,
       nhanXet: op.nhanXet,
       thoiGianPhanHoi: op.ngayXacNhan,
@@ -71,7 +67,6 @@ export function mapChangeRequestApiToUi(
       ? {
           fileId: item.fileId,
           fileName: `Minh_chung_don_${maDon}.pdf`,
-          fileUrl: `mock://minh-chung-don-tu/${item.fileId}`,
         }
       : null,
     quyetDinh: item.quyetDinh
@@ -79,10 +74,8 @@ export function mapChangeRequestApiToUi(
           fileId: item.quyetDinh.fileId || null,
           soQuyetDinh: item.quyetDinh.soQuyetDinh,
           ngayKy: item.quyetDinh.ngayQuyetDinh,
-          coQuanBanHanh:
-            item.quyetDinh.coQuanBanHanh || "Trường Đại học An Giang - ĐHQG-HCM",
+          coQuanBanHanh: item.quyetDinh.coQuanBanHanh ?? undefined,
           fileName: `Quyet_dinh_${item.quyetDinh.soQuyetDinh.replace(/\//g, "_")}.pdf`,
-          fileUrl: `mock://quyet-dinh/${item.quyetDinh.soQuyetDinh}`,
         }
       : null,
   };
@@ -101,19 +94,17 @@ interface NcsProfileWithThesis extends BackendNcsMeResponse {
  */
 export function buildStudentChangeRequestsOverview(
   apiItems: ChangeRequestApiItem[],
-  profile?: BackendNcsMeResponse | null,
-  progress?: MyProgressResponse | null
+  profile: BackendNcsMeResponse,
+  progress?: MyProgressResponse | null,
+  candidates: CandidateSupervisorOption[] = []
 ): StudentChangeRequestsOverview {
-  const ncsId = profile?.id || progress?.ncs?.id || "ncs-unknown";
-  const hoTenNcs = profile?.hoTen || progress?.ncs?.hoTen || "Nghiên cứu sinh";
-  const mshv = profile?.mshv || progress?.ncs?.mshv || "NCS";
+  const { id: ncsId, hoTen: hoTenNcs, mshv } = profile;
 
   const extendedProfile = profile as NcsProfileWithThesis | undefined | null;
 
   // Đề tài hiện tại
   const tenDeTaiHienTai =
     extendedProfile?.deTais?.find((d) => d.trangThai === "HIEU_LUC")?.tenDeTai ||
-    extendedProfile?.deTais?.[0]?.tenDeTai ||
     "Chưa đăng ký đề tài";
 
   // GVHD hiện tại
@@ -128,7 +119,7 @@ export function buildStudentChangeRequestsOverview(
     vaiTro: (pc.vaiTro as SupervisorRoleType) || "HUONG_DAN_CHINH",
     trongSo: Number(pc.trongSo) === 0.5 ? 0.5 : 1.0,
     trangThai: "DANG_HUONG_DAN",
-    donViCongTac: "Trường Đại học An Giang",
+    donViCongTac: "Chưa cập nhật",
     soQuyetDinh: pc.quyetDinh?.soQuyetDinh || "Chưa có QĐ",
     ngayKyQuyetDinh: pc.quyetDinh?.ngayQuyetDinh || "",
     ngayBatDau: pc.ngayBatDau || "",
@@ -143,12 +134,12 @@ export function buildStudentChangeRequestsOverview(
 
   // Tính toán thời hạn đào tạo
   const hanChinhQuy =
-    profile?.hanChinhQuy || progress?.hanCuaNcs?.hanChinhQuy || new Date().toISOString();
+    profile.hanChinhQuy || progress?.hanCuaNcs?.hanChinhQuy || "";
   const hanGiaHan = profile?.hanGiaHan || null;
   const hanHienTai = hanGiaHan || hanChinhQuy;
   const hanBuocThoiHoc =
     profile?.hanBuocThoiHoc ||
-    new Date(Date.now() + 72 * 30.44 * 24 * 3600 * 1000).toISOString();
+    progress?.hanCuaNcs?.hanBuocThoiHoc || "";
 
   // Tính số tháng đã gia hạn từ các đơn gia hạn đã duyệt
   const danhSachDon = apiItems.map(mapChangeRequestApiToUi);
@@ -183,15 +174,13 @@ export function buildStudentChangeRequestsOverview(
     conDuoi12ThangKhoaHoc,
   };
 
-  const danhSachGvhdDeXuat: CandidateSupervisorOption[] = mockCandidateSupervisors;
-
   return {
     ncsId,
     hoTenNcs,
     mshv,
     tenDeTaiHienTai,
     danhSachGvhdHienTai,
-    danhSachGvhdDeXuat,
+    danhSachGvhdDeXuat: candidates,
     thongTinThoiGian,
     danhSachDon,
   };
@@ -204,7 +193,7 @@ export function buildStudentChangeRequestsOverview(
 /** Cùng quy ước mã đơn với `mapChangeRequestApiToUi` để NCS và GVHD thấy cùng một mã */
 function buildSupervisorRequestCode(id: string, createdAt: string): string {
   const created = new Date(createdAt);
-  const year = Number.isNaN(created.getTime()) ? "----" : created.getFullYear();
+  const year = Number.isNaN(created.getTime()) ? "----" : created.getUTCFullYear();
   return `DN-${year}-${id.slice(0, 4).toUpperCase()}`;
 }
 

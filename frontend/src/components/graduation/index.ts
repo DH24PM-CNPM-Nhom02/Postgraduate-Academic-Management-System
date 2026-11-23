@@ -6,6 +6,5 @@ export { StudentGraduationLiveView } from "./student-graduation-live-view";
 export type {
   GraduationConditionsProps,
   GraduationOverviewCardProps,
-  GraduationScenarioOption,
   GraduationWorkspaceProps,
 } from "@/src/types/ui/graduation";

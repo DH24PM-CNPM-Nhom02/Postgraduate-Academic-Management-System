@@ -12,7 +12,6 @@ import {
   FileEdit,
   Files,
   ClipboardList,
-  CalendarDays,
   BookOpen,
   BookOpenCheck,
   Award,
@@ -42,7 +41,7 @@ export interface AdminNavItemDef {
   icon: React.ComponentType<{ className?: string }>;
   badge?: number | string;
   badgeColor?: string;
-  group: "admin" | "main" | "academic" | "support";
+  group: "admin" | "main" | "support";
   href: string;
   matchPaths?: string[];
 }
@@ -147,27 +146,15 @@ export const ADMIN_NAV_ITEMS: AdminNavItemDef[] = [
     matchPaths: ["/admin/topic-changes"],
   },
 
-  // ── Nhóm 3: Nghiệp vụ học vụ ───────────────────────────
+  // ── Nhóm 4: Văn bản & Trợ giúp ─────────────────────────
   {
     id: "procedures",
     title: "Biểu mẫu học vụ",
     icon: ClipboardList,
-    group: "academic",
+    group: "support",
     href: "/admin/procedures",
     matchPaths: ["/admin/procedures", "/admin/forms"],
   },
-  {
-    id: "calendar",
-    title: "Lịch học vụ & Thông báo",
-    icon: CalendarDays,
-    group: "academic",
-    badge: "Mới",
-    badgeColor: "bg-blue-100 text-[#164E9B]",
-    href: "/admin/calendar",
-    matchPaths: ["/admin/calendar"],
-  },
-
-  // ── Nhóm 4: Văn bản & Trợ giúp ─────────────────────────
   {
     id: "regulations",
     title: "Quy chế & Quy định",
@@ -250,7 +237,7 @@ export function AdminSidebar({
   };
 
   const renderGroup = (
-    groupKey: "admin" | "main" | "academic" | "support",
+    groupKey: "admin" | "main" | "support",
     groupLabel: string
   ) => {
     const items = ADMIN_NAV_ITEMS.filter((i) => i.group === groupKey);
@@ -272,18 +259,16 @@ export function AdminSidebar({
               href={item.href}
               onClick={onClose}
               title={isCollapsed ? item.title : undefined}
-              className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${
-                isActive
+              className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${isActive
                   ? "bg-[#164E9B] text-white shadow-xs font-bold"
                   : "text-slate-700 hover:bg-slate-100/90 hover:text-[#164E9B]"
-              } ${isCollapsed ? "justify-center px-2" : ""}`}
+                } ${isCollapsed ? "justify-center px-2" : ""}`}
             >
               <Icon
-                className={`size-4.5 shrink-0 transition-colors ${
-                  isActive
+                className={`size-4.5 shrink-0 transition-colors ${isActive
                     ? "text-white"
                     : "text-slate-500 group-hover:text-[#164E9B]"
-                }`}
+                  }`}
               />
 
               {!isCollapsed && (
@@ -293,15 +278,13 @@ export function AdminSidebar({
               {/* Badges */}
               {item.badge !== undefined && (
                 <span
-                  className={`flex items-center justify-center rounded-full px-1.5 py-0.2 text-[10px] ${
-                    isActive
+                  className={`flex items-center justify-center rounded-full px-1.5 py-0.2 text-[10px] ${isActive
                       ? "bg-white/20 text-white font-bold"
                       : item.badgeColor || "bg-slate-100 text-slate-700"
-                  } ${
-                    isCollapsed
+                    } ${isCollapsed
                       ? "absolute -top-1 -right-1 size-4 p-0 text-[9px]"
                       : "ml-auto"
-                  }`}
+                    }`}
                 >
                   {item.badge}
                 </span>
@@ -334,20 +317,17 @@ export function AdminSidebar({
       {/* Sidebar container - Clean Light Theme */}
       <aside
         aria-label="Thanh điều hướng quản trị hệ thống"
-        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col border-r border-slate-200 bg-white text-slate-700 transition-all duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:self-start lg:shrink-0 lg:z-30 ${
-          isCollapsed ? "w-20" : "w-64"
-        } ${
-          isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+        className={`fixed top-0 bottom-0 left-0 z-50 flex flex-col border-r border-slate-200 bg-white text-slate-700 transition-all duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:self-start lg:shrink-0 lg:z-30 ${isCollapsed ? "w-20" : "w-64"
+          } ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          }`}
       >
         {/* Brand Header */}
         <div className="flex h-16 items-center justify-between border-b border-slate-200 px-4 bg-white">
           <Link
             href="/"
             onClick={onClose}
-            className={`flex items-center gap-2.5 ${
-              isCollapsed ? "justify-center w-full" : ""
-            }`}
+            className={`flex items-center gap-2.5 ${isCollapsed ? "justify-center w-full" : ""
+              }`}
           >
             <HoverLogo sizeClass="size-9" />
 
@@ -398,8 +378,6 @@ export function AdminSidebar({
           <div className="my-2 border-t border-slate-100" />
           {renderGroup("main", "Nghiệp vụ Đào tạo SĐH")}
           <div className="my-2 border-t border-slate-100" />
-          {renderGroup("academic", "Nghiệp vụ học vụ")}
-          <div className="my-2 border-t border-slate-100" />
           {renderGroup("support", "Văn bản & Trợ giúp")}
 
           {/* System & Academic Status Widget (visible when expanded) */}
@@ -412,16 +390,6 @@ export function AdminSidebar({
                 </span>
                 <span className="font-extrabold text-emerald-700">Toàn quyền</span>
               </div>
-              <div className="mt-2 flex items-center justify-between text-[10px] text-slate-600">
-                <span>Hồ sơ SĐH chờ duyệt:</span>
-                <span className="font-bold text-amber-600">7 hồ sơ</span>
-              </div>
-              <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-                <div
-                  className="h-full rounded-full bg-[#164E9B]"
-                  style={{ width: "85%" }}
-                />
-              </div>
               <p className="mt-1.5 text-[10px] text-slate-500 leading-tight">
                 Tài khoản Quản trị viên tích hợp đầy đủ quyền hạn Giáo vụ &amp; Quản trị hệ thống.
               </p>
@@ -432,9 +400,8 @@ export function AdminSidebar({
         {/* Bottom Profile / Quick Role status */}
         <div className="border-t border-slate-200 p-2.5 bg-slate-50/70">
           <div
-            className={`flex items-center gap-2.5 rounded-xl bg-white p-2 border border-slate-200/80 text-slate-700 shadow-2xs ${
-              isCollapsed ? "justify-center p-1.5" : ""
-            }`}
+            className={`flex items-center gap-2.5 rounded-xl bg-white p-2 border border-slate-200/80 text-slate-700 shadow-2xs ${isCollapsed ? "justify-center p-1.5" : ""
+              }`}
           >
             <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#164E9B] text-white font-extrabold text-xs shadow-2xs">
               {user?.fullName ? (

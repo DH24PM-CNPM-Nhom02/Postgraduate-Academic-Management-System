@@ -20,13 +20,13 @@ export interface SubmitEvidenceDialogProps {
   milestone: MilestoneProgressItem;
   lanNopTiepTheo?: number;
   onSubmitSuccess?: (submission: {
-    id?: string;
+    id: string;
     fileName: string;
     fileSize: number;
     ghiChuNcs: string;
     lanNop: number;
-    fileId?: string;
-    ngayNop?: string;
+    fileId: string;
+    ngayNop: string;
   }) => void;
 }
 

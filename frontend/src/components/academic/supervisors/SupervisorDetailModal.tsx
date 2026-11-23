@@ -93,7 +93,7 @@ export function SupervisorDetailModal({
   const displayName = formatSupervisorDisplayName(hoTen, supervisorDetail?.hocHamHocVi);
   
   const email = supervisorDetail?.email || "Chưa cập nhật";
-  const soDienThoai = "Chưa cập nhật";
+  const soDienThoai = supervisorDetail?.soDienThoai || "Chưa cập nhật";
   const ngaySinh = supervisorDetail?.ngaySinh;
   const gioiTinh = supervisorDetail?.gioiTinh;
   const chuyenNganh = supervisorDetail?.chuyenNganh || "Chưa cập nhật";

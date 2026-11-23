@@ -29,9 +29,8 @@ export function buildStudentGraduationOverview(
   const mshv = profile?.mshv || progress?.ncs?.mshv || "NCS";
   const chuyenNganh =
     profile?.nganh?.tenNganh ||
-    profile?.khoaHocNcs?.maKhoaHoc ||
-    "Tiến sĩ chuyên ngành";
-  const khoaHoc = profile?.khoaHocNcs?.maKhoaHoc || "Khóa NCS";
+    "Chưa cập nhật";
+  const khoaHoc = profile?.khoaHocNcs?.maKhoaHoc || profile?.khoaHoc || "Chưa cập nhật";
 
   // Nếu API backend trả về kết quả kiểm tra chính thức:
   if (apiAssessment) {
@@ -68,17 +67,17 @@ export function buildStudentGraduationOverview(
 
   // Fallback tính toán tự động dựa trên hồ sơ và tiến trình thật:
   const tienTrinhs = progress?.tienTrinhs || [];
-  const tongMoc = tienTrinhs.length || 9;
+  const tongMoc = tienTrinhs.length;
   const soMocPassed = tienTrinhs.filter((tt) => tt.trangThai === "PASSED").length;
   const daXongMoc = tongMoc > 0 && soMocPassed === tongMoc;
 
-  const trangThai = profile?.trangThai || "DANG_HOC";
+  const trangThai = profile?.trangThai || "Chưa cập nhật";
   const hopLeTrangThai = ["DANG_HOC", "GIA_HAN"].includes(trangThai);
 
   const hanBuocThoiHoc = profile?.hanBuocThoiHoc;
   const conHanDaoTao = hanBuocThoiHoc
     ? new Date(hanBuocThoiHoc).getTime() >= Date.now()
-    : true;
+    : false;
 
   const xet = (profile as ProfileWithGraduationCheck | null | undefined)?.xetTotNghiep;
   const datNgoaiNgu = Boolean(xet?.datNgoaiNgu);
@@ -98,9 +97,9 @@ export function buildStudentGraduationOverview(
       moTaYeuCau:
         "Hoàn thành đầy đủ 9/9 mốc tiến trình theo Quy chế Đào tạo Tiến sĩ BR-08.",
       dat: daXongMoc,
-      giaTriThucTe: `${soMocPassed}/${tongMoc} mốc`,
+      giaTriThucTe: tongMoc ? `${soMocPassed}/${tongMoc} mốc` : "Chưa có dữ liệu tiến độ",
       mucDo: daXongMoc ? undefined : "warning",
-      ghiChu: daXongMoc
+      ghiChu: !tongMoc ? "Chưa ghi nhận mốc đào tạo" : daXongMoc
         ? "Đã hoàn thành toàn bộ các mốc tiến trình"
         : `Còn ${tongMoc - soMocPassed} mốc chưa hoàn thành`,
       actionHref: "/student/progress",
@@ -126,9 +125,9 @@ export function buildStudentGraduationOverview(
       moTaYeuCau:
         "Chưa quá thời gian đào tạo tối đa 72 tháng tính từ ngày có quyết định công nhận NCS.",
       dat: conHanDaoTao,
-      giaTriThucTe: conHanDaoTao ? "Trong thời hạn tối đa" : "Đã quá hạn đào tạo",
+      giaTriThucTe: !hanBuocThoiHoc ? "Chưa có dữ liệu thời hạn" : conHanDaoTao ? "Trong thời hạn tối đa" : "Đã quá hạn đào tạo",
       mucDo: conHanDaoTao ? undefined : "error",
-      ghiChu: conHanDaoTao
+      ghiChu: !hanBuocThoiHoc ? "Chưa ghi nhận hạn đào tạo" : conHanDaoTao
         ? "Thời gian học tập còn trong khung 72 tháng"
         : "Đã vượt quá khung đào tạo tối đa theo quy định",
       actionHref: "/student/extensions",

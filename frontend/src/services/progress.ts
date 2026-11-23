@@ -214,6 +214,7 @@ export function mapMyProgressToUi(
       mshv: progress.ncs.mshv,
       hoTen: progress.ncs.hoTen,
       lop: progress.ncs.lop ?? ncsProfile?.lop ?? "Chưa cập nhật",
+      trangThaiHocTap: progress.ncs.trangThai ?? ncsProfile?.trangThai,
       khoaHoc: maKhoaHoc,
       maKhoaHoc,
       namTuyenSinh,
