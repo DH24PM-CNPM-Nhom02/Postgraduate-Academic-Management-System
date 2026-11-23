@@ -31,6 +31,7 @@ export interface BackendSupervisorNcsRaw {
   vaiTro: "HUONG_DAN_CHINH" | "DONG_HUONG_DAN" | string;
   trongSo: number | string;
   ngayBatDau?: string | null;
+  soQuyetDinhPhanCong?: string | null;
   ncs: {
     id: string;
     mshv: string;
@@ -692,7 +693,7 @@ export function mapBackendNcsToSupervisedStudent(
     tienDoPhanTram,
     vaiTro,
     trongSo,
-    soQuyetDinhPhanCong: "Theo QĐ phân công",
+    soQuyetDinhPhanCong: raw.soQuyetDinhPhanCong ?? "Chưa có số quyết định",
     ngayPhanCong: raw.ngayBatDau || "",
     ngayNhapHoc: "",
     soThangConLai: deadlineInfo.soThangConLai,
@@ -954,21 +955,19 @@ export function mapBackendNcsDetailToMilestones(
       .reverse()
       .find((mc) => mc.diemTrungBinh !== undefined);
 
-    // Phiếu nhận xét lấy từ lần nộp có phiếu nhận xét
-    const mcWithReviews = [...rawMinhChungs]
-      .sort((a, b) => b.lanNop - a.lanNop)
-      .find((mc) => mc.phieuNhanXets && mc.phieuNhanXets.length > 0);
-
-    const phieuNhanXets: PhieuNhanXetItem[] = (mcWithReviews?.phieuNhanXets || []).map((pnx) => ({
-      id: pnx.id,
-      tenNguoiCham: pnx.tenNguoiCham,
-      chucDanh: pnx.donViNguoiCham || "Thành viên Hội đồng",
-      diem: Number(pnx.diem),
-      fileId: pnx.fileId ?? null,
-      fileName: `Phieu_nhan_xet_${pnx.tenNguoiCham.replace(/\s+/g, "_")}.pdf`,
-      ngayDanhGia: pnx.createdAt,
-      nhanXet: pnx.nhanXet ?? undefined,
-    }));
+    const phieuNhanXets: PhieuNhanXetItem[] = [...sortedMinhChungs].reverse().flatMap((mc) =>
+      (mc.phieuNhanXets ?? []).map((pnx) => ({
+        lanNop: mc.lanNop,
+        id: pnx.id,
+        tenNguoiCham: pnx.tenNguoiCham,
+        chucDanh: pnx.donViNguoiCham || "Thành viên Hội đồng",
+        diem: Number(pnx.diem),
+        fileId: pnx.fileId ?? null,
+        fileName: `Phieu_nhan_xet_${pnx.tenNguoiCham.replace(/\s+/g, "_")}.pdf`,
+        ngayDanhGia: pnx.createdAt,
+        nhanXet: pnx.nhanXet ?? undefined,
+      })),
+    );
 
     // Lý do từ chối nếu có lần nộp bị từ chối
     const rejectedMc = [...lichSuMinhChung]

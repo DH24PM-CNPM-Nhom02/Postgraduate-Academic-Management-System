@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { mapChangeRequestApiToUi } from "@/src/adapters/change-request";
@@ -22,6 +23,7 @@ export function SupervisorRequestsLiveView() {
   });
   const create = useCreateChangeRequest();
   const cancel = useCancelChangeRequest();
+  const lastUpload = useRef<{ file: File; ncsId: string; fileId: string } | null>(null);
   const students = studentsQuery.data ?? [];
   const studentsById = new Map(students.map((student) => [student.id, student]));
   const requests = (requestsQuery.data ?? []).flatMap((item): SupervisorProxyRequestItem[] => {
@@ -49,9 +51,22 @@ export function SupervisorRequestsLiveView() {
       error={(requestsQuery.error ?? studentsQuery.error)?.message}
       onRetry={() => void Promise.all([requestsQuery.refetch(), studentsQuery.refetch()])}
       onCreateRequest={async (values) => {
-        const attachment = values.tepDinhKemFile
-          ? await DocumentService.uploadPdf({ file: values.tepDinhKemFile, documentType: "DON_TU" })
-          : undefined;
+        const file = values.tepDinhKemFile;
+        let fileId: string | undefined;
+        if (file) {
+          const previous = lastUpload.current;
+          if (previous?.file === file && previous.ncsId === values.studentId) {
+            fileId = previous.fileId;
+          } else {
+            const attachment = await DocumentService.uploadPdf({
+              file,
+              documentType: "DON_TU",
+              ncsId: values.studentId,
+            });
+            fileId = attachment.id;
+            lastUpload.current = { file, ncsId: values.studentId, fileId };
+          }
+        }
         await create.mutateAsync({
           loai: values.loaiDon,
           ncsId: values.studentId,
@@ -60,8 +75,9 @@ export function SupervisorRequestsLiveView() {
           tenDeTaiMoi: values.tenDeTaiMoi,
           phanCongCuId: values.phanCongCuId,
           gvhdMoiId: values.gvhdMoiId,
-          fileId: attachment?.id,
+          fileId,
         });
+        lastUpload.current = null;
       }}
       onWithdrawRequest={async (id) => {
         await cancel.mutateAsync(id);

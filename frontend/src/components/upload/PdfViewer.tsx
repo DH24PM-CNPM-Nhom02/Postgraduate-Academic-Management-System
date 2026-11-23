@@ -1,5 +1,7 @@
 "use client";
 
+import { useBodyScrollLock } from "@/src/hooks/use-body-scroll-lock";
+
 import React, { useEffect, useId, useRef } from "react";
 import {
   AlertCircle,
@@ -58,6 +60,8 @@ export function PdfViewer({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
+  useBodyScrollLock(isOpen);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -66,12 +70,18 @@ export function PdfViewer({
         ? document.activeElement
         : null;
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
     const focusTimer = window.setTimeout(() => {
       closeButtonRef.current?.focus();
     }, 0);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+      previousFocusRef.current?.focus();
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -81,13 +91,7 @@ export function PdfViewer({
     };
 
     window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.clearTimeout(focusTimer);
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      previousFocusRef.current?.focus();
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;

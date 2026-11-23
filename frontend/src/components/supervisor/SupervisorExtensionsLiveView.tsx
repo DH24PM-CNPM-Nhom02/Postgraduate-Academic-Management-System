@@ -16,9 +16,6 @@ import type { ChangeRequestDetail } from "@/src/types/api/change-request";
 import type { SupervisorExtensionDecisionAction } from "@/src/types/ui/supervisor";
 import { SupervisorExtensionsWorkspace } from "./SupervisorExtensionsWorkspace";
 
-/** Backend giới hạn `limit` tối đa 100 (ListDeNghiQuery); GVHD thường có ít đơn cần xác nhận */
-const LIST_PARAMS = { page: 1, limit: 100 } as const;
-
 /**
  * SupervisorExtensionsLiveView
  *
@@ -31,7 +28,7 @@ const LIST_PARAMS = { page: 1, limit: 100 } as const;
  * Xử lý cả đơn GIA_HAN và đơn DOI_DE_TAI do NCS tự nộp (đều cần tập thể GVHD xác nhận).
  */
 export function SupervisorExtensionsLiveView() {
-  const requestsQuery = useSupervisorChangeRequests(LIST_PARAMS);
+  const requestsQuery = useSupervisorChangeRequests();
   const profileQuery = useMySupervisorProfile();
   const studentsQuery = useMySupervisedStudents();
   const reviewMutation = useSupervisorReviewChangeRequest();
@@ -44,7 +41,7 @@ export function SupervisorExtensionsLiveView() {
     const detailById = new Map<string, ChangeRequestDetail>();
     if (detailQuery.data) detailById.set(detailQuery.data.id, detailQuery.data);
     return mapSupervisorExtensionRequests({
-      requests: requestsQuery.data?.data ?? [],
+      requests: requestsQuery.data ?? [],
       students: studentsQuery.data ?? [],
       myGvhdId: profileQuery.data?.id,
       detailById,
@@ -71,18 +68,19 @@ export function SupervisorExtensionsLiveView() {
     requestsQuery.error?.message ??
     (profileQuery.error
       ? `Không tải được hồ sơ GVHD (${parseApiError(profileQuery.error).message}). Chức năng thẩm định tạm khóa.`
-      : null);
+      : studentsQuery.error?.message ?? null);
 
   return (
     <SupervisorExtensionsWorkspace
       requests={requests}
       // Chỉ truyền id khi đã tải được hồ sơ GVHD; không suy đoán id
       currentSupervisorId={profileQuery.data?.id}
-      isLoading={requestsQuery.isLoading || profileQuery.isLoading}
+      isLoading={requestsQuery.isLoading || profileQuery.isLoading || studentsQuery.isLoading}
       error={error}
       onRetry={() => {
         void requestsQuery.refetch();
         void profileQuery.refetch();
+        void studentsQuery.refetch();
       }}
       onReviewExtension={handleReview}
       onSelectedRequestChange={setSelectedId}

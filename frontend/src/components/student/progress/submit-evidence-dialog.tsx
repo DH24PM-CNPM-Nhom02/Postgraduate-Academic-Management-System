@@ -1,5 +1,7 @@
 "use client";
 
+import { useBodyScrollLock } from "@/src/hooks/use-body-scroll-lock";
+
 import React, { useEffect, useId, useRef, useState } from "react";
 import {
   AlertCircle,
@@ -75,14 +77,13 @@ function SubmitEvidenceDialogInner({
     }
   };
 
+  useBodyScrollLock();
+
   useEffect(() => {
     previousFocusRef.current =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
 
     const focusTimer = window.setTimeout(() => {
       closeBtnRef.current?.focus();
@@ -91,7 +92,6 @@ function SubmitEvidenceDialogInner({
     return () => {
       window.clearTimeout(focusTimer);
       clearCloseTimer();
-      document.body.style.overflow = previousOverflow;
       previousFocusRef.current?.focus();
     };
   }, []);

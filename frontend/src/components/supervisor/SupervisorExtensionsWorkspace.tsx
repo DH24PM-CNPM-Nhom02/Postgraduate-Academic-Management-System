@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useBodyScrollLock } from "@/src/hooks/use-body-scroll-lock";
+
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -23,7 +25,10 @@ import {
   useDocumentMetadata,
   useDocumentPreviewUrl,
 } from "@/src/hooks/api/use-documents";
-import { TablePagination } from "@/src/components/ui/table-pagination";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Button } from "@/src/components/ui/button";
+import { ManagementDataTable, useManagementDataTable } from "@/src/components/ui/management-data-table";
+import { SupervisorSelect } from "./supervisor-select";
 import type {
   SupervisorExtensionDecisionAction,
   SupervisorExtensionRequestItem,
@@ -115,19 +120,25 @@ function ExtensionReviewDrawerInner({
   const statusMeta = getSupervisorRequestStatusMeta(request.trangThai);
   const attachmentSize = formatFileSizeBytes(request.tepDinhKem?.fileSize);
 
+  useBodyScrollLock();
+
   useEffect(() => {
     previousFocusRef.current =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
     const focusTimer = window.setTimeout(() => {
       closeBtnRef.current?.focus();
     }, 0);
 
+    return () => {
+      window.clearTimeout(focusTimer);
+      previousFocusRef.current?.focus();
+    };
+  }, []);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !confirmState && !isPdfOpen && !isSubmitting) {
         event.preventDefault();
@@ -136,12 +147,7 @@ function ExtensionReviewDrawerInner({
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.clearTimeout(focusTimer);
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      previousFocusRef.current?.focus();
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [confirmState, isPdfOpen, isSubmitting, onClose]);
 
   const handleRequestAction = (action: SupervisorExtensionDecisionAction) => {
@@ -591,7 +597,7 @@ export function SupervisorExtensionsWorkspace({
   onReviewExtension,
 }: SupervisorExtensionsWorkspaceProps) {
   // Dữ liệu luôn lấy từ props (React Query) để phản ánh trạng thái thật sau khi refetch
-  const previewMutation = useDocumentPreviewUrl();
+  const { mutateAsync: loadPreview, reset: resetPreview, isPending: isLoadingPdf, error: pdfError } = useDocumentPreviewUrl();
   const [previewObjectUrl, setPreviewObjectUrl] = useState<string | null>(null);
   // Vòng đời blob URL: URL đang hiển thị + mã lượt xem để bỏ (và thu hồi) kết quả về muộn
   const previewUrlRef = useRef<string | null>(null);
@@ -623,8 +629,6 @@ export function SupervisorExtensionsWorkspace({
   const [previewPdfRequest, setPreviewPdfRequest] =
     useState<SupervisorExtensionRequestItem | null>(null);
   const [feedbackBanner, setFeedbackBanner] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const PAGE_SIZE = 8;
 
   // Tìm trên toàn bộ danh sách (không theo bộ lọc) để đổi bộ lọc không làm đóng drawer
   const selectedRequest = useMemo(
@@ -665,11 +669,6 @@ export function SupervisorExtensionsWorkspace({
     });
   }, [requestsState, activeTab]);
 
-  const paginatedRequests = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredRequests.slice(start, start + PAGE_SIZE);
-  }, [filteredRequests, currentPage]);
-
   const handleSubmitReview = async (
     requestId: string,
     action: SupervisorExtensionDecisionAction,
@@ -690,15 +689,15 @@ export function SupervisorExtensionsWorkspace({
   };
 
   /** Thu hồi blob URL đang hiển thị (nếu có) */
-  const revokeCurrentPreviewUrl = () => {
+  const revokeCurrentPreviewUrl = useCallback(() => {
     if (previewUrlRef.current) {
       URL.revokeObjectURL(previewUrlRef.current);
       previewUrlRef.current = null;
     }
     setPreviewObjectUrl(null);
-  };
+  }, []);
 
-  const openPdfPreview = (item: SupervisorExtensionRequestItem) => {
+  const openPdfPreview = useCallback((item: SupervisorExtensionRequestItem) => {
     const fileId = item.tepDinhKem?.fileId;
     if (!fileId) return;
     // Mở tệp khác: bỏ URL cũ trước, đánh dấu lượt xem mới
@@ -706,8 +705,7 @@ export function SupervisorExtensionsWorkspace({
     const requestId = ++previewRequestIdRef.current;
     setPreviewPdfRequest(item);
     // mutateAsync vẫn resolve kể cả khi observer đã reset → tự kiểm tra lượt xem để thu hồi URL thừa
-    previewMutation
-      .mutateAsync(fileId)
+    loadPreview(fileId)
       .then((result) => {
         if (requestId !== previewRequestIdRef.current) {
           URL.revokeObjectURL(result.objectUrl);
@@ -717,17 +715,109 @@ export function SupervisorExtensionsWorkspace({
         setPreviewObjectUrl(result.objectUrl);
       })
       .catch(() => {
-        // Lỗi hiển thị qua previewMutation.error trong PdfViewer; không có URL nào cần thu hồi
+        // Lỗi hiển thị trong PdfViewer; không có URL nào cần thu hồi
       });
-  };
+  }, [loadPreview, revokeCurrentPreviewUrl]);
 
   const closePdfPreview = () => {
     // Đóng viewer: vô hiệu lượt xem đang chạy rồi mới thu hồi URL (viewer đã đóng nên không còn dùng)
     previewRequestIdRef.current += 1;
     revokeCurrentPreviewUrl();
-    previewMutation.reset();
+    resetPreview();
     setPreviewPdfRequest(null);
   };
+
+  const columns = useMemo<ColumnDef<SupervisorExtensionRequestItem>[]>(() => [
+    {
+      id: "request",
+      header: "Mã đơn / Ngày gửi",
+      cell: ({ row: { original: item } }) => (
+        <>
+          <p className="font-semibold text-[#164E9B]">{item.maDon}</p>
+          <p className="text-muted-foreground">{formatSupervisorDateUtc(item.ngayGui)}</p>
+        </>
+      ),
+    },
+    {
+      id: "student",
+      header: "Nghiên cứu sinh",
+      cell: ({ row: { original: item } }) => (
+        <>
+          <p className="font-semibold text-[#0F2744]">{item.hoTenNcs}</p>
+          <p className="text-muted-foreground">{item.mshv} · {getRoleShortLabel(item.vaiTroCuaToi)}</p>
+        </>
+      ),
+    },
+    {
+      id: "content",
+      header: "Nội dung đề nghị",
+      cell: ({ row: { original: item } }) => (
+        <>
+          <p className="font-semibold">
+            {isTopicChange(item) ? `Đổi đề tài: ${item.tenDeTaiMoi ?? "—"}` : `Xin gia hạn ${item.soThangGiaHan} tháng`}
+          </p>
+          {!isTopicChange(item) && item.hanMoiDuKien && (
+            <p className="text-muted-foreground">Hạn dự kiến {formatSupervisorDateUtc(item.hanMoiDuKien)}</p>
+          )}
+          <p className="line-clamp-2 text-muted-foreground">{item.lyDo}</p>
+        </>
+      ),
+    },
+    {
+      id: "progress",
+      header: "Tiến độ NCS",
+      cell: ({ row: { original: item } }) => (
+        item.mocHienTai > 0 ? `Mốc ${item.mocHienTai}/9 (${item.tienDoPhanTram}%)` : item.tenMocHienTai
+      ),
+    },
+    {
+      id: "status",
+      header: "Trạng thái",
+      cell: ({ row: { original: item } }) => {
+        const status = getSupervisorRequestStatusMeta(item.trangThai);
+        return (
+          <span className={`inline-flex rounded-full border px-2.5 py-1 font-semibold ${status.badgeClass}`}>
+            {status.label}
+          </span>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "Thao tác",
+      cell: ({ row: { original: item } }) => {
+        const isPendingMe = item.trangThai === "CHO_GVHD_XAC_NHAN" && item.yKienCuaToi?.dongY === null;
+
+        return (
+          <div className="flex flex-wrap items-center gap-2">
+            {item.tepDinhKem?.fileId && (
+              <Button type="button" variant="outline" size="sm" onClick={() => openPdfPreview(item)}>
+                <Eye aria-hidden="true" />
+                Xem PDF
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant={isPendingMe ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setSelectedRequestId(item.id);
+                onSelectedRequestChange?.(item.id);
+              }}
+            >
+              {isPendingMe ? "Thẩm định đơn" : "Xem chi tiết"}
+            </Button>
+          </div>
+        );
+      },
+    },
+  ], [openPdfPreview, onSelectedRequestChange]);
+
+  const table = useManagementDataTable({
+    data: filteredRequests,
+    columns,
+    getRowId: (item) => item.id,
+  });
 
   return (
     <div className="space-y-6 pb-8">
@@ -902,7 +992,6 @@ export function SupervisorExtensionsWorkspace({
                   aria-selected={isActive}
                   onClick={() => {
                     setActiveTab(tab.id);
-                    setCurrentPage(1);
                   }}
                   className={`inline-flex min-h-10 items-center rounded-lg border px-3.5 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none ${
                     isActive
@@ -916,21 +1005,18 @@ export function SupervisorExtensionsWorkspace({
             })}
           </div>
 
-          <label className="flex items-center gap-2 text-xs font-semibold text-[#0F2744]">
-            <span>Loại đơn</span>
-            <select
+          <div className="w-full sm:w-52">
+            <SupervisorSelect
+              label="Lọc loại đơn"
               value={kindFilter}
-              onChange={(e) => {
-                setKindFilter(e.target.value as RequestKindFilter);
-                setCurrentPage(1);
-              }}
-              className="min-h-10 rounded-lg border border-border bg-background px-3 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
-            >
-              <option value="ALL">Tất cả loại đơn</option>
-              <option value="GIA_HAN">Gia hạn học tập</option>
-              <option value="DOI_DE_TAI">Đổi đề tài luận án</option>
-            </select>
-          </label>
+              onValueChange={setKindFilter}
+              options={[
+                { value: "ALL", label: "Tất cả loại đơn" },
+                { value: "GIA_HAN", label: "Gia hạn học tập" },
+                { value: "DOI_DE_TAI", label: "Đổi đề tài luận án" },
+              ]}
+            />
+          </div>
         </div>
 
         {isLoading ? (
@@ -953,130 +1039,16 @@ export function SupervisorExtensionsWorkspace({
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-border">
-            {paginatedRequests.map((item) => {
-              const statusMeta = getSupervisorRequestStatusMeta(item.trangThai);
-              // Chỉ nhấn mạnh "Thẩm định" khi chính GVHD này còn chưa phản hồi
-              const isPendingMe =
-                item.trangThai === "CHO_GVHD_XAC_NHAN" &&
-                item.yKienCuaToi?.dongY === null;
-              const itemIsTopic = isTopicChange(item);
-
-              return (
-                <article
-                  key={item.id}
-                  className="flex flex-col gap-4 p-5 transition-colors hover:bg-muted/20 lg:flex-row lg:items-center lg:justify-between motion-reduce:transition-none"
-                >
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-md bg-[#164E9B]/10 px-2.5 py-0.5 text-xs font-bold tabular-nums text-[#164E9B]">
-                        {item.maDon}
-                      </span>
-                      <span
-                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusMeta.badgeClass}`}
-                      >
-                        {statusMeta.label}
-                      </span>
-                      <span
-                        className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${
-                          itemIsTopic
-                            ? "bg-violet-50 text-violet-700"
-                            : "bg-sky-50 text-sky-700"
-                        }`}
-                      >
-                        {itemIsTopic ? "Đổi đề tài" : "Gia hạn"}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        Gửi ngày {formatSupervisorDateUtc(item.ngayGui)}
-                      </span>
-                    </div>
-
-                    <div>
-                      <h3 className="text-base font-bold text-[#0F2744]">
-                        {item.hoTenNcs}{" "}
-                        <span className="text-xs font-medium text-muted-foreground">
-                          ({item.mshv} • {getRoleShortLabel(item.vaiTroCuaToi)})
-                        </span>
-                      </h3>
-                      <p className="mt-1 line-clamp-2 text-xs text-foreground">
-                        {item.lyDo}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
-                      {itemIsTopic ? (
-                        <span className="line-clamp-1">
-                          Đề tài mới:{" "}
-                          <strong className="font-semibold text-[#164E9B]">
-                            {item.tenDeTaiMoi || "—"}
-                          </strong>
-                        </span>
-                      ) : (
-                        <span>
-                          Xin gia hạn:{" "}
-                          <strong className="font-semibold text-[#164E9B]">
-                            +{item.soThangGiaHan} tháng
-                          </strong>{" "}
-                          ({item.hanHienTai
-                            ? `${formatSupervisorDateUtc(item.hanHienTai)} → `
-                            : "hạn mới dự kiến "}
-                          {formatSupervisorDateUtc(item.hanMoiDuKien)})
-                        </span>
-                      )}
-                      <span>
-                        {item.mocHienTai > 0
-                          ? `Tiến độ hiện tại: Mốc ${item.mocHienTai}/9 (${item.tienDoPhanTram}%)`
-                          : `Tiến độ hiện tại: ${item.tenMocHienTai}`}
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-[#0F2744]">
-                        <FileText className="size-3.5 text-[#164E9B]" aria-hidden="true" />
-                        <span>{item.tepDinhKem ? "Có tệp PDF đính kèm" : "Không có tệp đính kèm"}</span>
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2.5 lg:shrink-0">
-                    {item.tepDinhKem?.fileId && (
-                      <button
-                        type="button"
-                        onClick={() => openPdfPreview(item)}
-                        className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border bg-background px-3.5 py-2 text-xs font-semibold text-[#0F2744] transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none"
-                      >
-                        <Eye className="size-3.5 text-[#164E9B]" aria-hidden="true" />
-                        <span>{itemIsTopic ? "Xem tệp PDF" : "Xem báo cáo PDF"}</span>
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedRequestId(item.id);
-                        onSelectedRequestChange?.(item.id);
-                      }}
-                      className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none ${
-                        isPendingMe
-                          ? "bg-[#164E9B] text-white hover:bg-[#0F2744]"
-                          : "border border-border bg-card text-[#0F2744] hover:bg-muted"
-                      }`}
-                    >
-                      <span>{isPendingMe ? "Thẩm định đơn" : "Xem chi tiết"}</span>
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
+          <div className="space-y-3 p-4">
+            <ManagementDataTable
+              table={table}
+              minWidth="min-w-[860px]"
+              itemLabel="đơn"
+              cellStyles={{ content: "max-w-60 whitespace-normal px-3 py-3.5" }}
+              emptyState="Chưa có đơn phù hợp."
+            />
           </div>
         )}
-
-        <div className="border-t border-border px-5 py-3">
-          <TablePagination
-            currentPage={currentPage}
-            totalItems={filteredRequests.length}
-            pageSize={PAGE_SIZE}
-            onPageChange={setCurrentPage}
-            itemLabel="đơn"
-          />
-        </div>
       </section>
 
       {selectedRequest && (
@@ -1099,8 +1071,9 @@ export function SupervisorExtensionsWorkspace({
         isOpen={previewPdfRequest !== null}
         onClose={closePdfPreview}
         fileUrl={previewObjectUrl ?? undefined}
-        isLoading={previewMutation.isPending}
-        error={previewMutation.error?.message ?? null}
+        isLoading={isLoadingPdf}
+        error={pdfError?.message ?? null}
+        onRetry={previewPdfRequest ? () => openPdfPreview(previewPdfRequest) : undefined}
         fileName={previewPdfRequest?.tepDinhKem?.fileName || `${previewPdfRequest?.maDon ?? "tep-dinh-kem"}.pdf`}
         title={
           previewPdfRequest

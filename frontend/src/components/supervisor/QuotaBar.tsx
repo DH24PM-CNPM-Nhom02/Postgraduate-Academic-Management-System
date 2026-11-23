@@ -45,7 +45,7 @@ function getWarningMeta(level: QuotaWarningLevel) {
 /**
  * QuotaBar
  *
- * Hiển thị thanh định mức hướng dẫn quy đổi theo trọng số Quy chế BR-09
+ * Hiển thị thanh định mức hướng dẫn quy đổi theo trọng số Quy chế
  * (Hướng dẫn chính = 1.0, Đồng hướng dẫn = 0.5) so với hạn mức tối đa.
  */
 export function QuotaBar({
@@ -123,7 +123,7 @@ export function QuotaBar({
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-base font-bold tracking-tight text-[#0F2744]">
-              Định mức hướng dẫn quy đổi (BR-09)
+              Định mức hướng dẫn quy đổi
             </h2>
             <span
               className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${meta.badgeClasses}`}

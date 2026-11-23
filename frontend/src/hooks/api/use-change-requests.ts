@@ -135,11 +135,11 @@ export function useStudentChangeRequestsOverview() {
  * (adapter lọc tiếp các đơn có `xacNhanGvhds`). Làm mới khi quay lại tab vì trạng thái
  * do GVHD khác / Giáo vụ thay đổi; không polling.
  */
-export function useSupervisorChangeRequests(params: { page: number; limit: number }) {
-  return useQuery<ChangeRequestListResponse, ApiClientError>({
-    queryKey: changeRequestKeys.list({ scope: "supervisor", ...params }),
+export function useSupervisorChangeRequests() {
+  return useQuery<ChangeRequestListResponse["data"], ApiClientError>({
+    queryKey: changeRequestKeys.list({ scope: "supervisor" }),
     queryFn: ({ signal }) =>
-      ChangeRequestService.list(params, signal).catch(throwApiError),
+      ChangeRequestService.listForSearch({}, signal).catch(throwApiError),
     staleTime: 1000 * 30,
     refetchOnWindowFocus: true,
   });

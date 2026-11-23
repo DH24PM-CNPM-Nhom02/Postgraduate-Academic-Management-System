@@ -73,3 +73,42 @@ describe('NCS decision PDF access', () => {
     expect(download).not.toHaveBeenCalled();
   });
 });
+
+describe('GVHD access to milestone review PDFs', () => {
+  const supervisor = { id: 'gvhd-user', isGvhd: true, laNhanVien: false, dsNcsGvhd: ['assigned-ncs'] };
+  const review = { ...decision, id: 'review-pdf', documentType: 'PHIEU_NHAN_XET' };
+
+  it('serves the PDF and metadata when the review belongs to a supervised student', async () => {
+    const { findUnique, send, service, download } = setup(true);
+    findUnique.mockResolvedValue(review);
+
+    await expect(service.layThongTin(supervisor, review.id)).resolves.toMatchObject({ id: review.id });
+    await expect(service.taiVe(supervisor, review.id)).resolves.toHaveProperty('noiDungBase64');
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenCalledWith(
+      { cmd: 'phd.document.is-supervised-review' },
+      { documentId: review.id, userId: supervisor.id },
+    );
+    expect(download).toHaveBeenCalledWith(review.objectKey);
+  });
+
+  it('denies the download when the review has no matching link in the current roster', async () => {
+    const { findUnique, service, download } = setup(false);
+    findUnique.mockResolvedValue({ ...review, ncsId: 'assigned-ncs' });
+
+    await expect(service.taiVe(supervisor, review.id)).rejects.toHaveProperty('error.statusCode', 403);
+    expect(download).not.toHaveBeenCalled();
+  });
+
+  it('rejects unrelated roles and fails closed if link checking is unavailable', async () => {
+    const { findUnique, service, send, download } = setup(true);
+    findUnique.mockResolvedValue(review);
+
+    await expect(service.layThongTin({ ...supervisor, isGvhd: false }, review.id))
+      .rejects.toHaveProperty('error.statusCode', 403);
+    expect(send).not.toHaveBeenCalled();
+    send.mockReturnValue(throwError(() => new Error('Service unavailable')));
+    await expect(service.taiVe(supervisor, review.id)).rejects.toHaveProperty('error.statusCode', 503);
+    expect(download).not.toHaveBeenCalled();
+  });
+});

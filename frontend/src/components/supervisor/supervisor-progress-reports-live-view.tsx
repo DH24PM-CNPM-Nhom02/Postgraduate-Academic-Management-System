@@ -1,7 +1,6 @@
 "use client";
 
 import { useQueries } from "@tanstack/react-query";
-import { ApiClientError } from "@/src/lib/api";
 import { myNcsDetailOptions, useMySupervisedStudents } from "@/src/hooks/use-academic";
 import type { EvidenceStatus } from "@/src/types/ui/progress";
 import type { SupervisorProgressReportItem } from "@/src/types/ui/supervisor";
@@ -38,17 +37,17 @@ export function SupervisorProgressReportsLiveView() {
     }),
   ).sort((a, b) => b.ngayNop.localeCompare(a.ngayNop));
 
-  const rosterError = studentsQuery.error instanceof ApiClientError && studentsQuery.error.status === 404
-    ? null
-    : studentsQuery.error;
-  const error = rosterError ?? details.find((query) => query.error)?.error;
+  const detailErrorIndex = details.findIndex((query) => query.isError);
+  const error = studentsQuery.error?.message ?? (detailErrorIndex >= 0
+    ? `Không tải được báo cáo của ${students[detailErrorIndex].hoTen}. ${details[detailErrorIndex].error?.message ?? ""}`
+    : null);
 
   return (
     <SupervisorProgressReportsWorkspace
       reports={reports}
       students={students}
       isLoading={studentsQuery.isLoading || details.some((query) => query.isLoading)}
-      error={error?.message}
+      error={error}
       onRetry={() => void Promise.all([studentsQuery.refetch(), ...details.map((query) => query.refetch())])}
     />
   );

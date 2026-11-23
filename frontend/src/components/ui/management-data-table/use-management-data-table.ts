@@ -18,8 +18,9 @@ const EMPTY_COLUMN_FILTERS: ColumnFiltersState = [];
 export interface UseManagementDataTableOptions<TData> {
   data: TData[];
   columns: ColumnDef<TData>[];
-  globalFilter: string;
-  onGlobalFilterChange: (updater: Updater<string>) => void;
+  getRowId?: (row: TData) => string;
+  globalFilter?: string;
+  onGlobalFilterChange?: (updater: Updater<string>) => void;
   columnFilters?: ColumnFiltersState;
   globalFilterFn?: FilterFn<TData>;
   initialPageSize?: number;
@@ -29,7 +30,8 @@ export interface UseManagementDataTableOptions<TData> {
 export function useManagementDataTable<TData>({
   data,
   columns,
-  globalFilter,
+  getRowId,
+  globalFilter = "",
   onGlobalFilterChange,
   columnFilters = EMPTY_COLUMN_FILTERS,
   globalFilterFn,
@@ -42,6 +44,7 @@ export function useManagementDataTable<TData>({
   return useReactTable({
     data,
     columns,
+    getRowId,
     state: { globalFilter, columnFilters, pagination },
     onPaginationChange: setPagination,
     onGlobalFilterChange,

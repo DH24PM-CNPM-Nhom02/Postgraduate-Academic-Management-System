@@ -1,6 +1,10 @@
 "use client";
 
-import React, { useMemo } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ManagementDataTable, useManagementDataTable } from "@/src/components/ui/management-data-table";
+
+import React, { useMemo, useState } from "react";
+import { SupervisorSelect } from "./supervisor-select";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -11,7 +15,6 @@ import {
   Gauge,
   RefreshCw,
   Scale,
-  Users,
 } from "lucide-react";
 import type {
   SupervisedStudent,
@@ -80,6 +83,104 @@ function getStudentStatusLabel(student: SupervisedStudent): {
   }
 }
 
+const columns: ColumnDef<SupervisedStudent>[] = [
+  {
+    id: "number",
+    header: "STT",
+    cell: ({ row: { index } }) => {
+      return index + 1;
+    },
+  },
+  {
+    id: "student",
+    header: "Nghiên cứu sinh",
+    cell: ({ row: { original: student } }) => {
+      return (
+        <>
+          <p className="font-semibold text-[#0F2744]">{student.hoTen}</p>
+          <p className="text-xs text-muted-foreground">
+            {student.mshv} • {student.khoaDaoTao}
+          </p>
+        </>
+      );
+    },
+  },
+  {
+    id: "topic",
+    header: "Tên đề tài luận án",
+    cell: ({ row: { original: student } }) => {
+      return <span className="line-clamp-2">{student.tenDeTai}</span>;
+    },
+  },
+  {
+    id: "role",
+    header: "Vai trò",
+    cell: ({ row: { original: student } }) => {
+      const isMain = student.vaiTro === "HUONG_DAN_CHINH";
+      return (
+        <>
+          <span
+            className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-semibold ${
+              isMain
+                ? "bg-[#164E9B]/10 text-[#164E9B]"
+                : student.vaiTro === "DONG_HUONG_DAN"
+                ? "bg-sky-50 text-sky-800"
+                : "bg-amber-50 text-amber-800"
+            }`}
+          >
+            {isMain
+              ? "Hướng dẫn chính"
+              : student.vaiTro === "DONG_HUONG_DAN"
+              ? "Đồng hướng dẫn"
+              : "Chưa xác định"}
+          </span>
+        </>
+      );
+    },
+  },
+  {
+    id: "weight",
+    header: "Trọng số",
+    cell: ({ row: { original: student } }) => {
+      const effectiveWeight = getStudentEffectiveWeight(student);
+      return effectiveWeight.toFixed(1);
+    },
+  },
+  {
+    id: "decision",
+    header: "Số QĐ phân công",
+    cell: ({ row: { original: student } }) => {
+      return (
+        <>
+          <div className="flex items-center gap-1.5 font-medium">
+            <FileText className="size-3.5 text-muted-foreground" aria-hidden="true" />
+            <span>{student.soQuyetDinhPhanCong}</span>
+          </div>
+          <p className="mt-0.5 text-muted-foreground">
+            Ngày {formatDateUtc(student.ngayPhanCong)}
+          </p>
+        </>
+      );
+    },
+  },
+  {
+    id: "status",
+    header: "Trạng thái",
+    cell: ({ row: { original: student } }) => {
+      const statusMeta = getStudentStatusLabel(student);
+      return (
+        <>
+          <span
+            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${statusMeta.badgeClass}`}
+          >
+            {statusMeta.label}
+          </span>
+        </>
+      );
+    },
+  },
+];
+
 export function SupervisorQuotaWorkspace({
   profile: propProfile,
   quota: propQuota,
@@ -144,6 +245,18 @@ export function SupervisorQuotaWorkspace({
       void refetchStudents();
     });
 
+  const [roleFilter, setRoleFilter] = useState("ALL");
+  const filteredStudents = useMemo(
+    () => roleFilter === "ALL" ? students : students.filter((student) => student.vaiTro === roleFilter),
+    [students, roleFilter],
+  );
+
+  const table = useManagementDataTable({
+    data: filteredStudents,
+    columns,
+    getRowId: (item) => item.id,
+  });
+
   const totalRosterWeight = useMemo(
     () =>
       students.reduce(
@@ -158,7 +271,7 @@ export function SupervisorQuotaWorkspace({
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#0F2744]">
-            Định mức hướng dẫn Nghiên cứu sinh (BR-09)
+            Định mức hướng dẫn Nghiên cứu sinh
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {profile && [profile.hoTen, profile.hocHamHocVi, profile.maCanBo, profile.donVi].join(" · ")}
@@ -306,10 +419,18 @@ export function SupervisorQuotaWorkspace({
               Tổng trọng số tính từ các phân công hướng dẫn hiện hành.
             </p>
           </div>
-          <span className="inline-flex items-center gap-1.5 self-start rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-semibold text-[#0F2744]">
-            <Users className="size-3.5 text-[#164E9B]" aria-hidden="true" />
-            <span>{students.length} hồ sơ phân công</span>
-          </span>
+          <div className="w-full sm:w-52">
+            <SupervisorSelect
+              label="Lọc vai trò hướng dẫn"
+              value={roleFilter}
+              onValueChange={setRoleFilter}
+              options={[
+                { value: "ALL", label: "Tất cả vai trò" },
+                { value: "HUONG_DAN_CHINH", label: "Hướng dẫn chính" },
+                { value: "DONG_HUONG_DAN", label: "Đồng hướng dẫn" },
+              ]}
+            />
+          </div>
         </div>
 
         {isLoading ? (
@@ -323,107 +444,32 @@ export function SupervisorQuotaWorkspace({
             Giảng viên chưa có Nghiên cứu sinh nào được phân công trong hệ thống.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[780px] border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground">
-                  <th className="px-5 py-3">STT</th>
-                  <th className="px-5 py-3">Nghiên cứu sinh</th>
-                  <th className="px-5 py-3">Tên đề tài luận án</th>
-                  <th className="px-5 py-3">Vai trò</th>
-                  <th className="px-5 py-3 text-right">Trọng số</th>
-                  <th className="px-5 py-3">Số QĐ phân công</th>
-                  <th className="px-5 py-3">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {students.map((student, index) => {
-                  const effectiveWeight = getStudentEffectiveWeight(student);
-                  const statusMeta = getStudentStatusLabel(student);
-                  const isMain = student.vaiTro === "HUONG_DAN_CHINH";
-                  return (
-                    <tr key={student.id} className="hover:bg-muted/30">
-                      <td className="px-5 py-3.5 font-medium tabular-nums text-muted-foreground">
-                        {index + 1}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <p className="font-semibold text-[#0F2744]">{student.hoTen}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {student.mshv} • {student.khoaDaoTao}
-                        </p>
-                      </td>
-                      <td className="max-w-xs px-5 py-3.5 text-xs text-foreground">
-                        <span className="line-clamp-2">{student.tenDeTai}</span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span
-                          className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-semibold ${
-                            isMain
-                              ? "bg-[#164E9B]/10 text-[#164E9B]"
-                              : student.vaiTro === "DONG_HUONG_DAN"
-                              ? "bg-sky-50 text-sky-800"
-                              : "bg-amber-50 text-amber-800"
-                          }`}
-                        >
-                          {isMain
-                            ? "Hướng dẫn chính"
-                            : student.vaiTro === "DONG_HUONG_DAN"
-                            ? "Đồng hướng dẫn"
-                            : "Chưa xác định"}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5 text-right font-bold tabular-nums text-[#0F2744]">
-                        {effectiveWeight > 0
-                          ? effectiveWeight.toFixed(1)
-                          : "0.0"}
-                      </td>
-                      <td className="px-5 py-3.5 text-xs text-foreground">
-                        <div className="flex items-center gap-1.5 font-medium">
-                          <FileText className="size-3.5 text-muted-foreground" aria-hidden="true" />
-                          <span>{student.soQuyetDinhPhanCong}</span>
-                        </div>
-                        <p className="mt-0.5 text-muted-foreground">
-                          Ngày {formatDateUtc(student.ngayPhanCong)}
-                        </p>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span
-                          className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${statusMeta.badgeClass}`}
-                        >
-                          {statusMeta.label}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-border bg-muted/40 font-semibold text-[#0F2744]">
-                  <td colSpan={4} className="px-5 py-3.5 text-right text-sm">
-                    Tổng trọng số đang tính vào định mức thực tế:
-                  </td>
-                  <td className="px-5 py-3.5 text-right text-base font-bold tabular-nums text-[#164E9B]">
-                    {totalRosterWeight.toFixed(1)}
-                  </td>
-                  <td colSpan={2} className="px-5 py-3.5 text-xs text-muted-foreground">
-                    {quota ? `Trần quy chế: ${quota.hanMucToiDa.toFixed(1)} điểm định mức` : "Chưa có dữ liệu hạn mức"}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+          <div className="space-y-3 p-4">
+            <ManagementDataTable
+              table={table}
+              minWidth="min-w-[780px]"
+              itemLabel="nghiên cứu sinh"
+              cellStyles={{ topic: "max-w-64 whitespace-normal px-3 py-3.5", weight: "px-3 py-3.5 text-right font-bold tabular-nums" }}
+              headerStyles={{ weight: "px-3 py-3 text-right" }}
+              emptyState="Không có Nghiên cứu sinh theo vai trò đã chọn."
+            />
+            <div className="flex flex-wrap justify-between gap-2 rounded-lg bg-muted/40 px-4 py-3 text-sm">
+              <p>Tổng trọng số <strong>{totalRosterWeight.toFixed(1)}</strong></p>
+              {quota && <p>Trần quy chế <strong>{quota.hanMucToiDa.toFixed(1)}</strong></p>}
+            </div>
           </div>
         )}
       </section>
       )}
 
       <section
-        aria-label="Quy tắc áp dụng định mức BR-09"
+        aria-label="Quy tắc áp dụng định mức"
         className="rounded-xl border border-border bg-card p-5 sm:p-6"
       >
         <div className="flex items-center gap-2">
           <Scale className="size-5 text-[#164E9B]" aria-hidden="true" />
           <h2 className="text-base font-bold text-[#0F2744]">
-            Quy tắc quy đổi & ngưỡng kiểm soát BR-09
+            Quy tắc quy đổi & ngưỡng kiểm soát
           </h2>
         </div>
 

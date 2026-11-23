@@ -82,3 +82,35 @@ describe('Kiểm tra trước khi xóa tài liệu', () => {
     ).rejects.toThrow('yêu cầu xóa');
   });
 });
+
+describe('Liên kết phiếu nhận xét với minh chứng của NCS được hướng dẫn', () => {
+  it('chỉ chấp nhận phiếu còn hiệu lực gắn với NCS được phân công', async () => {
+    const findFirst = vi.fn().mockResolvedValue({ id: 'review' });
+    const controller = new PhdServiceController({ phieuNhanXet: { findFirst } } as unknown as PrismaService);
+
+    await expect(controller.isSupervisedReview({ documentId: 'pdf', userId: '' })).resolves.toBe(false);
+    expect(findFirst).not.toHaveBeenCalled();
+
+    const query = { documentId: 'pdf', userId: 'gvhd-user' };
+    await expect(controller.isSupervisedReview(query)).resolves.toBe(true);
+    expect(findFirst).toHaveBeenCalledWith({
+      where: {
+        fileId: 'pdf',
+        deletedAt: null,
+        minhChung: {
+          tienTrinh: {
+            ncs: {
+              phanCongs: {
+                some: { gvhd: { userId: query.userId }, trangThai: 'DANG_HIEU_LUC' },
+              },
+            },
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    findFirst.mockResolvedValue(null);
+    await expect(controller.isSupervisedReview(query)).resolves.toBe(false);
+  });
+});

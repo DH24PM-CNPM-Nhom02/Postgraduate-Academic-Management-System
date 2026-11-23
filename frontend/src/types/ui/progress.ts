@@ -36,6 +36,7 @@ export interface EvidenceItem {
  */
 export interface PhieuNhanXetItem {
   id: string;
+  lanNop?: number;
   tenNguoiCham: string;
   chucDanh: string;
   diem: number;

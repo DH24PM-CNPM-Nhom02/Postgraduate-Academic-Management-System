@@ -1,5 +1,7 @@
 "use client";
 
+import { useBodyScrollLock } from "@/src/hooks/use-body-scroll-lock";
+
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
@@ -7,7 +9,6 @@ import {
   Award,
   CheckCircle2,
   Clock,
-  Eye,
   FileText,
   GraduationCap,
   Info,
@@ -26,15 +27,7 @@ import type {
 } from "@/src/types/ui/supervisor";
 import { useMyNcsDetail } from "@/src/hooks/use-academic";
 import { mapBackendNcsDetailToSupervisedStudent } from "@/src/services/gvhd";
-import { DocumentService } from "@/src/services/document";
-import { PdfViewer } from "@/src/components/upload/PdfViewer";
-
-interface PreviewPdfState {
-  fileUrl?: string;
-  fileName: string;
-  title: string;
-  subtitle?: string;
-}
+import { DocumentViewButton } from "@/src/components/student/progress/document-view-button";
 
 function formatDateUtc(isoString?: string): string {
   if (!isoString) return "--/--/----";
@@ -71,69 +64,9 @@ function StudentProgressDrawerInner({
     return mapBackendNcsDetailToSupervisedStudent(ncsDetailRaw, student);
   }, [ncsDetailRaw, student]);
 
-  // Trạng thái mở modal PDF Viewer với Blob URL an toàn
-  const [previewPdf, setPreviewPdf] = useState<PreviewPdfState | null>(null);
-  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
-  const [isLoadingPdf, setIsLoadingPdf] = useState<boolean>(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  const handleOpenPdf = async (
-    fileId?: string,
-    fileUrl?: string,
-    fileName?: string,
-    title?: string,
-    subtitle?: string
-  ) => {
-    const safeFileName = fileName || "tai-lieu.pdf";
-    const safeTitle = title || "Xem trước tài liệu PDF";
-    setPreviewPdf({
-      fileUrl,
-      fileName: safeFileName,
-      title: safeTitle,
-      subtitle,
-    });
-    setPdfError(null);
-
-    if (fileId) {
-      setIsLoadingPdf(true);
-      try {
-        const { objectUrl } = await DocumentService.createPreviewUrl(fileId);
-        setPreviewBlobUrl(objectUrl);
-      } catch (err) {
-        console.warn("Không thể tải PDF qua DocumentService:", err);
-        if (fileUrl) {
-          setPreviewBlobUrl(null);
-        } else {
-          setPdfError(
-            err instanceof Error ? err.message : "Không thể tải tệp PDF minh chứng."
-          );
-        }
-      } finally {
-        setIsLoadingPdf(false);
-      }
-    } else {
-      setPreviewBlobUrl(null);
-      setIsLoadingPdf(false);
-    }
-  };
-
-  const handleClosePdf = () => {
-    if (previewBlobUrl) {
-      URL.revokeObjectURL(previewBlobUrl);
-      setPreviewBlobUrl(null);
-    }
-    setPreviewPdf(null);
-    setPdfError(null);
-    setIsLoadingPdf(false);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (previewBlobUrl) {
-        URL.revokeObjectURL(previewBlobUrl);
-      }
-    };
-  }, [previewBlobUrl]);
+  useBodyScrollLock();
 
   useEffect(() => {
     previousFocusRef.current =
@@ -141,28 +74,27 @@ function StudentProgressDrawerInner({
         ? document.activeElement
         : null;
 
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
     const timer = window.setTimeout(() => {
       closeButtonRef.current?.focus();
     }, 0);
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !previewPdf) {
-        e.preventDefault();
+    return () => {
+      window.clearTimeout(timer);
+      previousFocusRef.current?.focus();
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !isPreviewOpen) {
+        event.preventDefault();
         onClose();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = originalOverflow;
-      previousFocusRef.current?.focus?.();
-    };
-  }, [onClose, previewPdf]);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, isPreviewOpen]);
 
   return (
     <>
@@ -666,22 +598,15 @@ function StudentProgressDrawerInner({
                                 </div>
                               </div>
 
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleOpenPdf(
-                                    m.minhChungHienTai?.fileId,
-                                    m.minhChungHienTai?.fileUrl,
-                                    m.minhChungHienTai!.fileName,
-                                    `Minh chứng ${m.tenMoc}`,
-                                    `${currentStudent.hoTen} (${currentStudent.mshv}) • Lần nộp ${m.minhChungHienTai?.lanNop}`
-                                  )
-                                }
-                                className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-[#164E9B] transition-colors hover:bg-[#164E9B]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
-                              >
-                                <Eye className="size-3.5" aria-hidden="true" />
-                                <span>Xem PDF</span>
-                              </button>
+                              <DocumentViewButton
+                                fileId={m.minhChungHienTai.fileId ?? ""}
+                                fileUrl={m.minhChungHienTai.fileId ? undefined : m.minhChungHienTai.fileUrl}
+                                fileName={m.minhChungHienTai.fileName}
+                                label="Xem PDF"
+                                title={`Minh chứng ${m.tenMoc}`}
+                                subtitle={`${currentStudent.hoTen} (${currentStudent.mshv}) • Lần nộp ${m.minhChungHienTai.lanNop}`}
+                                onPreviewChange={setIsPreviewOpen}
+                              />
                             </div>
                           )}
 
@@ -737,22 +662,15 @@ function StudentProgressDrawerInner({
                                             : "Chờ duyệt"}
                                       </span>
 
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleOpenPdf(
-                                            item.fileId,
-                                            item.fileUrl,
-                                            item.fileName,
-                                            `Minh chứng ${m.tenMoc} (Lần ${item.lanNop})`,
-                                            `${currentStudent.hoTen} (${currentStudent.mshv})`
-                                          )
-                                        }
-                                        className="inline-flex h-7 cursor-pointer items-center gap-1 rounded-md border border-border bg-card px-2 text-[11px] font-semibold text-[#164E9B] transition-colors hover:bg-[#164E9B]/10"
-                                      >
-                                        <Eye className="size-3" aria-hidden="true" />
-                                        <span>Xem</span>
-                                      </button>
+                                      <DocumentViewButton
+                                        fileId={item.fileId ?? ""}
+                                        fileUrl={item.fileId ? undefined : item.fileUrl}
+                                        fileName={item.fileName}
+                                        label="Xem PDF"
+                                        title={`Minh chứng ${m.tenMoc} (Lần ${item.lanNop})`}
+                                        subtitle={`${currentStudent.hoTen} (${currentStudent.mshv})`}
+                                        onPreviewChange={setIsPreviewOpen}
+                                      />
                                     </div>
                                   </div>
                                 ))}
@@ -761,7 +679,7 @@ function StudentProgressDrawerInner({
                           )}
 
                           {/* Phiếu nhận xét Hội đồng */}
-                          {m.yeuCauDiem && m.phieuNhanXets && m.phieuNhanXets.length > 0 && (
+                          {m.phieuNhanXets && m.phieuNhanXets.length > 0 && (
                             <div className="space-y-2 rounded-xl bg-muted/45 p-3.5 text-xs">
                               <div className="flex items-center justify-between">
                                 <span className="font-semibold text-[#0F2744]">
@@ -769,7 +687,7 @@ function StudentProgressDrawerInner({
                                 </span>
                                 {m.diemTrungBinh !== undefined && (
                                   <span className="rounded bg-emerald-100 px-2 py-0.5 font-mono font-bold text-emerald-900">
-                                    Điểm TB: {Number(m.diemTrungBinh).toFixed(1)}/10
+                                    Điểm TB gần nhất: {Number(m.diemTrungBinh).toFixed(1)}/10
                                   </span>
                                 )}
                               </div>
@@ -792,6 +710,7 @@ function StudentProgressDrawerInner({
                                           {review.nhanXet}
                                         </p>
                                       )}
+                                      <p className="text-[10px] text-muted-foreground">Lần nộp {review.lanNop}</p>
                                       {review.ngayDanhGia && (
                                         <p className="text-[10px] text-muted-foreground">
                                           Ngày đánh giá: {formatDateUtc(review.ngayDanhGia)}
@@ -803,22 +722,15 @@ function StudentProgressDrawerInner({
                                         {review.diem.toFixed(1)}/10
                                       </span>
                                       {(review.fileId || review.fileUrl) && (
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            handleOpenPdf(
-                                              review.fileId || undefined,
-                                              review.fileUrl,
-                                              review.fileName,
-                                              `Phiếu nhận xét - ${review.tenNguoiCham}`,
-                                              `${m.tenMoc} • Điểm ${review.diem.toFixed(1)}/10`
-                                            )
-                                          }
-                                          className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-md border border-border bg-card px-2.5 text-[11px] font-semibold text-[#164E9B] transition-colors hover:bg-[#164E9B]/10"
-                                        >
-                                          <Eye className="size-3" aria-hidden="true" />
-                                          <span>Xem phiếu</span>
-                                        </button>
+                                        <DocumentViewButton
+                                          fileId={review.fileId ?? ""}
+                                          fileUrl={review.fileId ? undefined : review.fileUrl}
+                                          fileName={review.fileName}
+                                          label="Xem phiếu"
+                                          title={`Phiếu nhận xét - ${review.tenNguoiCham}`}
+                                          subtitle={`${m.tenMoc} • Lần nộp ${review.lanNop} • Điểm ${review.diem.toFixed(1)}/10`}
+                                          onPreviewChange={setIsPreviewOpen}
+                                        />
                                       )}
                                     </div>
                                   </div>
@@ -851,17 +763,6 @@ function StudentProgressDrawerInner({
         </div>
       </div>
 
-      <PdfViewer
-        isOpen={Boolean(previewPdf)}
-        onClose={handleClosePdf}
-        fileUrl={previewBlobUrl || previewPdf?.fileUrl}
-        fileName={previewPdf?.fileName}
-        title={previewPdf?.title}
-        subtitle={previewPdf?.subtitle}
-        isLoading={isLoadingPdf}
-        error={pdfError}
-        allowDownload={true}
-      />
     </>
   );
 }

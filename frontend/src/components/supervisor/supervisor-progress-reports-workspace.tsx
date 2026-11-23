@@ -17,7 +17,11 @@ import {
 } from "lucide-react";
 import { DocumentViewButton } from "@/src/components/student/progress/document-view-button";
 import { useDocumentMetadata } from "@/src/hooks/api/use-documents";
-import { TablePagination } from "@/src/components/ui/table-pagination";
+import { Button } from "@/src/components/ui/button";
+import { Input } from "@/src/components/ui/input";
+import { SupervisorSelect } from "./supervisor-select";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ManagementDataTable, useManagementDataTable } from "@/src/components/ui/management-data-table";
 import type { EvidenceStatus } from "@/src/types/ui/progress";
 import type {
   SupervisorProgressReportItem,
@@ -51,6 +55,45 @@ function ReportAttachment({ report, view = false }: { report: SupervisorProgress
   );
 }
 
+function hasReportNotes(report: SupervisorProgressReportItem) {
+  return Boolean(report.ghiChuNcs || report.nhanXetGvhd || report.lyDoTuChoi);
+}
+
+function ReportNotes({ report }: { report: SupervisorProgressReportItem }) {
+  return (
+    <div className="grid grid-cols-1 gap-3 text-xs md:grid-cols-2">
+                                  {report.ghiChuNcs && (
+                                    <div className="rounded-lg bg-card p-3">
+                                      <p className="font-semibold text-[#0F2744]">
+                                        Ghi chú của Nghiên cứu sinh:
+                                      </p>
+                                      <p className="mt-1 leading-relaxed text-foreground">
+                                        {report.ghiChuNcs}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {report.nhanXetGvhd && (
+                                    <div className="rounded-lg bg-card p-3">
+                                      <p className="font-semibold text-[#164E9B]">
+                                        Nhận xét / Theo dõi của GVHD:
+                                      </p>
+                                      <p className="mt-1 leading-relaxed text-foreground">
+                                        {report.nhanXetGvhd}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {report.lyDoTuChoi && (
+                                    <div className="rounded-lg bg-rose-50 p-3 text-rose-900 md:col-span-2">
+                                      <p className="font-semibold">
+                                        Lý do Giáo vụ trả lại hồ sơ:
+                                      </p>
+                                      <p className="mt-1 leading-relaxed">{report.lyDoTuChoi}</p>
+                                    </div>
+                                  )}
+                                </div>
+  );
+}
+
 const MILESTONE_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 
 export function SupervisorProgressReportsWorkspace({
@@ -61,12 +104,10 @@ export function SupervisorProgressReportsWorkspace({
   onRetry,
 }: SupervisorProgressReportsWorkspaceProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStudentName, setSelectedStudentName] = useState("ALL");
+  const [selectedStudentId, setSelectedStudentId] = useState("ALL");
   const [selectedMilestone, setSelectedMilestone] = useState<string>("ALL");
   const [selectedStatus, setSelectedStatus] = useState<EvidenceStatus | "ALL">("ALL");
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const PAGE_SIZE = 8;
 
   const studentFilterOptions = useMemo(() => {
     const namesMap = new Map<string, { mshv: string; hoTen: string }>();
@@ -99,7 +140,7 @@ export function SupervisorProgressReportsWorkspace({
   const filteredReports = useMemo(() => {
     const keyword = searchQuery.trim().toLowerCase();
     return reports.filter((report) => {
-      if (selectedStudentName !== "ALL" && report.studentId !== selectedStudentName) {
+      if (selectedStudentId !== "ALL" && report.studentId !== selectedStudentId) {
         return false;
       }
       if (
@@ -115,29 +156,154 @@ export function SupervisorProgressReportsWorkspace({
       return (
         report.hoTenNcs.toLowerCase().includes(keyword) ||
         report.mshv.toLowerCase().includes(keyword) ||
-        report.tenMoc.toLowerCase().includes(keyword) ||
-        report.fileName.toLowerCase().includes(keyword)
+        report.tenMoc.toLowerCase().includes(keyword)
       );
     });
-  }, [reports, searchQuery, selectedStudentName, selectedMilestone, selectedStatus]);
+  }, [reports, searchQuery, selectedStudentId, selectedMilestone, selectedStatus]);
 
   const hasActiveFilter =
     searchQuery.trim() !== "" ||
-    selectedStudentName !== "ALL" ||
+    selectedStudentId !== "ALL" ||
     selectedMilestone !== "ALL" ||
     selectedStatus !== "ALL";
 
-  const paginatedReports = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredReports.slice(start, start + PAGE_SIZE);
-  }, [filteredReports, currentPage]);
+  const columns = useMemo<ColumnDef<SupervisorProgressReportItem>[]>(() => [
+    {
+      id: "student",
+      header: "Nghiên cứu sinh",
+      cell: ({ row: { original: report } }) => {
+        return (
+          <>
+            <p className="font-semibold text-[#0F2744]">
+              {report.hoTenNcs}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {report.mshv} • {getRoleShortLabel(report.vaiTro)}
+            </p>
+          </>
+        );
+      },
+    },
+    {
+      id: "milestone",
+      header: "Mốc đào tạo",
+      cell: ({ row: { original: report } }) => {
+        return (
+          <>
+            <span className="inline-flex items-center rounded-md bg-[#164E9B]/10 px-2 py-0.5 text-xs font-semibold text-[#164E9B]">
+              Mốc {report.mocSo}
+            </span>
+            <p className="mt-1 text-xs font-medium text-foreground">
+              {report.tenMoc.replace(/^Mốc \d+:\s*/, "")}
+            </p>
+            {report.diemTrungBinh !== undefined && (
+              <p className="mt-0.5 text-xs font-semibold text-emerald-700">
+                Điểm đánh giá: {report.diemTrungBinh}/10
+              </p>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      id: "attachment",
+      header: "Minh chứng PDF",
+      cell: ({ row: { original: report } }) => {
+        return (
+          <>
+            <div className="flex items-start gap-2">
+              <FileText
+                className="mt-0.5 size-4 shrink-0 text-[#164E9B]"
+                aria-hidden="true"
+              />
+              <div className="min-w-0">
+                <ReportAttachment report={report} />
+              </div>
+            </div>
+          </>
+        );
+      },
+    },
+    {
+      id: "submitted",
+      header: "Ngày nộp",
+      cell: ({ row: { original: report } }) => {
+        return (
+          <>
+            <p className="font-medium tabular-nums">
+              {formatSupervisorDateUtc(report.ngayNop)}
+            </p>
+            {report.ngayDuyet && (
+              <p className="mt-0.5 text-muted-foreground tabular-nums">
+                Xử lý: {formatSupervisorDateUtc(report.ngayDuyet)}
+              </p>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      id: "status",
+      header: "Trạng thái",
+      cell: ({ row: { original: report } }) => {
+        const statusMeta = getMilestoneEvidenceStatusMeta(report.trangThai);
+        return (
+          <>
+            <span
+              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${statusMeta.badgeClass}`}
+            >
+              {statusMeta.label}
+            </span>
+            {report.nguoiDuyet && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {report.nguoiDuyet}
+              </p>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "Thao tác",
+      cell: ({ row: { original: report } }) => {
+        const isExpanded = expandedReportId === report.id;
+        const hasNotes = hasReportNotes(report);
+        return (
+          <>
+            <div className="inline-flex flex-wrap items-center justify-end gap-2">
+              {hasNotes && (
+                <Button variant="outline" size="sm"
+                  type="button"
+                  aria-expanded={isExpanded}
+                  onClick={() =>
+                    setExpandedReportId(isExpanded ? null : report.id)
+                  }
+                >
+                  <MessageSquareText className="size-3.5 text-[#164E9B]" aria-hidden="true" />
+                  <span>{isExpanded ? "Thu gọn" : "Ghi chú"}</span>
+                </Button>
+              )}
+
+              <ReportAttachment report={report} view />
+            </div>
+          </>
+        );
+      },
+    },
+  ], [expandedReportId]);
+
+  const table = useManagementDataTable({
+    data: filteredReports,
+    columns,
+    getRowId: (item) => item.id,
+  });
 
   const handleResetFilters = () => {
     setSearchQuery("");
-    setSelectedStudentName("ALL");
+    setSelectedStudentId("ALL");
     setSelectedMilestone("ALL");
     setSelectedStatus("ALL");
-    setCurrentPage(1);
   };
 
   return (
@@ -178,7 +344,9 @@ export function SupervisorProgressReportsWorkspace({
           <div className="flex items-start gap-3">
             <AlertCircle className="mt-0.5 size-5 shrink-0 text-rose-600" aria-hidden="true" />
             <div className="text-sm">
-              <p className="font-semibold">Không thể tải danh sách báo cáo tiến độ</p>
+              <p className="font-semibold">
+                {reports.length ? "Chưa tải được toàn bộ báo cáo tiến độ" : "Không thể tải danh sách báo cáo tiến độ"}
+              </p>
               <p className="mt-0.5 text-rose-800">{error}</p>
             </div>
           </div>
@@ -208,7 +376,7 @@ export function SupervisorProgressReportsWorkspace({
             </div>
           ))}
         </div>
-      ) : (
+      ) : error && reports.length === 0 ? null : (
         <section
           aria-label="Tổng hợp trạng thái báo cáo tiến độ"
           className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
@@ -309,15 +477,14 @@ export function SupervisorProgressReportsWorkspace({
                   className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
                   aria-hidden="true"
                 />
-                <input
+                <Input
                   id="pr-search-input"
                   type="search"
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
-                    setCurrentPage(1);
                   }}
-                  placeholder="Tên NCS, MSHV, tên tệp..."
+                  placeholder="Tên NCS, MSHV, tên mốc..."
                   className="h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
                 />
               </div>
@@ -330,22 +497,17 @@ export function SupervisorProgressReportsWorkspace({
               >
                 Nghiên cứu sinh
               </label>
-              <select
+              <SupervisorSelect
                 id="pr-student-filter"
-                value={selectedStudentName}
-                onChange={(e) => {
-                  setSelectedStudentName(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
-              >
-                <option value="ALL">Tất cả Nghiên cứu sinh</option>
-                {studentFilterOptions.map((st) => (
-                  <option key={st.id} value={st.id}>
-                    {st.hoTen} ({st.mshv})
-                  </option>
-                ))}
-              </select>
+                value={selectedStudentId}
+                onValueChange={setSelectedStudentId}
+                options={[
+                  { value: "ALL", label: "Tất cả Nghiên cứu sinh" },
+                  ...studentFilterOptions.map(({ id, hoTen, mshv }) => ({
+                    value: id, label: `${hoTen} (${mshv})`,
+                  })),
+                ]}
+              />
             </div>
 
             <div>
@@ -355,22 +517,15 @@ export function SupervisorProgressReportsWorkspace({
               >
                 Mốc đào tạo (1 - 9)
               </label>
-              <select
+              <SupervisorSelect
                 id="pr-milestone-filter"
                 value={selectedMilestone}
-                onChange={(e) => {
-                  setSelectedMilestone(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
-              >
-                <option value="ALL">Tất cả 9 mốc</option>
-                {MILESTONE_NUMBERS.map((num) => (
-                  <option key={num} value={String(num)}>
-                    Mốc {num}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setSelectedMilestone}
+                options={[
+                  { value: "ALL", label: "Tất cả 9 mốc" },
+                  ...MILESTONE_NUMBERS.map((number) => ({ value: String(number), label: `Mốc ${number}` })),
+                ]}
+              />
             </div>
 
             <div>
@@ -380,20 +535,17 @@ export function SupervisorProgressReportsWorkspace({
               >
                 Trạng thái xử lý
               </label>
-              <select
+              <SupervisorSelect
                 id="pr-status-filter"
                 value={selectedStatus}
-                onChange={(e) => {
-                  setSelectedStatus(e.target.value as EvidenceStatus | "ALL");
-                  setCurrentPage(1);
-                }}
-                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
-              >
-                <option value="ALL">Tất cả trạng thái</option>
-                <option value="PENDING_REVIEW">Đang chờ duyệt</option>
-                <option value="PASSED">Đã duyệt</option>
-                <option value="REJECTED">Cần bổ sung</option>
-              </select>
+                onValueChange={setSelectedStatus}
+                options={[
+                  { value: "ALL", label: "Tất cả trạng thái" },
+                  { value: "PENDING_REVIEW", label: "Đang chờ duyệt" },
+                  { value: "PASSED", label: "Đã duyệt" },
+                  { value: "REJECTED", label: "Cần bổ sung" },
+                ]}
+              />
             </div>
           </div>
         </div>
@@ -404,7 +556,7 @@ export function SupervisorProgressReportsWorkspace({
               <div key={idx} className="h-14 rounded-lg bg-muted" />
             ))}
           </div>
-        ) : filteredReports.length === 0 ? (
+        ) : error && reports.length === 0 ? null : filteredReports.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <FileText
               className="mx-auto size-10 text-muted-foreground/60"
@@ -431,162 +583,19 @@ export function SupervisorProgressReportsWorkspace({
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[880px] border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground">
-                  <th className="px-5 py-3">Nghiên cứu sinh</th>
-                  <th className="px-5 py-3">Mốc đào tạo</th>
-                  <th className="px-5 py-3">Tài liệu minh chứng (PDF)</th>
-                  <th className="px-5 py-3">Ngày nộp</th>
-                  <th className="px-5 py-3">Trạng thái</th>
-                  <th className="px-5 py-3 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {paginatedReports.map((report) => {
-                  const statusMeta = getMilestoneEvidenceStatusMeta(report.trangThai);
-                  const isExpanded = expandedReportId === report.id;
-                  const hasNotes = Boolean(
-                    report.ghiChuNcs || report.nhanXetGvhd || report.lyDoTuChoi
-                  );
-
-                  return (
-                    <React.Fragment key={report.id}>
-                      <tr className="hover:bg-muted/25">
-                        <td className="px-5 py-4 align-top">
-                          <p className="font-semibold text-[#0F2744]">
-                            {report.hoTenNcs}
-                          </p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            {report.mshv} • {getRoleShortLabel(report.vaiTro)}
-                          </p>
-                        </td>
-
-                        <td className="max-w-xs px-5 py-4 align-top">
-                          <span className="inline-flex items-center rounded-md bg-[#164E9B]/10 px-2 py-0.5 text-xs font-semibold text-[#164E9B]">
-                            Mốc {report.mocSo}
-                          </span>
-                          <p className="mt-1 text-xs font-medium text-foreground">
-                            {report.tenMoc.replace(/^Mốc \d+:\s*/, "")}
-                          </p>
-                          {report.diemTrungBinh !== undefined && (
-                            <p className="mt-0.5 text-xs font-semibold text-emerald-700">
-                              Điểm đánh giá: {report.diemTrungBinh}/10
-                            </p>
-                          )}
-                        </td>
-
-                        <td className="max-w-xs px-5 py-4 align-top">
-                          <div className="flex items-start gap-2">
-                            <FileText
-                              className="mt-0.5 size-4 shrink-0 text-[#164E9B]"
-                              aria-hidden="true"
-                            />
-                            <div className="min-w-0">
-                              <ReportAttachment report={report} />
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="whitespace-nowrap px-5 py-4 align-top text-xs text-foreground">
-                          <p className="font-medium tabular-nums">
-                            {formatSupervisorDateUtc(report.ngayNop)}
-                          </p>
-                          {report.ngayDuyet && (
-                            <p className="mt-0.5 text-muted-foreground tabular-nums">
-                              Xử lý: {formatSupervisorDateUtc(report.ngayDuyet)}
-                            </p>
-                          )}
-                        </td>
-
-                        <td className="px-5 py-4 align-top">
-                          <span
-                            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${statusMeta.badgeClass}`}
-                          >
-                            {statusMeta.label}
-                          </span>
-                          {report.nguoiDuyet && (
-                            <p className="mt-1 text-[11px] text-muted-foreground">
-                              {report.nguoiDuyet}
-                            </p>
-                          )}
-                        </td>
-
-                        <td className="px-5 py-4 align-top text-right">
-                          <div className="inline-flex flex-wrap items-center justify-end gap-2">
-                            {hasNotes && (
-                              <button
-                                type="button"
-                                aria-expanded={isExpanded}
-                                onClick={() =>
-                                  setExpandedReportId(isExpanded ? null : report.id)
-                                }
-                                className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-[#0F2744] transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B] motion-reduce:transition-none"
-                              >
-                                <MessageSquareText className="size-3.5 text-[#164E9B]" aria-hidden="true" />
-                                <span>{isExpanded ? "Thu gọn" : "Ghi chú"}</span>
-                              </button>
-                            )}
-
-                            <ReportAttachment report={report} view />
-                          </div>
-                        </td>
-                      </tr>
-
-                      {isExpanded && hasNotes && (
-                        <tr className="bg-[#F0F5FA]/70">
-                          <td colSpan={6} className="px-5 py-3.5">
-                            <div className="grid grid-cols-1 gap-3 text-xs md:grid-cols-2">
-                              {report.ghiChuNcs && (
-                                <div className="rounded-lg bg-card p-3">
-                                  <p className="font-semibold text-[#0F2744]">
-                                    Ghi chú của Nghiên cứu sinh:
-                                  </p>
-                                  <p className="mt-1 leading-relaxed text-foreground">
-                                    {report.ghiChuNcs}
-                                  </p>
-                                </div>
-                              )}
-                              {report.nhanXetGvhd && (
-                                <div className="rounded-lg bg-card p-3">
-                                  <p className="font-semibold text-[#164E9B]">
-                                    Nhận xét / Theo dõi của GVHD:
-                                  </p>
-                                  <p className="mt-1 leading-relaxed text-foreground">
-                                    {report.nhanXetGvhd}
-                                  </p>
-                                </div>
-                              )}
-                              {report.lyDoTuChoi && (
-                                <div className="rounded-lg bg-rose-50 p-3 text-rose-900 md:col-span-2">
-                                  <p className="font-semibold">
-                                    Lý do Giáo vụ trả lại hồ sơ:
-                                  </p>
-                                  <p className="mt-1 leading-relaxed">{report.lyDoTuChoi}</p>
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="space-y-3 p-4">
+            <ManagementDataTable
+              table={table}
+              minWidth="min-w-[880px]"
+              itemLabel="báo cáo tiến độ"
+              cellStyles={{ milestone: "max-w-48 whitespace-normal px-3 py-3.5", attachment: "max-w-52 px-3 py-3.5" }}
+              emptyState="Chưa có báo cáo tiến độ"
+              renderRowDetails={(report) =>
+                report.id === expandedReportId && hasReportNotes(report) && <ReportNotes report={report} />
+              }
+            />
           </div>
         )}
-
-        <div className="border-t border-border px-5 py-3">
-          <TablePagination
-            currentPage={currentPage}
-            totalItems={filteredReports.length}
-            pageSize={PAGE_SIZE}
-            onPageChange={setCurrentPage}
-            itemLabel="báo cáo tiến độ"
-          />
-        </div>
       </section>
 
     </div>

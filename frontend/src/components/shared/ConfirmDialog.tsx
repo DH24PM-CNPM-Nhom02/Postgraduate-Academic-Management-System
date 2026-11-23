@@ -1,5 +1,7 @@
 "use client";
 
+import { useBodyScrollLock } from "@/src/hooks/use-body-scroll-lock";
+
 import React, { useEffect, useId, useRef, useState } from "react";
 import {
   AlertCircle,
@@ -32,19 +34,25 @@ function ConfirmDialogInner({
 
   const [acknowledged, setAcknowledged] = useState(false);
 
+  useBodyScrollLock();
+
   useEffect(() => {
     previousFocusRef.current =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
     const focusTimer = window.setTimeout(() => {
       cancelBtnRef.current?.focus();
     }, 0);
 
+    return () => {
+      window.clearTimeout(focusTimer);
+      previousFocusRef.current?.focus();
+    };
+  }, []);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !isLoading) {
         e.preventDefault();
@@ -53,13 +61,7 @@ function ConfirmDialogInner({
     };
 
     window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.clearTimeout(focusTimer);
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      previousFocusRef.current?.focus();
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isLoading, onClose]);
 
   const variantConfig = {

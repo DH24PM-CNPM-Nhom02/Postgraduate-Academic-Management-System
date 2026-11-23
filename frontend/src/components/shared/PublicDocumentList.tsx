@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Eye, FileText, LoaderCircle } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/src/components/ui/button";
+import { ManagementDataTable, useManagementDataTable } from "@/src/components/ui/management-data-table";
 import { PdfViewer } from "@/src/components/upload/PdfViewer";
 import { formatDate, formatFileSize } from "@/src/lib/utils";
 import { DocumentService } from "@/src/services/document";
@@ -15,6 +17,7 @@ type PublicDocumentListProps = {
   isError: boolean;
   onRetry: () => void;
   emptyMessage: string;
+  view?: "list" | "table";
 };
 
 export function PublicDocumentList({
@@ -23,6 +26,7 @@ export function PublicDocumentList({
   isError,
   onRetry,
   emptyMessage,
+  view = "list",
 }: PublicDocumentListProps) {
   const [selected, setSelected] = useState<DocumentListItem | null>(null);
   const closePreview = useCallback(() => setSelected(null), []);
@@ -39,6 +43,8 @@ export function PublicDocumentList({
           <p role="alert" className="text-sm text-slate-700">Không thể tải danh sách tài liệu.</p>
           <Button type="button" variant="outline" size="sm" onClick={onRetry}>Thử lại</Button>
         </div>
+      ) : view === "table" ? (
+        <PublicDocumentTable documents={documents} emptyMessage={emptyMessage} onSelect={setSelected} />
       ) : documents.length === 0 ? (
         <p role="status" className="px-4 py-10 text-center text-sm text-slate-600">{emptyMessage}</p>
       ) : (
@@ -72,6 +78,57 @@ export function PublicDocumentList({
         </ul>
       )}
       {selected && <PublicDocumentPreview document={selected} onClose={closePreview} />}
+    </div>
+  );
+}
+
+function PublicDocumentTable({
+  documents,
+  emptyMessage,
+  onSelect,
+}: {
+  documents: DocumentListItem[];
+  emptyMessage: string;
+  onSelect: (item: DocumentListItem) => void;
+}) {
+  const columns = useMemo<ColumnDef<DocumentListItem>[]>(() => [
+    {
+      accessorKey: "originalName",
+      header: "Tên tài liệu",
+      cell: ({ row }) => <span className="font-semibold">{row.original.originalName}</span>,
+    },
+    {
+      id: "size",
+      header: "Dung lượng",
+      cell: ({ row }) => formatFileSize(row.original.size),
+    },
+    {
+      id: "createdAt",
+      header: "Ngày đăng",
+      cell: ({ row: { original: item } }) => <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>,
+    },
+    {
+      id: "preview",
+      header: "Thao tác",
+      cell: ({ row: { original: item } }) => (
+        <Button type="button" variant="outline" size="sm" onClick={() => onSelect(item)} aria-label={`Xem PDF ${item.originalName}`}>
+          <Eye aria-hidden="true" />
+          Xem PDF
+        </Button>
+      ),
+    },
+  ], [onSelect]);
+  const table = useManagementDataTable({ data: documents, columns, getRowId: (document) => document.id });
+
+  return (
+    <div className="space-y-3 p-4">
+      <ManagementDataTable
+        table={table}
+        minWidth="min-w-[520px]"
+        cellStyles={{ originalName: "min-w-48 whitespace-normal wrap-break-word px-3 py-3.5" }}
+        itemLabel="tài liệu"
+        emptyState={emptyMessage}
+      />
     </div>
   );
 }

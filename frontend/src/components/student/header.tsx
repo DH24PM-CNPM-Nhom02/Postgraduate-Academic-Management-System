@@ -1,5 +1,7 @@
 "use client";
 
+import { useBodyScrollLock } from "@/src/hooks/use-body-scroll-lock";
+
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -93,10 +95,10 @@ function StudentHandbookDialog({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
+  useBodyScrollLock();
+
   useEffect(() => {
     previousFocusRef.current = document.activeElement as HTMLElement | null;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     closeButtonRef.current?.focus();
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -107,7 +109,6 @@ function StudentHandbookDialog({
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.overflow = originalOverflow;
       window.removeEventListener("keydown", handleKeyDown);
       previousFocusRef.current?.focus?.();
     };
