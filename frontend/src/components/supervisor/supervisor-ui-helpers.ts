@@ -1,3 +1,4 @@
+import { formatDate, formatDateTime } from "@/src/lib/utils";
 import type { ChangeRequestStatus } from "@/src/types/ui/change-request";
 import type { EvidenceStatus } from "@/src/types/ui/progress";
 import type {
@@ -10,17 +11,7 @@ export function formatSupervisorDateUtc(
   includeTime = false
 ): string {
   if (!isoString) return "--/--/----";
-  const d = new Date(isoString);
-  if (Number.isNaN(d.getTime())) return isoString;
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const year = d.getUTCFullYear();
-  if (!includeTime) {
-    return `${day}/${month}/${year}`;
-  }
-  const hh = String(d.getUTCHours()).padStart(2, "0");
-  const mm = String(d.getUTCMinutes()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hh}:${mm}`;
+  return includeTime ? formatDateTime(isoString) : formatDate(isoString);
 }
 
 export function formatFileSizeBytes(bytes?: number): string | null {
