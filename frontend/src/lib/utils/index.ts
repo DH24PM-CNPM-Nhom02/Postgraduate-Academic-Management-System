@@ -34,9 +34,12 @@ export function formatDate(date: Date | string | null | undefined): string {
 }
 
 /**
- * Format ngày giờ theo dd/MM/yyyy HH:mm (chuẩn hóa theo múi giờ UTC+7 Việt Nam)
+ * Format ngày giờ theo dd/MM/yyyy HH:mm hoặc HH:mm dd/MM/yyyy (chuẩn hóa theo múi giờ UTC+7 Việt Nam)
  */
-export function formatDateTime(date: Date | string | null | undefined): string {
+export function formatDateTime(
+  date: Date | string | null | undefined,
+  order: "date-first" | "time-first" = "date-first"
+): string {
   if (!date) return "--/--/----";
   const d = typeof date === "string" ? new Date(date) : date;
   if (Number.isNaN(d.getTime())) return typeof date === "string" ? date : "--/--/----";
@@ -52,6 +55,9 @@ export function formatDateTime(date: Date | string | null | undefined): string {
     });
     const parts = formatter.formatToParts(d);
     const getPart = (type: string) => parts.find((p) => p.type === type)?.value || "";
+    if (order === "time-first") {
+      return `${getPart("hour")}:${getPart("minute")} ${getPart("day")}/${getPart("month")}/${getPart("year")}`;
+    }
     return `${getPart("day")}/${getPart("month")}/${getPart("year")} ${getPart("hour")}:${getPart("minute")}`;
   } catch {
     const day = String(d.getDate()).padStart(2, "0");
@@ -59,8 +65,18 @@ export function formatDateTime(date: Date | string | null | undefined): string {
     const year = d.getFullYear();
     const hours = String(d.getHours()).padStart(2, "0");
     const minutes = String(d.getMinutes()).padStart(2, "0");
+    if (order === "time-first") {
+      return `${hours}:${minutes} ${day}/${month}/${year}`;
+    }
     return `${day}/${month}/${year} ${hours}:${minutes}`;
   }
+}
+
+/**
+ * Format ngày giờ theo HH:mm dd/MM/yyyy (chuẩn hóa theo múi giờ UTC+7 Việt Nam)
+ */
+export function formatTimeDate(date: Date | string | null | undefined): string {
+  return formatDateTime(date, "time-first");
 }
 
 /**

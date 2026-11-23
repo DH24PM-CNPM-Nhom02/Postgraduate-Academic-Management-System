@@ -3,18 +3,7 @@
 import React from "react";
 import { AlertTriangle, Award, CalendarCheck2, CheckCircle2 } from "lucide-react";
 import type { GraduationOverviewCardProps } from "@/src/types/ui/graduation";
-
-function formatDateTimeVi(iso?: string): string {
-  if (!iso) return "--/--/----";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const hh = String(d.getUTCHours()).padStart(2, "0");
-  const mm = String(d.getUTCMinutes()).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const year = d.getUTCFullYear();
-  return `${hh}:${mm} ${day}/${month}/${year}`;
-}
+import { formatTimeDate } from "@/src/lib/utils";
 
 /**
  * GraduationOverviewCard
@@ -89,7 +78,7 @@ export function GraduationOverviewCard({
                 <span>
                   Kiểm tra lần cuối:{" "}
                   <strong className="font-mono tabular-nums text-foreground">
-                    {formatDateTimeVi(overview.ngayKiemTraGanNhat)}
+                    {formatTimeDate(overview.ngayKiemTraGanNhat)}
                   </strong>
                 </span>
               </span>
