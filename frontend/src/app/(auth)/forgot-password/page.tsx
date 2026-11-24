@@ -1,8 +1,10 @@
+import { AuthPageShell } from "@/src/components/auth/auth-page-shell";
+import { ForgotPasswordForm } from "@/src/components/auth/forgot-password/forgot-password-form";
+
 export default function ForgotPasswordPage() {
   return (
-    <div>
-      <h1>Quên mật khẩu</h1>
-      {/* TODO: ForgotPasswordForm component */}
-    </div>
+    <AuthPageShell>
+      <ForgotPasswordForm />
+    </AuthPageShell>
   );
 }

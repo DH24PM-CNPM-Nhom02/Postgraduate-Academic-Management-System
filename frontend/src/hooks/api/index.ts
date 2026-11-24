@@ -23,3 +23,9 @@ export {
 } from "./use-thesis";
 
 export { auditKeys, useAuditLogs, useAuditLogDetail } from "./use-audit";
+
+export {
+  usePasswordRequests,
+  useApprovePasswordRequest,
+  useRejectPasswordRequest,
+} from "./use-password-requests";

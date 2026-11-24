@@ -2,7 +2,7 @@ import axios from "axios";
 
 /**
  * Cấu trúc lỗi chuẩn hóa dùng chung cho toàn bộ tầng Services & Hooks.
- * Bao phủ các mã HTTP phổ biến từ API Gateway (400, 401, 403, 404, 409, 413, 500, 503, 504)
+ * Bao phủ các mã HTTP phổ biến từ API Gateway (400, 401, 403, 404, 409, 413, 429, 500, 503, 504)
  * và hỗ trợ thông báo ValidationPipe dạng string hoặc string[].
  */
 export interface NormalizedApiErrorInfo {
@@ -29,6 +29,8 @@ export class ApiClientError extends Error {
   }
 }
 
+export const TOO_MANY_REQUESTS_MESSAGE = "Bạn thao tác quá nhanh, vui lòng thử lại sau ít phút.";
+
 function getDefaultMessageByStatus(status: number): string {
   switch (status) {
     case 400:
@@ -43,6 +45,8 @@ function getDefaultMessageByStatus(status: number): string {
       return "Dữ liệu bị xung đột hoặc đã được xử lý trước đó. Vui lòng tải lại trang.";
     case 413:
       return "Tệp tải lên vượt quá dung lượng cho phép (tối đa 15MB).";
+    case 429:
+      return TOO_MANY_REQUESTS_MESSAGE;
     case 503:
       return "Hệ thống dịch vụ hiện không khả dụng. Vui lòng thử lại sau.";
     case 504:

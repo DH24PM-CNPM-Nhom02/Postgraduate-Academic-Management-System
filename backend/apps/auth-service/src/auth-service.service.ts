@@ -8,8 +8,8 @@ import { isEmail } from 'class-validator';
 import { createHash, randomBytes } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from './prisma/prisma.service.js';
-import { ChangePasswordDto, CreateUsersDto, ListUsersQueryDto, LoginDto, type UpdateMyAccountProfileDto } from '../../../lib/contracts/src/dto/auth.dto.js';
-import { Prisma } from './generated/prisma/index.js';
+import { ChangePasswordDto, CreateUsersDto, ForgotPasswordDto, ListForgotPasswordQueryDto, ListUsersQueryDto, LoginDto, type UpdateMyAccountProfileDto } from '../../../lib/contracts/src/dto/auth.dto.js';
+import { Prisma, TrangThaiQuenMatKhau } from './generated/prisma/index.js';
 import { paginatePrisma } from './helpers/pagination.util.js';
 import type { StringValue } from 'ms';
 import { ROLES } from '../../../lib/contracts/src/permissions.js';
@@ -157,11 +157,11 @@ export class AuthService {
   // ---------- Thông tin & phân quyền ----------
   async getMe(userId: string) {
     const user = await this.prisma.user.findFirst({
-      where: { id: userId, deletedAt: null},
+      where: { id: userId, deletedAt: null },
       include: WITH_RBAC,
     });
     if (!user) throw new RpcException({ statusCode: 404, message: 'Không tìm thấy tài khoản' });
-    if(!user.isActive) throw new RpcException({ statusCode: 400, message: 'Tài khoản của bạn đã bị khóa' });
+    if (!user.isActive) throw new RpcException({ statusCode: 400, message: 'Tài khoản của bạn đã bị khóa' });
     return this.toProfile(user);
   }
 
@@ -215,7 +215,7 @@ export class AuthService {
       id: user.id,
       username: user.username,
       fullName: user.fullName,
-      email:user.email,
+      email: user.email,
       mustChangePassword: user.mustChangePassword,
       roles: user.roles.map((r) => r.role.name),
       permissions: this.flattenPermissions(user),
@@ -668,5 +668,199 @@ export class AuthService {
         email: true,
       },
     });
+  }
+
+  //--- Xử lý quên mật khẩu ----
+  async createForgotPasswordRequest(dto: ForgotPasswordDto) {
+    const result = {
+      message:
+        'Yêu cầu đã được ghi nhận. Vui lòng liên hệ Giáo vụ (hoặc Admin nếu bạn là Giáo vụ) để được xác nhận và cấp lại mật khẩu.',
+    };
+
+    const username = dto.username.trim();
+    const user = await this.prisma.user.findFirst({
+      where: { username, deletedAt: null },
+      include: WITH_ROLES,
+    });
+
+    if (!user || !user.isActive) return result;
+    if (user.roles.some((r) => r.role.name === ROLES.ADMIN)) return result;
+
+    // Mỗi tài khoản chỉ có 1 yêu cầu đang chờ
+    const pending = await this.prisma.passwordResetRequest.findFirst({
+      where: { userId: user.id, trangThai: TrangThaiQuenMatKhau.CHO_XU_LY },
+    });
+    if (pending) return result;
+
+    const req = await this.prisma.passwordResetRequest.create({
+      data: {
+        userId: user.id,
+        ghiChuLienHe: dto.ghiChuLienHe?.trim() || null
+      },
+    });
+    await this.notifyForgotPasswordRequest(req.id, user, dto.ghiChuLienHe);
+    return result;
+  }
+
+  // Báo cho người xử lý biết có yêu cầu mới. Lỗi thông báo không được làm hỏng yêu cầu
+  private async notifyForgotPasswordRequest(
+    requestId: string,
+    user: { username: string; fullName: string; roles: { role: { name: string } }[] },
+    ghiChuLienHe?: string,
+  ) {
+    try {
+      const userRoles = user.roles.map((r) => r.role.name);
+      const isGiaoVu = userRoles.includes(ROLES.GIAO_VU);
+
+      // Giáo vụ gửi yêu cầu thì báo admin, còn lại báo giáo vụ
+      const handlers = await this.getUsersByRole(isGiaoVu ? ROLES.ADMIN : ROLES.GIAO_VU);
+      if (handlers.length === 0) return;
+
+      this.notifClient
+        .emit('notification.create', {
+          userIds: handlers.map((h) => h.id),
+          loai: 'YEU_CAU_QUEN_MAT_KHAU',
+          duLieu: {
+            yeuCauId: requestId,
+            username: user.username,
+            hoTen: user.fullName,
+            vaiTro: isGiaoVu ? ROLES.GIAO_VU : userRoles[0],
+            ghiChuLienHe: ghiChuLienHe?.trim() || undefined,
+          },
+          khoaTrung: `QUEN_MK:${requestId}`,
+        })
+        .subscribe({ error: () => { } });
+    } catch {
+      // lỗi thông báo thì bỏ qua, yêu cầu vẫn được ghi nhận
+    }
+  }
+
+  //--- Danh sách các yêu cầu quên mật khẩu -----
+  async listForgotPasswordRequests(actorRoles: string[], dto?: ListForgotPasswordQueryDto) {
+    const handleRoles = this.handledRoles(actorRoles);
+
+    const where: any = {
+      user: {
+        roles: {
+          some: {
+            role: {
+              name: {
+                in: handleRoles
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (dto?.trangThai) {
+      where.trangThai = dto.trangThai
+    }
+
+    return paginatePrisma(this.prisma.passwordResetRequest, {
+      page: dto?.page,
+      limit: dto?.limit,
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            email: true,
+            roles: {
+              select: {
+                role: {
+                  select: {
+                    name: true
+                  }
+                }
+              }
+            },
+          },
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      transform: (r: any) => ({ ...r, user: toUserView(r.user) })
+    })
+
+  }
+
+  //role mà người xử lý đc phép xử lý yêu cầu
+  private handledRoles(actorRoles: string[]) {
+    return actorRoles.includes(ROLES.ADMIN) ? [ROLES.GIAO_VU] : [ROLES.NCS, ROLES.GVHD];
+  }
+
+  // Lấy yêu cầu đang chờ và kiểm tra người xử lý có quyền với yêu cầu này không
+  private async getHandleableRequest(actorRoles: string[], requestId: string) {
+    const req = await this.prisma.passwordResetRequest.findUnique({
+      where: {
+        id: requestId
+      },
+      include: {
+        user: {
+          include: WITH_ROLES
+        }
+      }
+    })
+    if (!req) {
+      throw new RpcException({
+        statusCode: 404,
+        message: `Không tìm thấy yêu cầu`,
+      });
+    }
+    if (req.trangThai != TrangThaiQuenMatKhau.CHO_XU_LY) {
+      throw new RpcException({
+        statusCode: 400,
+        message: `Yêu cầu này đã được xử lý`,
+      });
+    }
+
+    const userRoles = req.user.roles.map((r: any) => r.role.name);
+    const canHandle = this.handledRoles(actorRoles).some((r) => userRoles.includes(r));
+    if (!canHandle) {
+      throw new RpcException({ statusCode: 403, message: 'Bạn không có quyền xử lý yêu cầu này' });
+    }
+
+    return req;
+  }
+
+  //---- Duyệt yêu cầu ---- 
+  async approveForgotPasswordRequest(actorId: string, actorRoles: string[], reqId: string) {
+    const request = await this.getHandleableRequest(actorRoles, reqId);
+
+    // Dùng lại hàm reset đã có: tạo mật khẩu tạm, bắt đổi lần đầu, thu hồi phiên cũ
+    const result = await this.resetPassword(actorRoles, request.userId);
+
+    await this.prisma.passwordResetRequest.update({
+      where: { id: reqId },
+      data: {
+        trangThai: TrangThaiQuenMatKhau.DA_XU_LY,
+        nguoiXuLyId: actorId,
+        ngayXuLy: new Date(),
+      },
+    });
+    return result; // { username, initialPassword }: chỉ trả một lần
+  }
+
+  //--- Từ chối yêu cầu ---- 
+  async rejectForgotPasswordRequest(
+    actorId: string,
+    actorRoles: string[],
+    requestId: string,
+    lyDoTuChoi?: string,
+  ) {
+    await this.getHandleableRequest(actorRoles, requestId); // kiểm tra tồn tại, còn chờ, đúng quyền
+
+    await this.prisma.passwordResetRequest.update({
+      where: { id: requestId },
+      data: {
+        trangThai: TrangThaiQuenMatKhau.TU_CHOI,
+        lyDoTuChoi: lyDoTuChoi?.trim() || null,
+        nguoiXuLyId: actorId,
+        ngayXuLy: new Date(),
+      },
+    });
+    return { id: requestId, trangThai: TrangThaiQuenMatKhau.TU_CHOI };
   }
 }

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Bell, CheckCheck, LoaderCircle, X } from "lucide-react";
 import {
   useDetectedRole,
@@ -26,6 +27,7 @@ export function NotificationBellPopover({
   role,
 }: NotificationBellPopoverProps) {
   const router = useRouter();
+  const { data: session } = useSession();
   const popoverId = useId();
   const detectedRole = useDetectedRole();
   const currentRole = role || detectedRole;
@@ -120,7 +122,9 @@ export function NotificationBellPopover({
   const handleOpenNotificationTarget = (item: NotificationItem) => {
     setSelectedNotification(null);
     setIsOpen(false);
-    if (currentRole === "student") {
+    if (item.loai === "YEU_CAU_QUEN_MAT_KHAU") {
+      router.push(session?.user?.role === "ADMIN" ? "/admin/password-requests" : "/academic/password-requests");
+    } else if (currentRole === "student") {
       router.push("/student/progress");
     } else if (currentRole === "supervisor") {
       router.push("/supervisor/dashboard");

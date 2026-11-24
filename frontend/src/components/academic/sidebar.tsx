@@ -17,6 +17,7 @@ import {
   GraduationCap,
   BadgeCheck,
   HelpCircle,
+  KeyRound,
   ChevronLeft,
   ChevronRight,
   X,
@@ -55,6 +56,13 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     group: "main",
     href: "/academic",
     matchPaths: ["/academic"],
+  },
+  {
+    id: "password-requests",
+    title: "Yêu cầu cấp lại mật khẩu",
+    icon: KeyRound,
+    group: "main",
+    href: "/academic/password-requests",
   },
   {
     id: "students",

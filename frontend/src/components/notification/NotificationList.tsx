@@ -97,7 +97,7 @@ function renderItemVisual(item: NotificationItem) {
       label: "Nhắc hạn",
     };
   }
-  if (loai === "CANH_BAO_TAI_KHOAN" || loai === "TAI_KHOAN_DOI_MAT_KHAU") {
+  if (loai === "CANH_BAO_TAI_KHOAN" || loai === "TAI_KHOAN_DOI_MAT_KHAU" || loai === "YEU_CAU_QUEN_MAT_KHAU") {
     return {
       icon: <ShieldAlert className="size-4.5 text-slate-700" />,
       badgeBg: "bg-slate-100 text-slate-700 border-slate-200",

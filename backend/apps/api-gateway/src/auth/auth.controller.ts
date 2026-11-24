@@ -11,6 +11,9 @@ import {
   ListUsersQueryDto,
   SetUserStatusDto,
   UpdateMyAccountProfileDto,
+  ForgotPasswordDto,
+  ListForgotPasswordQueryDto,
+  RejectForgotPasswordDto,
 } from '../../../../lib/contracts/src/dto/auth.dto.js';
 import { PERMISSIONS, ROLES } from '../../../../lib/contracts/src/permissions.js';
 import { CurrentUser } from "../common/decorators/current-user.decorator.js";
@@ -23,28 +26,28 @@ export class AuthController {
   constructor(
     @Inject('AUTH_SERVICE') private auth: ClientProxy,
     private permissionsService: PermissionsService,
-  ) {}
+  ) { }
 
   private send<T>(cmd: string, payload: unknown) {
     return firstValueFrom(this.auth.send<T>({ cmd }, payload).pipe(timeout(5000)));
   }
 
-  @Public() 
+  @Public()
   @LimitStrict()
   @Post('login')
-  login(@Body() dto: LoginDto) { 
-    return this.send('auth.login', dto); 
+  login(@Body() dto: LoginDto) {
+    return this.send('auth.login', dto);
   }
 
-  @Public() 
+  @Public()
   @AllowMustChange()
   @SkipAllLimits()
   @Post('refresh')
-  refresh(@Body() dto: RefreshDto) { 
-    return this.send('auth.refresh', dto); 
+  refresh(@Body() dto: RefreshDto) {
+    return this.send('auth.refresh', dto);
   }
 
-  @Public() 
+  @Public()
   @AllowMustChange()
   @SkipAllLimits()
   @Post('logout')
@@ -108,5 +111,41 @@ export class AuthController {
   @RequirePermissions(PERMISSIONS.USER_RESET_PASSWORD)
   resetPassword(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.send('auth.reset-password', { actorRoles: u.roles, targetId: id });
+  }
+
+  @Public()
+  @LimitStrict()
+  @Post('forgot-password')
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.send('auth.forgot-password', dto);
+  }
+
+  @Get('forgot-password-requests')
+  @RequirePermissions(PERMISSIONS.USER_RESET_PASSWORD)
+  listForgotRequests(@CurrentUser() u: AuthUser, @Query() query: ListForgotPasswordQueryDto) {
+    return this.send('auth.list-forgot-requests', { actorRoles: u.roles, query });
+  }
+
+  @Patch('forgot-password-requests/:id/approve')
+  @LimitMedium()
+  @RequirePermissions(PERMISSIONS.USER_RESET_PASSWORD)
+  approveForgotRequest(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.send('auth.approve-forgot-request', { actorId: u.id, actorRoles: u.roles, requestId: id });
+  }
+
+  @Patch('forgot-password-requests/:id/reject')
+  @LimitMedium()
+  @RequirePermissions(PERMISSIONS.USER_RESET_PASSWORD)
+  rejectForgotRequest(
+    @CurrentUser() u: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RejectForgotPasswordDto,
+  ) {
+    return this.send('auth.reject-forgot-request', {
+      actorId: u.id,
+      actorRoles: u.roles,
+      requestId: id,
+      lyDoTuChoi: dto.lyDoTuChoi,
+    });
   }
 }

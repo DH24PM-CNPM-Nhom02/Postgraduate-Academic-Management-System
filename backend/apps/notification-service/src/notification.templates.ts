@@ -28,6 +28,11 @@ const LOAI_KHOA_TAI_KHOAN = ['BAO_LUU', 'NGUNG_HOC', 'BUOC_THOI_HOC'];
 
 const tenQuyetDinh = (d: DuLieu) => TEN_QUYET_DINH[chuoi(d.loaiQuyetDinh)] ?? chuoi(d.loaiQuyetDinh, 'quyết định');
 
+const TEN_VAI_TRO: Record<string, string> = {
+    NCS: 'Nghiên cứu sinh',
+    GVHD: 'Giảng viên hướng dẫn',
+    GIAO_VU: 'Giáo vụ',
+};
 // Người gửi chỉ truyền loai và duLieu, câu chữ nằm hết ở đây.
 // loai chưa có trong bảng này sẽ bị bỏ qua (xem NotificationService.tao)
 export const MAU_THONG_BAO: Record<string, Mau> = {
@@ -266,6 +271,14 @@ export const MAU_THONG_BAO: Record<string, Mau> = {
         tieuDe: () => 'Mật khẩu tài khoản đã được thay đổi',
         noiDung: () => 'Mật khẩu tài khoản của bạn vừa được thay đổi thành công. Nếu bạn không thực hiện hành động này, vui lòng liên hệ quản trị viên ngay lập tức.',
     },
+    YEU_CAU_QUEN_MAT_KHAU: {
+        nhom: 'CANH_BAO_KY_THUAT',
+        tieuDe: (d) => `Yêu cầu cấp lại mật khẩu: ${chuoi(d.username)}`,
+        noiDung: (d) =>
+            `${TEN_VAI_TRO[chuoi(d.vaiTro)] ?? 'Người dùng'} ${chuoi(d.hoTen)} (${chuoi(d.username)}) vừa gửi yêu cầu quên mật khẩu.` +
+            `${d.ghiChuLienHe ? ` Thông tin liên hệ: ${chuoi(d.ghiChuLienHe)}.` : ''}` +
+            ' Vui lòng xác minh danh tính trước khi duyệt.',
+    },
 
     // ---- Nhóm HE_THONG (Admin gửi, sẽ làm sau) ----
     HE_THONG_CHUNG: {
@@ -279,7 +292,7 @@ export const MAU_THONG_BAO: Record<string, Mau> = {
         nhom: 'NHAC_HAN',
         tieuDe: (d) => `Sắp đến hạn: ${chuoi(d.tenHan, 'hạn học tập')}`,
         noiDung: (d) => {
-            let nd:string = `${chuoi(d.tenHan, 'Hạn học tập')} của bạn là ngày ${ngayVN(d.ngayHan)}`;
+            let nd: string = `${chuoi(d.tenHan, 'Hạn học tập')} của bạn là ngày ${ngayVN(d.ngayHan)}`;
             if (d.soNgayConLai !== undefined && d.soNgayConLai !== null) nd += ` (còn ${chuoi(d.soNgayConLai)} ngày)`;
             return nd + '.';
         },

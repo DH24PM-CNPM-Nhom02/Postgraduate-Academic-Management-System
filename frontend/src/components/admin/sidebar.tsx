@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Users,
   History,
+  KeyRound,
   LayoutDashboard,
   UserCheck,
   FileCheck2,
@@ -55,6 +56,13 @@ export const ADMIN_NAV_ITEMS: AdminNavItemDef[] = [
     group: "admin",
     href: "/admin",
     matchPaths: ["/admin", "/admin/users", "/users"],
+  },
+  {
+    id: "password-requests",
+    title: "Yêu cầu cấp lại mật khẩu",
+    icon: KeyRound,
+    group: "admin",
+    href: "/admin/password-requests",
   },
   {
     id: "audit-log",
