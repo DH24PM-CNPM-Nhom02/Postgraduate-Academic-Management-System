@@ -7,6 +7,11 @@ generator client {
 datasource db {
   provider = "mysql"
 }
+enum TrangThaiQuenMatKhau {
+  CHO_XU_LY
+  DA_XU_LY
+  TU_CHOI
+}
 
 model User {
   id                 String         @id @default(uuid())
@@ -21,6 +26,7 @@ model User {
   deletedAt          DateTime?
   roles              UserRole[]
   refreshTokens      RefreshToken[]
+  passwordResetRequests PasswordResetRequest[]
 }
 
 model Role {
@@ -67,4 +73,19 @@ model RefreshToken {
   createdAt DateTime  @default(now())
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId])
+}
+
+model PasswordResetRequest {
+  id           String               @id @default(uuid())
+  userId       String
+  user         User                 @relation(fields: [userId], references: [id])
+  trangThai    TrangThaiQuenMatKhau @default(CHO_XU_LY)
+  ghiChuLienHe String?              // SĐT/Zalo để giáo vụ liên hệ (tùy chọn)
+  lyDoTuChoi   String?
+  nguoiXuLyId  String?              // id người đã duyệt/từ chối
+  ngayXuLy     DateTime?
+  createdAt    DateTime             @default(now())
+
+  @@index([userId, trangThai])
+  @@map("PasswordResetRequest")
 }

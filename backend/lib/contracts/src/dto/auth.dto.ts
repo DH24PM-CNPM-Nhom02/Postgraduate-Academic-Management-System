@@ -87,3 +87,28 @@ export class SetUserStatusDto {
   @IsBoolean()
   isActive: boolean;
 }
+
+export class ForgotPasswordDto {
+  @IsString()
+  @IsNotEmpty()
+  username: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  ghiChuLienHe?: string; // SĐT/Zalo để giáo vụ liên hệ
+}
+
+export class ListForgotPasswordQueryDto extends PaginationQueryDto {
+  @IsOptional()
+  @IsIn(['CHO_XU_LY', 'DA_XU_LY', 'TU_CHOI'])
+  trangThai?: 'CHO_XU_LY' | 'DA_XU_LY' | 'TU_CHOI';
+}
+
+export class RejectForgotPasswordDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  lyDoTuChoi?: string;
+}

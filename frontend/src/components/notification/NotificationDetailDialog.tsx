@@ -3,6 +3,7 @@
 import { useEffect, useId, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { ArrowUpRight, X } from "lucide-react";
+import { getRoleMeta } from "@/src/components/admin/users/user-meta";
 import { NOTIFICATION_GROUP_LABELS, type NotificationItem } from "@/src/types/notification";
 
 interface NotificationDetailDialogProps {
@@ -31,6 +32,9 @@ const DETAIL_LABELS: Record<string, string> = {
   ngayQuyetDinh: "Ngày quyết định",
   tenNcs: "Nghiên cứu sinh",
   mshv: "Mã số học viên",
+  username: "Tên đăng nhập",
+  hoTen: "Họ và tên",
+  ghiChuLienHe: "Thông tin liên hệ",
   tenGvhd: "Giảng viên hướng dẫn",
   vaiTro: "Vai trò",
   thuTu: "Mốc tiến độ",
@@ -78,9 +82,9 @@ export function NotificationDetailDialog({
 
   if (!notification || !portalRoot) return null;
 
-  const details = Object.entries(notification.duLieu ?? {}).filter(
-    ([key]) => !key.startsWith("_")
-  );
+  const isPasswordRequest = notification.loai === "YEU_CAU_QUEN_MAT_KHAU";
+  const details = Object.entries(notification.duLieu ?? {})
+    .filter(([key]) => !key.startsWith("_") && !(isPasswordRequest && key === "yeuCauId"));
   const isRead = notification.daDoc;
 
   return createPortal(
@@ -195,7 +199,9 @@ export function NotificationDetailDialog({
                           {formatValue(value)}
                         </pre>
                       ) : (
-                        formatValue(value)
+                        isPasswordRequest && key === "vaiTro" && typeof value === "string"
+                          ? getRoleMeta(value)?.label ?? value
+                          : formatValue(value)
                       )}
                     </dd>
                   </div>
@@ -219,7 +225,7 @@ export function NotificationDetailDialog({
               onClick={() => onOpenTarget(notification)}
               className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#164E9B] px-3.5 text-xs font-semibold text-white transition-colors hover:bg-[#113E7D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#164E9B]"
             >
-              <span>Xem chi tiết học vụ</span>
+              <span>{isPasswordRequest ? "Xem yêu cầu cấp lại mật khẩu" : "Xem chi tiết học vụ"}</span>
               <ArrowUpRight className="size-3.5" />
             </button>
           )}

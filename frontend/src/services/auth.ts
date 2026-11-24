@@ -12,6 +12,15 @@ export interface LoginPayload {
   password: string;
 }
 
+export interface ForgotPasswordPayload {
+  username: string;
+  ghiChuLienHe?: string;
+}
+
+export interface ForgotPasswordResponse {
+  message: string;
+}
+
 export interface ChangePasswordPayload {
   oldPassword: string;
   newPassword: string;
@@ -91,6 +100,15 @@ export const authService = {
         }
       }
       throw error;
+    }
+  },
+
+  forgotPassword: async (payload: ForgotPasswordPayload): Promise<ForgotPasswordResponse> => {
+    try {
+      const { data } = await publicApiClient.post<ForgotPasswordResponse>("/auth/forgot-password", payload);
+      return data;
+    } catch (error) {
+      throwApiError(error);
     }
   },
 

@@ -35,6 +35,7 @@ export type NotificationType =
   // Hệ thống & Kỹ thuật
   | "HE_THONG_CHUNG"
   | "CANH_BAO_TAI_KHOAN"
+  | "YEU_CAU_QUEN_MAT_KHAU"
   | "TAI_KHOAN_DOI_MAT_KHAU";
 
 export interface NotificationItem {

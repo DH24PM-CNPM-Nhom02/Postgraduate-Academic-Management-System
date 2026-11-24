@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { AuthService } from './auth-service.service.js';
-import { ChangePasswordDto, CreateUsersDto, ListUsersQueryDto, LoginDto, RefreshDto, type UpdateMyAccountProfileDto } from './dto/auth.dto.js';
+import { ChangePasswordDto, CreateUsersDto, ForgotPasswordDto, ListForgotPasswordQueryDto, ListUsersQueryDto, LoginDto, RefreshDto, type UpdateMyAccountProfileDto } from './dto/auth.dto.js';
 
 @Controller()
 export class AuthController {
@@ -100,6 +100,28 @@ export class AuthController {
   @MessagePattern('ping')
   ping() {
     return 'pong';
+  }
+
+  @MessagePattern({ cmd: 'auth.forgot-password' })
+  forgotPassword(@Payload() dto: ForgotPasswordDto) {
+    return this.auth.createForgotPasswordRequest(dto);
+  }
+
+  @MessagePattern({ cmd: 'auth.list-forgot-requests' })
+  listForgotPasswordRequests(@Payload() d: { actorRoles: string[]; query: ListForgotPasswordQueryDto }) {
+    return this.auth.listForgotPasswordRequests(d.actorRoles, d.query);
+  }
+
+  @MessagePattern({ cmd: 'auth.approve-forgot-request' })
+  approveForgotRequest(@Payload() d: { actorId: string; actorRoles: string[]; requestId: string }) {
+    return this.auth.approveForgotPasswordRequest(d.actorId, d.actorRoles, d.requestId);
+  }
+
+  @MessagePattern({ cmd: 'auth.reject-forgot-request' })
+  rejectForgotRequest(
+    @Payload() d: { actorId: string; actorRoles: string[]; requestId: string; lyDoTuChoi?: string },
+  ) {
+    return this.auth.rejectForgotPasswordRequest(d.actorId, d.actorRoles, d.requestId, d.lyDoTuChoi);
   }
 }
 
