@@ -1,4 +1,4 @@
-import { FaqContactView } from "@/src/components/shared";
+import { FaqContactView } from "@/src/components/shared/FaqContactView";
 
 export const metadata = {
   title: "Hỏi đáp & Liên hệ | Cổng Giáo vụ SĐH",
@@ -6,11 +6,5 @@ export const metadata = {
 };
 
 export default function AcademicFaqPage() {
-  return (
-    <FaqContactView
-      roleContext="academic"
-      backHref="/academic"
-      backLabel="Tổng quan học vụ"
-    />
-  );
+  return <FaqContactView backHref="/academic" backLabel="Tổng quan học vụ" />;
 }

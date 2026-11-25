@@ -141,7 +141,7 @@ export function LoginForm() {
             {/* Field 1: Mã số học viên */}
             <div className="space-y-1">
               <label htmlFor="username" className="block text-xs sm:text-sm font-semibold text-[#172B4D]">
-                Mã số học viên <span className="text-red-500">*</span>
+                Tên đăng nhập <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-[#667085]">
@@ -216,18 +216,6 @@ export function LoginForm() {
 
             {/* Field 3: Ghi nhớ đăng nhập & Quên mật khẩu */}
             <div className="flex items-center justify-between pt-0.5">
-              <label className="flex cursor-pointer select-none items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="remember"
-                  name="remember"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  disabled={isLoading}
-                  className="h-4 w-4 cursor-pointer rounded border-[#D0D5DD] text-[#155EEF] transition focus:ring-[#155EEF] focus:ring-offset-0"
-                />
-                <span className="text-xs sm:text-sm font-medium text-[#475467]">Ghi nhớ đăng nhập</span>
-              </label>
               <Link
                 href="/forgot-password"
                 className="rounded text-xs sm:text-sm font-semibold text-[#155EEF] transition-colors hover:text-[#1248BC] hover:underline focus:outline-none focus:ring-2 focus:ring-[#EAF2FF]"

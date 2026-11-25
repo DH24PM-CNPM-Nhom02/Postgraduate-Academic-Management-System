@@ -19,7 +19,7 @@ const MILESTONE_PHASES = [
       {
         step: "Mốc 01",
         name: "Công nhận trúng tuyển & Giao đề tài",
-        desc: "Quyết định công nhận nghiên cứu sinh và phân công cán bộ hướng dẫn chính/đồng hướng dẫn theo BR-09.",
+        desc: "Quyết định công nhận nghiên cứu sinh và phân công giảng viên hướng dẫn chính hoặc đồng hướng dẫn.",
       },
       {
         step: "Mốc 02",

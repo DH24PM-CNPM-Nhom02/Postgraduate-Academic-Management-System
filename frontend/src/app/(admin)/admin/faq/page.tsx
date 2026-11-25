@@ -1,4 +1,4 @@
-import { FaqContactView } from "@/src/components/shared";
+import { FaqContactView } from "@/src/components/shared/FaqContactView";
 
 export const metadata = {
   title: "Hỏi đáp & Liên hệ hỗ trợ | Cổng Quản trị Hệ thống",
@@ -10,11 +10,5 @@ export const metadata = {
  * Tái sử dụng FaqContactView từ components/shared cho Admin.
  */
 export default function AdminFaqPage() {
-  return (
-    <FaqContactView
-      roleContext="academic"
-      backHref="/admin/overview"
-      backLabel="Tổng quan đào tạo"
-    />
-  );
+  return <FaqContactView backHref="/admin/overview" backLabel="Tổng quan đào tạo" />;
 }
