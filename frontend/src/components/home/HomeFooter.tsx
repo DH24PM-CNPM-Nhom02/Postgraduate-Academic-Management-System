@@ -1,8 +1,6 @@
-"use client";
-
 import Link from "next/link";
-import { Clock, Mail, MapPin, Phone, ShieldCheck } from "lucide-react";
 import { HoverLogo } from "@/src/components/academic/HoverLogo";
+import { PostgraduateContactDetails } from "@/src/components/shared/PostgraduateContactDetails";
 
 export function HomeFooter() {
   const currentYear = new Date().getFullYear();
@@ -29,11 +27,6 @@ export function HomeFooter() {
             <p className="text-xs leading-relaxed text-slate-500 max-w-md">
               Cổng Thông tin &amp; Quản trị Đào tạo Sau Đại học là nền tảng quản trị học vụ chuyên sâu phục vụ quản lý tiến độ nghiên cứu, xét duyệt minh chứng chuyên môn và giám sát định mức hướng dẫn khoa học.
             </p>
-
-            <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-500">
-              <ShieldCheck className="size-4 text-[#164E9B]" />
-              <span>Hệ thống Quản lý Học vụ SĐH • Phiên bản 2.5 (AGU SRS)</span>
-            </div>
           </div>
 
           {/* Column 2: Quick Links (col-span-3) */}
@@ -43,29 +36,29 @@ export function HomeFooter() {
             </h3>
             <ul className="space-y-2 text-xs">
               <li>
-                <a href="#announcements" className="hover:text-[#164E9B] transition-colors">
-                  Thông báo Đào tạo Sau Đại học
-                </a>
+                <Link href="/#training-process" className="transition-colors hover:text-[#164E9B]">
+                  Quy trình đào tạo
+                </Link>
               </li>
               <li>
-                <a href="#timeline" className="hover:text-[#164E9B] transition-colors">
-                  Lịch học vụ &amp; Mốc thời gian
-                </a>
+                <Link href="/forms" className="transition-colors hover:text-[#164E9B]">
+                  Biểu mẫu học vụ
+                </Link>
               </li>
               <li>
-                <a href="#training-process" className="hover:text-[#164E9B] transition-colors">
-                  Khung quy trình 9 mốc đào tạo
-                </a>
+                <Link href="/regulations" className="transition-colors hover:text-[#164E9B]">
+                  Quy định &amp; Quy chế
+                </Link>
               </li>
               <li>
-                <a href="#documents" className="hover:text-[#164E9B] transition-colors">
-                  Hệ thống biểu mẫu &amp; quy chế
-                </a>
+                <Link href="/#faq" className="transition-colors hover:text-[#164E9B]">
+                  Hỏi đáp &amp; Liên hệ
+                </Link>
               </li>
               <li>
-                <a href="#faq" className="hover:text-[#164E9B] transition-colors">
-                  Hỏi đáp học vụ &amp; Trợ giúp
-                </a>
+                <Link href="/privacy" className="transition-colors hover:text-[#164E9B]">
+                  Chính sách bảo mật
+                </Link>
               </li>
               <li>
                 <Link href="/login" className="font-semibold text-[#164E9B] hover:underline">
@@ -80,29 +73,7 @@ export function HomeFooter() {
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
               Phòng Đào tạo Sau Đại học
             </h3>
-            <div className="space-y-2.5 text-xs text-slate-600">
-              <div className="flex items-start gap-2.5">
-                <MapPin className="size-4 shrink-0 text-[#164E9B] mt-0.5" />
-                <span>
-                  Phòng B202, Tòa nhà Hiệu bộ, Số 18 Ung Văn Khiêm, Phường Đông Xuyên, TP. Long Xuyên, Tỉnh An Giang.
-                </span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Phone className="size-4 shrink-0 text-[#164E9B]" />
-                <span>Điện thoại: (0296) 6256565 (Số máy lẻ: 1042)</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Mail className="size-4 shrink-0 text-[#164E9B]" />
-                <span>Email tiếp nhận: sdh@agu.edu.vn</span>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <Clock className="size-4 shrink-0 text-[#164E9B] mt-0.5" />
-                <span>
-                  Giờ làm việc hành chính: Thứ 2 – Thứ 6<br />
-                  Sáng: 07:30 – 11:30 | Chiều: 13:30 – 17:00
-                </span>
-              </div>
-            </div>
+            <PostgraduateContactDetails />
           </div>
         </div>
 

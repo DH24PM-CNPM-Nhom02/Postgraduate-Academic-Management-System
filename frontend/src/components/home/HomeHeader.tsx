@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   ArrowRight,
-  CalendarDays,
+  BookOpen,
   ClipboardList,
   GraduationCap,
   HelpCircle,
   Menu,
-  Megaphone,
   X,
 } from "lucide-react";
 import { HoverLogo } from "@/src/components/academic/HoverLogo";
@@ -24,30 +24,20 @@ const ROLE_PORTAL: Record<UserRole, { href: string; label: string }> = {
 };
 
 const NAV_ITEMS = [
-  { href: "#announcements", label: "Thông báo", icon: Megaphone },
-  { href: "#timeline", label: "Lịch học vụ", icon: CalendarDays },
-  { href: "#training-process", label: "Quy trình đào tạo", icon: GraduationCap },
-  { href: "#documents", label: "Biểu mẫu & Quy chế", icon: ClipboardList },
-  { href: "#faq", label: "Hỏi đáp & Liên hệ", icon: HelpCircle },
+  { href: "/#training-process", label: "Quy trình đào tạo", icon: GraduationCap },
+  { href: "/forms", label: "Biểu mẫu", icon: ClipboardList },
+  { href: "/regulations", label: "Quy chế", icon: BookOpen },
+  { href: "/#faq", label: "Hỏi đáp & Liên hệ", icon: HelpCircle },
 ];
 
 export function HomeHeader() {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const role = session?.user?.role;
   const mustChangePassword = session?.user?.mustChangePassword === true;
   const portal = role ? ROLE_PORTAL[role] : undefined;
-
-  const handleNavClick = (href: string) => {
-    setMobileMenuOpen(false);
-    if (href.startsWith("#")) {
-      const element = document.querySelector(href);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
-      }
-    }
-  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 px-4 py-3 shadow-2xs backdrop-blur-md sm:px-6 lg:px-8">
@@ -68,18 +58,15 @@ export function HomeHeader() {
         {/* Center: Desktop Navigation */}
         <nav aria-label="Điều hướng chính" className="hidden items-center gap-1 xl:gap-2 lg:flex">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
-            <a
+            <Link
               key={href}
               href={href}
-              onClick={(e) => {
-                e.preventDefault();
-                handleNavClick(href);
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 hover:text-[#164E9B] xl:px-3"
+              aria-current={pathname === href ? "page" : undefined}
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 hover:text-[#164E9B] aria-[current=page]:bg-blue-50 aria-[current=page]:text-[#164E9B] xl:px-3"
             >
               <Icon className="size-3.5 text-[#164E9B]" aria-hidden="true" />
               <span>{label}</span>
-            </a>
+            </Link>
           ))}
         </nav>
 
@@ -119,18 +106,16 @@ export function HomeHeader() {
         <div className="mt-3 border-t border-slate-200/80 pt-3 lg:hidden">
           <nav aria-label="Điều hướng di động" className="flex flex-col gap-1">
             {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
-              <a
+              <Link
                 key={href}
                 href={href}
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleNavClick(href);
-                }}
-                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-[#164E9B]"
+                aria-current={pathname === href ? "page" : undefined}
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-[#164E9B] aria-[current=page]:bg-blue-50 aria-[current=page]:text-[#164E9B]"
               >
                 <Icon className="size-4 text-[#164E9B]" />
                 <span>{label}</span>
-              </a>
+              </Link>
             ))}
           </nav>
         </div>

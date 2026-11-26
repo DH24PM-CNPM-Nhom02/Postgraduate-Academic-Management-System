@@ -176,7 +176,7 @@ export function HomeHero() {
             <p className="max-w-xl text-xs sm:text-sm lg:text-base text-slate-200 leading-relaxed font-normal">
               Nền tảng quản trị học vụ số hóa toàn diện tiến trình đào tạo Tiến sĩ và Thạc sĩ.
               Theo dõi 9 mốc nghiên cứu chuẩn hóa, xét duyệt minh chứng chuyên môn và giám sát
-              định mức hướng dẫn khoa học BR-09.
+              định mức hướng dẫn khoa học.
             </p>
 
             {/* CTAs */}

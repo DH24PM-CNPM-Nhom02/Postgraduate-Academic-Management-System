@@ -9,10 +9,10 @@ export const config = {
 };
 
 // ──────────────────────────────────────────────────────────────────────
-// Trang công khai bao gồm danh mục quy định và biểu mẫu.
+// Trang công khai có thể truy cập trước khi đăng nhập.
 // ──────────────────────────────────────────────────────────────────────
 const AUTH_PAGES = ["/login", "/forgot-password"];
-const PUBLIC_DOCUMENT_PAGES = ["/regulations", "/forms"];
+const PUBLIC_PAGES = ["/regulations", "/forms", "/contact", "/privacy"];
 
 // ──────────────────────────────────────────────────────────────────────
 // RBAC — Ánh xạ URL prefix → danh sách vai trò được phép truy cập.
@@ -83,7 +83,7 @@ const ROLE_HOME: Record<UserRole, string> = {
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
-  if (PUBLIC_DOCUMENT_PAGES.includes(pathname)) return NextResponse.next();
+  if (PUBLIC_PAGES.includes(pathname)) return NextResponse.next();
 
   const isLoggedIn = !!req.auth;
   const isAuthPage = AUTH_PAGES.some((p) => pathname.startsWith(p));
