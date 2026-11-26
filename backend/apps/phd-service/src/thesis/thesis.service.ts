@@ -1,8 +1,14 @@
+import { assertUnusedThesisDecision, lockThesisDecision } from './thesis-decision.js';
 import { Injectable } from '@nestjs/common';
 import { RpcException } from '@nestjs/microservices';
 import type { AssignThesisDto, DeactivateThesisAssignmentDto, ThesisListQueryDto } from '../../../../lib/contracts/src/dto/thesis.dto.js';
+import type { Prisma, TrangThaiHocTap } from '../generated/prisma/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotificationClient } from '../notification/notification.client.js';
+
+function canManageThesis(status: TrangThaiHocTap) {
+  return status === 'DANG_HOC' || status === 'GIA_HAN';
+}
 
 @Injectable()
 export class ThesisService {
@@ -18,15 +24,14 @@ export class ThesisService {
     }
 
     const { deTai, ncs, quyetDinh, phanCongs } = await this.prisma.$transaction(async (tx) => {
-      // Khóa trước lần đọc đầu tiên để các lượt giao cùng quyết định kiểm tra dữ liệu sau khi lượt trước commit.
-      await tx.$queryRaw`SELECT id FROM quyet_dinh WHERE id = ${dto.quyetDinhId} FOR UPDATE`;
-
+      await lockThesisDecision(tx, dto.quyetDinhId);
+      await tx.$queryRaw`SELECT id FROM nghien_cuu_sinh WHERE id = ${dto.ncsId} FOR UPDATE`;
       const ncs = await tx.nghienCuuSinh.findUnique({
         where: { id: dto.ncsId },
         select: { id: true, trangThai: true, userId: true, hoTen: true, mshv: true },
       });
       if (!ncs) throw new RpcException({ statusCode: 404, message: 'Không tìm thấy NCS' });
-      if (ncs.trangThai !== 'DANG_HOC' && ncs.trangThai !== 'GIA_HAN') {
+      if (!canManageThesis(ncs.trangThai)) {
         throw new RpcException({ statusCode: 400, message: 'NCS không ở trạng thái được phép giao đề tài' });
       }
 
@@ -45,16 +50,7 @@ export class ThesisService {
         throw new RpcException({ statusCode: 400, message: 'Quyết định không áp dụng cho NCS này' });
       }
 
-      const deTaiCuaQuyetDinh = await tx.deTai.findFirst({
-        where: {
-          quyetDinhId: quyetDinh.id,
-          trangThai: { notIn: ['DA_HUY', 'DA_THAY_THE'] },
-        },
-        select: { id: true },
-      });
-      if (deTaiCuaQuyetDinh) {
-        throw new RpcException({ statusCode: 409, message: 'Quyết định này đã gắn với một đề tài đang hiệu lực' });
-      }
+      await assertUnusedThesisDecision(tx, quyetDinh.id);
 
       const deTaiHienTai = await tx.deTai.findFirst({
         where: { ncsId: dto.ncsId, trangThai: 'HIEU_LUC' },
@@ -142,10 +138,34 @@ export class ThesisService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      const deTai = await tx.deTai.findUnique({ where: { id } });
+      // Giữ trạng thái NCS và đề tài ổn định cho đến khi giao dịch hủy hoàn tất.
+      await tx.$queryRaw`
+        SELECT dt.id FROM de_tai dt
+        JOIN nghien_cuu_sinh ncs ON ncs.id = dt.ncs_id
+        WHERE dt.id = ${id} FOR UPDATE
+      `;
+      const deTai = await tx.deTai.findUnique({
+        where: { id },
+        include: {
+          ncs: {
+            select: {
+              trangThai: true, userId: true, hoTen: true, mshv: true,
+              phanCongs: {
+                where: { trangThai: 'DANG_HIEU_LUC' },
+                include: { gvhd: { select: { userId: true } } },
+              },
+            },
+          },
+        },
+      });
       if (!deTai) throw new RpcException({ statusCode: 404, message: 'Không tìm thấy đề tài' });
       if (deTai.trangThai !== 'HIEU_LUC') {
         throw new RpcException({ statusCode: 400, message: 'Chỉ được hủy đề tài đang hiệu lực' });
+      }
+
+      const { ncs } = deTai;
+      if (!canManageThesis(ncs.trangThai)) {
+        throw new RpcException({ statusCode: 400, message: 'Chỉ được hủy đề tài của NCS đang học hoặc gia hạn.' });
       }
 
       const deNghiDangCho = await tx.deNghiDieuChinh.findFirst({
@@ -155,19 +175,6 @@ export class ThesisService {
       if (deNghiDangCho) {
         throw new RpcException({ statusCode: 409, message: 'NCS đang có đề nghị điều chỉnh chờ duyệt, không thể hủy đề tài lúc này' });
       }
-
-      const ncs = await tx.nghienCuuSinh.findUnique({
-        where: { id: deTai.ncsId },
-        select: {
-          userId: true,
-          hoTen: true,
-          mshv: true,
-          phanCongs: {
-            where: { trangThai: 'DANG_HIEU_LUC' },
-            include: { gvhd: { select: { userId: true } } },
-          },
-        },
-      });
 
       const ngayKetThuc = new Date();
       const updated = await tx.deTai.update({
@@ -189,17 +196,17 @@ export class ThesisService {
       });
 
       const gvhdUserIds = [...new Set(
-        ncs?.phanCongs
+        ncs.phanCongs
           .map((phanCong) => phanCong.gvhd?.userId)
           .filter((userId): userId is string => Boolean(userId)) ?? [],
       )];
       const duLieuThongBao = {
-        tenNcs: ncs?.hoTen,
-        mshv: ncs?.mshv,
+        tenNcs: ncs.hoTen,
+        mshv: ncs.mshv,
         tenDeTai: deTai.tenDeTai,
         lyDo: lyDoDaChuanHoa,
       };
-      if (ncs?.userId) {
+      if (ncs.userId) {
         this.thongBao.gui({
           userIds: [ncs.userId],
           loai: 'NCS_DE_TAI_BI_HUY',
@@ -242,6 +249,7 @@ export class ThesisService {
       mshv: true,
       hoTen: true,
       khoaHoc: true,
+      trangThai: true,
       deTais: {
         include: { quyetDinh: { select: { soQuyetDinh: true, ngayQuyetDinh: true } } },
         orderBy: { createdAt: 'desc' as const },
@@ -255,11 +263,10 @@ export class ThesisService {
       },
     };
 
-    const mapNcs = (ncs: any) => ({
-      ...ncs,
-      trangThaiDeTai: ncs.deTais.find((deTai: any) => deTai.trangThai === 'HIEU_LUC')?.trangThai ?? 'CHUA_GIAO',
-      deTaiHienTai: ncs.deTais.find((deTai: any) => deTai.trangThai === 'HIEU_LUC') ?? null,
-    });
+    const mapNcs = ({ trangThai, ...ncs }: Prisma.NghienCuuSinhGetPayload<{ select: typeof select }>) => {
+      const deTaiHienTai = ncs.deTais.find(deTai => deTai.trangThai === 'HIEU_LUC') ?? null;
+      return { ...ncs, trangThaiHocTap: trangThai, trangThaiDeTai: deTaiHienTai?.trangThai ?? 'CHUA_GIAO', deTaiHienTai };
+    };
 
     const wantPagination = query.page != null && query.limit != null;
 
@@ -304,6 +311,7 @@ export class ThesisService {
         mshv: true,
         hoTen: true,
         khoaHoc: true,
+        trangThai: true,
         deTais: {
           include: { quyetDinh: { select: { soQuyetDinh: true, ngayQuyetDinh: true, fileId: true } } },
           orderBy: { createdAt: 'desc' },
@@ -318,8 +326,10 @@ export class ThesisService {
       },
     });
     if (!ncs) throw new RpcException({ statusCode: 404, message: 'Không tìm thấy NCS' });
+    const { trangThai, ...hoSo } = ncs;
     return {
-      ...ncs,
+      ...hoSo,
+      trangThaiHocTap: trangThai,
       deTaiHienTai: ncs.deTais.find((deTai) => deTai.trangThai === 'HIEU_LUC') ?? null,
       phanCongsHienTai: ncs.phanCongs.filter((pc) => pc.trangThai === 'DANG_HIEU_LUC'),
     };

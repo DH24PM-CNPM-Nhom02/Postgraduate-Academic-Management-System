@@ -1,5 +1,6 @@
 "use client";
 
+import { getStudyStatus, canAssignSupervisor } from "@/src/lib/study-status";
 import React from "react";
 import { MoreHorizontal, UserPlus, Scale, Eye, Pencil } from "lucide-react";
 import type { StudentDossier } from "@/src/types/academic";
@@ -28,7 +29,7 @@ export function StudentCellAction({
   onViewDetail,
   onUpdateInfo,
 }: StudentCellActionProps) {
-  if (student.rawDetails?.trangThai === "DA_TOT_NGHIEP") {
+  if (getStudyStatus(student) === "DA_TOT_NGHIEP") {
     return (
       <button
         type="button"
@@ -72,6 +73,7 @@ export function StudentCellAction({
           </DropdownMenuItem>
 
           <DropdownMenuItem
+            disabled={!canAssignSupervisor(student)}
             onClick={() => onAssignSupervisor(student)}
             className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium text-slate-700 hover:text-[#164E9B] hover:bg-blue-50/70 rounded-lg cursor-pointer transition-colors"
           >

@@ -4,6 +4,15 @@ import { getSession, signIn, signOut, useSession } from "next-auth/react";
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authService } from "@/src/services/auth";
+import type { UserRole } from "@/src/lib/auth/constants";
+
+/** Mapping vai trò → trang chủ tương ứng */
+const ROLE_HOME: Record<UserRole, string> = {
+    ADMIN: "/admin",
+    GIAO_VU: "/academic",
+    GVHD: "/supervisor",
+    NCS: "/student/progress",
+};
 
 export function useAuth() {
     const { data: session, status } = useSession();
@@ -68,8 +77,10 @@ export function useAuth() {
                     return { success: true, mustChangePassword: true };
                 }
 
-                // Middleware chuyển tiếp về trang chủ tương ứng với vai trò.
-                router.push("/");
+                // Chuyển hướng đến dashboard tương ứng vai trò
+                const userRole = signedInSession.user?.role as UserRole | undefined;
+                const targetPath = userRole ? ROLE_HOME[userRole] : "/";
+                router.push(targetPath);
                 return { success: true, mustChangePassword: false };
             } catch {
                 setError("Không thể kết nối để đăng nhập. Vui lòng thử lại.");

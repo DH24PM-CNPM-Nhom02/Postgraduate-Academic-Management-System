@@ -6,6 +6,7 @@ import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/src/components/ui/button";
+import { canDeactivateThesis } from "./thesis-eligibility";
 import { useDeactivateThesisMutation } from "@/src/hooks/use-theses";
 import { parseApiError } from "@/src/lib/api";
 import { formatDate } from "@/src/lib/utils";
@@ -28,9 +29,11 @@ export function ThesisDeactivateModal({ onClose, item, thesis }: ThesisDeactivat
   const [apiError, setApiError] = useState("");
   const mutation = useDeactivateThesisMutation();
 
+  const allowed = canDeactivateThesis(item) && item.deTaiHienTai?.id === thesis.id;
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (mutation.isPending) return;
+    if (mutation.isPending || !allowed) return;
     setApiError("");
     const result = deactivateSchema.safeParse({ lyDo });
     if (!result.success) {
@@ -76,6 +79,7 @@ export function ThesisDeactivateModal({ onClose, item, thesis }: ThesisDeactivat
                   </p>
                 )}
               </div>
+              {!allowed && <p role="alert" className="text-xs text-rose-700">Hồ sơ hiện không đủ điều kiện hủy đề tài.</p>}
               {apiError && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{apiError}</p>}
               <div className="space-y-1.5">
                 <label htmlFor={`${formId}-reason`} className="text-sm font-medium">Lý do hủy *</label>
@@ -95,7 +99,7 @@ export function ThesisDeactivateModal({ onClose, item, thesis }: ThesisDeactivat
 
             <div className="flex justify-end gap-2 border-t p-4">
               <Dialog.Close render={<Button type="button" variant="outline" disabled={mutation.isPending} />}>Đóng</Dialog.Close>
-              <Button type="submit" variant="destructive" disabled={mutation.isPending}>
+              <Button type="submit" variant="destructive" disabled={mutation.isPending || !allowed}>
                 {mutation.isPending && <Loader2 className="animate-spin" />}
                 {mutation.isPending ? "Đang hủy đề tài…" : "Xác nhận hủy đề tài"}
               </Button>

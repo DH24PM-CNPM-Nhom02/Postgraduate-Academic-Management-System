@@ -60,6 +60,7 @@ export interface MilestoneProgressItem {
   diemTrungBinh?: string | number;
   trangThai: MilestoneStatus;
   coTheNop: boolean;
+  lyDoKhoaNop?: string;
   ngayMoKhoa?: string;
   ngayHoanThanh?: string;
   lyDoTuChoi?: string;

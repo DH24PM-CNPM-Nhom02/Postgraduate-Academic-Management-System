@@ -81,14 +81,6 @@ export function mapChangeRequestApiToUi(
   };
 }
 
-interface NcsProfileWithThesis extends BackendNcsMeResponse {
-  deTais?: Array<{
-    id: string;
-    tenDeTai: string;
-    trangThai: string;
-  }>;
-}
-
 /**
  * Tổng hợp toàn bộ dữ liệu Đơn đề nghị & Gia hạn học tập từ API
  */
@@ -100,11 +92,9 @@ export function buildStudentChangeRequestsOverview(
 ): StudentChangeRequestsOverview {
   const { id: ncsId, hoTen: hoTenNcs, mshv } = profile;
 
-  const extendedProfile = profile as NcsProfileWithThesis | undefined | null;
-
   // Đề tài hiện tại
   const tenDeTaiHienTai =
-    extendedProfile?.deTais?.find((d) => d.trangThai === "HIEU_LUC")?.tenDeTai ||
+    profile.deTais?.find((d) => d.trangThai === "HIEU_LUC")?.tenDeTai ||
     "Chưa đăng ký đề tài";
 
   // GVHD hiện tại

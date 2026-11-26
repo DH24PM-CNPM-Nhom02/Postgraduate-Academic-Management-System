@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/src/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/src/components/ui/select";
+import { getAssignmentBlock } from "./thesis-eligibility";
 import { useAssignThesisMutation, useThesisDecisions } from "@/src/hooks/use-theses";
 import { parseApiError } from "@/src/lib/api";
 import { formatDate } from "@/src/lib/utils";
@@ -27,15 +28,6 @@ interface ThesisAssignmentModalProps {
   students: AcademicThesisNcsItem[];
 }
 
-function getAssignmentBlock(student: AcademicThesisNcsItem) {
-  if (student.trangThaiDeTai === "HIEU_LUC") return "NCS đã có đề tài đang hiệu lực.";
-  if (student.hasPendingChangeRequest) return "NCS đang có đề nghị điều chỉnh chờ duyệt.";
-  if (student.trangThaiHocTap && !["DANG_HOC", "GIA_HAN"].includes(student.trangThaiHocTap)) {
-    return "Chỉ có thể giao đề tài cho NCS đang học hoặc gia hạn.";
-  }
-  return null;
-}
-
 export function ThesisAssignmentModal({ onClose, student, students }: ThesisAssignmentModalProps) {
   const formId = useId();
   const [ncsId, setNcsId] = useState<string | null>(student?.id ?? null);
@@ -44,8 +36,7 @@ export function ThesisAssignmentModal({ onClose, student, students }: ThesisAssi
   const [errors, setErrors] = useState<FieldErrors>({});
   const [apiError, setApiError] = useState("");
   const eligibleStudents = students.filter((candidate) => !getAssignmentBlock(candidate));
-  const selectedStudent = (student && students.find(({ id }) => id === student.id)) ?? student
-    ?? eligibleStudents.find(({ id }) => id === ncsId);
+  const selectedStudent = students.find(candidate => candidate.id === ncsId);
   const blockReason = selectedStudent ? getAssignmentBlock(selectedStudent) : null;
 
   const decisions = useThesisDecisions(!blockReason && selectedStudent ? selectedStudent.id : null);
@@ -66,7 +57,7 @@ export function ThesisAssignmentModal({ onClose, student, students }: ThesisAssi
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (mutation.isPending || blockReason) return;
+    if (mutation.isPending || !selectedStudent || blockReason) return;
     setApiError("");
 
     const result = assignmentSchema.safeParse({
@@ -123,7 +114,7 @@ export function ThesisAssignmentModal({ onClose, student, students }: ThesisAssi
                     <label htmlFor={`${formId}-ncs`} className="text-sm font-medium">Nghiên cứu sinh *</label>
                     <Select
                       items={studentOptions}
-                      value={ncsId}
+                      value={blockReason ? null : selectedStudent?.id ?? null}
                       onValueChange={(value) => {
                         setNcsId(value);
                         setQuyetDinhId(null);
@@ -138,7 +129,7 @@ export function ThesisAssignmentModal({ onClose, student, students }: ThesisAssi
                         {studentOptions.map(({ value, label }) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    {!studentOptions.length && <p className="text-xs text-slate-500">Không có NCS chưa được giao đề tài.</p>}
+                    {!studentOptions.length && <p className="text-xs text-slate-500">Không có NCS đủ điều kiện giao đề tài.</p>}
                   </>
                 )}
                 {errors.ncsId && <p id={`${formId}-ncs-error`} className="text-xs text-rose-700">{errors.ncsId[0]}</p>}
@@ -195,7 +186,7 @@ export function ThesisAssignmentModal({ onClose, student, students }: ThesisAssi
             </fieldset>
             <div className="flex justify-end gap-2 border-t p-4">
               <Dialog.Close render={<Button type="button" variant="outline" disabled={mutation.isPending} />}>Đóng</Dialog.Close>
-              <Button type="submit" className="bg-[#164E9B] text-white hover:bg-[#123E7C]" disabled={Boolean(blockReason) || mutation.isPending || decisions.isLoading || decisions.isError}>
+              <Button type="submit" className="bg-[#164E9B] text-white hover:bg-[#123E7C]" disabled={!selectedStudent || Boolean(blockReason) || mutation.isPending || decisions.isLoading || decisions.isError}>
                 {mutation.isPending && <Loader2 className="animate-spin" />}
                 {mutation.isPending ? "Đang giao đề tài…" : "Giao đề tài"}
               </Button>

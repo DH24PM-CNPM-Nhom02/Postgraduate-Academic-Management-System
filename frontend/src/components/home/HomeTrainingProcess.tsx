@@ -168,5 +168,3 @@ export function HomeTrainingProcess() {
     </section>
   );
 }
-
-export default HomeTrainingProcess;

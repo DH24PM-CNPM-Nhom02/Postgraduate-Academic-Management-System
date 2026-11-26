@@ -1,3 +1,4 @@
+import { NcsCatalogController } from './ncs-catalog.controller.js';
 // auth/auth.module.ts
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -25,6 +26,6 @@ import { NcsController } from './ncs.controller.js';
       },
     ]),
   ],
-  controllers: [NcsController],
+  controllers: [NcsCatalogController, NcsController],
 })
 export class NcsModule {}

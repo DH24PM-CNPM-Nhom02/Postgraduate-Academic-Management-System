@@ -91,6 +91,20 @@ export const ADMIN_NAV_ITEMS: AdminNavItemDef[] = [
     matchPaths: ["/admin/students"],
   },
   {
+    id: "cohorts",
+    title: "Quản lý niên khóa",
+    icon: GraduationCap,
+    group: "main",
+    href: "/admin/cohorts",
+  },
+  {
+    id: "training-majors",
+    title: "Quản lý ngành đào tạo",
+    icon: BookOpen,
+    group: "main",
+    href: "/admin/training-majors",
+  },
+  {
     id: "theses",
     title: "Quản lý Đề tài Luận án",
     icon: BookOpenCheck,

@@ -25,6 +25,8 @@ export interface AcademicHeaderProps {
 
 const ACADEMIC_PAGE_TITLES: Record<string, string> = {
   "/academic": "Tổng quan Giáo vụ",
+  "/academic/cohorts": "Quản lý niên khóa",
+  "/academic/training-majors": "Quản lý ngành đào tạo",
   "/academic/students": "Quản lý NCS",
   "/students": "Quản lý NCS",
   "/academic/theses": "Quản lý Đề tài Luận án",

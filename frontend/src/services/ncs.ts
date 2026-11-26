@@ -182,12 +182,14 @@ export function mapBackendNcsToStudentDossier(raw: BackendNcsRaw): StudentDossie
   }
 
   let remainingMonths = defaultDurationMonths;
+  let hasTrainingDeadline = false;
   if (targetDeadline && !isNaN(targetDeadline.getTime())) {
+    hasTrainingDeadline = true;
     const diffMs = targetDeadline.getTime() - Date.now();
     remainingMonths = Math.max(0, Math.round(diffMs / (1000 * 60 * 60 * 24 * 30.44)));
   }
 
-  // 2. Chuyển đổi trạng thái từ Backend sang StudentStatus ("active" | "warning" | "overdue")
+  // 2. Giữ phân nhóm tổng hợp cho các màn hình đang dùng StudentStatus.
   let status: StudentDossier["status"] = "active";
   if (raw.trangThai === "BUOC_THOI_HOC" || raw.trangThai === "NGUNG_HOC" || remainingMonths < 3) {
     status = "overdue";
@@ -250,21 +252,21 @@ export function mapBackendNcsToStudentDossier(raw: BackendNcsRaw): StudentDossie
     raw.deTai ||
     raw.thesisTopic ||
     raw.deTais?.[0]?.tenDeTai ||
-    "Chưa đăng ký đề tài";
+    "N/A";
 
   const admissionYear =
     raw.admissionYear ||
     raw.namTuyenSinh ||
     raw.khoaHocNcs?.namTuyenSinh ||
     (raw.ngayNhapHoc ? new Date(raw.ngayNhapHoc).getFullYear() : undefined) ||
-    "2023";
+    "N/A";
 
   return {
-    id: raw.id || `std-${raw.mshv || Date.now()}`,
-    name: raw.hoTen || raw.name || "Chưa cập nhật tên",
+    id: raw.id || "N/A",
+    name: raw.hoTen || raw.name || "N/A",
     code: raw.mshv || raw.code || "N/A",
-    cohort: raw.khoaHocNcs?.maKhoaHoc || raw.lop || "Khóa 2023",
-    department: raw.nganh?.tenNganh || "Kỹ thuật phần mềm",
+    cohort: raw.khoaHocNcs?.maKhoaHoc || raw.lop || "N/A",
+    department: raw.nganh?.tenNganh || "N/A",
     admissionYear,
     trinhDoDauVao: raw.trinhDoDauVao,
     phuongThucDaoTao: raw.phuongThucDaoTao,
@@ -273,11 +275,13 @@ export function mapBackendNcsToStudentDossier(raw: BackendNcsRaw): StudentDossie
     supervisorMain,
     supervisorCo,
     remainingMonths,
+    hasTrainingDeadline,
     currentMilestoneIndex,
     publicationPoints: raw.diemBaiBao ?? raw.publicationPoints ?? 0,
     status,
-    email: raw.email || `${raw.mshv?.toLowerCase() || "ncs"}@agu.edu.vn`,
-    phone: raw.soDienThoai || raw.sdt || raw.phone || "Chưa cập nhật",
+    trangThai: raw.trangThai,
+    email: raw.email || "N/A",
+    phone: raw.soDienThoai || raw.sdt || raw.phone || "N/A",
     ngaySinh: raw.ngaySinh,
     gioiTinh: raw.gioiTinh,
     cccd: raw.cccd,

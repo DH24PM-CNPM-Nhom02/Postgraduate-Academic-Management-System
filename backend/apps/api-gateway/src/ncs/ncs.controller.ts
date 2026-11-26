@@ -91,18 +91,6 @@ export class NcsController {
     return downloadWorkbook(buildNcsListWorkbook(selectExportRows(records, body.ids)), 'danh-sach-ncs.xlsx');
   }
 
-  @Get('catalogs/nganh-dao-tao')
-  @RequirePermissions(PERMISSIONS.NCS_READ)
-  getNganhDaoTao() {
-    return this.send('phd.ncs.catalog.majors', {});
-  }
-
-  @Get('catalogs/khoa-hoc')
-  @RequirePermissions(PERMISSIONS.NCS_READ)
-  getKhoaHocNcs() {
-    return this.send('phd.ncs.catalog.cohorts', {});
-  }
-
   @Get('me')
   me(@CurrentUser() u: AuthUser) {
     return this.send('phd.ncs.get', { userId: u.id });

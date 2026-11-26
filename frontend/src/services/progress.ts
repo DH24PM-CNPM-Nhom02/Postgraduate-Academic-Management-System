@@ -1,4 +1,4 @@
-import { apiClient, throwApiError } from "@/src/lib/api";
+import { ApiClientError, apiClient, throwApiError } from "@/src/lib/api";
 import { DocumentService } from "@/src/services/document";
 import { formatSupervisorDisplayName } from "@/src/services/gvhd";
 import type { DocumentMetadataResponse } from "@/src/types/api/document";
@@ -89,6 +89,14 @@ function buildMilestoneSystemNote(item: MilestoneItemApi): string | undefined {
   return undefined;
 }
 
+function evidencePrerequisiteError(profile?: BackendNcsMeResponse | null): string | undefined {
+  if (!profile) return "Chưa xác minh được hồ sơ NCS để mở chức năng nộp minh chứng.";
+  const missing = [];
+  if (!profile.deTais?.some(topic => topic.trangThai === "HIEU_LUC")) missing.push("đề tài");
+  if (!profile.phanCongs?.some(assignment => assignment.trangThai === "DANG_HIEU_LUC")) missing.push("phân công GVHD");
+  if (missing.length) return `Chưa có ${missing.join(" và ")} còn hiệu lực. Vui lòng liên hệ Giáo vụ trước khi nộp minh chứng.`;
+}
+
 /**
  * Hàm thuần (pure mapper): ghép payload từ `GET /progress/me` + `GET /ncs/me` + metadata tài liệu
  * thành đúng cấu trúc `StudentProgressData` mà giao diện Tiến độ 9 mốc đang sử dụng.
@@ -98,6 +106,7 @@ export function mapMyProgressToUi(
   ncsProfile?: BackendNcsMeResponse | null,
   documentMetaMap: Record<string, DocumentMetadataResponse> = {}
 ): StudentProgressData {
+  const lyDoKhoaNop = evidencePrerequisiteError(ncsProfile);
   const milestones: MilestoneProgressItem[] = [...progress.tienTrinhs]
     .sort((a, b) => a.moc.thuTu - b.moc.thuTu)
     .map((item) => {
@@ -136,7 +145,8 @@ export function mapMyProgressToUi(
         yeuCauDiem: item.moc.yeuCauDiem,
         diemTrungBinh: latestScored?.diemTrungBinh,
         trangThai: item.trangThai,
-        coTheNop: item.coTheNop,
+        coTheNop: item.coTheNop && !lyDoKhoaNop,
+        lyDoKhoaNop,
         ngayMoKhoa: item.openedAt ?? undefined,
         ngayHoanThanh: item.passedAt ?? undefined,
         lyDoTuChoi:
@@ -318,7 +328,9 @@ export const ProgressService = {
     file,
     ghiChu,
     onUploadProgress,
-  }: SubmitMilestoneWithFileVariables): Promise<SubmitMilestoneResponse> => {
+  }: SubmitMilestoneWithFileVariables, profile: BackendNcsMeResponse): Promise<SubmitMilestoneResponse> => {
+    const message = evidencePrerequisiteError(profile);
+    if (message) throw new ApiClientError({ status: 400, message, messages: [message] });
     const uploadedDoc = await DocumentService.uploadPdf({
       file,
       documentType: "MINH_CHUNG_MOC",

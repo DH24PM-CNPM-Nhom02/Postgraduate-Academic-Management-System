@@ -11,6 +11,7 @@ import type { AcademicThesisNcsItem } from "@/src/types/api/thesis";
 import { ThesesKpiCards } from "./ThesesKpiCards";
 import { EMPTY_THESIS_FILTERS, ThesesFilterBar, type ThesisFilters } from "./ThesesFilterBar";
 import { ThesesTable } from "./ThesesTable";
+import { getAssignmentBlock } from "./thesis-eligibility";
 import { ThesisAssignmentModal } from "./ThesisAssignmentModal";
 import { ThesisDeactivateModal } from "./ThesisDeactivateModal";
 import { ThesisDetailDrawer } from "./ThesisDetailDrawer";
@@ -57,6 +58,7 @@ function ThesesManagementViewContent({ embedded = false, area = "academic"}: The
   const query = useAcademicTheses();
   const excelExport = useExportTheses();
   const items = query.data ?? EMPTY_ITEMS;
+  const panelStudent = panel?.item ? items.find(item => item.id === panel.item?.id) : undefined;
   const keyword = normalizeSearch(filters.search);
   const isFiltered = Boolean(filters.search) || filters.cohort !== "ALL" || filters.status !== "ALL" || filters.supervisorId !== "ALL";
   const filteredItems = useMemo(
@@ -119,7 +121,7 @@ function ThesesManagementViewContent({ embedded = false, area = "academic"}: The
           >
             <Download /> {excelExport.isPending ? "Đang xuất Excel…" : "Xuất Excel"}
           </Button>
-          <Button type="button" size="lg" className="bg-[#164E9B] text-white hover:bg-[#123E7C]" disabled={!query.data} onClick={() => setPanel({ kind: "assign", item: null })}>
+          <Button type="button" size="lg" className="bg-[#164E9B] text-white hover:bg-[#123E7C]" disabled={!items.some(item => !getAssignmentBlock(item))} onClick={() => setPanel({ kind: "assign", item: null })}>
             <Plus /> Giao đề tài mới
           </Button>
         </div>
@@ -151,15 +153,15 @@ function ThesesManagementViewContent({ embedded = false, area = "academic"}: The
       </section>
 
       {panel?.kind === "assign" && <ThesisAssignmentModal onClose={closePanel} student={panel.item} students={items} />}
-      {panel?.kind === "deactivate" && panel.item.deTaiHienTai && (
-        <ThesisDeactivateModal onClose={closePanel} item={panel.item} thesis={panel.item.deTaiHienTai} />
+      {panel?.kind === "deactivate" && panelStudent && panel.item.deTaiHienTai && (
+        <ThesisDeactivateModal onClose={closePanel} item={panelStudent} thesis={panel.item.deTaiHienTai} />
       )}
       {panel?.kind === "detail" && (
         <ThesisDetailDrawer
           isOpen
           onClose={closePanel}
           ncsId={panel.item.id}
-          ncsSummary={panel.item}
+          ncsSummary={panelStudent}
           onAssignThesis={openAssign}
           onDeactivateThesis={openDeactivate}
         />

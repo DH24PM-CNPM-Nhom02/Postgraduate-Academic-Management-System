@@ -16,6 +16,16 @@ export function parseNgay(chuoi: string, tenTruong: string): Date {
   }
   return ngay;
 }
+
+export function parseNgayKyQuyetDinh(chuoi: string): Date {
+  const ngay = parseNgay(chuoi, 'Ngày ký quyết định');
+  const homNay = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
+  if (chuoi > homNay) {
+    throw new RpcException({ statusCode: 400, message: 'Ngày ký quyết định không được sau ngày hôm nay.' });
+  }
+  return ngay;
+}
+
 export function ngayChuoi(ngay: Date | null | undefined): string | null {
   return ngay ? ngay.toISOString().slice(0, 10) : null;
 }

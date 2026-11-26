@@ -1,3 +1,7 @@
+import { CohortController } from './cohort.controller.js';
+import { CohortService } from './cohort.service.js';
+import { TrainingMajorController } from './training-major.controller.js';
+import { TrainingMajorService } from './training-major.service.js';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module.js';
@@ -23,7 +27,7 @@ import { NotificationModule } from '../notification/notification.module.js';
             },
         ])
     ],
-    controllers: [NcsController],
-    providers: [NcsService, NcsImportService],
+    controllers: [CohortController, TrainingMajorController, NcsController],
+    providers: [NcsService, NcsImportService, CohortService, TrainingMajorService],
 })
 export class NcsModule { }

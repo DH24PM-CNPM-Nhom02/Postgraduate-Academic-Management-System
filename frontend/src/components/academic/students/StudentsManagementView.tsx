@@ -40,6 +40,7 @@ import {
 } from "@/src/components/ui/select";
 import { StudentCellAction } from "./StudentCellAction";
 import { useAcademicStudents, useAcademicSupervisors, useExportNcs } from "@/src/hooks/use-academic";
+import { canAssignSupervisor, getStudyStatus, STUDY_STATUS_LABELS, studyStatusLabel } from "@/src/lib/study-status";
 import type { StudentDossier } from "@/src/types/academic";
 import SupervisorAssignmentModal from "../SupervisorAssignmentModal";
 
@@ -54,7 +55,8 @@ const headerStyles: Record<string, string> = {
   department: "py-3 px-3 min-w-[160px]",
   thesisTopic: "py-3 px-3 min-w-[280px] lg:min-w-[340px]",
   currentMilestoneIndex: "py-3 px-3 whitespace-nowrap min-w-[125px]",
-  status: "py-3 px-3 whitespace-nowrap min-w-[125px]",
+  studyStatus: "py-3 px-3 whitespace-nowrap",
+  deadline: "py-3 px-3 whitespace-nowrap min-w-[125px]",
   actions: "py-3 px-3 text-right whitespace-nowrap min-w-[80px]",
 };
 
@@ -63,9 +65,39 @@ const cellStyles: Record<string, string> = {
   department: "py-3.5 px-3 min-w-[160px]",
   thesisTopic: "py-3.5 px-3 whitespace-normal min-w-[280px] lg:min-w-[340px]",
   currentMilestoneIndex: "py-3.5 px-3 whitespace-nowrap min-w-[125px]",
-  status: "py-3.5 px-3 whitespace-nowrap min-w-[125px]",
+  studyStatus: "py-3.5 px-3 whitespace-nowrap",
+  deadline: "py-3.5 px-3 whitespace-nowrap min-w-[125px]",
   actions: "py-3.5 px-3 text-right whitespace-nowrap min-w-[80px]",
 };
+
+const studyStatusItems = [
+  { value: "all", label: "Tất cả trạng thái học tập" },
+  ...Object.entries(STUDY_STATUS_LABELS).map(([value, label]) => ({ value, label })),
+];
+
+const deadlineItems = [
+  { value: "all", label: "Tất cả thời hạn đào tạo" },
+  { value: "onTrack", label: "Đúng tiến độ (từ 12 tháng)" },
+  { value: "warning", label: "Cảnh báo (từ 3 đến dưới 12 tháng)" },
+  { value: "urgent", label: "Cảnh báo khẩn (dưới 3 tháng)" },
+];
+
+const deadlineBadges = {
+  onTrack: { className: "bg-emerald-100 text-emerald-800", suffix: "" },
+  warning: { className: "bg-amber-100 text-amber-800", suffix: " (Cảnh báo)" },
+  urgent: { className: "bg-rose-100 text-rose-800", suffix: " (Khẩn)" },
+};
+
+function getDeadlineCategory(student: StudentDossier): keyof typeof deadlineBadges | null {
+  const status = getStudyStatus(student);
+  if (status !== "DANG_HOC" && status !== "GIA_HAN") return null;
+
+  const { remainingMonths, hasTrainingDeadline } = student;
+  if (hasTrainingDeadline === false || !Number.isFinite(remainingMonths)) return null;
+  if (remainingMonths < 3) return "urgent";
+  if (remainingMonths < 12) return "warning";
+  return "onTrack";
+}
 
 export function StudentsManagementView({ embedded = false, area = "academic" }: StudentsManagementViewProps) {
   // Kết nối API NCS từ Backend qua React Query Hook (chỉ fetch 1 lần)
@@ -77,7 +109,8 @@ export function StudentsManagementView({ embedded = false, area = "academic" }: 
   const searchParams = useSearchParams();
   const [studentSearchText, setStudentSearchText] = useState(() => searchParams?.get("search") || "");
   const [departmentFilter, setDepartmentFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [studyStatusFilter, setStudyStatusFilter] = useState("all");
+  const [deadlineFilter, setDeadlineFilter] = useState("all");
   const [milestoneFilter, setMilestoneFilter] = useState("all");
 
   // Lưu vết cập nhật GVHD cục bộ để hiển thị ngay tức thì lên giao diện
@@ -155,27 +188,23 @@ export function StudentsManagementView({ embedded = false, area = "academic" }: 
     { value: "9", label: "Mốc 9: Bảo vệ cấp cơ sở đào tạo" },
   ], []);
 
-  const statusItems = useMemo(() => [
-    { value: "all", label: "Tất cả trạng thái tiến độ" },
-    { value: "active", label: "Đúng tiến độ (>12 tháng)" },
-    { value: "warning", label: "Cảnh báo (<12 tháng)" },
-    { value: "overdue", label: "Cảnh báo khẩn (<3 tháng)" },
-  ], []);
-
   // Bộ lọc cột dành cho TanStack Table
   const columnFilters = useMemo<ColumnFiltersState>(() => {
     const filters: ColumnFiltersState = [];
     if (departmentFilter !== "all") {
       filters.push({ id: "department", value: departmentFilter });
     }
-    if (statusFilter !== "all") {
-      filters.push({ id: "status", value: statusFilter });
+    if (studyStatusFilter !== "all") {
+      filters.push({ id: "studyStatus", value: studyStatusFilter });
+    }
+    if (deadlineFilter !== "all") {
+      filters.push({ id: "deadline", value: deadlineFilter });
     }
     if (milestoneFilter !== "all") {
       filters.push({ id: "currentMilestoneIndex", value: Number(milestoneFilter) });
     }
     return filters;
-  }, [departmentFilter, statusFilter, milestoneFilter]);
+  }, [departmentFilter, studyStatusFilter, deadlineFilter, milestoneFilter]);
 
   // Hàm tìm kiếm toàn cục đa trường (client-side)
   const globalFilterFn: FilterFn<StudentDossier> = (row, _columnId, filterValue) => {
@@ -267,29 +296,28 @@ export function StudentsManagementView({ embedded = false, area = "academic" }: 
         },
       },
       {
-        id: "status",
-        accessorKey: "status",
+        id: "studyStatus",
+        accessorFn: getStudyStatus,
+        header: () => <span>Trạng thái học tập</span>,
+        cell: ({ getValue }) => studyStatusLabel(getValue<string>()) || "Chưa cập nhật",
+        filterFn: (row, columnId, filterValue) => row.getValue(columnId) === filterValue,
+      },
+      {
+        id: "deadline",
+        accessorFn: getDeadlineCategory,
         header: () => <span>Thời gian còn lại</span>,
-        cell: ({ row }) => {
-          const { remainingMonths } = row.original;
-          return remainingMonths > 12 ? (
-            <span className="rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-0.5 text-[10px] font-bold whitespace-nowrap">
-              {remainingMonths} tháng
-            </span>
-          ) : remainingMonths > 3 ? (
-            <span className="rounded-full bg-amber-100 text-amber-800 px-2.5 py-0.5 text-[10px] font-bold whitespace-nowrap">
-              {remainingMonths} tháng (Cảnh báo)
-            </span>
-          ) : (
-            <span className="rounded-full bg-rose-100 text-rose-800 px-2.5 py-0.5 text-[10px] font-bold whitespace-nowrap animate-pulse">
-              {remainingMonths} tháng (Khẩn)
+        cell: ({ row, getValue }) => {
+          const category = getValue<ReturnType<typeof getDeadlineCategory>>();
+          if (!category) return <span className="text-slate-400">—</span>;
+
+          const { className, suffix } = deadlineBadges[category];
+          return (
+            <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold whitespace-nowrap ${className}`}>
+              {row.original.remainingMonths} tháng{suffix}
             </span>
           );
         },
-        filterFn: (row, columnId, filterValue) => {
-          if (!filterValue || filterValue === "all") return true;
-          return row.getValue(columnId) === filterValue;
-        },
+        filterFn: (row, columnId, filterValue) => row.getValue(columnId) === filterValue,
       },
       {
         id: "actions",
@@ -330,19 +358,20 @@ export function StudentsManagementView({ embedded = false, area = "academic" }: 
   });
   const exportRows = table.getPrePaginationRowModel().rows;
 
-  const activeCount = useMemo(
-    () => studentsList.filter((s) => s.status === "active").length,
-    [studentsList]
-  );
-  const warningCount = useMemo(
-    () => studentsList.filter((s) => s.status === "warning" || s.status === "overdue").length,
-    [studentsList]
-  );
+  const deadlineCounts = useMemo(() => {
+    const counts = { onTrack: 0, warning: 0, urgent: 0 };
+    for (const student of studentsList) {
+      const category = getDeadlineCategory(student);
+      if (category) counts[category]++;
+    }
+    return counts;
+  }, [studentsList]);
 
   const handleResetFilters = () => {
     setStudentSearchText("");
     setDepartmentFilter("all");
-    setStatusFilter("all");
+    setStudyStatusFilter("all");
+    setDeadlineFilter("all");
     setMilestoneFilter("all");
     table.setPageIndex(0);
   };
@@ -387,7 +416,7 @@ export function StudentsManagementView({ embedded = false, area = "academic" }: 
 
           {/* NÚT PHÂN CÔNG GVHD */}
           <button
-            disabled={studentsList.length === 0 || supervisorsList.length === 0}
+            disabled={!studentsList.some(canAssignSupervisor) || supervisorsList.length === 0}
             onClick={() => {
               setActionStudent(null);
               setAssignModalOpen(true);
@@ -468,16 +497,16 @@ export function StudentsManagementView({ embedded = false, area = "academic" }: 
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-emerald-900">
-              {activeCount}
+              {deadlineCounts.onTrack}
             </span>
             <span className="text-xs font-semibold text-emerald-700">
               {studentsList.length > 0
-                ? `${((activeCount / studentsList.length) * 100).toFixed(0)}% tổng số`
+                ? `${((deadlineCounts.onTrack / studentsList.length) * 100).toFixed(0)}% tổng số`
                 : "0%"}
             </span>
           </div>
           <p className="text-[11px] text-slate-600 mt-1">
-            Thời gian đào tạo còn trên 12 tháng
+            Thời gian đào tạo còn từ 12 tháng
           </p>
         </div>
 
@@ -492,10 +521,10 @@ export function StudentsManagementView({ embedded = false, area = "academic" }: 
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-black text-amber-900">
-              {warningCount}
+              {deadlineCounts.warning + deadlineCounts.urgent}
             </span>
             <span className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded-full">
-              1 ca khẩn cấp (&lt;3 tháng)
+              {deadlineCounts.urgent} NCS còn dưới 3 tháng
             </span>
           </div>
           <p className="text-[11px] text-slate-600 mt-1">
@@ -535,7 +564,7 @@ export function StudentsManagementView({ embedded = false, area = "academic" }: 
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-3">
           {/* Keyword Search */}
           <div className="relative">
             <Search className="absolute left-3 top-2.5 size-4 text-slate-400" />
@@ -597,23 +626,42 @@ export function StudentsManagementView({ embedded = false, area = "academic" }: 
             </SelectContent>
           </Select>
 
-          {/* Status Filter */}
+          {/* Study Status Filter */}
           <Select
-            items={statusItems}
-            value={statusFilter}
+            items={studyStatusItems}
+            value={studyStatusFilter}
             onValueChange={(val) => {
-              setStatusFilter(val ?? "all");
+              setStudyStatusFilter(val ?? "all");
               table.setPageIndex(0);
             }}
           >
-            <SelectTrigger className="w-full h-9 rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-700 focus:bg-white focus:border-[#164E9B] cursor-pointer">
-              <SelectValue placeholder="Tất cả trạng thái tiến độ">
-                {(val) => statusItems.find((it) => it.value === val)?.label || "Tất cả trạng thái tiến độ"}
-              </SelectValue>
+            <SelectTrigger aria-label="Trạng thái học tập" className="w-full h-9 rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-700 focus:bg-white focus:border-[#164E9B] cursor-pointer">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent className="max-h-60 rounded-xl border border-slate-200 bg-white shadow-xl text-xs z-50" alignItemWithTrigger={false}>
-              {statusItems.map((item) => (
+              {studyStatusItems.map((item) => (
                 <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Training Deadline Filter */}
+          <Select
+            items={deadlineItems}
+            value={deadlineFilter}
+            onValueChange={(val) => {
+              setDeadlineFilter(val ?? "all");
+              table.setPageIndex(0);
+            }}
+          >
+            <SelectTrigger aria-label="Thời hạn đào tạo" className="w-full h-9 rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-700 focus:bg-white focus:border-[#164E9B] cursor-pointer">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="max-h-60 rounded-xl border border-slate-200 bg-white shadow-xl text-xs z-50" alignItemWithTrigger={false}>
+              {deadlineItems.map((item) => (
+                <SelectItem key={item.value} value={item.value} className="[&>span:first-child]:whitespace-normal">
                   {item.label}
                 </SelectItem>
               ))}

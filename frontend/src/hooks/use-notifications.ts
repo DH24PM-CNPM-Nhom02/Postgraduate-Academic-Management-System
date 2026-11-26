@@ -56,6 +56,7 @@ export function useNotifications(filter?: NotificationQueryFilter) {
   return useQuery<NotificationListResponse>({
     queryKey: ["notifications", userId, filter],
     queryFn: () => notificationService.getNotifications(filter, accessToken),
+    enabled: !!accessToken,
     staleTime: 1000 * 10,
     refetchInterval: 1000 * 25,
     refetchOnWindowFocus: true,
@@ -69,6 +70,7 @@ export function useUnreadNotificationCount() {
   return useQuery<{ soLuong: number }>({
     queryKey: ["notifications", "unread-count", userId],
     queryFn: () => notificationService.getUnreadCount(accessToken),
+    enabled: !!accessToken,
     staleTime: 1000 * 10,
     refetchInterval: 1000 * 25,
     refetchOnWindowFocus: true,

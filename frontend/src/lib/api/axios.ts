@@ -37,13 +37,20 @@ apiClient.interceptors.request.use(async (config) => {
     return config;
 });
 
+let isSigningOut = false;
+
 // Nếu backend trả 401 (token hỏng dù đã refresh), tự đăng xuất
 apiClient.interceptors.response.use(
     (res) => res,
     async (error) => {
-        if (error.response?.status === 401 && typeof window !== "undefined") {
-            const { signOut } = await import("next-auth/react");
-            await signOut({ callbackUrl: "/login" });
+        if (error.response?.status === 401 && typeof window !== "undefined" && !isSigningOut) {
+            isSigningOut = true;
+            try {
+                const { signOut } = await import("next-auth/react");
+                await signOut({ callbackUrl: "/login" });
+            } finally {
+                isSigningOut = false;
+            }
         }
         return Promise.reject(error);
     }

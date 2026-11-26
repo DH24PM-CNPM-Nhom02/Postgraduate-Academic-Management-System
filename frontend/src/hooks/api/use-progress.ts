@@ -8,6 +8,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import type { ApiClientError } from "@/src/lib/api";
+import { NcsService } from "@/src/services/ncs";
 import { DocumentService } from "@/src/services/document";
 import { mapMyProgressToUi, ProgressService } from "@/src/services/progress";
 import { documentKeys } from "@/src/hooks/api/use-documents";
@@ -74,7 +75,14 @@ export function useSubmitMilestoneWithFile() {
     ApiClientError,
     SubmitMilestoneWithFileVariables
   >({
-    mutationFn: (variables) => ProgressService.submitMilestoneWithFile(variables),
+    mutationFn: async (variables) => {
+      const profile = await queryClient.fetchQuery({
+        queryKey: ncsSelfKeys.me(),
+        queryFn: NcsService.getMyProfile,
+        staleTime: 0,
+      });
+      return ProgressService.submitMilestoneWithFile(variables, profile);
+    },
     onSuccess: (createdEvidence) => {
       queryClient.invalidateQueries({ queryKey: progressKeys.me() });
       queryClient.invalidateQueries({ queryKey: ncsSelfKeys.me() });
@@ -135,10 +143,10 @@ export function useStudentProgressData() {
     if (!progressQuery.data) return undefined;
     return mapMyProgressToUi(
       progressQuery.data,
-      profileQuery.data,
+      profileQuery.isError ? undefined : profileQuery.data,
       documentMetaMap
     );
-  }, [progressQuery.data, profileQuery.data, documentMetaMap]);
+  }, [progressQuery.data, profileQuery.data, profileQuery.isError, documentMetaMap]);
 
   const refetch = async () => {
     await Promise.all([progressQuery.refetch(), profileQuery.refetch()]);

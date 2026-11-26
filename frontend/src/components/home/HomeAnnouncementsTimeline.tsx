@@ -9,8 +9,8 @@ import {
 } from "lucide-react";
 import {
   AnnouncementDetailModal,
-  type AnnouncementItem,
 } from "./AnnouncementDetailModal";
+import type { AnnouncementItem } from "./announcementTypes";
 
 const ANNOUNCEMENTS: AnnouncementItem[] = [
   {
@@ -331,5 +331,3 @@ export function HomeAnnouncementsTimeline() {
     </section>
   );
 }
-
-export default HomeAnnouncementsTimeline;

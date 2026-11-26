@@ -4,7 +4,7 @@ import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { goiService } from '../helpers/call-service.util.js';
 import type { LoaiQuyetDinh, TrangThaiQuyetDinh, TrangThaiHocTap } from '../generated/prisma/index.js';
-import { ngayChuoi, parseNgay } from '../helpers/validateData.util.js';
+import { ngayChuoi, parseNgay, parseNgayKyQuyetDinh } from '../helpers/validateData.util.js';
 import { NotificationClient } from '../notification/notification.client.js';
 import type { ListDecisionQueryDto } from '../../../../lib/contracts/src/dto/decision.dto.js';
 import { paginatePrisma } from '../helpers/pagination.util.js';
@@ -61,12 +61,12 @@ export class DecisionService {
         hanMoi?: string //chỉ dùng khi loại quyết định là GIA_HAN 
     }) {
         const loai = d.loai as LoaiQuyetDinh;
-        const ngay = parseNgay(d.ngayQuyetDinh, 'Ngày quyết định');
+        const ngay = parseNgayKyQuyetDinh(d.ngayQuyetDinh);
         const dsNcsId = [...new Set(d.ncsIds ?? [])]; // bỏ NCS bị chọn trùng
         const trangThaiMoi = TRANG_THAI_MOI[loai];
 
         //kiểm tra dữ liệu đầu vào theo loại quyết định
-        if (trangThaiMoi && dsNcsId.length === 0) {
+        if ((trangThaiMoi || loai === 'CONG_NHAN_TOT_NGHIEP') && dsNcsId.length === 0) {
             throw new RpcException({ statusCode: 400, message: 'Quyết định loại này phải chọn ít nhất 1 NCS' });
         }
 
@@ -141,6 +141,21 @@ export class DecisionService {
         const dsDich = dsNcs.length > 0 ? dsNcs : [null];
 
         const quyetDinhs = await this.prisma.$transaction(async (tx) => {
+            if (loai === 'CONG_NHAN_TOT_NGHIEP') {
+                const chuaDenMocChin = await tx.nghienCuuSinh.findMany({
+                    where: {
+                        id: { in: dsNcsId },
+                        tienTrinhs: { none: { moc: { thuTu: 9 }, trangThai: { not: 'LOCKED' } } },
+                    },
+                    select: { mshv: true },
+                });
+                if (chuaDenMocChin.length > 0) {
+                    throw new RpcException({
+                        statusCode: 400,
+                        message: `Chỉ được tạo quyết định tốt nghiệp khi NCS đã đến mốc 9/9. NCS chưa đủ điều kiện: ${chuaDenMocChin.map(ncs => ncs.mshv).join(', ')}.`,
+                    });
+                }
+            }
             await guardDocumentAttachment(tx, d.fileId);
             const ketQua = [];
             for (const ncs of dsDich) {
