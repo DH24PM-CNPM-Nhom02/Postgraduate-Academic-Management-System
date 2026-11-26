@@ -213,11 +213,11 @@ export function MyThesisCard({
 
           {/* Tên đề tài tiếng Việt & tiếng Anh */}
           <div className="space-y-2 border-t border-border pt-4">
-            <h3 className="text-lg font-bold leading-snug text-foreground sm:text-xl">
+            <h3 className="text-lg font-bold leading-snug text-foreground sm:text-xl break-words line-clamp-3">
               {thesis.tenDeTaiTiengViet}
             </h3>
             {thesis.tenDeTaiTiengAnh && (
-              <p className="text-sm italic leading-relaxed text-muted-foreground">
+              <p className="text-sm italic leading-relaxed text-muted-foreground break-words line-clamp-2">
                 {thesis.tenDeTaiTiengAnh}
               </p>
             )}

@@ -1,3 +1,4 @@
+import { SUPERVISOR_QUOTA_BY_DEGREE } from "@/src/lib/supervisor-quota";
 import type {
   AuditLogItem,
   InstitutionInfoConfig,
@@ -167,9 +168,9 @@ export const mockSystemParametersConfig: SystemParametersConfig = {
   standardDurationBachelorHolderMonths: 48,
   maxExtensionMonths: 24,
   maxTotalTrainingMonths: 72,
-  quotaProfessor: 5,
-  quotaAssociateProfessor: 4,
-  quotaDoctor: 3,
+  quotaProfessor: SUPERVISOR_QUOTA_BY_DEGREE.GIAO_SU,
+  quotaAssociateProfessor: SUPERVISOR_QUOTA_BY_DEGREE.PHO_GIAO_SU,
+  quotaDoctor: SUPERVISOR_QUOTA_BY_DEGREE.TIEN_SI,
   mainSupervisorWeight: 1.0,
   coSupervisorWeight: 0.5,
   minPublicationScore: 2.0,
@@ -368,7 +369,7 @@ export const mockAuditLogs: AuditLogItem[] = [
       gvhdChinh: "PGS.TS. Trần Quốc Tuấn",
       vaiTro: "HUONG_DAN_CHINH",
       trongSoSuDungGvhd: 3.5,
-      hanMucToiDa: 4.0,
+      hanMucToiDa: SUPERVISOR_QUOTA_BY_DEGREE.PHO_GIAO_SU,
     },
     ipAddress: "10.14.22.108",
     createdAt: "2026-11-10T10:12:00Z",

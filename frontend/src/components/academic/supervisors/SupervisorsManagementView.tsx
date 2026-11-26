@@ -13,7 +13,6 @@ import {
   ArrowLeft,
   CheckCircle2,
   AlertCircle,
-  ShieldCheck,
   Info,
   Download,
   Plus,
@@ -416,7 +415,7 @@ export function SupervisorsManagementView({ embedded = false, area = "academic" 
       </div>
 
       {/* QUICK SUMMARY METRICS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4.5 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
@@ -462,23 +461,7 @@ export function SupervisorsManagementView({ embedded = false, area = "academic" 
             <span className="text-2xl font-black text-rose-900">{fullSupervisors}</span>
             <span className="text-xs font-semibold text-rose-700">giảng viên</span>
           </div>
-          <p className="text-[11px] text-slate-600 mt-1">Đạt trần 3.0 - 4.0 NCS, tạm dừng nhận thêm</p>
-        </div>
-
-        <div className="rounded-2xl border border-blue-200 bg-blue-50/30 p-4.5 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#164E9B]">
-              Quy chế BR-09
-            </span>
-            <div className="flex size-8 items-center justify-center rounded-lg bg-blue-100 text-[#164E9B]">
-              <ShieldCheck className="size-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-base font-bold text-[#0F2744]">Độc lập: 1.0</span>
-            <span className="text-xs text-slate-500">• Đồng HD: 0.5</span>
-          </div>
-          <p className="text-[11px] text-slate-600 mt-1">Trần: TS (3.0), PGS/GS (4.0 có ĐT Bộ)</p>
+          <p className="text-[11px] text-slate-600 mt-1">Đã đạt định mức theo học hàm, học vị</p>
         </div>
       </div>
 
@@ -493,7 +476,7 @@ export function SupervisorsManagementView({ embedded = false, area = "academic" 
             Theo Quy chế Đào tạo Trình độ Tiến sĩ ban hành theo Quy định chương trình và tổ chức đào tạo trình độ tiến sĩ Số 655/QĐ-ĐHAG:
             Mỗi nghiên cứu sinh được hướng dẫn bởi tối đa 02 người (01 GVHD chính và 01 Đồng hướng dẫn).
             Giảng viên có học vị Tiến sĩ hướng dẫn tối đa <strong>3.0 NCS</strong> cùng thời điểm;
-            Phó Giáo sư được hướng dẫn tối đa <strong>5.0 NCS</strong>; Giáo sư được hướng dẫn tối đa <strong>7.0 NCS</strong>.
+            Phó Giáo sư và Tiến sĩ Khoa học được hướng dẫn tối đa <strong>5.0 NCS</strong>; Giáo sư được hướng dẫn tối đa <strong>7.0 NCS</strong>.
             Hệ thống sẽ tự động khóa tùy chọn phân công khi giảng viên vượt hạn mức cho phép.
           </p>
         </div>

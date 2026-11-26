@@ -204,7 +204,7 @@ export function ThesisDetailDrawer({
                 {currentThesis ? (
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50/30 p-5 space-y-3 shadow-xs">
                     <div className="space-y-1">
-                      <p className="text-sm font-bold text-slate-900 leading-relaxed">
+                      <p className="text-sm font-bold text-slate-900 leading-relaxed break-words line-clamp-3">
                         “{currentThesis.tenDeTai}”
                       </p>
                       <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -317,10 +317,12 @@ export function ThesisDetailDrawer({
 
                           <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs space-y-2">
                             <div className="flex items-start justify-between gap-2">
-                              <span className="font-semibold text-slate-900 leading-snug">
+                              <span className="min-w-0 flex-1 break-words font-semibold text-slate-900 leading-snug">
                                 “{item.tenDeTai}”
                               </span>
-                              <ThesisStatusBadge status={item.trangThai} size="sm" />
+                              <div className="shrink-0">
+                                <ThesisStatusBadge status={item.trangThai} size="sm" />
+                              </div>
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
