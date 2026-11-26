@@ -73,6 +73,20 @@ export const ACADEMIC_NAV_ITEMS: NavItemDef[] = [
     matchPaths: ["/academic/students", "/students"],
   },
   {
+    id: "cohorts",
+    title: "Quản lý niên khóa",
+    icon: GraduationCap,
+    group: "main",
+    href: "/academic/cohorts",
+  },
+  {
+    id: "training-majors",
+    title: "Quản lý ngành đào tạo",
+    icon: BookOpen,
+    group: "main",
+    href: "/academic/training-majors",
+  },
+  {
     id: "theses",
     title: "Quản lý Đề tài Luận án",
     icon: BookOpenCheck,

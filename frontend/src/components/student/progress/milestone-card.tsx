@@ -111,7 +111,7 @@ export function MilestoneCard({
       return (
         <span className="inline-flex items-center gap-1.5 rounded-full border border-[#164E9B]/25 bg-[#164E9B]/10 px-3 py-1 text-xs font-semibold text-[#164E9B] shadow-2xs">
           <Unlock className="h-3.5 w-3.5 text-[#164E9B]" />
-          Sẵn sàng nộp minh chứng
+          {milestone.coTheNop ? "Sẵn sàng nộp minh chứng" : "Chưa thể nộp minh chứng"}
         </span>
       );
     }
@@ -306,7 +306,7 @@ export function MilestoneCard({
               <p className="text-xs text-muted-foreground">
                 {milestone.coTheNop
                   ? "Vui lòng bổ sung chữ ký/tài liệu và nộp lại bản minh chứng đã hoàn thiện."
-                  : "Chức năng nộp lại minh chứng tạm thời bị khóa cho đến khi được mở lại."}
+                  : milestone.lyDoKhoaNop ?? "Chức năng nộp lại minh chứng tạm thời bị khóa cho đến khi được mở lại."}
               </p>
               <button
                 type="button"
@@ -367,7 +367,7 @@ export function MilestoneCard({
             <p className="text-xs text-muted-foreground">
               {milestone.coTheNop
                 ? "Mốc đã mở khóa theo tiến trình. Vui lòng chuẩn bị và nộp minh chứng bản scan PDF (≤ 15MB)."
-                : "Mốc đã mở nhưng hiện chưa được phép nộp minh chứng mới."}
+                : milestone.lyDoKhoaNop ?? "Mốc đã mở nhưng hiện chưa được phép nộp minh chứng mới."}
             </p>
             <button
               type="button"

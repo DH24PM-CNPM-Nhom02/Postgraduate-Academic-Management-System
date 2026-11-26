@@ -123,5 +123,3 @@ export function HomeHeader() {
     </header>
   );
 }
-
-export default HomeHeader;

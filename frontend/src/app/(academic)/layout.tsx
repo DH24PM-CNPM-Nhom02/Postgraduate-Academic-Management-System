@@ -2,12 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  AcademicHeader,
-  AcademicSidebar,
-  AcademicFooter,
-  GlobalSearchModal,
-} from "@/src/components/academic";
+import { AcademicHeader } from "@/src/components/academic/header";
+import { AcademicSidebar } from "@/src/components/academic/sidebar";
+import { AcademicFooter } from "@/src/components/academic/footer";
+import { GlobalSearchModal } from "@/src/components/academic/GlobalSearchModal";
 
 export default function AcademicLayout({
   children,

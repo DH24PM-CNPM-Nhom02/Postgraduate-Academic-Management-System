@@ -1,5 +1,6 @@
 "use client";
 
+import { canAssignSupervisor } from "@/src/lib/study-status";
 import { toast } from "sonner";
 
 import React, { useState, useMemo, useEffect } from "react";
@@ -380,7 +381,7 @@ export function SupervisorsManagementView({ embedded = false, area = "academic" 
           )}
           {/* NÚT PHÂN CÔNG NCS MỚI */}
           <button
-            disabled={studentsList.length === 0 || supervisorsList.length === 0}
+            disabled={!studentsList.some(canAssignSupervisor) || supervisorsList.length === 0}
             onClick={() => {
               setAssignSupervisor(null);
               setAssignModalOpen(true);

@@ -1,3 +1,4 @@
+import { assertUnusedThesisDecision, lockThesisDecision } from '../thesis/thesis-decision.js';
 import { guardDocumentAttachment } from '../helpers/document-link.js';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
@@ -11,7 +12,7 @@ import {
     SupervisorReviewDeNghiDto,
 } from '../../../../lib/contracts/src/dto/change-request.dto.js';
 import { LoaiDeNghiDieuChinh, LoaiQuyetDinh, Prisma, TrangThaiDeNghi } from '../generated/prisma/index.js';
-import { truThang, congThang, chuanHoa, parseNgay } from '../helpers/validateData.util.js';
+import { truThang, congThang, chuanHoa, parseNgayKyQuyetDinh } from '../helpers/validateData.util.js';
 
 @Injectable()
 export class ChangeRequestService {
@@ -1034,6 +1035,9 @@ export class ChangeRequestService {
         let qdDuocTao: { id: string; soQuyetDinh: string; ngayQuyetDinh: Date; ghiChu?: string | null } | null = null;
 
         const ketQuaCuoi = await this.prisma.$transaction(async (tx) => {
+            if (deNghi.loai === 'DOI_DE_TAI' && dto.quyetDinhId) {
+                await lockThesisDecision(tx, dto.quyetDinhId);
+            }
             await guardDocumentAttachment(tx, dto.fileId);
             let qd: { id: string; soQuyetDinh: string; ngayQuyetDinh: Date; ghiChu?: string | null };
 
@@ -1078,7 +1082,7 @@ export class ChangeRequestService {
                             message: 'Giáo vụ cần chọn quyetDinhId có sẵn hoặc nhập số quyết định (soQuyetDinh) và ngày ký (ngayQuyetDinh)',
                         });
                     }
-                    const ngayQd = parseNgay(dto.ngayQuyetDinh, 'Ngày quyết định');
+                    const ngayQd = parseNgayKyQuyetDinh(dto.ngayQuyetDinh);
                     const ngayGui = deNghi.createdAt.toISOString().slice(0, 10);
                     const ngayQdStr = ngayQd.toISOString().slice(0, 10);
                     if (ngayQdStr < ngayGui) {
@@ -1421,25 +1425,14 @@ export class ChangeRequestService {
             throw new RpcException({ statusCode: 400, message: 'Ngày quyết định không được trước ngày gửi đề nghị' });
         }
 
-        // Chặn chọn nhầm quyết định cũ
+        if (loaiCan === 'GIAO_DE_TAI') {
+            await assertUnusedThesisDecision(tx, quyetDinhId);
+            return qd;
+        }
+
         const daDung = loaiCan === 'PHAN_CONG_GVHD'
-            ? await tx.phanCongHuongDan.count({
-                where: {
-                    quyetDinhId: qd.id,
-                    ncsId: qd.ncsId,
-                },
-            })
-            : loaiCan === 'GIAO_DE_TAI'
-                ? await tx.deTai.count({
-                    where: {
-                        quyetDinhId: qd.id,
-                    },
-                })
-                : await tx.deNghiDieuChinh.count({
-                    where: {
-                        quyetDinhId: qd.id,
-                    },
-                });
+            ? await tx.phanCongHuongDan.count({ where: { quyetDinhId, ncsId: qd.ncsId } })
+            : await tx.deNghiDieuChinh.count({ where: { quyetDinhId } });
         if (daDung > 0) {
             throw new RpcException({ statusCode: 400, message: 'Quyết định này đã được dùng cho một phân công/đề tài/đề nghị khác, hãy chọn quyết định mới' });
         }

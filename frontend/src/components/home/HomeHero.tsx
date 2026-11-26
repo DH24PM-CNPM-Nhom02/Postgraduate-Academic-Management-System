@@ -260,5 +260,3 @@ export function HomeHero() {
     </section>
   );
 }
-
-export default HomeHero;

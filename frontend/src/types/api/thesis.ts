@@ -62,7 +62,7 @@ export interface AcademicThesisNcsItem {
   deTais?: BackendThesisItem[];
   phanCongs?: BackendPhanCongSimple[];
   hasPendingChangeRequest?: boolean;
-  trangThaiHocTap?: "DANG_HOC" | "GIA_HAN" | "THOI_HOC" | "TOT_NGHIEP";
+  trangThaiHocTap: "DANG_HOC" | "GIA_HAN" | "BAO_LUU" | "NGUNG_HOC" | "BUOC_THOI_HOC" | "DA_TOT_NGHIEP";
 }
 
 export interface AssignThesisPayload {
@@ -76,6 +76,7 @@ export interface DeactivateThesisPayload {
 }
 
 export interface AcademicThesisAdminDetailResponse {
+  trangThaiHocTap: AcademicThesisNcsItem["trangThaiHocTap"];
   id?: string;
   mshv?: string;
   hoTen?: string;

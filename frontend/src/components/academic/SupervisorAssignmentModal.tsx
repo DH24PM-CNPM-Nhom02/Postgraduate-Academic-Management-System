@@ -1,5 +1,6 @@
 "use client";
 
+import { canAssignSupervisor } from "@/src/lib/study-status";
 import React, { useState } from "react";
 import axios from "axios";
 import {
@@ -84,7 +85,7 @@ export function SupervisorAssignmentModal({
   const createAssignmentMutation = useCreateAssignment();
   const deactivateAssignmentMutation = useDeactivateAssignment();
 
-  const studentsList = (students ?? []).filter((item) => UUID_REGEX.test(item.id));
+  const studentsList = (students ?? (selectedStudent ? [selectedStudent] : [])).filter((item) => UUID_REGEX.test(item.id) && canAssignSupervisor(item));
   const supervisorsList = (supervisors ?? []).filter((item) => UUID_REGEX.test(item.id));
 
   const [studentId, setStudentId] = useState<string>(
@@ -103,7 +104,6 @@ export function SupervisorAssignmentModal({
 
   const currentStudent =
     studentsList.find((s) => s.id === studentId) ||
-    (selectedStudent && UUID_REGEX.test(selectedStudent.id) ? selectedStudent : undefined) ||
     studentsList[0];
   const currentSupervisor =
     supervisorsList.find((s) => s.id === supervisorId) ||

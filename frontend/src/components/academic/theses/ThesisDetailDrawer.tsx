@@ -1,5 +1,6 @@
 "use client";
 
+import { canManageThesis, canDeactivateThesis, getAssignmentBlock } from "./thesis-eligibility";
 import React, { useEffect } from "react";
 import Link from "next/link";
 import {
@@ -57,7 +58,13 @@ export function ThesisDetailDrawer({
 
   if (!isOpen) return null;
 
-  const currentItem = ncsSummary || null;
+  const currentItem: AcademicThesisNcsItem | null = ncsSummary && detail ? {
+    ...ncsSummary,
+    trangThaiHocTap: detail.trangThaiHocTap,
+    deTaiHienTai: detail.deTaiHienTai,
+    trangThaiDeTai: detail.deTaiHienTai ? "HIEU_LUC" : "CHUA_GIAO",
+  } : ncsSummary ?? null;
+  const summaryAllowsChanges = canManageThesis(ncsSummary?.trangThaiHocTap);
   const currentThesis =
     detail ? detail.deTaiHienTai : currentItem?.deTaiHienTai ?? null;
   const allTheses = detail?.deTais || currentItem?.deTais || [];
@@ -182,10 +189,10 @@ export function ThesisDetailDrawer({
                     <span>Đề tài Luận án Hiện tại</span>
                   </h4>
 
-                  {currentThesis && onDeactivateThesis && currentItem && !currentItem.hasPendingChangeRequest && (
+                  {currentThesis && onDeactivateThesis && currentItem && summaryAllowsChanges && canDeactivateThesis(currentItem) && (
                     <button
                       type="button"
-                      onClick={() => onDeactivateThesis({ ...currentItem, deTaiHienTai: currentThesis })}
+                      onClick={() => onDeactivateThesis(currentItem)}
                       className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 flex items-center gap-1 cursor-pointer"
                     >
                       <Ban className="size-3" />
@@ -256,10 +263,10 @@ export function ThesisDetailDrawer({
                         Cần ban hành quyết định và thực hiện giao đề tài cho NCS.
                       </p>
                     </div>
-                    {onAssignThesis && currentItem && !currentItem.hasPendingChangeRequest && (
+                    {onAssignThesis && currentItem && summaryAllowsChanges && !getAssignmentBlock(currentItem) && (
                       <button
                         type="button"
-                        onClick={() => onAssignThesis({ ...currentItem, trangThaiDeTai: "CHUA_GIAO", deTaiHienTai: null })}
+                        onClick={() => onAssignThesis(currentItem)}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-[#164E9B] px-4 py-2 text-xs font-bold text-white hover:bg-[#123E7C] transition-colors shadow-xs cursor-pointer"
                       >
                         <PlusCircle className="size-4" />

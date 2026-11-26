@@ -260,7 +260,7 @@ function SubmitEvidenceDialogInner({
                 aria-hidden="true"
               />
               <span>
-                Mốc này hiện chưa mở quyền nộp minh chứng (`coTheNop = false`).
+                {milestone.lyDoKhoaNop ?? "Mốc này hiện chưa mở quyền nộp minh chứng."}
               </span>
             </div>
           )}

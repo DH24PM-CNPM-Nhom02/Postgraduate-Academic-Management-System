@@ -31,9 +31,11 @@ export interface StudentDossier {
   supervisorMain: string;
   supervisorCo?: string;
   remainingMonths: number;
+  hasTrainingDeadline?: boolean;
   currentMilestoneIndex: number; // 1 to 9
   publicationPoints?: number;
   status: StudentStatus;
+  trangThai?: string;
   email: string;
   phone: string;
   ngaySinh?: string | Date | null;

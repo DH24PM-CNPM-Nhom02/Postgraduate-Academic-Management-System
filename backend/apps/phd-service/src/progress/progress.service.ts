@@ -35,10 +35,17 @@ export class ProgressService {
     }
 
     async nopMinhChung(userId: string, thuTu: number, fileId: string, ghiChu?: string) {
+        const deTaiHieuLuc = { trangThai: 'HIEU_LUC' } as const;
+        const phanCongHieuLuc = { trangThai: 'DANG_HIEU_LUC' } as const;
         const ncs = await this.prisma.nghienCuuSinh.findUnique({
-            where: {
-                userId
-            }
+            where: { userId },
+            select: {
+                id: true, hoTen: true, mshv: true, trangThai: true, hanBuocThoiHoc: true,
+                _count: { select: {
+                    deTais: { where: deTaiHieuLuc },
+                    phanCongs: { where: phanCongHieuLuc },
+                } },
+            },
         });
         if (!ncs) {
             throw new RpcException({ statusCode: 404, message: 'Bạn chưa có hồ sơ NCS' });
@@ -51,6 +58,13 @@ export class ProgressService {
 
         if (ncs.trangThai !== 'DANG_HOC' && ncs.trangThai !== 'GIA_HAN') {
             throw new RpcException({ statusCode: 403, message: 'Hồ sơ NCS không ở trạng thái đang học' });
+        }
+
+        if (!ncs._count.deTais || !ncs._count.phanCongs) {
+            throw new RpcException({
+                statusCode: 400,
+                message: 'NCS phải có đề tài và được phân công GVHD còn hiệu lực trước khi nộp minh chứng.',
+            });
         }
 
         const tienTrinh = await this.prisma.tienTrinhNcs.findFirst({
@@ -93,7 +107,8 @@ export class ProgressService {
             const kq = await tx.tienTrinhNcs.updateMany({
                 where: {
                     id: tienTrinh.id,
-                    version: tienTrinh.version
+                    version: tienTrinh.version,
+                    ncs: { deTais: { some: deTaiHieuLuc }, phanCongs: { some: phanCongHieuLuc } },
                 },
                 data: {
                     trangThai: 'PENDING_REVIEW',

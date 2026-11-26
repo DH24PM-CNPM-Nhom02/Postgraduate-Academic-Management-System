@@ -105,20 +105,6 @@ export class NcsService {
     return goiService<T>(this.auth, cmd, payload, ms);
   }
 
-  async getNganhDaoTao() {
-    return this.prisma.nganhDaoTao.findMany({
-      select: { id: true, maNganh: true, tenNganh: true },
-      orderBy: [{ tenNganh: 'asc' }, { maNganh: 'asc' }],
-    });
-  }
-
-  async getKhoaHocNcs() {
-    return this.prisma.khoaHocNcs.findMany({
-      select: { id: true, maKhoaHoc: true, namTuyenSinh: true, ghiChu: true },
-      orderBy: [{ namTuyenSinh: 'desc' }, { maKhoaHoc: 'asc' }],
-    });
-  }
-
   /**
    * Tạo nhiều hồ sơ NCS trong một lần.
    * Chỉ lưu dữ liệu khi toàn bộ dòng đều hợp lệ.

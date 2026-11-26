@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AdminSidebar } from "./sidebar";
 import { AdminHeader } from "./header";
 import { AdminFooter } from "./footer";
-import { GlobalSearchModal } from "@/src/components/academic";
+import { GlobalSearchModal } from "@/src/components/academic/GlobalSearchModal";
 
 export interface AdminShellProps {
   children: React.ReactNode;

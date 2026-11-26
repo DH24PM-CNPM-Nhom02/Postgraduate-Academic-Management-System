@@ -106,5 +106,3 @@ export function HomeFooter() {
     </footer>
   );
 }
-
-export default HomeFooter;

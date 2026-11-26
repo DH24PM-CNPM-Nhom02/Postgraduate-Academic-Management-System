@@ -1,5 +1,6 @@
 "use client";
 
+import { getStudyStatus } from "@/src/lib/study-status";
 import React, { useMemo, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -62,12 +63,13 @@ export function DecisionIssueModal({
   const createDecisionMutation = useCreateDecision();
   const uploadDocumentMutation = useUploadDocument();
   const availableStudents = useMemo(
-    () => students.filter((student) => UUID_REGEX.test(student.id)),
+    () => students.filter((student) => UUID_REGEX.test(student.id) && getStudyStatus(student) !== "DA_TOT_NGHIEP"),
     [students]
   );
   const [selectedNcsIds, setSelectedNcsIds] = useState<string[]>(() =>
-    selectedStudent && UUID_REGEX.test(selectedStudent.id) ? [selectedStudent.id] : []
+    selectedStudent && availableStudents.some((student) => student.id === selectedStudent.id) ? [selectedStudent.id] : []
   );
+  const eligibleIds = selectedNcsIds.filter((id) => availableStudents.some((student) => student.id === id));
   const [searchTerm, setSearchTerm] = useState("");
   const [loai, setLoai] = useState<DecisionType>("CAN_CU_DUYET_MOC");
   const [soQuyetDinh, setSoQuyetDinh] = useState("");
@@ -105,7 +107,7 @@ export function DecisionIssueModal({
       loai,
       soQuyetDinh,
       ngayQuyetDinh,
-      ncsIds: selectedNcsIds,
+      ncsIds: eligibleIds,
       file: selectedFile,
       hanMoi,
       ghiChu,
@@ -195,7 +197,7 @@ export function DecisionIssueModal({
                   </label>
                 )) : <p className="p-2 text-slate-500">Không có NCS hợp lệ từ máy chủ phù hợp.</p>}
               </div>
-              <p className="mt-1 text-[11px] text-slate-500">Đã chọn {selectedNcsIds.filter((id) => availableStudents.some((student) => student.id === id)).length} NCS</p>
+              <p className="mt-1 text-[11px] text-slate-500">Đã chọn {eligibleIds.length} NCS</p>
             </section>
 
             <section>

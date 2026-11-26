@@ -50,7 +50,7 @@ function getDynamicStatusSummary(
   const unlocked = milestones.find((m) => m.trangThai === "UNLOCKED");
   if (unlocked) {
     return {
-      text: `Mốc ${unlocked.thuTu} sẵn sàng nộp`,
+      text: `Mốc ${unlocked.thuTu} ${unlocked.coTheNop ? "sẵn sàng nộp" : "chưa thể nộp"}`,
       className: "font-medium text-[#164E9B]",
     };
   }

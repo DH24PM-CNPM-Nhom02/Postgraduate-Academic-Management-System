@@ -383,6 +383,7 @@ export function useCreateDecision() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["academic", "decisions"] });
       queryClient.invalidateQueries({ queryKey: ["academic", "assignment-decisions"] });
+      queryClient.invalidateQueries({ queryKey: ["academic", "theses"] });
       queryClient.invalidateQueries({ queryKey: ["academic", "students"] });
     },
   });

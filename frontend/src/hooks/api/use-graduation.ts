@@ -73,7 +73,12 @@ export function useConfirmGraduation() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: GraduationService.confirm,
-    onSettled: () => client.invalidateQueries({ queryKey: graduationKeys.all }),
+    onSettled: () => Promise.all([
+      client.invalidateQueries({ queryKey: graduationKeys.all }),
+      client.invalidateQueries({ queryKey: ["academic", "students"] }),
+      client.invalidateQueries({ queryKey: ["academic", "decision-students"] }),
+      client.invalidateQueries({ queryKey: ["academic", "theses"] }),
+    ]),
   });
 }
 

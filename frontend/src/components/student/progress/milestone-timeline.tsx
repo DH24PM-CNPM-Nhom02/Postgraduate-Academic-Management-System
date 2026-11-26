@@ -84,7 +84,7 @@ export function MilestoneTimeline({
           circleClasses:
             "bg-[#164E9B] text-white border-[#164E9B] shadow-sm shadow-[#164E9B]/20 hover:bg-[#113E7D] ring-4 ring-[#164E9B]/20",
           textClasses: "text-[#0F2744] font-bold",
-          badgeText: "Sẵn sàng",
+          badgeText: milestone.coTheNop ? "Sẵn sàng" : "Chưa thể nộp",
           badgeClasses: "bg-[#164E9B]/10 text-[#164E9B] border-[#164E9B]/25",
           isPulsing: true,
         };

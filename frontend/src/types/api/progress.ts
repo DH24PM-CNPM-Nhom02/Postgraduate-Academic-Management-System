@@ -185,8 +185,10 @@ export interface BackendNcsMeResponse {
     namTuyenSinh: number | null;
     ghiChu: string | null;
   } | null;
+  deTais: Array<{ id: string; tenDeTai: string; trangThai: string }>;
   phanCongs: Array<{
     id: string;
+    trangThai: string;
     vaiTro: VaiTroHuongDan;
     trongSo: number | string;
     ngayBatDau: string | null;

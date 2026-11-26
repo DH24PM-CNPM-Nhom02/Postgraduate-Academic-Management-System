@@ -1,5 +1,6 @@
 "use client";
 
+import { canDeactivateThesis, getAssignmentBlock } from "./thesis-eligibility";
 import React from "react";
 import {
   MoreHorizontal,
@@ -35,25 +36,6 @@ export function ThesisRowAction({
   onDeactivateThesis,
   onViewDecision,
 }: ThesisRowActionProps) {
-  // Điều kiện được phép Giao đề tài mới:
-  // Chưa có đề tài hiệu lực, không có đơn chờ duyệt, và tình trạng học tập là DANG_HOC hoặc GIA_HAN
-  const isEnrolledOrExtended =
-    !item.trangThaiHocTap ||
-    item.trangThaiHocTap === "DANG_HOC" ||
-    item.trangThaiHocTap === "GIA_HAN";
-
-  const canAssignThesis =
-    item.trangThaiDeTai === "CHUA_GIAO" &&
-    !item.hasPendingChangeRequest &&
-    isEnrolledOrExtended;
-
-  // Điều kiện được phép Hủy đề tài (Giao sai / vô hiệu hóa):
-  // Đang có đề tài HIEU_LUC và không có đơn xin điều chỉnh chờ duyệt
-  const canDeactivateThesis =
-    item.trangThaiDeTai === "HIEU_LUC" &&
-    Boolean(item.deTaiHienTai) &&
-    !item.hasPendingChangeRequest;
-
   // Có quyết định phê duyệt kèm file/số hiệu
   const hasDecision = Boolean(
     item.deTaiHienTai?.quyetDinh?.fileId ||
@@ -92,7 +74,7 @@ export function ThesisRowAction({
           </DropdownMenuItem>
 
           {/* 2. GIAO ĐỀ TÀI MỚI */}
-          {canAssignThesis ? (
+          {!getAssignmentBlock(item) ? (
             <DropdownMenuItem
               onClick={() => onAssignThesis(item)}
               className="flex items-center gap-2 px-2.5 py-2 text-xs font-semibold text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50/70 rounded-lg cursor-pointer transition-colors"
@@ -122,7 +104,7 @@ export function ThesisRowAction({
           )}
 
           {/* 4. HỦY ĐỀ TÀI (GIAO SAI) */}
-          {canDeactivateThesis && (
+          {canDeactivateThesis(item) && (
             <>
               <DropdownMenuSeparator className="my-1 border-t border-slate-100" />
               <DropdownMenuItem
