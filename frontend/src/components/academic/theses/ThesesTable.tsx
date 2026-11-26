@@ -67,9 +67,11 @@ export function ThesesTable({
         const decision = thesis?.quyetDinh;
         const historyCount = item.deTais?.filter(({ trangThai }) => trangThai !== "HIEU_LUC").length ?? 0;
         return (
-          <div className="space-y-1">
+          <div className="max-w-xs space-y-1">
             {thesis ? (
-              <p className="font-medium text-slate-900">{thesis.tenDeTai}</p>
+              <p className="line-clamp-2 break-words font-medium text-slate-900" title={thesis.tenDeTai}>
+                {thesis.tenDeTai}
+              </p>
             ) : <span className="text-slate-400">—</span>}
             {decision && (
               <p className="text-slate-500">

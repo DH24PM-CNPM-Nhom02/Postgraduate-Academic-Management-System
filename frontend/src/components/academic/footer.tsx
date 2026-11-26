@@ -30,7 +30,7 @@ export function AcademicFooter() {
               Đại học Quốc gia TP. Hồ Chí Minh
             </p>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Phòng Đào tạo - Bộ phận Quản lý Sau Đại học (Giáo vụ SĐH). Hệ thống thông tin theo dõi tiến độ đào tạo NCS, thẩm định minh chứng học vụ và giám sát định mức hướng dẫn theo quy chế BR-09.
+              Phòng Đào tạo - Bộ phận Quản lý Sau Đại học (Giáo vụ SĐH). Hệ thống thông tin theo dõi tiến độ đào tạo NCS, thẩm định minh chứng học vụ và giám sát định mức hướng dẫn theo quy chế.
             </p>
           </div>
 

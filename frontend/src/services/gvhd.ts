@@ -1,3 +1,4 @@
+import { getSupervisorQuotaLimit, SUPERVISOR_QUOTA_BY_DEGREE } from "@/src/lib/supervisor-quota";
 import { apiClient, throwApiError } from "@/src/lib/api";
 import type { SupervisorQuotaRecord } from "@/src/types/academic";
 import type { CandidateSupervisorOption } from "@/src/types/ui/change-request";
@@ -338,7 +339,7 @@ export function mapBackendGvhdToSupervisorQuota(
         ? Number(rawCacheUsed.toFixed(1))
         : 0;
 
-  const maxQuota = Number(raw.maxNcsChoPhep ?? 3);
+  const maxQuota = Number(raw.maxNcsChoPhep ?? getSupervisorQuotaLimit(raw.hocHamHocVi) ?? SUPERVISOR_QUOTA_BY_DEGREE.TIEN_SI);
   const remainingQuota = Math.max(0, Number((maxQuota - usedQuota).toFixed(1)));
   const isFull = remainingQuota <= 0;
 
@@ -437,7 +438,7 @@ export function mapBackendGvhdToSupervisorProfile(
     chuyenMon: raw.chuyenNganh || "Chưa cập nhật",
     email: raw.email || "Chưa cập nhật email",
     soDienThoai: raw.soDienThoai || "Chưa cập nhật",
-    hanMucToiDa: raw.maxNcsChoPhep ?? undefined,
+    hanMucToiDa: raw.maxNcsChoPhep ?? getSupervisorQuotaLimit(raw.hocHamHocVi),
   };
 }
 
@@ -761,7 +762,7 @@ export function computeSupervisorQuota(
 
   if (tongTrongSo > hanMucToiDa) {
     mucCanhBao = "EXCEEDED";
-    ghiChuCanhBao = "Đã vượt quá hạn mức hướng dẫn cho phép theo Quy chế BR-09.";
+    ghiChuCanhBao = "Đã vượt quá hạn mức hướng dẫn cho phép theo Quy chế.";
   } else if (tongTrongSo === hanMucToiDa) {
     mucCanhBao = "FULL";
     ghiChuCanhBao = "Đã chạm định mức tối đa, không thể nhận thêm NCS mới.";

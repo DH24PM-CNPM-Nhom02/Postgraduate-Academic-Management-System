@@ -53,9 +53,9 @@ export interface SystemParametersConfig {
   maxExtensionMonths: number;
   /** Tổng thời gian đào tạo tối đa không vượt quá (tháng, mặc định 72) */
   maxTotalTrainingMonths: number;
-  /** Định mức hướng dẫn tối đa cho Giáo sư (mặc định 5) */
+  /** Định mức hướng dẫn tối đa cho Giáo sư (mặc định 7) */
   quotaProfessor: number;
-  /** Định mức hướng dẫn tối đa cho Phó Giáo sư (mặc định 4) */
+  /** Định mức hướng dẫn tối đa cho Phó Giáo sư (mặc định 5) */
   quotaAssociateProfessor: number;
   /** Định mức hướng dẫn tối đa cho Tiến sĩ (mặc định 3) */
   quotaDoctor: number;

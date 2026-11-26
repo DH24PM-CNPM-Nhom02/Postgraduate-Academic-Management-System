@@ -1,5 +1,6 @@
 "use client";
 
+import { getSupervisorQuotaLimit, SUPERVISOR_QUOTA_BY_DEGREE } from "@/src/lib/supervisor-quota";
 import React, { useEffect, useId, useRef, useState } from "react";
 import { AlertCircle, Check, ChevronDown, User } from "lucide-react";
 import type { QuotaWarningLevel, SupervisorQuota } from "@/src/types/ui/supervisor";
@@ -30,7 +31,7 @@ function buildProjectedQuota(
   const trongSoChinh = Number((item.soLuongHuongDanChinh * 1.0).toFixed(1));
   const trongSoPhu = Number((item.soLuongDongHuongDan * 0.5).toFixed(1));
   const tongTrongSo = Number((trongSoChinh + trongSoPhu).toFixed(1));
-  const hanMucToiDa = item.hanMucToiDa > 0 ? item.hanMucToiDa : 5.0;
+  const hanMucToiDa = item.hanMucToiDa > 0 ? item.hanMucToiDa : getSupervisorQuotaLimit(item.hocHamHocVi) ?? SUPERVISOR_QUOTA_BY_DEGREE.TIEN_SI;
   const trongSoConLai = Number(Math.max(0, hanMucToiDa - tongTrongSo).toFixed(1));
   const tyLeSuDungPhanTram = Math.round((tongTrongSo / hanMucToiDa) * 100);
 

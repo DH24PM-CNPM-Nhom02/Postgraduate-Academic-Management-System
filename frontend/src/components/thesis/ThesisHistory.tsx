@@ -199,11 +199,11 @@ export function ThesisHistory({
                     </div>
 
                     <div>
-                      <h3 className="text-sm font-bold leading-snug text-foreground">
+                      <h3 className="text-sm font-bold leading-snug text-foreground break-words line-clamp-2">
                         {item.tenDeTaiTiengViet}
                       </h3>
                       {item.tenDeTaiTiengAnh && (
-                        <p className="mt-0.5 text-xs italic text-muted-foreground">
+                        <p className="mt-0.5 text-xs italic text-muted-foreground break-words line-clamp-2">
                           {item.tenDeTaiTiengAnh}
                         </p>
                       )}
